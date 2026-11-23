@@ -11,8 +11,8 @@ from convertersmartgrid.aplicacion.asistente import almacen
 from convertersmartgrid.aplicacion.asistente import transformer as tr
 from convertersmartgrid.aplicacion.asistente.sinteticos import generar
 
-VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217', 'CA101', 'NA203'],
-         'proyecto': ['20261015-170359_CSG_IN111_TA225', 'CA101 13'], 'sistema': ['Pisco', 'Ica', 'Nasca']}
+VOCAB = {'alimentadores': ['IN191', 'TA295', 'PA297', 'CA191', 'NA293'],
+         'proyecto': ['20261015-170359_CSG_IN191_TA295', 'CA191 13'], 'sistema': ['Pisco', 'Ica', 'Nasca']}
 #: La de verdad: con 70 frases y 14 épocas la tarea se acierta pero los datos no (F1 0,49).
 CFG = tr.Configuracion()
 #: Para el candidato que debe rechazarse: basta con que exista.
@@ -38,9 +38,9 @@ def test_aprende_la_tarea_y_los_datos(entrenado, monkeypatch):
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     assert r['promovido'] and r['acierto_tarea'] >= 0.9 and r['f1_datos'] >= 0.8, r
     m = tr.cargar()
-    p = m.predecir('complata la conversion de IN111 y TA225')
+    p = m.predecir('complata la conversion de IN191 y TA295')
     assert p['tarea'] == 'convertir'
-    assert 'IN111' in p['datos']['alimentadores'][0]['valor']
+    assert 'IN191' in p['datos']['alimentadores'][0]['valor']
     p = m.predecir('calibra el sistema pisco con julio de 2026')
     assert p['tarea'] == 'sistema_completo' and p['datos']['sistema'][0]['valor'].lower() == 'pisco'
 
@@ -52,7 +52,7 @@ def test_reentrena_con_ordenes_reales_y_prueba_fija(entrenado, monkeypatch):
     raiz, r = entrenado
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(raiz))
     for i in range(10):
-        almacen.anotar('ejemplos', {'texto': f'genera el dgs de PA217 vez {i}', 'tarea': 'convertir',
+        almacen.anotar('ejemplos', {'texto': f'genera el dgs de PA297 vez {i}', 'tarea': 'convertir',
                                     'datos': [[15, 20, 'alimentadores']], 'origen': 'corregido'})
     ent, prueba = tr.ejemplos_reales()
     assert len(ent) == 8 and len(prueba) == 2

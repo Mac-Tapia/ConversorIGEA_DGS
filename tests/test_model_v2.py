@@ -95,9 +95,9 @@ def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
             'N1,500000,8700000',
             '[SOURCE]',
             'FORMAT_SOURCE=NetworkID,NodeID,DesiredVoltage',
-            'NET_2030_132_CA103,N1,13.2',
+            'NET_2030_132_CA193,N1,13.2',
             '[SECTION]',
-            'FEEDER=NET_2030_132_CA103',
+            'FEEDER=NET_2030_132_CA193',
             'FORMAT_SECTION=SectionID,FromNodeID,ToNodeID,Phase',
             '[LINE CONFIGURATION]',
             'FORMAT_LINE CONFIGURATION=SectionID,LineCableID,Length,Overhead',
@@ -109,10 +109,10 @@ def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
     equip.write_text('[LINE]\nFORMAT_LINE=LineID\nDEFAULT\n', encoding='utf-8')
 
     ds = CymdistDataset.from_files(red, loads, equip)
-    model = build_feeder_model(ds, 'CA103')
+    model = build_feeder_model(ds, 'CA193')
 
     # Se dibuja la cabecera — y nada más.
-    assert model.name == 'CA103'
+    assert model.name == 'CA193'
     assert model.source_node == 'N1'
     assert set(model.nodes) == {'N1'}
     assert model.lines == [] and model.loads == [] and model.seds == []

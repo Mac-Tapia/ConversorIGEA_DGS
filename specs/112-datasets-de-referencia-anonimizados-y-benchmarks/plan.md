@@ -158,7 +158,7 @@ limpia pasa.
 
 ## Decisiones
 
-- Benchmark de redes como trío TXT de CYMDIST, el formato que el conversor ya lee. Descartado: exportar la red de
+- Benchmark de redes como trío TXT, el formato que el conversor ya lee. Descartado: exportar la red de
   pandapower o un DGS, porque romperían el camino de conversión (P5) y el benchmark no probaría el lector ni las reglas.
 - Seudónimos por permutación sorteada con la semilla. Descartado: un hash del identificador original, porque con una
   lista de códigos candidatos se recupera por diccionario (RF-2).

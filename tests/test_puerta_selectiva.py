@@ -27,13 +27,13 @@ def _dato(valor):
 
 
 def test_069_rf35_mide_lo_que_ejecuta_solo_como_lo_resuelve_el_plan():
-    """069:RF-35 — «CA101 a CHN102» frente a dos códigos es el mismo plan; lo dudoso no cubre."""
-    filas = [_fila('transfiere de CA101 a CHN102 en PRUEBA_X', 'transferencia', ('CA101 a CHN102', 'alimentadores'),
+    """069:RF-35 — «CA191 a CHN192» frente a dos códigos es el mismo plan; lo dudoso no cubre."""
+    filas = [_fila('transfiere de CA191 a CHN192 en PRUEBA_X', 'transferencia', ('CA191 a CHN192', 'alimentadores'),
                    ('PRUEBA_X', 'proyecto')),
              _fila('flujo de AB101', 'flujo', ('AB101', 'alimentadores')),
              _fila('estado del trabajo', 'estado')]
     modelo = _Modelo({
-        filas[0]['texto']: ('transferencia', .99, {'alimentadores': _dato('CA101') + _dato('CHN102'),
+        filas[0]['texto']: ('transferencia', .99, {'alimentadores': _dato('CA191') + _dato('CHN192'),
                                                   'proyecto': _dato('PRUEBA_X')}),
         filas[1]['texto']: ('flujo', .99, {'alimentadores': _dato('AB101')}),
         filas[2]['texto']: ('cancelar_trabajo', .60, {})})
@@ -66,9 +66,9 @@ def test_069_rf35_la_decision_selectiva():
 
 def test_069_rf36_el_plan_resuelve_uniones_rutas_y_mensaje_entero(tmp_path):
     """069:RF-36 — sin «A» ni «CON» como alimentadores; la ruta que existe; el mensaje entero donde toca."""
-    assert pl.trozos_lista('CA101 a CHN102') == ['CA101', 'CHN102']
-    assert pl.trozos_lista('CA101 con PE104') == ['CA101', 'PE104']
-    assert pl.trozos_lista('AL105, AL108 y PO101') == ['AL105', 'AL108', 'PO101']
+    assert pl.trozos_lista('CA191 a CHN192') == ['CA191', 'CHN192']
+    assert pl.trozos_lista('CA191 con PE194') == ['CA191', 'PE194']
+    assert pl.trozos_lista('AL195, AL198 y PO191') == ['AL195', 'AL198', 'PO191']
     libro = tmp_path / 'cargas nuevas.xlsx'
     libro.write_bytes(b'x')
     ruta = libro.as_posix()

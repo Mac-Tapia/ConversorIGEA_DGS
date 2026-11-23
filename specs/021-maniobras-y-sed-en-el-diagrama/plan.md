@@ -74,7 +74,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - **Dos zonas** (decisión del operador). La salida (BH1) mide toda la carga de aguas
   abajo, y cabecera + llegada la de aguas arriba: con una sola cifra en cabecera, 9 MW de
   generación esconden dónde está la carga. Descartado: un solo factor a cabecera.
-- **Máxima de demanda, no de cabecera** (decisión del operador). En NA205 la máxima de
+- **Máxima de demanda, no de cabecera** (decisión del operador). En NA295 la máxima de
   cabecera cae con la central parada y no prueba nada de la central.
 - **Signos deducidos del balance (RF-29), no por perfil.** Cada medidor exporta con su
   convención; el balance BH4 = BH1 + BH2 la delata registro a registro. Descartado:
@@ -93,7 +93,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 ## Comprobación contra la constitución
 
 - 1 Determinismo: plegar recorre los puentes por `section_id`; la creación de la central
-  no toca el DGS. Prueba de `workers=1` frente a `workers>1` con NA203 + NA205.
+  no toca el DGS. Prueba de `workers=1` frente a `workers>1` con NA293 + NA295.
 - 2 Escala: el plegado es lineal en puentes; las curvas se piden una por alimentador; nada
   supone un número de alimentadores o de centrales.
 - 4 Sin inventar: el generador lleva la P y Q medidas, no un tipo `DEFAULT`.
@@ -101,14 +101,14 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - 7 Nada largo en HTTP: la máxima con central se calcula en el trabajo de la máxima.
 - 9 Datos de la distribuidora: las pruebas con libros reales solo con `CSG_DEMANDA_DIR`;
   las sintéticas inventan sus series.
-- 13 Universal: ningún nombre de medidor o de central en el código; la central de NA205
+- 13 Universal: ningún nombre de medidor o de central en el código; la central de NA295
   solo en el perfil de Empresa A.
 
 ## Estrategia de pruebas
 
 - `tests/test_puentes.py`: redes sintéticas para cada caso de RF-1 a RF-11 (vecina única,
   dos vecinas, cubículo ocupado, fuente, trafomix muerto); completitud.
-- Datos reales (las tres `CSG_*` y la vía Access): NA203 + NA205 sin barras hechas solo
+- Datos reales (las tres `CSG_*` y la vía Access): NA293 + NA295 sin barras hechas solo
   de acopladores donde RF-6 aplica; contador del informe; DGS idéntico con
   `workers=1` y `workers>1`; las dos disposiciones del TXT.
 - `tests/test_dgs_v2.py`: la SED con lo que decida la sonda (RF-12, RF-13).
@@ -118,7 +118,7 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
   común), como las pruebas de front existentes.
 - `tests/test_demanda_medida.py`: series sintéticas con central (signos cambiados,
   desbalance, registros raros, central parada); con `CSG_DEMANDA_DIR`, el registro de
-  NA205 del 2026-08-20 16:45.
+  NA295 del 2026-08-20 16:45.
 - `tests/test_ajuste_cabecera.py` y `test_ajuste_cabecera_guion.py` con `fake_pf`: dos
   factores, generador creado una vez, zona sin escaladas, sin central igual que antes.
 - DIgSILENT real al final de cada bloque (memoria: validar en DIgSILENT, no solo la suite).
@@ -129,10 +129,10 @@ Cuatro bloques independientes, que se pueden entregar por separado y en este ord
 - **Proyectos ya importados con `ElmCoup`**: los guiones (obras, transferencia) siguen
   leyendo los dos modelos; se prueba con `fake_pf` en los dos.
 - **Informes de estudio (017)** que nombran barras de puentes que ya no existen: se
-  revisa el trecho desde–hasta con CA101.
+  revisa el trecho desde–hasta con CA191.
 - **Diagrama**: al fundir barras cambia la posición de los símbolos de maniobra; se mira en
-  DIgSILENT con NA203 + NA205.
+  DIgSILENT con NA293 + NA295.
 - **La sonda de la SED puede decir que no hay forma limpia**: entonces RF-12 vuelve a la
   spec con la alternativa medida, antes de tocar `dgs.py`.
 - **Central y transferencia (011)**: con el generador en «Sin proyecto», los estudios de
-  transferencia de NA205 cambian; se anota en el informe que la central estaba generando.
+  transferencia de NA295 cambian; se anota en el informe que la central estaba generando.

@@ -20,14 +20,14 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
 | K. Operación | `digital_twin/oraculo.deriva`, `asistente/vigilancia.py`, ruta de vuelta atrás en `web/app.py` | RF-22 a RF-24 |
 | L. Trabajador del motor | `web/jobs.py` (carril `engine` en un proceso aparte), `web/services.py` | RF-25 a RF-27 |
 | O. Recompensas, penalizaciones y decisión | `asistente/almacen.py` (señal y pares), `asistente/reflexiones.py` (nuevo), `asistente/interprete.py` (umbrales por tarea, ejemplos parecidos), `asistente/indice.responder` (citas comprobadas) | RF-35 a RF-42 |
-| P. Proyecto desde cero y PIDE | `asistente/orquestador.py` (nuevo: etapas, puntos de control y reanudación sobre `asistente/ejecutor.py`), `pide_dataset.py` (corpus de PIDEELOR), `asistente/ejemplos_pide.py` (nuevo), `pide.py`, `pide_economia.py` (sin cambiar la norma) | RF-43 a RF-52 |
+| P. Proyecto desde cero y PIDE | `asistente/orquestador.py` (nuevo: etapas, puntos de control y reanudación sobre `asistente/ejecutor.py`), `pide_dataset.py` (corpus de PIDEEMPA), `asistente/ejemplos_pide.py` (nuevo), `pide.py`, `pide_economia.py` (sin cambiar la norma) | RF-43 a RF-52 |
 | N. Auditoría del dataset | `digital_twin/auditoria.py` (nuevo), `tools/digital_twin_auditar.py` (nuevo), `oraculo.entrenar` y `asistente/transformer.entrenar` la llaman antes | RF-29 a RF-34 |
 | M. Aceptación | `tools/sistema_web.py` y el asistente sobre todos los sistemas | RF-28 |
 
 ## Decisiones
 
 1. **Evaluación «un sistema fuera» (RF-2)** en lugar de particionar por hash de episodio. Con
-   hash, episodios casi iguales de IN111–TA225 caen en entrenamiento y prueba y el error sale
+   hash, episodios casi iguales de IN191–TA295 caen en entrenamiento y prueba y el error sale
    optimista; Donon (2022) y Lin et al. (2024) miden la generalización a redes no vistas.
 2. **Parada temprana, coseno y recorte de gradiente (RF-5, RF-6)** frente a 300 épocas fijas.
    Son las prácticas que Bischl et al. (2023) piden para que el resultado no dependa del
@@ -62,7 +62,7 @@ Estado: borrador del 2026-10-28, pendiente de aprobación junto con la spec.
    etapa es una ruta de la web ya probada (conversión, `sistema_web`, ajuste, obras, PIDE,
    informes). Es el patrón de Jia, Cui y Hug (2024-2025): el modelo razona y el simulador
    ejecuta y realimenta el error, con la traza auditable de ReAct.
-11. **El corpus PIDEELOR como contexto y ejemplos, no como norma (RF-46 a RF-48)**: los PIDE 2021
+11. **El corpus PIDEEMPA como contexto y ejemplos, no como norma (RF-46 a RF-48)**: los PIDE 2021
    y 2026 de Empresa B enseñan la forma de los entregables. La norma es el contrato de
    2017. Recuperación con cita (Gao et al., 2023-2024), igual que el índice del proyecto.
 

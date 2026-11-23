@@ -22,7 +22,7 @@ function marcas(min: number, max: number, n = 5): number[] {
  * Perfil de tensión que dejó la calibración (spec 094, RF-3): cada barra de media por su distancia eléctrica a la
  * cabecera, la troncal unida por una línea y el límite de tensión del perfil de la empresa.
  *
- * AL209 (2026-11-06): el usuario pidió ver todo el perfil del alimentador para juzgar dónde van los bancos; las barras
+ * AL299 (2026-11-06): el usuario pidió ver todo el perfil del alimentador para juzgar dónde van los bancos; las barras
  * bajo el límite salen en el color de error y la frase de abajo dice cuántas son.
  */
 export function PerfilTension({ perfil, feeder }: { perfil: Perfil; feeder: string }) {

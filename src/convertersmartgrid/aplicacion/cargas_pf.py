@@ -47,12 +47,12 @@ NUEVA_ALIASES = {
     'tensionbtkv': 'tension_bt_kv', 'tensionbt': 'tension_bt_kv', 'btkv': 'tension_bt_kv',
     'kvbt': 'tension_bt_kv',
     'observaciones': 'observaciones', 'obs': 'observaciones',
-    # Libro de planificación (SI213, 2026-10-12): la carga no tiene SED aún y se nombra
+    # Libro de planificación (SI293, 2026-10-12): la carga no tiene SED aún y se nombra
     # por su descripción; el alimentador va como «TRONCAL».
     'descripcion': 'nombre', 'nombre': 'nombre', 'proyecto': 'nombre', 'cliente': 'nombre',
     'troncal': 'alimentador',
     # 093:RF-1: la sigla con que la distribuidora identifica la carga (PI_15) la nombra; con la
-    # descripción, AL209 (2026-11-06) confundía dos clientes de cemento.
+    # descripción, AL299 (2026-11-06) confundía dos clientes de cemento.
     'siglasdecarga': 'sigla', 'siglas': 'sigla', 'sigla': 'sigla', 'siglasdelacarga': 'sigla',
     # 030:RF-10: año de ingreso, calendario (2030) o del PIDE (4); con o sin ñ.
     'añodeingreso': 'anio_ingreso', 'añoingreso': 'anio_ingreso', 'anodeingreso': 'anio_ingreso',
@@ -143,7 +143,7 @@ class CargaNueva:
     coord_x: float | None = None
     coord_y: float | None = None
     """004:RF-74: CoordX/CoordY tal como se escribieron. La propuesta de un dígito de menos se hace sobre ellos: SE0001
-    (PA217, 2026-11-12) llegó con Y = 476 517 y su GPS, ya convertido, solo decía «cerca del Polo Sur»."""
+    (PA297, 2026-11-12) llegó con Y = 476 517 y su GPS, ya convertido, solo decía «cerca del Polo Sur»."""
 
     def para_pf(self) -> dict[str, Any]:
         datos = asdict(self)
@@ -465,7 +465,7 @@ def mismo_cliente(a: str, b: str) -> bool:
         return True
     corto, largo, nombre_largo = (pa, pb, b) if len(pa) <= len(pb) else (pb, pa, a)
     # 099:RF-2: una sola palabra distintiva no basta. Usuario (2026-11-07): «PREDIO SUBLOTE N°01-FUNDO YANACA»
-    # y «YANACA» (NA205) son clientes distintos: un sublote es otra solicitud.
+    # y «YANACA» (NA295) son clientes distintos: un sublote es otra solicitud.
     if len(corto) < 2:
         return False
     return corto <= (largo | _con_compuestas(nombre_largo))
@@ -554,7 +554,7 @@ def a_wgs84(puntos: Sequence[tuple[float, float]], source_crs: str) -> list[tupl
 FRACCION_LINEA_LARGA = 0.5
 #: 004:RF-73: el margen de la zona, en radios del propio alimentador: el tope es su radio más otro tanto (su
 #: diámetro). Un dígito de más o de menos, o X/Y o Lat/Lon al revés, mueven el punto cientos o miles de km (SE0001:
-#: 7 990 km de PA217, de radio 8,7 km); un cliente legítimo a uno o dos km de un alimentador corto no se rechaza.
+#: 7 990 km de PA297, de radio 8,7 km); un cliente legítimo a uno o dos km de un alimentador corto no se rechaza.
 MARGEN_ZONA = 1.0
 _RADIO_TIERRA_M = 6_371_000.0
 

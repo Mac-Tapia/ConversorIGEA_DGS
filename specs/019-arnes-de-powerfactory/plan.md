@@ -28,4 +28,4 @@ Lee: `docs/constitution.md` y la spec. Piezas que ya hay: `powerfactory_env.proc
 - `tests/test_pf_servidor.py`: dos órdenes con una sola activación y cierre por inactividad,
   con `fake_pf`.
 - `tests/test_obras_pf.py`, `tests/test_obras_pf_guion.py`: la obra `consigna`.
-- Prueba real (P11): dos guiones a la vez, tres órdenes seguidas, consigna en CA101.
+- Prueba real (P11): dos guiones a la vez, tres órdenes seguidas, consigna en CA191.

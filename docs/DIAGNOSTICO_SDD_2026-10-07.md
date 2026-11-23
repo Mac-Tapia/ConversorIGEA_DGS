@@ -193,7 +193,7 @@ entrada cualquier fichero del disco del servidor. Además, la API no tiene auten
 la interfaz real de escucha, y por defecto en cerrado.
 
 **T1. Laguna de cobertura TXT ↔ Access — media.** Las pruebas que comparan el mismo
-alimentador por las dos vías (`test_feeder_pa217.py`, `test_feeder_sl143.py` y las 6
+alimentador por las dos vías (`test_feeder_pa297.py`, `test_feeder_sl193.py` y las 6
 omitidas de `test_access_input.py`) nunca se ejecutan con los datos disponibles, porque
 no hay un TXT y una `.mdb` de la misma exportación. Que las dos vías den el mismo modelo
 no está comprobado hoy. Hace falta pedir a la distribuidora una pareja TXT + `.mdb` de la
@@ -201,7 +201,7 @@ misma fecha.
 
 **T2. Duplicación en las pruebas — baja.** `tests/conftest.py` existe, pero:
 
-- `test_feeder_pa217.py` y `test_feeder_sl143.py` copian sus fixtures `mdb_dataset` y
+- `test_feeder_pa297.py` y `test_feeder_sl193.py` copian sus fixtures `mdb_dataset` y
   `dataset_for` y el auxiliar `both`;
 - `_module` (cargar un script de `tools/`) está en 4 ficheros;
 - `_wait` (esperar a un trabajo) está en 2.
@@ -247,7 +247,7 @@ front. S1 entra en la spec 001 como RF-15.
    - `vnr-etl --help`, `vnr-etl doctor` e `convertersmartgrid-web --help`: responden.
 4. **Oráculo pandapower** (`oraculo.py`, que ninguna prueba ejecuta) sobre los 96
    alimentadores reales con las reglas del proyecto: 31 s; **95 convergen, 1 con error**
-   (`tension_imposible`; tensión mínima 0,756 pu en PE105); **0 excepciones**.
+   (`tension_imposible`; tensión mínima 0,756 pu en PE195); **0 excepciones**.
 
 ### Cobertura por módulo
 
@@ -383,7 +383,7 @@ front. S1 entra en la spec 001 como RF-15.
   `pip install -r requirements.txt`, también la instalación automática de `run_gui.bat`.
   Además, el `.venv` de esta máquina no tiene `leafmap`, `chardet`, `SQLAlchemy`,
   `oracledb`, `psycopg2-binary`, `opencv-python`, `pdf2image` ni `rarfile`.
-- **R3. Ayuda del CLI en inglés.** `convertersmartgrid --help` («Universal CYMDIST TXT to
+- **R3. Ayuda del CLI en inglés.** `convertersmartgrid --help` («Universal TXT to
   DIgSILENT DGS converter», «List feeders…», «Convert one, several…») incumple la regla de
   idioma.
 - **R4. Ruido de pandapower.** Imprime un aviso de `numba` por cada alimentador calculado
@@ -439,7 +439,7 @@ hoy; R1 y R2 son los que más conviene cerrar.
 | Repetida tras instalar los drivers opcionales | 864 correctas, 0 fallos: los drivers no cambian ningún resultado |
 | `tests/test_access_input.py` con las dos `.mdb` | 21 correctas; 6 omitidas por diseño (base y TXT de exportaciones distintas) |
 | `convertersmartgrid convert --all --workers 4` con los 96 alimentadores reales | 96/96 OK; los 96 DGS idénticos byte a byte a los de la revisión anterior (`--workers 1`). El resumen sale en español: «Pedidos / OK / Omitidos / Fallidos / Manifiesto» |
-| Oráculo sobre los 96 alimentadores reales | Igual que antes del arreglo: 95 convergen y 1 da error (`tension_imposible`, PE105 a 0,756 pu); 0 excepciones; 0 líneas de aviso de numba |
+| Oráculo sobre los 96 alimentadores reales | Igual que antes del arreglo: 95 convergen y 1 da error (`tension_imposible`, PE195 a 0,756 pu); 0 excepciones; 0 líneas de aviso de numba |
 | Prueba de que la prueba de numba sirve | `runpp` sin `numba=False` imprime el aviso: la prueba lo detectaría |
 | `pip install -r requirements.txt` | **Correcto**, ya sin drivers ni `leafmap`: el `.venv` tiene ahora todo lo del fichero principal, incluido `chardet`, que faltaba |
 
@@ -461,7 +461,7 @@ afecta al fichero principal ni al arranque de `run_gui.bat`.
 
 - Instalar `opencv-python` y `leafmap` con una conexión estable: `python -m pip install
   -r requirements-drivers.txt`, o uno a uno si alguno falla.
-- Revisar con la distribuidora el alimentador PE105: el oráculo calcula una tensión
+- Revisar con la distribuidora el alimentador PE195: el oráculo calcula una tensión
   mínima de 0,756 pu, por debajo del umbral de dato roto (0,80 pu). Apunta a un dato de
   la entrega, no al conversor.
 - Siguen abiertos S1, T1, T2, T3 y R5. S1 está en la spec 001 como RF-15. R5 (pruebas de
@@ -479,9 +479,9 @@ afecta al fichero principal ni al arranque de `run_gui.bat`.
   a `tests/apoyo.py`. En las pruebas solo queda repetida a propósito la comprobación de
   longitudes por alimentador, más dos en `test_gui_wiring.py`, que se retira con RF-16.
 - **Fallo de prueba oculto, corregido.** Al refactorizar T2 apareció que
-  `test_element_counts_match_the_source` (PA217 y SL143, en sus variantes TXT y Access)
+  `test_element_counts_match_the_source` (PA297 y SL193, en sus variantes TXT y Access)
   fallaba siempre que se le daba la `.mdb`. Esperaba una línea por tramo, pero las
-  reglas del proyecto funden los puentes `DEFAULT` cortos (en PA217, 784 de 1.324
+  reglas del proyecto funden los puentes `DEFAULT` cortos (en PA297, 784 de 1.324
   tramos, y la auditoría de completitud no da fallos). Como depende de la `.mdb`, en la
   suite normal se omitía y el fallo no se veía. Ahora mide la fidelidad literal con
   `SIN_REGLAS`, como pide el skill backend. Con las cinco variables a la vez la suite
@@ -491,13 +491,13 @@ afecta al fichero principal ni al arranque de `run_gui.bat`.
   `exporters/cymdist.py`. Al escribirlas apareció que **todo export CYMDIST con perfil
   verificado fallaba con `TypeError`**: `export()` pasaba la carpeta donde iba la
   especificación de columnas. Corregido pasando los argumentos por nombre.
-- **PE105 — analizado.** La causa no está en el conversor. El alimentador pide 5,38 MW a
+- **PE195 — analizado.** La causa no está en el conversor. El alimentador pide 5,38 MW a
   10 kV (13,3 MVA instalados en 65 SED) por 19 km, con 408 A en cabecera a través de
   troncales de 25 mm² (125-154 A), sin ninguna maniobra abierta y sin tramos `DEFAULT`.
   O la demanda de CARGA está sobrestimada, o parte de esa carga la alimenta otro
   alimentador por un punto de apertura que el export no recoge. Es una pregunta para la
   distribuidora. El detalle con códigos de SED y de tramo está en
-  `output/verif/PE105_informe.md`, que git ignora porque son datos de la distribuidora.
+  `output/verif/PE195_informe.md`, que git ignora porque son datos de la distribuidora.
 - **`opencv-python` y `leafmap`** — siguen sin instalar: la red de esta máquina corta las
   descargas grandes (44 MB) en cada intento.
 

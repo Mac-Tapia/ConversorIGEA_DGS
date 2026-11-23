@@ -14,8 +14,8 @@ async function pintar(ocupado=false){
   ws:{id:'Prueba',options:{},inputs:{}},health:{edicion:{producto:true,beta:[]}},
   active:ocupado?{powerfactory:{id:'activo'}}:{},run:async f=>f(),startJob:async()=>undefined,
   jobs:{proyectos:{kind:'pf_projects',status:'done',result:{exists:true,folder:'Empresa de prueba',projects:[
-   {name:'SI213',path:'Empresa A/SI213',feeders:['F1']},
-   {name:'SI213',path:'Empresa B/SI213',feeders:['F2']}]}}}}},createElement(CargasTab)));`,
+   {name:'SI293',path:'Empresa A/SI293',feeders:['F1']},
+   {name:'SI293',path:'Empresa B/SI293',feeders:['F2']}]}}}}},createElement(CargasTab)));`,
  resolveDir:fileURLToPath(new URL('..',import.meta.url)),loader:'tsx'},bundle:true,write:false,format:'cjs',platform:'node',jsx:'automatic'});
  const mod={exports:{}};new Function('require','module','exports',result.outputFiles[0].text)(createRequire(import.meta.url),mod,mod.exports);
  return mod.exports.pintar(ocupado);
@@ -23,7 +23,7 @@ async function pintar(ocupado=false){
 
 test('002:RF-18, 005:RF-16 render real conserva proyectos homónimos por ruta completa',async()=>{
  const html=await pintar();
- assert.ok(html.includes('value="Empresa A/SI213"')&&html.includes('value="Empresa B/SI213"'));
+ assert.ok(html.includes('value="Empresa A/SI293"')&&html.includes('value="Empresa B/SI293"'));
  for(const t of ['Buscar','Proyecto (2 de 2)','Volver a leer proyectos','Empresa de prueba'])assert.ok(html.includes(t),t);
 });
 

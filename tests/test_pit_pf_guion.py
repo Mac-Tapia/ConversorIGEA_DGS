@@ -637,14 +637,14 @@ def test_con_la_misma_nominal_la_red_no_cambia():
 # máxima del lado de alta: DIgSILENT usaba las vk de esa toma (``uktr3mx_*``) y no las nominales (``uktr3_*``), y el motor
 # abierto, con las nominales, ponía el punto estrella junto a media en vez de junto a alta: ~460 MW de desajuste.
 
-def _app_tr3(itapzdep, n3tap):
+def _app_tr3(itapzdep, n3tap, itapos=1):
     app = _AppTransmision()
     tipo = Obj(None, 'TypTr3', 't3', strn3_h=240.0, strn3_m=240.0, strn3_l=80.0, utrn3_h=200.0, utrn3_m=62.46,
                utrn3_l=10.0, uktr3_h=12.6, uktr3_m=1.7, uktr3_l=6.8, uktrr3_h=0.28, uktrr3_m=0.16, uktrr3_l=0.17,
                uktr3mn_h=11.1, uktr3mn_m=10.1, uktr3mn_l=5.9, uktr3mx_h=11.9, uktr3mx_m=10.2, uktr3mx_l=4.6,
                uktrr3mn_h=0.8, uktrr3mn_m=0.5, uktrr3mn_l=0.9, uktrr3mx_h=0.8, uktrr3mx_m=0.5, uktrr3mx_l=0.9,
                pcut3_h=670.0, pcut3_m=125.0, pcut3_l=135.0, pfe=130.0, curm3=0.17, du3tp_h=5.0, n3tp0_h=0,
-               n3tmn_h=-2, n3tmx_h=2, nt3ag_h=0.0, nt3ag_m=0.0, nt3ag_l=11.0, itapzdep=itapzdep)
+               n3tmn_h=-2, n3tmx_h=2, nt3ag_h=0.0, nt3ag_m=0.0, nt3ag_l=11.0, itapzdep=itapzdep, itapos=itapos)
     sub = app.b[('SY', '1')]._padre
     # La barra de baja a 66 kV: el ámbito del área de prueba empieza en 60 kV y una de 10 kV quedaría fuera con el trafo.
     bt = Obj(None, 'ElmTerm', '4', sub, uknom=66.0)
@@ -671,8 +671,70 @@ def test_con_impedancia_dependiente_de_la_toma_el_trafo3_sale_con_las_vk_de_su_t
 
 
 def test_sin_impedancia_dependiente_de_la_toma_el_trafo3_sale_con_las_vk_nominales():
-    """107:RF-30 — con ``itapzdep`` = 0 la toma no cambia las vk: salen las nominales, como antes."""
+    """107:RF-30, 107:RF-38 — con ``itapzdep`` = 0 salen las vk nominales en el neutro, y fuera de él con la toma en el
+    borne (``itapos`` = 1)."""
+    assert _vk3(_app_tr3(0, 0))[:3] == (12.6, 1.7, 6.8)
     assert _vk3(_app_tr3(0, 2))[:3] == (12.6, 1.7, 6.8)
+
+
+def _estrella(vk_hm, vk_ml, vk_lh, sn=(240.0, 240.0, 80.0)):
+    """Las tres ramas de estrella en % sobre la potencia de alta, desde los pares en la base de cada par."""
+    hm, ml, lh = vk_hm * sn[0] / min(sn[0], sn[1]), vk_ml * sn[0] / min(sn[1], sn[2]), vk_lh * sn[0] / min(sn[2], sn[0])
+    return ((hm + lh - ml) / 2, (hm + ml - lh) / 2, (ml + lh - hm) / 2)
+
+
+# --- 107:RF-38: la rama del devanado con toma en ohmios (corrida de 107 T14 del 22-11) -------------------------------
+# En la copia de transmisión dos trafos de tres devanados de 200/62,46 kV con la toma en el punto estrella estaban en la
+# toma +2 de alta (t = 1,1): con las tensiones de DIgSILENT, pandapower les daba 94,4 MW a cada uno y DIgSILENT 116,5,
+# porque DIgSILENT deja la rama de alta en ohmios y pandapower la escala con t². Su red de 60 kV quedaba descuadrada
+# ±50 MW; los de la misma ficha con la toma en el borne ya cuadraban.
+
+def test_con_la_toma_en_la_estrella_la_rama_del_devanado_queda_en_ohmios_de_su_lado():
+    """107:RF-38 — con la toma en el punto estrella (``itapos`` = 0) y en +2 de alta (5 % por paso, t = 1,1), la rama
+    de estrella de alta sale dividida por t² y las de media y baja no cambian, en vk y en vkr."""
+    t = 1.1
+    vk = _vk3(_app_tr3(0, 2, itapos=0))
+    zh, zm, zl = _estrella(12.6, 1.7, 6.8)
+    ah, am, al = _estrella(*vk[:3])
+    assert (round(ah, 3), round(am, 3), round(al, 3)) == (round(zh / t**2, 3), round(zm, 3), round(zl, 3))
+    rh, rm, rl = _estrella(670.0 / (10 * 240.0), 125.0 / (10 * 80.0), 135.0 / (10 * 80.0))
+    bh, bm, bl = _estrella(*vk[3:])
+    assert (round(bh, 3), round(bm, 3), round(bl, 3)) == (round(rh / t**2, 3), round(rm, 3), round(rl, 3))
+
+
+def test_con_la_rama_en_ohmios_pandapower_da_el_flujo_de_digsilent():
+    """107:RF-38 — el trafo exportado en la toma +2, entre dos tensiones fijas y con baja en vacío, lleva en pandapower
+    la potencia del modelo de DIgSILENT: rama de alta en ohmios a la tensión nominal del tipo y la de media en p.u. de
+    media, referida a alta por la relación de la toma."""
+    import cmath
+    import math
+    import warnings
+
+    import pandapower as pp
+    warnings.filterwarnings('ignore')
+    t3 = _red_t(_app_tr3(0, 2, itapos=0)).de_tipo('trafo3')[0]
+    v1, v2 = 0.99 * cmath.exp(1j * math.radians(-47.1)), 1.01 * cmath.exp(1j * math.radians(-50.5))
+    n = pp.create_empty_network(sn_mva=100)
+    b = [pp.create_bus(n, kv) for kv in (220.0, 60.0, 66.0)]
+    pp.create_ext_grid(n, b[0], vm_pu=abs(v1), va_degree=math.degrees(cmath.phase(v1)))
+    pp.create_ext_grid(n, b[1], vm_pu=abs(v2), va_degree=math.degrees(cmath.phase(v2)))
+    num = ('sn_hv_mva', 'sn_mv_mva', 'sn_lv_mva', 'vn_hv_kv', 'vn_mv_kv', 'vn_lv_kv', 'vk_hv_percent', 'vk_mv_percent',
+           'vk_lv_percent', 'vkr_hv_percent', 'vkr_mv_percent', 'vkr_lv_percent', 'tap_step_percent', 'tap_neutral',
+           'tap_pos', 'tap_min', 'tap_max')
+    pp.create_transformer3w_from_parameters(n, *b, pfe_kw=0.0, i0_percent=0.0, tap_changer_type='Ratio',
+                                            tap_side=t3.get('tap_side'), **{k: float(t3.get(k)) for k in num})
+    pp.runpp(n, calculate_voltage_angles=True, numba=False)
+    zh, zm, _ = _estrella(12.6, 1.7, 6.8)
+    rh, rm, _ = _estrella(670.0 / (10 * 240.0), 125.0 / (10 * 80.0), 135.0 / (10 * 80.0))
+
+    def rama(z, r):
+        return complex(r, math.copysign(math.sqrt(max(z * z - r * r, 0.0)), z)) / 100
+
+    rel = 200.0 * 1.1 / 62.46
+    z = rama(zh, rh) * 200.0**2 / 240.0 + rama(zm, rm) * 62.46**2 / 240.0 * rel**2
+    i = (v1 * 220.0 - v2 * 60.0 * rel) / z
+    p_dig = (v1 * 220.0 * i.conjugate()).real
+    assert float(n.res_trafo3w.p_hv_mw[0]) == pytest.approx(p_dig, rel=0.02)
 
 
 def test_sin_impedancia_dependiente_la_vkr_de_cada_par_va_en_la_base_del_par():

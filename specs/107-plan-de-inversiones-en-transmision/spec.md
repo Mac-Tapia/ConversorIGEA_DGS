@@ -304,6 +304,13 @@ común.
   motor abierto dará la corriente del devanado más cargado sobre la nominal de ese devanado con esa potencia; la
   impedancia sigue en la base del tipo. (En la copia de transmisión 20 trafos de tres devanados la tenían distinta,
   132 MVA frente a 80, y el motor abierto daba 70,5 % donde DIgSILENT da 42,7 %, con el mismo flujo.)
+- RF-38: (corrida de 107 T14 del 22-11; amplía RF-30) CUANDO un trafo de tres devanados tenga la toma en el punto
+  estrella (itapos = 0 en su tipo) y esté fuera del neutro, EL SISTEMA exportará sus vk y vkr con la rama de estrella
+  del devanado con toma dividida por el cuadrado de la relación de la toma y las otras dos sin cambio, porque
+  DIgSILENT deja esa rama en ohmios de su lado y pandapower, con la toma en el borne, la escala con la toma. (En la
+  copia de transmisión dos trafos de 200/62,46 kV en la toma +2 de alta llevaban en el motor abierto, con las tensiones
+  de DIgSILENT, 94,4 MW donde DIgSILENT da 116,5, y la red de 60 kV que alimentan quedaba descuadrada ±50 MW; los de
+  la misma ficha con la toma en el borne ya cuadraban.)
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.

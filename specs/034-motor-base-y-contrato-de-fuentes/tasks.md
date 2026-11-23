@@ -5,7 +5,8 @@
 - [x] T2. Las pruebas del motor base y del contrato de fuentes citan su RF en el docstring de
       su módulo; prueba de arranque de las herramientas de catálogo y esquema. (RF-1 a RF-33)
       Hecho cuando: `grep -rnoE "034:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-33 y esas
-      pruebas pasan.
+      pruebas pasan; las de los alimentadores de aceptación de RF-18, en `tests/test_feeder_pa297.py` y
+      `tests/test_feeder_sl193.py`.
 - [x] T3. `CODIGO_FUENTE.md` atribuye a la 034 cada fichero que decía solo «base». (RF-1 a RF-33)
       Hecho cuando: `pytest -q tests/test_trazabilidad_specs.py -k base` en verde.
 - [x] T4. C4 TO-BE en `docs/architecture/workspace_to_be.dsl`, que extiende `workspace.dsl` sin redefinirlo, con sus

@@ -45,14 +45,14 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 - D4 Entrega. Recomendado: **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`.
 - D5 Comentarios con casos reales en el código entregado. Recomendado: **neutralizarlos en la línea de producto**, conservando el motivo
   sin el nombre del cliente. Choca con la regla de `CLAUDE.md` de citar el caso real.
-- D6 Datos para las corridas: libro real de confiabilidad, fuente de «CA101 13», y qué hacer con PA217 en 025 T21 (es un proyecto vetado).
+- D6 Datos para las corridas: libro real de confiabilidad, fuente de «CA191 13», y qué hacer con PA297 en 025 T21 (es un proyecto vetado).
 - D7 Asesoría legal: licencia comercial, DIgSILENT, datos de Osinergmin y Empresa A, modelos. **No es decisión técnica**: la revisión solo
   señala qué mirar.
 - Decisiones del usuario del 2026-11-07 («de la B, haz todo según tu recomendación»): D1 **solo Perú** en la 1.0; D2 **puesto local
   por licencia**; D3 se mantiene (público, MIT); D4 **empaquetada**, sin `tests/`, `specs/`, `.claude/` ni `.git`; D5 los comentarios
   con casos reales se **neutralizan solo en el paquete entregado**, por un paso al empaquetar, y en el repositorio siguen citando el
-  caso (`CLAUDE.md`); D6 el libro real de confiabilidad y la fuente de «CA101 13» los da el usuario (responsable: el usuario), y la
-  025 T21 usa el PA217 del proyecto de prueba de Pisco, no el trabajado. D7 **no se considera** en la venta ni en otro uso: quien use
+  caso (`CLAUDE.md`); D6 el libro real de confiabilidad y la fuente de «CA191 13» los da el usuario (responsable: el usuario), y la
+  025 T21 usa el PA297 del proyecto de prueba de Pisco, no el trabajado. D7 **no se considera** en la venta ni en otro uso: quien use
   el proyecto debe tener sus propias licencias (DIgSILENT, datos de las distribuidoras y de Osinergmin, modelos); el producto no las
   incluye ni las concede.
 - Decisiones del usuario del 2026-11-14, para el lanzamiento (auditoría de lanzamiento de c7):
@@ -198,7 +198,7 @@ Se marcan con su recomendación; hasta que se respondan, el plan sigue con la re
 
 ### Déficit previo
 
-Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI112 quedó a 0,945 p.u. con la obra aplicada, y PA217 a 0,925: la carga cumple, y un ramal existente sigue bajo el límite sin empeorar.
+Usuario, 2026-11-04: «sigeu has cerrar», tras la opción recomendada. SI192 quedó a 0,945 p.u. con la obra aplicada, y PA297 a 0,925: la carga cumple, y un ramal existente sigue bajo el límite sin empeorar.
 
 - RF-48: CUANDO una barra de un alimentador con obra queda bajo el límite sin empeorar frente a «Sin proyecto», EL SISTEMA la anotará como déficit previo con su barra y su tensión.
 - RF-49: EL SISTEMA separará en el informe lo que causa la carga de lo que ya estaba fuera de límites.
@@ -214,7 +214,7 @@ Usuario, 2026-11-04: «debe ser 1.25 si no se considera la tasa de crecimiento»
 - RF-54: SI en Windows sustituir un fichero de estado falla porque otro proceso lo tiene abierto en ese instante (`PermissionError`), ENTONCES EL SISTEMA lo reintentará unas pocas veces, en menos de dos segundos, y solo después dará el error. (Suite completa del 2026-11-10: un trabajo de la web no se encoló una vez de 8 613 pruebas.)
 - RF-55: SI el perfil de la empresa no trae las fichas de transformadores de SED o el tamaño de banco por tensión, ENTONCES el
   diagnóstico lo avisará con la función que afecta (calibrar un alimentador con una SED sobrecargada) y cómo completarlo, en
-  vez de dar el perfil por bueno. (Programa instalado de prueba, 2026-11-11: sin perfil, CA101 no quedó válido y el
+  vez de dar el perfil por bueno. (Programa instalado de prueba, 2026-11-11: sin perfil, CA191 no quedó válido y el
   diagnóstico decía «se puede leer».)
 - RF-56: EL SISTEMA dejará cargar desde la web el perfil de la empresa y, si lo nombra, su estructura; lo validará como
   `validar-perfil` antes de escribir, no guardará nada si tiene errores, y si es bueno lo dejará en la carpeta de datos con
@@ -285,13 +285,13 @@ corresponde de la web». Las dos interrupciones ya no valían: después el mismo
 - RF-76: CUANDO se optimiza «Con proyecto» en alimentadores marcados sin ninguna carga nueva aplicada, EL SISTEMA
   subirá la escalera de 098:RF-29 en cada uno que viole límites y aplicará la obra elegida; el que cumple quedará sin
   obras, sin reponer cargas ni consultar el oráculo de cargas. SI se pidieron cargas concretas y ninguna está
-  aplicada, ENTONCES lo rechazará diciendo cuáles. (Empresa B NJA202, T32: 0,568 p.u. y ninguna obra ofrecida.)
+  aplicada, ENTONCES lo rechazará diciendo cuáles. (Empresa B NJA292, T32: 0,568 p.u. y ninguna obra ofrecida.)
 - RF-77: MIENTRAS el proyecto elegido está calibrado, con alimentadores marcados y sin cargas nuevas integradas, la
   pestaña de DIgSILENT ofrecerá «Obras para el estado actual», con el tipo de cambio y el libro CAPEX, y mostrará su
   resultado diciendo que lo medido es el estado actual. SI en disco hay cargas nuevas aplicadas en los alimentadores
   marcados y el informe de su aplicación ya no está en la sesión (tras reiniciar la web), ENTONCES el bloque se llamará
   «Obras en «Con proyecto» con las cargas nuevas», las nombrará y su botón dirá «Proponer obras automáticamente»; el
-  servidor ya las evalúa con esas cargas (CA101 con SECA001, 2026-11-13).
+  servidor ya las evalúa con esas cargas (CA191 con SECA001, 2026-11-13).
 
 ### La 1.0 instalada: manuales, una versión y vuelta atrás (2026-11-13)
 
@@ -434,7 +434,7 @@ datos del servidor. Sobraban además seis textos de la vista inicial.
 
 ### Variaciones y casos del conversor por su marca, también en una copia del proyecto (2026-11-12)
 
-En la copia PRUEBA064_184942 de PA217, la calibración buscaba `Fichas_PRUEBA064_184942` y, al no hallarla, creaba otra
+En la copia PRUEBA064_184942 de PA297, la calibración buscaba `Fichas_PRUEBA064_184942` y, al no hallarla, creaba otra
 junto a la `Fichas_<original>` que traía la copia; la restitución de la 064 no la deshacía en «Con proyecto». Y, como
 «Cargas nuevas» solo se rehace al insertar una carga (025:RF-79), al recalibrar se quedó con la fuente a 1,025 p.u.
 mientras los demás casos pasaban a 1,0278.

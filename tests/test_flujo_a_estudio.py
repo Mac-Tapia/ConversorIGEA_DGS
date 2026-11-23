@@ -1,6 +1,6 @@
 """Spec 091: de la calibración al estudio, en su orden y sin avisos que engañen.
 
-Cada prueba reproduce lo que se vio en la web el 2026-11-05 con TM102. Lo que depende del navegador
+Cada prueba reproduce lo que se vio en la web el 2026-11-05 con TM192. Lo que depende del navegador
 se comprueba en la fuente del front, como el resto de la suite, y de verdad en la tarea T7.
 """
 from __future__ import annotations
@@ -161,12 +161,12 @@ def test_hoja_da_la_sed_de_la_red(tmp_path):
     """091:RF-9 / 091:RF-10 — sin depender de su posición ni de un patrón de empresa."""
     libro = _libro(tmp_path / 'clientes.xlsx', {
         'resumen': [['Nis', 'EA'], ['381000358', 3.0]],
-        'Hayduk2': [['', 'Gen', 381000358.0, 'TM102'], ['', 'Pesquera', 'SE20066'], ['dia', 'hora']],
+        'Hayduk2': [['', 'Gen', 381000358.0, 'TM192'], ['', 'Pesquera', 'SE20066'], ['dia', 'hora']],
     })
-    cruzados, aparte = completar_desde_hojas([_cliente('381000358')], libro, {'SE20066': {'TM102'}, 'OTRA': {'X'}})
+    cruzados, aparte = completar_desde_hojas([_cliente('381000358')], libro, {'SE20066': {'TM192'}, 'OTRA': {'X'}})
     assert not aparte
     assert cruzados[0].sed == 'SE20066' and cruzados[0].cruzado_por == 'hoja'
-    assert cruzados[0].radial == 'TM102'
+    assert cruzados[0].radial == 'TM192'
     assert 'hoja «Hayduk2»' in cruzados[0].nota_asignacion and 'suministros' in cruzados[0].nota_asignacion
 
 
@@ -396,7 +396,7 @@ def test_informa_en_pantalla_cuando_la_q_no_cuadro():
 
 
 def test_empate_de_la_maxima_se_avisa():
-    """091:RF-26 — TM102 da 211 kW el 2026-02-04 y el 2026-08-16."""
+    """091:RF-26 — TM192 da 211 kW el 2026-02-04 y el 2026-08-16."""
     def reg(fecha, kw):
         return Registro(fecha=fecha, valores={'kw': kw, 'kva': kw * 2, 'kvar': 1.0})
 

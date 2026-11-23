@@ -1,6 +1,6 @@
 """Equipos del archivo original frente a los de DIgSILENT (spec 015, RF-6, RF-7, RF-32 a RF-34).
 
-La aceptación de CA101 del 2026-10-13 contaba transformadores pero no miraba su potencia,
+La aceptación de CA191 del 2026-10-13 contaba transformadores pero no miraba su potencia,
 y el operador tuvo que cambiar cuatro tipos a mano para que el flujo convergiera. Aquí se
 lee, del DGS que se importó, lo que el modelo debe tener: la capacidad de cada
 transformador y de cada línea, y el grupo de conexión y la tensión de baja de cada
@@ -85,7 +85,7 @@ def equipos_de_dgs(tablas: dict) -> dict[str, dict]:
 def _corriente(tipo: dict, en_aire: Any) -> float | None:
     """``InomAir`` para una línea al aire si está definido; si no, ``sline``.
 
-    En los DGS de CA101 ``InomAir`` viene a 0: la corriente es la de ``sline``.
+    En los DGS de CA191 ``InomAir`` viene a 0: la corriente es la de ``sline``.
     """
     aire = _num(tipo.get('InomAir'))
     if _entero(en_aire, 0) == 1 and aire:

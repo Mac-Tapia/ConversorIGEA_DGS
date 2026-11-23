@@ -1,12 +1,12 @@
 # Spec 042 — «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben
 
 Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras revisar
-NA203 + NA205 en DIgSILENT («para con proyecto debe usar la optimización, de proponer nuevas obras
+NA293 + NA295 en DIgSILENT («para con proyecto debe usar la optimización, de proponer nuevas obras
 por variaciones por cierta cantidad de cargas nuevas hasta donde se puede hacer las mejoras de
 infraestructura física existente, y si ya no se puede se proponen nuevas para lo que ya no están
 en las obras anteriores: nuevos alimentadores, traspaso de alimentadores a una nueva SET con un
 trafo nuevo, proponiendo un diseño para las cargas totales nuevas y factor de seguridad y factor
-de crecimiento para 30 años; a ese trabajo se debe conectar los tramos de NA203 y NA205; esos
+de crecimiento para 30 años; a ese trabajo se debe conectar los tramos de NA293 y NA295; esos
 tramos deben ingresar a la potencia de diseño del nuevo trafo; la ubicación debe ser la óptima
 tomando en cuenta las caídas y ubicación de cargas»).
 
@@ -18,7 +18,7 @@ la tendencia de crecimiento.
 
 ## Contexto y objetivo
 
-En NA203 + NA205 (2026-10-31), las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
+En NA293 + NA295 (2026-10-31), las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
 calibrados. Cada una sola converge, pero juntas dejan la red a 0,63 pu en «Cargas nuevas», y en
 «Con proyecto» el flujo cae a una solución sin sentido físico: el consumo baja 10,5 MW al entrar
 KANTU. La escalera de la spec 025 (bancos, regulador, nueva terna, cambio de sección) busca una
@@ -26,7 +26,7 @@ sola obra para todas las cargas a la vez, y con tanta carga ninguna variante es 
 queda nada aplicado ni se dice qué hacer con lo que no cabe.
 
 Esta spec reparte las cargas nuevas en dos destinos: las que la **red existente mejorada**
-puede atender con la escalera, y las demás, que pasan con tramos de NA203 y NA205 a una **SET
+puede atender con la escalera, y las demás, que pasan con tramos de NA293 y NA295 a una **SET
 nueva**, dimensionada a 30 años y situada donde menos caída y menos pérdidas da.
 
 ## Requisitos funcionales (EARS)
@@ -52,7 +52,7 @@ SET nueva para las que no caben
   transformador nuevo de la tensión de alta de la SET de cabecera de los alimentadores
   marcados a su tensión de media, alimentada como red externa en su barra de alta con la
   tensión y la potencia de cortocircuito de esa SET.
-- RF-6: EL SISTEMA trasladará a la SET nueva los tramos de NA203 y NA205 donde se conectan las
+- RF-6: EL SISTEMA trasladará a la SET nueva los tramos de NA293 y NA295 donde se conectan las
   cargas de RF-3: cada rama que las contiene se abre del alimentador actual en el tramo donde
   sale de lo que se queda y pasa a un alimentador nuevo de la SET nueva, con una línea desde la
   SET hasta ese punto, cada alimentador nuevo en su variación.
@@ -68,15 +68,15 @@ SET nueva para las que no caben
 - Aclaración de RF-5, RF-7 y RF-9 (usuario, 2026-10-31): los módulos salen del libro CAPEX de la
   empresa (en Empresa A, hoja `PyOTx27` y obras PIT: transformadores 60/22,9/10 kV de 15, 25 y
   40 MVA y la SET nueva completa), leídos con la configuración del perfil; el factor de seguridad
-  es 1,25, en el perfil; y la SET nueva de NA203 + NA205 es la SET Copara que la empresa ya
+  es 1,25, en el perfil; y la SET nueva de NA293 + NA295 es la SET Borealis que la empresa ya
   planifica en Nasca: se dimensiona y se ubica con RF-7 y RF-9, y se compara con la planificada.
 - Aclaración de RF-7 (usuario, 2026-10-31: «la tasa es para mediciones registradas, ya sea fijas y
   medición de cabecera; las nuevas son fijas, no tienen tasa de crecimiento»): la potencia de
   diseño es (demanda trasladada × (1 + g)^n + cargas nuevas) × factor de seguridad. g es la de la
   cabecera (029) cuando hay dos años; si no, la de la POT registrada de las fijas del alimentador
   en los libros de clientes de dos años, con las fijas que tienen registro en los dos y su código
-  anterior (tabla de suministros). Vale para cualquier proyecto, alimentador y empresa: NA203 +
-  NA205 es el caso de prueba (usuario, 2026-10-31: «debe ser universal, no exclusivo de Nazca»).
+  anterior (tabla de suministros). Vale para cualquier proyecto, alimentador y empresa: NA293 +
+  NA295 es el caso de prueba (usuario, 2026-10-31: «debe ser universal, no exclusivo de Nazca»).
 - RF-8: SI falta en el perfil el factor de seguridad o la tabla de potencias normalizadas, o un
   alimentador no tiene tasa de la spec 029, ENTONCES EL SISTEMA dirá cuál falta y no supondrá un
   valor (P13).
@@ -105,20 +105,20 @@ Informe y web
   transformadores en paralelo (`planificacion.transformador_set.unidades_en_paralelo_max`), EL
   SISTEMA elegirá el de menor costo con n unidades iguales (la SET una vez y n − 1 transformadores
   de su potencia) y creará la SET con esas n unidades; sin el dato del perfil, un solo
-  transformador. (Usuario, 2026-10-31: NA203 + NA205 pedían 45,5 MVA y el mayor módulo de
+  transformador. (Usuario, 2026-10-31: NA293 + NA295 pedían 45,5 MVA y el mayor módulo de
   22,9 kV era de 40; «la a)», transformadores en paralelo.)
 - RF-15: EL SISTEMA abrirá cada rama que pasa a la SET nueva en una barra de la red sin las cargas
   nuevas, la más cercana aguas arriba de las cargas que lleva, porque la obra se lee y se graba con
-  esas cargas apartadas. (NA203 + NA205, 2026-11-01: la barra de CIMAS la crea la variación de su
-  carga al partir un tramo, y la SET COPARA no se creaba con «no es del alimentador NA203».)
+  esas cargas apartadas. (NA293 + NA295, 2026-11-01: la barra de CIMAS la crea la variación de su
+  carga al partir un tramo, y la SET BOREALIS no se creaba con «no es del alimentador NA293».)
 - RF-16: EL SISTEMA dejará el transformador de la SET nueva con el cambiador en carga regulando la
   barra de media a la consigna de la red externa de la cabecera actual, y en la toma fija que la
   deja más cerca de esa consigna, para que el flujo del caso la cumpla aunque no ajuste tomas.
-  (NA203 + NA205, 2026-11-01: sin regular, 15 barras de media bajo 0,95 p.u. con la SET COPARA.)
+  (NA293 + NA295, 2026-11-01: sin regular, 15 barras de media bajo 0,95 p.u. con la SET BOREALIS.)
 - RF-17: CUANDO el operador pide la escalera primero, EL SISTEMA buscará carga a carga aunque las cargas pasen de `set_nueva_desde_kw` (063:RF-34); solo van a la SET nueva las que no quepan. Pisco (2026-11-03): 25,7 MW; el usuario eligió la escalera para saber qué resuelve cada obra.
 - RF-18: CUANDO una carga que pasa a la SET nueva se conecta partiendo un tramo, EL SISTEMA tomará como barra de su rama el extremo más cercano de ese tramo, porque su nodo solo existe en la variación de la carga, apartada al leer la red. Pisco (2026-11-03): 6 de 13 cargas quedaban fuera de la SET con «no se halló su barra». Usuario: «debió entrar todo».
-- RF-19: SI la obra de la SET nueva queda inactiva en un caso o falla al crearse, ENTONCES EL SISTEMA volverá a cerrar en ese caso los tramos y acopladores que abrió, y lo dirá: abrir es dato de operación y DIgSILENT lo guarda en el escenario, no en la variación de la obra. Pisco (2026-11-03): la obra quedó inactiva y sus 3 tramos abiertos dejaron 341 barras de AL209 sin tensión en «Con proyecto»; la corrida siguiente no halló camino desde la cabecera.
-- RF-20: CUANDO las ramas que pasan a la SET nueva son de distintas tensiones de media, EL SISTEMA le pondrá una barra de media por tensión, cada una con su transformador desde la de alta y la potencia por devanado del módulo (el del CAPEX es 60/22,9/10 kV de 40/40/40 MVA); nunca une una rama a una barra de otra tensión. Pisco (2026-11-03): SI112, de 10 kV, quedaba en la barra de 22,9 kV.
+- RF-19: SI la obra de la SET nueva queda inactiva en un caso o falla al crearse, ENTONCES EL SISTEMA volverá a cerrar en ese caso los tramos y acopladores que abrió, y lo dirá: abrir es dato de operación y DIgSILENT lo guarda en el escenario, no en la variación de la obra. Pisco (2026-11-03): la obra quedó inactiva y sus 3 tramos abiertos dejaron 341 barras de AL299 sin tensión en «Con proyecto»; la corrida siguiente no halló camino desde la cabecera.
+- RF-20: CUANDO las ramas que pasan a la SET nueva son de distintas tensiones de media, EL SISTEMA le pondrá una barra de media por tensión, cada una con su transformador desde la de alta y la potencia por devanado del módulo (el del CAPEX es 60/22,9/10 kV de 40/40/40 MVA); nunca une una rama a una barra de otra tensión. Pisco (2026-11-03): SI192, de 10 kV, quedaba en la barra de 22,9 kV.
 - RF-21: ANTES de diseñar la SET nueva, EL SISTEMA agrupará las cargas que no caben por zona geográfica: ninguna a más de `planificacion.radio_zona_set_km` del centro de carga de su zona. Sin ese dato no se supone ninguno y se agrupan todas, como antes (P13). Pisco (2026-11-03): una sola SET para 13 cargas dejaba Salud Huaytará a 90 km y 120 km de líneas; usuario: «para el diseño debe tener en cuenta la ubicación geográfica».
 - RF-22: SI una zona suma al menos `set_nueva_desde_kw`, ENTONCES EL SISTEMA le diseñará su SET nueva en su centro de carga; SI suma menos, ENTONCES la atenderá con un alimentador expreso desde la barra de media de la SET de su alimentador, con su tramo de entrada abierto y la ruta por las vías, y lo dirá por zona.
 - RF-23: EL SISTEMA medirá «Con proyecto» con el plan completo: creará las obras de todas las zonas (primero los alimentadores expresos, después las SET nuevas) y hará un solo flujo con todas activas; SI converge, ENTONCES quedan todas; SI no, ENTONCES se apagan todas, se cierra lo que abrieron (RF-19) y se dice. Pisco (2026-11-03): cada expreso medido solo, con las cargas de las otras zonas sin resolver, no convergía nunca.
@@ -128,11 +128,11 @@ Informe y web
 - RF-27: DONDE el perfil dé `escalera.secciones_normalizadas`, EL SISTEMA solo propondrá cambio de sección a esos conductores, y de cada uno una sola variante (la de ficha si existe). Empresa A (usuario, 2026-11-03): aéreos AL 50, 120 y 240 mm² y subterráneo N2XSY 120 mm², los de su CAPEX y sus ratios; la escalera de Pisco probaba AA095, AA150 y CU070, y cada uno dos veces.
 - RF-28: DONDE el perfil dé `escalera.cargabilidad_planeamiento_pct`, EL SISTEMA lo usará como límite de la escalera para los conductores de los alimentadores y para los transformadores de su SET, en la máxima con las cargas nuevas; si un alimentador no lo cumple con bancos, sección ni terna, pasa a alimentador nuevo (RF-22). Usuario (2026-11-03): «los alimentadores solo pueden cargar hasta 80 % de capacidad».
 - RF-29: CUANDO aplica la escalera por alimentador, EL SISTEMA aplicará en cada uno solo la obra que eligió su evaluación, sin volver a evaluar sus variantes, y nada en el que ya cumple. Pisco (2026-11-03): la aplicación repetía las 40 variantes de cada alimentador con 200 sorteos, 32 min por alimentador.
-- RF-30: SI un conductor de `escalera.secciones_normalizadas` no está en ninguna biblioteca a la tensión de las cargas, ENTONCES EL SISTEMA creará su tipo en el proyecto biblioteca con los datos de su ficha (o deducidos, spec 053) y lo ofrecerá en la escalera; y la combinación de sección y terna solo irá sobre el mismo camino (la doble terna del conductor nuevo), antes que las demás combinaciones. Pisco (2026-11-03): el AL 240 mm² nunca se probó porque no había tipo en la red, y AL209 y SI112 no cumplían; usuario: «240 mm2 doble terna».
+- RF-30: SI un conductor de `escalera.secciones_normalizadas` no está en ninguna biblioteca a la tensión de las cargas, ENTONCES EL SISTEMA creará su tipo en el proyecto biblioteca con los datos de su ficha (o deducidos, spec 053) y lo ofrecerá en la escalera; y la combinación de sección y terna solo irá sobre el mismo camino (la doble terna del conductor nuevo), antes que las demás combinaciones. Pisco (2026-11-03): el AL 240 mm² nunca se probó porque no había tipo en la red, y AL299 y SI192 no cumplían; usuario: «240 mm2 doble terna».
 - RF-31: CUANDO se pide con `tools/sistema_web.py --con-proyecto` sobre un proyecto ya calibrado, EL SISTEMA esperará el «Con proyecto» de ese proyecto que ya corra o lo lanzará, dirá por alimentador si ya cumple, su obra o que ninguna cumple, dejará el resultado en `--resumen-json` y la estadística de sus órdenes de DIgSILENT (081:RF-71), sin que nadie lo vigile. Usuario (2026-11-03): «lanza en DIgSILENT lo que falta del sistema de Pisco de forma automática».
-- RF-32: ANTES de la escalera por alimentador, EL SISTEMA activará en «Con proyecto» las variaciones de las cargas nuevas de esos alimentadores que estén desactivadas, y dirá cuáles. Pisco (2026-11-03): una caída de DIgSILENT a mitad de una evaluación dejó apartadas 6 de 14; AL209 y SI112 se midieron sin sus cargas y sus barras salían «a ? p.u.», así que ninguna variante cumplía aunque la red estuviera descargada.
+- RF-32: ANTES de la escalera por alimentador, EL SISTEMA activará en «Con proyecto» las variaciones de las cargas nuevas de esos alimentadores que estén desactivadas, y dirá cuáles. Pisco (2026-11-03): una caída de DIgSILENT a mitad de una evaluación dejó apartadas 6 de 14; AL299 y SI192 se midieron sin sus cargas y sus barras salían «a ? p.u.», así que ninguna variante cumplía aunque la red estuviera descargada.
 - RF-33: SI no hay libro CAPEX, no se puede leer o ningún módulo cubre la potencia de diseño, ENTONCES EL SISTEMA creará la SET igual: con el menor transformador normalizado que la cubre y el costo por MVA del módulo más parecido del libro, o sin costo si no hay ninguno, y lo anotará como por confirmar. Sustituye a «no se crea» y a pedir el libro. Usuario (2026-11-04): «no se puede aceptar una respuesta que no se puede, no existe en el CAPEX […] si falta se creará nuevo».
-- RF-34: EL SISTEMA creará en el proyecto biblioteca los tipos de regulador del catálogo a las tensiones de la escalera antes de evaluarla, activándolo si DIgSILENT no deja escribir en él sin activar. Pisco (2026-11-03): todas las variantes con regulador fallaban con «No está el tipo VR32_10kV_50A» y SI112 solo tenía esas.
+- RF-34: EL SISTEMA creará en el proyecto biblioteca los tipos de regulador del catálogo a las tensiones de la escalera antes de evaluarla, activándolo si DIgSILENT no deja escribir en él sin activar. Pisco (2026-11-03): todas las variantes con regulador fallaban con «No está el tipo VR32_10kV_50A» y SI192 solo tenía esas.
 - RF-35: SI el camino a una carga nueva alcanza `escalera.linea_larga_km` (10 km si el perfil no lo da), ENTONCES EL SISTEMA planteará el regulador de tensión solo, combinado con cada escalón y con la doble terna, antes que las demás combinaciones, para que el tope de variantes no lo deje fuera. Usuario (2026-11-04): «si es muy larga la línea debería plantearlo, lo posible, incluso los reguladores de tensión».
 - RF-36: CUANDO aplica obras, EL SISTEMA dejará en el informe de cada una sus elementos con las coordenadas de sus barras, en latitud y longitud y en el CRS del perfil. Usuario (2026-11-04): «todas las obras tienen que tener una ubicación óptima y georreferenciada […] estos cambios serán aplicados para los siguientes análisis, no es solo para este sistema».
 - RF-37: SI el camino a una carga nueva alcanza `escalera.linea_larga_km`, ENTONCES EL SISTEMA probará además los bancos en la barra existente a 2/3 del camino, el punto que más reduce las pérdidas en una línea con carga repartida, y se queda la que mide mejor.
@@ -142,7 +142,7 @@ Informe y web
 - RF-41: SI un alimentador no tiene tasa de crecimiento, ENTONCES EL SISTEMA diseñará la SET con la media de los demás o, sin ninguna, con la tasa de referencia, y lo dirá.
 - RF-42: SI un alimentador no tiene máxima, medidor o curva del año, o ningún instante tiene a todos medidos, ENTONCES EL SISTEMA evaluará las obras igual, a su demanda calibrada en la máxima y sorteando solo los medidos, y lo dirá.
 - RF-43: SI con las cargas nuevas un tramo del alimentador pasa del límite de carga, ENTONCES EL SISTEMA añadirá a cada variante las ternas que ese tramo necesita para quedar bajo el límite, descontando lo que ya le dé la propia variante, y probará también ese refuerzo solo. Pisco (2026-11-04): un alimentador con cinco cargas en varios ramales tenía un tramo al 141 %; cada variante reforzaba un solo camino, las tensiones cumplían (0,97 p.u.) y ninguna podía cumplir.
-- RF-44: EL SISTEMA buscará el camino eléctrico de cada carga nueva pasando por los acopladores cerrados y los demás equipos en serie, y solo las líneas de ese camino recibirán obras. Pisco (2026-11-04): el camino se buscaba solo por líneas, se cortaba en cada maniobra y ningún alimentador lo tenía; las obras se colocaban por cercanía GPS, y SI112 reforzaba una rama de 36 A que no era la de su carga de 58 A.
+- RF-44: EL SISTEMA buscará el camino eléctrico de cada carga nueva pasando por los acopladores cerrados y los demás equipos en serie, y solo las líneas de ese camino recibirán obras. Pisco (2026-11-04): el camino se buscaba solo por líneas, se cortaba en cada maniobra y ningún alimentador lo tenía; las obras se colocaban por cercanía GPS, y SI192 reforzaba una rama de 36 A que no era la de su carga de 58 A.
 - RF-45: SI no hay camino eléctrico hasta una carga nueva, ENTONCES EL SISTEMA dirá que coloca las obras por cercanía GPS.
 - RF-46: EL SISTEMA encontrará los tipos del proyecto biblioteca por el nombre con que se piden, aunque el proyecto conserve su nombre anterior. Pisco (2026-11-04): la biblioteca conservaba su nombre anterior, la obra pedía `CSG_Biblioteca_tipos` y todas las variantes con regulador fallaban con «No está el tipo»: el regulador nunca se había medido.
 - RF-47: DONDE la lectura dé la tensión de las barras, EL SISTEMA planteará el regulador sobre el camino de cada carga: en el último tramo con la tensión dentro del límite y a mitad de la caída hasta ese punto, con la unidad que lleva la corriente del tramo bajo el límite de planeamiento. Usuario (2026-11-04): «tienen que integrarse los reguladores en puntos óptimos cuando bancos y sección no solucionan la caída de tensión».
@@ -153,7 +153,7 @@ Informe y web
 - RF-89: CUANDO mide un sorteo, un punto de valle o un horizonte, EL SISTEMA leerá solo lo que juzga el criterio, sin extremos de todo el sistema ni pérdidas, comprobará las fases una vez por caso y dirá en el informe cuánto tardaron el flujo y la lectura. Usuario (2026-11-04): «las corridas de flujos son rápidas, por qué demora mucho».
 - RF-87: EL SISTEMA sorteará primero `escalera.sorteos_etapa` flujos (50 si el perfil no lo da; 0 lo apaga) y solo seguirá hasta todos si la fracción queda entre `escalera.sorteos_decide_no` (0,90) y `escalera.sorteos_decide_si` (0,98). Usuario (2026-11-04): «un sistema con más alimentadores va a demorar mucho tiempo, debería ser más eficiente». En Pisco, 200 sorteos costaban unos 25 min por alimentador.
 - RF-88: EL SISTEMA medirá la referencia sin obra de los sorteos solo cuando vaya a usarlos, y dirá en cada variante cuántos midió.
-- RF-86: EL SISTEMA proyectará el alcance de RF-73 con `planificacion.crecimiento_demanda_anual`, o la tasa de referencia si el perfil no la da, y dirá la tasa medida en un aviso. Sustituye a la tasa del alimentador de RF-73: en AL209 salía 16,5 % al año, que a 20 años multiplica su demanda por 21. Usuario (2026-11-04): «haz la recomendación».
+- RF-86: EL SISTEMA proyectará el alcance de RF-73 con `planificacion.crecimiento_demanda_anual`, o la tasa de referencia si el perfil no la da, y dirá la tasa medida en un aviso. Sustituye a la tasa del alimentador de RF-73: en AL299 salía 16,5 % al año, que a 20 años multiplica su demanda por 21. Usuario (2026-11-04): «haz la recomendación».
 - RF-85: CUANDO una barra de un flujo de valle estaba en límites sin la obra y la obra la sube menos que `escalera.tolerancia_pu` sobre el máximo, EL SISTEMA no rechazará la obra por ello. Usuario (2026-11-04), a la pregunta de si se aplica esa tolerancia: «sí». Caso: una barra a 1,049 p.u. pasaba de 1,05 por milésimas, y la única obra que cumplía era una terna de 61 km.
 - RF-79: CUANDO una pantalla de la web falla al dibujarse, EL SISTEMA dirá que falló y dejará recargar, en vez de quedar en blanco.
 - RF-80: CUANDO las cargas van directo a la SET nueva, EL SISTEMA devolverá el mismo resultado que los demás flujos, para que la web lo muestre. Hasta ahora ese resultado no se veía.
@@ -194,26 +194,26 @@ Informe y web
 - RF-48: CUANDO la escalera por alimentador elige la obra de un alimentador, EL SISTEMA la aplicará en DIgSILENT antes de evaluar el siguiente. Usuario (2026-11-04): «una vez que termine un alimentador […] ya debería pasarlo por DIgSILENT y a la vez haciendo lo que continúa». Pisco: las obras se aplicaban todas al final, y una caída a mitad perdía lo ya resuelto.
 - Aclaración de RF-10 (2026-11-01): de los puntos probados queda el mejor (converge, menos barras
   fuera, mayor tensión mínima); si un paso empeora, se vuelve al mejor y se acerca la mitad. Antes
-  quedaba el último, sin medir, y la SET COPARA acabó a 18 km de las cargas con 460 barras fuera.
+  quedaba el último, sin medir, y la SET BOREALIS acabó a 18 km de las cargas con 460 barras fuera.
 
 - Aclaración de RF-43 (2026-11-06): el refuerzo de un tramo aéreo sobrecargado sigue la escalera de
   RF-94; las ternas de RF-43 quedan para los cables y para los tramos que ninguna sección resuelve.
 - RF-94: SI un tramo aéreo pasa del límite de carga con las cargas nuevas y la variante no le pone obra,
   ENTONCES EL SISTEMA lo reforzará con el menor conductor de `escalera.secciones_normalizadas` de su
-  tensión que lo deja bajo el límite, y solo con ternas si ninguno basta. PE102 (2026-11-06): el refuerzo
+  tensión que lo deja bajo el límite, y solo con ternas si ninguno basta. PE192 (2026-11-06): el refuerzo
   de cada variante era siempre una terna, y el usuario corrigió la obra del vivero a un cambio de sección
   de SEC_1091_314817 (AA070 a AA120, de 136,2 % a 93,6 %), dentro del escalón de sección hasta 240 mm².
 - RF-95: CUANDO la escalera busca alternativas (RF-55), EL SISTEMA medirá las variantes de menor a mayor
   costo anual sin pérdidas, con las que no tienen costo al final y en el orden de la escalera entre
-  iguales, para que las primeras que cumplen sean las más baratas y RF-92 pare antes. PE102
+  iguales, para que las primeras que cumplen sean las más baratas y RF-92 pare antes. PE192
   (2026-11-06): se midieron 34 variantes en DIgSILENT; el usuario pidió «ordenar por costo y parar con
   las 3 más baratas que cumplen, más una definitiva».
 - RF-96: EL SISTEMA guardará la POT que da cada libro de clientes para la tasa de las fijas (RF-7) con la
   huella del libro (ruta, tamaño y fecha de modificación), de los alias y del lector, y no volverá a leer
-  un libro cuya huella no cambió. PE102 (2026-11-06): cada corrida de «Con proyecto» releía los 21 libros
+  un libro cuya huella no cambió. PE192 (2026-11-06): cada corrida de «Con proyecto» releía los 21 libros
   mensuales de clientes importantes, de 50 a 150 MB cada uno.
 
-Decisión del usuario (2026-11-07), tras corregir en PE102 una terna por el cambio de sección AA070 →
+Decisión del usuario (2026-11-07), tras corregir en PE192 una terna por el cambio de sección AA070 →
 AA120 de SEC_1091_314817: «siempre debes seguir el flujo del proyecto en selección de alternativas; la
 nueva terna debe ser en 120 mm², ambas ternas; solo una terna debe ser 240 mm²; de 3 a 6 [alternativas]
 según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94, RF-95), el oráculo
@@ -262,6 +262,6 @@ según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94
 ## Criterios de finalización
 
 - `grep -rnoE "042:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-14.
-- NA203 + NA205 desde la web: cada carga nueva con su destino; la red existente con obras que
+- NA293 + NA295 desde la web: cada carga nueva con su destino; la red existente con obras que
   cumplen; la SET nueva con su punto, su potencia de diseño a 30 años y sus alimentadores, y
   «Con proyecto» convergiendo dentro de los límites de tensión.

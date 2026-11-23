@@ -3,7 +3,7 @@
 
 Usuario, 2026-11-13: «haz disponibles todos» los estudios; «lo que falta se ingresará en TXT o
 en imagen (JPG o similares)» y «todo tiene que ser cargado desde la web». Una sonda de ese día en
-CA101_CHN102 mostró por qué no se ofrecían: la red externa con los valores por defecto de
+CA191_CHN192 mostró por qué no se ofrecían: la red externa con los valores por defecto de
 DIgSILENT (``snss`` = 10 000 MVA, ``rntxn`` = 0,1, ``snssmin`` = 8 000), ninguna característica de
 tiempo en sus 204 cargas, ninguna tasa de falla en líneas ni tipos y ningún espectro armónico.
 Ninguna fuente (TXT, MDB, VNR-GIS) trae esos datos, y rellenarlos con valores típicos daría
@@ -192,7 +192,7 @@ def numero(texto: Any) -> float | None:
     """Un número escrito como lo escribe una empresa o como lo lee el OCR: «1.234,5», «1,5», «12 %».
 
     Sin adivinar el separador cuando es ambiguo: «1.234» con un solo punto y tres decimales se lee
-    como 1,234 (el punto decimal del TXT de CYMDIST), y «1,234» como 1,234 también; los miles solo
+    como 1,234 (el punto decimal del TXT), y «1,234» como 1,234 también; los miles solo
     se reconocen cuando hay los dos separadores («1.234,5» o «1,234.5»).
     """
     if isinstance(texto, bool) or texto is None:

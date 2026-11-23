@@ -999,7 +999,7 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
       return m;
     }, {}) : {};
   const cambiada = [...marcadas].sort().join('|') !== [...(cruce.a_su_maxima ?? [])].sort().join('|');
-  // SM218, 2026-10-29: máxima el 23/10 y el último libro de clientes, el de septiembre (035:RF-17).
+  // SM298, 2026-10-29: máxima el 23/10 y el último libro de clientes, el de septiembre (035:RF-17).
   // Sus hojas no llegan a esa fecha, así que cada cliente va con el registro de su POT, cada uno
   // de su día; la columna «Registro» no coincide con la máxima y hay que decir por qué.
   // 039:RF-2: con «máximo del mes» cada fija va de su día a propósito; 039:RF-4: la que no tiene

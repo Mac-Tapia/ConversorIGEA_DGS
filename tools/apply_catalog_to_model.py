@@ -42,7 +42,7 @@ Uso
         --out-dir output\\corregido --escribir-dgs
 
     rem Desde la base Access, un solo alimentador
-    python tools\\apply_catalog_to_model.py --mdb BaseDatos.mdb --feeder PA217 --escribir-dgs
+    python tools\\apply_catalog_to_model.py --mdb BaseDatos.mdb --feeder PA297 --escribir-dgs
 
 Código de salida: 0 si no hay nada que corregir, 1 si hay cambios (aplicados o no),
 2 si no se pudo trabajar.

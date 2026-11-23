@@ -17,7 +17,7 @@ Las dos reglas que gobiernan la unión
 
 **Un nodo es el mismo nodo si coinciden su identificador y su tensión.** Solo el
 identificador no basta. En el export real hay dos nodos —``5605`` y
-``NODE_1080_907891_907891_1``— que aparecen en SL201 a 22,9 kV y en SL143 a 10 kV.
+``NODE_1080_907891_907891_1``— que aparecen en SL291 a 22,9 kV y en SL193 a 10 kV.
 Fusionarlos uniría dos niveles de tensión con un cortocircuito franco y el flujo de
 potencia daría cualquier cosa. Cuando el identificador choca con tensiones distintas se
 mantienen separados, cada uno con su sufijo de tensión, y se avisa: o es un error del
@@ -609,7 +609,7 @@ def estructurar(combinado: FeederModel, estructura, asignacion=None) -> list[str
             continue
         grupos[(codigo, round(float(ref.nominal_kv), 6))].append(ref)
         info.zonal_de[ref.name] = estructura.sets[codigo].zonal
-        info.sistema_de[ref.name] = estructura.alimentador(ref.name).sistema   # RF-81: CHN101
+        info.sistema_de[ref.name] = estructura.alimentador(ref.name).sistema   # RF-81: CHN191
         sist = info.sistema_de[ref.name]
         if sist in estructura.sistemas:
             info.sistemas[sist] = estructura.sistemas[sist]

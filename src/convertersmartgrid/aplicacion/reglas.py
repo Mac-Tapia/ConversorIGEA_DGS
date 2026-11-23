@@ -19,7 +19,7 @@ Sobre cada **modelo** (por alimentador):
 2. Trafomix —medición MT registrada como SED— excluidos (:mod:`convertersmartgrid.dominio.trafomix`), solo
    si el perfil de empresa da su patrón (``M…`` en una distribuidora real).
 3. Diagrama en hoja a medida, a escala geográfica real (la del perfil, si la da), con
-   símbolos de tamaño NA205.
+   símbolos de tamaño NA295.
     A0–A4 solo se usan si el operador selecciona explícitamente un formato fijo.
 
 Lo que **no** se hace al convertir (spec 032): llevar las SED con más carga que kVA a un
@@ -342,7 +342,7 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     interruptores = sum(1 for r in tablas.get('ElmCoup', {}).get('rows_dict', [])
                         if r.get('fold_id') not in seds) - enlaces - cabeceras - abiertos
 
-    # 022:RF-57: los tramos que añade la reconstrucción por medida tampoco (TM106 y TM101 en
+    # 022:RF-57: los tramos que añade la reconstrucción por medida tampoco (TM196 y TM191 en
     # Chincha, 2026-10-18: «entrada 8041 ≠ ElmLne 3247 + puentes 4796»).
     from .enlaces import PREFIJO_RECONSTRUIDO
 

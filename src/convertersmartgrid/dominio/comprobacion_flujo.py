@@ -64,7 +64,7 @@ _ETIQUETAS_DE_FALLO = ('VALIDACION_FISICA', 'SOBRECARGA', 'NO cumple')
 def motivo_de_informe(informe: Mapping[str, Any]) -> str:
     """Por qué no quedó calibrado un alimentador (081:RF-19), en una línea para el Registro.
 
-    CA101 + CHN102 (2026-11-09) quedó en FALLO_VALIDACION_NATIVA con ``motivo`` vacío: el
+    CA191 + CHN192 (2026-11-09) quedó en FALLO_VALIDACION_NATIVA con ``motivo`` vacío: el
     Registro decía «no cumple la tolerancia: None» y el motivo era el primer aviso, el de
     los conductores con ficha, que es informativo. La causa estaba en el aviso
     VALIDACION_FISICA: SED fijas con más demanda que su transformador.

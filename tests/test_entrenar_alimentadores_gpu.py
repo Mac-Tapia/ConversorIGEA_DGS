@@ -24,10 +24,10 @@ def test_los_libros_se_piden_y_no_hay_rutas_fijas(herramienta, capsys):
 def test_seleccion_de_alimentadores(herramienta):
     """089:RF-89 — los del libro (solo alimentadores, sin repetir), o los pedidos, y el límite."""
     puntos = [SimpleNamespace(codigo=c, clase=k) for c, k in
-              (('PI102', 'alimentador'), ('PA217', 'alimentador'), ('PI102', 'alimentador'), ('M1', 'cliente'))]
-    assert herramienta.seleccion(puntos, None, None) == ['PA217', 'PI102']
-    assert herramienta.seleccion(puntos, None, 1) == ['PA217']
-    assert herramienta.seleccion(puntos, ' ca101, CA101,pe104 ', None) == ['CA101', 'PE104']
+              (('PI192', 'alimentador'), ('PA297', 'alimentador'), ('PI192', 'alimentador'), ('M1', 'cliente'))]
+    assert herramienta.seleccion(puntos, None, None) == ['PA297', 'PI192']
+    assert herramienta.seleccion(puntos, None, 1) == ['PA297']
+    assert herramienta.seleccion(puntos, ' ca191, CA191,pe194 ', None) == ['CA191', 'PE194']
 
 
 def test_un_error_sigue_con_los_demas_y_termina_con_1(herramienta, tmp_path, monkeypatch, capsys):

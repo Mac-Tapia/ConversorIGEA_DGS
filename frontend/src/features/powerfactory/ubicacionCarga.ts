@@ -1,7 +1,7 @@
 /**
  * 004:RF-72 a RF-80: lo que la web dice de la ubicación de una carga nueva, sin React, para probarlo solo.
  *
- * SE0001 (PA217, 2026-11-12) se escribió con Y = 476 517, un dígito de menos, y se conectó desde cerca del Polo Sur.
+ * SE0001 (PA297, 2026-11-12) se escribió con Y = 476 517, un dígito de menos, y se conectó desde cerca del Polo Sur.
  * El servidor mide cada punto contra la zona de su alimentador y propone la corrección; la web la muestra junto a la
  * fila y solo la copia en el formulario si el operador la elige: nunca se corrige sola.
  */

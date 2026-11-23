@@ -6,12 +6,12 @@
       Hecho cuando: NSGA-II iguala a la fuerza bruta en una red pequeña y la puerta rechaza lo barato fuera de norma.
 - [x] T3 Fidelidad contra DIgSILENT. (RF-7)
       Hecho cuando: se mide en episodios reales.
-      Medido el 2026-11-02 sobre 5 redes del búfer: ninguna con problemas pasa. NJA202 tiene 0,047 p.u. de error medio; CA101 y SM218
+      Medido el 2026-11-02 sobre 5 redes del búfer: ninguna con problemas pasa. NJA292 tiene 0,047 p.u. de error medio; CA191 y SM298
       pasan en tensión media, pero su peor rama falla (150 y 245 puntos); `0205` pasa, y no tiene problemas que resolver.
       En esas redes, solo con bancos, ni la escalera ni NSGA-II llegan a norma.
 - [x] T4 Captura de transformadores en paralelo y largo de cada tramo. (RF-8)
       Hecho cuando: la prueba con el simulador los recoge.
-      El error de carga estaba en los transformadores, casi siempre del doble en SM218: el grafo ignoraba `ntnum`.
+      El error de carga estaba en los transformadores, casi siempre del doble en SM298: el grafo ignoraba `ntnum`.
 - [x] T9 Todos los alimentadores de un sistema. (RF-11, RF-12)
       Hecho cuando: el entorno y NSGA-II trabajan sobre un sistema real con un agente por alimentador.
       Medido el 2026-11-02 en los grafos guardados, solo leyendo: Nasca da 18 alimentadores y Chincha 30, los de sus proyectos.
@@ -25,9 +25,9 @@
       `ntnum` en esa captura y pasar la fidelidad en una red con problemas: sigue abierta.
       Hecho el 2026-11-21 (d8, bloque GPU, sobre la captura en DIgSILENT C2c del 2026-11-19): `ntnum` confirmado en el
       grafo v3 de la captura (D:/csg/PM_IMPL/GPU_BLOQUE/074_T5/ntnum_confirmado.txt: sin proyecto 387 transformadores
-      de 1 unidad y 2 de 2; con proyecto, además 1 de 3) y la red con problemas (SM218 sin proyecto, fuera de norma,
+      de 1 unidad y 2 de 2; con proyecto, además 1 de 3) y la red con problemas (SM298 sin proyecto, fuera de norma,
       mínima 0,9634 p.u.) reproduce lo medido: tensión media 0,0031 y máx. 0,0064 p.u., carga media 0,5 % y máx. 18,6
-      % (D:/csg/PM_IMPL/GPU_BLOQUE/074_T5/fidelidad_sin_proyecto.log, fidelidad_resumen.txt, grafo_sm218.json).
+      % (D:/csg/PM_IMPL/GPU_BLOQUE/074_T5/fidelidad_sin_proyecto.log, fidelidad_resumen.txt, grafo_sm298.json).
 - [x] T6 Dependencias del aprendizaje en un entorno aparte. (RF-9)
       Hecho cuando: TorchRL y `sb3_contrib` corren con la versión de PyTorch del proyecto sin cambiar el `.venv` compartido.
       Verificado el 2026-11-02 con `requirements-madrl.txt` en `~/.convertersmartgrid/madrl_deps`: importan con torch 2.14.1 y GATv2

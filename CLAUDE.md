@@ -1,6 +1,6 @@
 # ConverterSmartGrid → DIgSILENT PowerFactory DGS
 
-Convierte los TXT que exporta CYMDIST (RED, CARGA, BD_Equipo) en ficheros `.dgs`
+Convierte los TXT (RED, CARGA, BD_Equipo) en ficheros `.dgs`
 que se importan en PowerFactory, un alimentador por fichero o todos en una red unida.
 
 ## Entorno
@@ -72,7 +72,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | cumplida |  |
-  | 045 Gemelo físico y contratos PINN/GNN | aprobada | T3 cerrada (21-11, ablación real en CUDA); falta T6 (GPU, MEJ30, contrato T6b) |
+  | 045 Gemelo físico y contratos PINN/GNN | cumplida | T6 cerrada (22-11, en la GPU: el híbrido aprobado en global y en sus familias); todas sus tareas cerradas |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
   | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
@@ -226,14 +226,14 @@ además `CSG_DEMANDA_DIR`.
 - En el Bash de esta máquina, un heredoc reduce cada barra invertida doble a una sola: rutas con `/`, `re.escape`
   para las rutas en expresiones, y los ficheros largos con la herramienta de escribir.
 - Un flujo que no converge dice lo que informa DIgSILENT en el `historial` del informe:
-  leerlo antes de tocar nada (Chincha: TM106 con su factor de escala en 13,7).
+  leerlo antes de tocar nada (Chincha: TM196 con su factor de escala en 13,7).
 
 ## Reglas que más se rompen
 
 - Una fuente por vez: TXT, MDB y VNR-GIS son entradas distintas, de empresas y fechas distintas. Nunca se mezclan en una conversión, una línea base, una prueba, un espacio de la web ni una orden: cada una se carga, se convierte, se prueba y se regenera sola (`linea_base_001.json` del TXT, `linea_base_001_mdb.json` de Access, cada una con su orden). Ninguna prueba compara una con otra y ningún mensaje pide la otra fuente ni la misma fecha.
-- Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Empresa A es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA205) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
+- Universal: TXT, MDB y VNR-GIS de cualquier distribuidora. Empresa A es un caso de prueba; sus convenciones (CRS `EPSG:32718`, SED `M…`, escala NA295) van en un perfil de empresa, nunca como valor por defecto (constitución P13).
 - El número de alimentadores es variable (10, 50, 200…): nada de recorrer una tabla entera por alimentador, y nada de tamaños fijos en las pruebas. Ver la sección «Escala» del skill.
-- Dos disposiciones de export (reducida y completa): todo cambio en el lector se prueba con las dos.
+- Dos disposiciones de los TXT (reducida y completa): todo cambio en el lector se prueba con las dos.
 - Determinismo: el DGS es idéntico byte a byte con `workers=1` y con `workers>1`.
 - Idioma: código, comentarios, mensajes y commits en español, con el estilo de los existentes. Los comentarios explican **por qué**, con el caso real que lo motivó.
 - Los datos de prueba se retiraron del proyecto el 2026-11-02: están en `<DATOS>/referencia_retirada_20261102` y la web los carga por su ruta; ningún código los lee directamente. Esos ficheros y `<DATOS>` son datos de la distribuidora: nunca se publican ni se suben a git. Desde el 2026-10-27 el usuario autoriza leerlos (sin `deny` en `.claude/settings.json`) para diagnosticar; las pruebas los siguen leyendo por las variables `CSG_*`.

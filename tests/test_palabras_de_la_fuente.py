@@ -5,6 +5,7 @@ El 2026-11-01 una conversión de VNR-GIS avisaba «0 conservaron Length del TXT�
 """
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import pytest
@@ -26,7 +27,7 @@ def test_el_txt_conserva_sus_palabras():
     """056:RF-4 — un TXT, o una fuente sin declarar, sigue con las palabras de siempre."""
     assert palabras_de(None) is palabras_de('txt') is palabras_de('TXT')
     assert palabras_de('txt')['longitud'] == 'Length del TXT'
-    assert palabras_de('txt')['export'] == 'export CYMDIST'
+    assert palabras_de('txt')['export'] == 'los TXT'   # 056:RF-8: sin el nombre de otro programa
 
 
 def test_la_web_no_nombra_cymdist_y_la_entrada_se_llama_txt():
@@ -57,16 +58,17 @@ def _aceptacion():
     return mod
 
 
-@pytest.mark.parametrize('origen, sigla', [('CYMDIST', 'TXT'), ('Access (.mdb)', 'MDB'), ('VNR-GIS', 'VNR')])
+@pytest.mark.parametrize('origen, sigla', [('TXT', 'TXT'), ('CYMDIST', 'TXT'), ('Access (.mdb)', 'MDB'),
+                                           ('VNR-GIS', 'VNR')])
 def test_el_proyecto_nuevo_lleva_su_fuente(tmp_path, origen, sigla):
     """056:RF-1 — el proyecto nuevo de DIgSILENT dice su fuente, leída de la cabecera del DGS que se importa,
     sin IGEA ni CYMDIST."""
     mod = _aceptacion()
-    dgs = tmp_path / 'NJA202.dgs'
-    dgs.write_text('*' * 80 + f'\n*\n* {origen} to DIgSILENT DGS converter\n* Project: NJA202\n', encoding='utf-8')
+    dgs = tmp_path / 'NJA292.dgs'
+    dgs.write_text('*' * 80 + f'\n*\n* {origen} to DIgSILENT DGS converter\n* Project: NJA292\n', encoding='utf-8')
     fuente = mod.fuente_del_dgs(dgs)
     nombre = mod._generated_project_name('20261101-063543', dgs.stem, fuente)
-    assert fuente == sigla and nombre == f'20261101-063543_CSG_{sigla}_NJA202'
+    assert fuente == sigla and nombre == f'20261101-063543_CSG_{sigla}_NJA292'
     assert 'IGEA' not in nombre and 'CYMDIST' not in nombre
     largo = mod._generated_project_name('20261101-063543', 'SISTEMA_ELECTRICO_MUY_LARGO', fuente)
     assert largo.startswith(f'20261101-063543_CSG_{sigla}_') and len(largo) <= 40
@@ -76,10 +78,10 @@ def test_los_proyectos_anteriores_siguen_valiendo(tmp_path):
     """056:RF-2 — un DGS sin fuente en la cabecera da el nombre de antes, y ningún guion reconoce los
     proyectos por su nombre: los ya importados siguen siendo suyos por su vínculo."""
     mod = _aceptacion()
-    viejo = tmp_path / 'W12882.dgs'
+    viejo = tmp_path / 'W19882.dgs'
     viejo.write_text('* algo\n', encoding='utf-8')
     assert mod.fuente_del_dgs(viejo) is None and mod.fuente_del_dgs(tmp_path / 'no.dgs') is None
-    assert mod._generated_project_name('20261101-063543', 'W12882', None) == '20261101-063543_CSG_W12882'
+    assert mod._generated_project_name('20261101-063543', 'W19882', None) == '20261101-063543_CSG_W19882'
     raiz = Path(__file__).resolve().parents[1]
     for carpeta in ('src', 'tools'):
         for f in (raiz / carpeta).rglob('*.py'):
@@ -114,7 +116,7 @@ def test_un_vnr_gis_convertido_no_deja_palabras_de_cymdist(tmp_path):
     assert not halladas, halladas
 
 
-#: Los nombres de tablas y campos del TXT de CYMDIST, que otra fuente no tiene.
+#: Los nombres de tablas y campos del TXT, que otra fuente no tiene.
 DEL_TXT = (*PROHIBIDAS, '[CUSTOMER LOADS]', '[SUBSTATION]', '[SECTION]', 'NumberOfCustomer', 'FailRate')
 
 
@@ -211,3 +213,59 @@ def test_la_auditoria_de_un_vnr_gis_no_nombra_las_tablas_del_txt(tmp_path):
     assert 'VNR-GIS' in texto
     for p in (*DEL_TXT, 'KWH'):
         assert p not in texto, (p, texto)
+
+
+#: 056:RF-8 (aclaración del 2026-11-22): frases que dicen o dan a entender que los TXT los exporta CYMDIST.
+_TXT_DE_CYMDIST = re.compile(r'TXT (que )?exporta CYMDIST|TXT de CYMDIST|CYMDIST TXT|TXT CYMDIST|exportad[oa]s? por CYMDIST'
+                             r'|exports? (de )?CYMDIST|Exportaciones de CYMDIST', re.I)
+#: Lo que sí es CYMDIST: la exportación de VNR-GIS a su formato y su contrato.
+_CYMDIST_DE_VERDAD = re.compile(r'VNR|vnr|exporters|bloquead|contrato CYMDIST|sin pasar por un export|pasa por un export'
+                                r'|sin export CYMDIST|exportarlo a CYMDIST')
+#: Explican el cambio y citan los textos de antes: esta spec y esta prueba; y lo generado, que sale de lo demás.
+#: ``test_vnr_gis_cobertura.py`` prueba el exportador de VNR-GIS al formato de CYMDIST, que sí es de CYMDIST.
+_EXPLICAN = ('specs/056-', 'tests/test_palabras_de_la_fuente.py', 'specs/README.md', 'docs/ARQUITECTURA_CATALOGO.md',
+             'tests/test_vnr_gis_cobertura.py')
+_EXTENSIONES = ('.py', '.md', '.toml', '.ts', '.tsx', '.mjs', '.json', '.jsonl', '.html', '.dsl', '.txt')
+
+
+def test_ningun_texto_dice_que_los_txt_los_exporta_cymdist():
+    """056:RF-8 — los TXT (RED, CARGA y BD_Equipo) no los exporta CYMDIST: ni el código, ni los mensajes, ni la ayuda,
+    ni las guías, specs y skills lo dicen (orden del usuario del 2026-11-22). CYMDIST queda para la base Access, su
+    estudio y la exportación de VNR-GIS a su formato."""
+    import subprocess
+
+    raiz = Path(__file__).resolve().parents[1]
+    seguidos = subprocess.run(['git', 'ls-files', '-z'], cwd=raiz, capture_output=True, check=True).stdout.decode()
+    hallados = []
+    for rel in (f for f in seguidos.split('\0') if f):
+        if rel.startswith(_EXPLICAN) or not rel.endswith(_EXTENSIONES):
+            continue
+        try:
+            texto = (raiz / rel).read_text(encoding='utf-8')
+        except (OSError, UnicodeDecodeError):
+            continue
+        hallados += [f'{rel}:{n}' for n, ln in enumerate(texto.splitlines(), 1)
+                     if _TXT_DE_CYMDIST.search(ln) and not _CYMDIST_DE_VERDAD.search(ln)]
+    assert not hallados, 'textos que dicen que los TXT vienen de CYMDIST (056:RF-8):\n' + '\n'.join(hallados[:40])
+
+
+def test_la_cabecera_de_antes_se_sigue_leyendo_como_txt(tmp_path):
+    """056:RF-3, 056:RF-1 — un DGS escrito con la cabecera de antes («CYMDIST») sigue dando un proyecto TXT, y la línea
+    base de la 001 compara igual ese DGS y el de ahora («TXT»); otro DGS sigue siendo distinto."""
+    import importlib.util
+
+    spec = importlib.util.spec_from_file_location(
+        'linea_base_056', Path(__file__).resolve().parents[1] / 'tools' / 'linea_base_dgs.py')
+    lb = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(lb)
+
+    def dgs(nombre, origen, proyecto='A'):
+        ruta = tmp_path / nombre
+        ruta.write_bytes(('*' * 80 + f'\n*\n* {origen} to DIgSILENT DGS converter\n* Project: {proyecto}\n'
+                          + '$$General\n').encode('cp1252'))
+        return ruta
+
+    antes, ahora, otro = dgs('antes.dgs', 'CYMDIST'), dgs('ahora.dgs', 'TXT'), dgs('otro.dgs', 'TXT', 'B')
+    assert lb.huella_dgs(antes) == lb.huella_dgs(ahora) != lb.huella_dgs(otro)
+    mod = _aceptacion()
+    assert mod.fuente_del_dgs(antes) == mod.fuente_del_dgs(ahora) == 'TXT'

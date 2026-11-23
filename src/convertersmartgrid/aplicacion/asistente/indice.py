@@ -119,7 +119,7 @@ def _vectores_de(ollama: Any, textos: list[str]):
     m = modelo_vectores()
     return ollama.embeddings(textos) if m == MODELO_EMBEDDINGS else ollama.embeddings(textos, modelo=m)
 _LARGO_EMBEDDING = 2000
-#: Códigos de red o de equipo: letras seguidas de cifras (SE50106, TM106).
+#: Códigos de red o de equipo: letras seguidas de cifras (SE50106, TM196).
 _CODIGO = re.compile(r'\b[A-Za-z]{1,8}\d{2,}[A-Za-z0-9]*\b')
 CORPUS_047 = '047'
 CORPUS_AMPLIADO = corpus_proyecto.CORPUS

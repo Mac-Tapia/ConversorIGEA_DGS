@@ -21,7 +21,7 @@
       Hecho cuando: el .docx de la prueba lleva las tres secciones, «de A kW a B kW (+C kW)», y la
       Pcc y las coordenadas en el punto de diseño.
       Verificado el 2026-11-01: pruebas de los tres casos, potencia previa/incremento, NIS y ficha;
-      101 pruebas focales de informes/estudios. Informe real de Santa María con tres casos,
+      101 pruebas focales de informes/estudios. Informe real de Cliente S con tres casos,
       sin campos pendientes y con dictamen desfavorable sustentado en cobertura completa.
 - [x] T5. Datos de los PDF: expediente EXP, fecha con su documento, alimentadores leídos. (RF-15, RF-19, RF-20)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k documentos` en verde con
@@ -32,11 +32,11 @@
 - [x] T6. Formulario: potencia actual, incremento, NIS, estructura, Pcc y UTM; aviso de alimentador. (RF-14, RF-16, RF-17, RF-18, RF-19)
       Hecho cuando: `npm --prefix frontend run build` sin errores y la web probada en el navegador real.
       Hecho el 2026-11-02: `npm run build` sin errores y probado en el navegador real (web abierta con el
-      acceso directo, SM218, carga de INKA) con los PDF reales del expediente: la carta dio potencia actual
+      acceso directo, SM298, carga de CLIENTE K) con los PDF reales del expediente: la carta dio potencia actual
       480 kW, solicitada 1100 kW e «incremento de 620 kW», NIS y EXP; la ficha, código de ficha
       `00229-25` aparte del EXP, Pcc 36 MVA y UTM; la respuesta, la estructura 39533 como código del
       punto de diseño; el botón activo sin pasar por 4.2; consola sin errores. El aviso de alimentador
-      (RF-19) no salió porque los PDF dicen SM218, como la carga: en el navegador no se vio; su
+      (RF-19) no salió porque los PDF dicen SM298, como la carga: en el navegador no se vio; su
       regla la prueba `frontend/test/solicitudLeida.test.mjs` (`npm test`).
 - [x] T8. Escalera por escalones: bancos, sección, terna; el primero que cumple. (RF-21, RF-22)
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_optimizacion_oraculo.py
@@ -88,10 +88,10 @@
       Hecho el 2026-11-01: `escalera_optima.elegir` con `sin_confirmar_sorteos`.
 - [x] T18. Los sorteos miden la red con la obra y la demanda escalada. (RF-28)
       Hecho cuando: una prueba con el doble de DIgSILENT muestra que cada sorteo ve la obra aplicada y
-      la demanda escalada (SM218: la tensión de INKA no cambiaba con la demanda).
-      Hecho el 2026-11-02: la causa no era la obra sino el escalado. Sonda en una copia de SM218:
+      la demanda escalada (SM298: la tensión de CLIENTE K no cambiaba con la demanda).
+      Hecho el 2026-11-02: la causa no era la obra sino el escalado. Sonda en una copia de SM298:
       escribir `plini × 0,35` en el escenario dejaba las existentes en 9,1 MW con cualquier factor;
-      `scale0 × 0,35` las bajó a 3,2 MW (INKA de 0,921 a 0,960 p.u.). `_Sorteo` escala `scale0`;
+      `scale0 × 0,35` las bajó a 3,2 MW (CLIENTE K de 0,921 a 0,960 p.u.). `_Sorteo` escala `scale0`;
       `test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen` exige que no se
       escriba `plini`. El 94,5 % era el corte de `sortear` tras 11 fallos de 200.
 - [x] T19. Más del umbral de carga nueva: SET nueva directa. (RF-34)
@@ -117,7 +117,7 @@
       Hecho cuando: `pytest -q tests/test_informe_web.py -k transformador_opcional` en verde.
 - [x] T27. Islas sin tensión, criterio de MT y flujo que no cuadra. (RF-43, RF-44, RF-45)
       Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py tests/test_informe_web.py` en verde.
-- [x] T7. [DIgSILENT] INKA'S BERRIES en SM218 desde la web con un clic. (Todos)
+- [x] T7. [DIgSILENT] CLIENTE K'S BERRIES en SM298 desde la web con un clic. (Todos)
       Hecho cuando: el informe sale del botón de 4.4 sin pasar por 4.2, con los tres casos, y dice lo
       mismo que el informe hecho a mano el 2026-11-01.
       Hecho el 2026-11-02, trabajo `bb19702d821e`: sin huecos, Word y PDF, tres casos con 0,949 / 0,928 / 0,953 p.u.,
@@ -126,20 +126,20 @@
 
 - [x] T20. Cobertura del proyecto completo tras trasladar ramas a una SET nueva. (RF-6, RF-9, RF-12)
       Hecho cuando: `pytest -q tests/test_estudios_pf_guion.py -k cobertura` en verde y los seis
-      flujos reales guardan barras completas, fuentes, consumos y balance sin omitir COPARA.
+      flujos reales guardan barras completas, fuentes, consumos y balance sin omitir BOREALIS.
       Verificado el 2026-11-01: trabajo web b724419e1494; 809/914/916 barras según el caso,
       sin barras sin resultado. La captura distingue MT, BT y AT y no sustituye los medidores.
 - [x] T21. Reproducción del informe desde los seis flujos guardados. (RF-6, RF-7, RF-9, RF-12, RF-14)
       Hecho cuando: `informe_casos_guardados.py --plan PLAN --salida INFORME.docx` conserva los
       hashes, rechaza otro proyecto o cobertura incompleta y entrega Word, JSON y CSV sin huecos.
-      Verificado el 2026-11-01 con Santa María, NA205, y pruebas de rechazo; se reutiliza el escritor.
+      Verificado el 2026-11-01 con Cliente S, NA295, y pruebas de rechazo; se reutiliza el escritor.
 - [x] T22. Planos comparables con problemas y obras en colores/tramas y leyenda. (RF-35)
       Hecho cuando: los tres estados del Word/PDF muestran la red, el punto del cliente,
       problemas de tensión/cargabilidad y las obras diferenciadas; prueba de render y revisión visual.
-      Verificado el 2026-11-02: Word/PDF de Santa María con planos nativos y esquema de Cargas
+      Verificado el 2026-11-02: Word/PDF de Cliente S con planos nativos y esquema de Cargas
       nuevas sin solución de flujo, identificado sin resultados eléctricos; 35 marcadores y
       anexos de cargas/obras. PDF de 14 páginas revisado, sin huecos.
-- [x] T23. Variaciones separadas y demanda completa en la solución COPARA. (RF-36, RF-37)
+- [x] T23. Variaciones separadas y demanda completa en la solución BOREALIS. (RF-36, RF-37)
       Hecho cuando: la relectura nativa verifica cargas previstas, demandas efectivas, variaciones
       de cada carga/obra y sus casos; ambos proyectados incluyen las mismas cargas del bloque.
       La conciliación explícita por fase conserva P/Q nominales y la proporción original entre
@@ -147,20 +147,20 @@
       Verificado el 2026-11-02: 35 cargas nuevas y 35 variaciones de obra; 48,286 MW nominales
       y efectivos en Con proyecto. Las dos referencias proyectadas conservan iguales demandas
       nominales; Cargas nuevas sin obras no converge y no se atribuyen consumos efectivos.
-- [x] T24. [DIgSILENT] COPARA con NA203–NA205 en límites y térmica fuera de servicio. (RF-38)
+- [x] T24. [DIgSILENT] BOREALIS con NA293–NA295 en límites y térmica fuera de servicio. (RF-38)
       Hecho cuando: equilibrado y desequilibrado convergen, toda la red cumple, se releen
       variaciones tras reabrir y el informe entrega los resultados sin confundir convergencia y aceptación.
       Aplicación febcc9b41837: informe nativo set_nueva_operacion_37f7270bd40c.json, aceptada y
       persistida, modelo idéntico después de la restitución. Motor anterior cerrado; comprobación
       independiente 0edd2ab893e0, set_nueva_operacion_87ace2d82986.json: ambos flujos conformes,
-      0,964209–1,049746 p.u., máximo 98,5597 %, CT fuera de servicio, 35 cargas desde COPARA.
-      Word/PDF: output/informes/Informe_Santa_Maria_NA205_COPARA_Verificado.*.
+      0,964209–1,049746 p.u., máximo 98,5597 %, CT fuera de servicio, 35 cargas desde BOREALIS.
+      Word/PDF: output/informes/Informe_Cliente S_NA295_BOREALIS_Verificado.*.
 - [x] T35. Pérdidas anuales con el factor de carga medido, además de los balances. (RF-57)
       Hecho cuando: `pytest -q tests/test_informe_docx.py -k anuales` en verde.
-      Hecho el 2026-11-02: Santa María con factor de carga 0,798, medido de enero a octubre de 2026.
+      Hecho el 2026-11-02: Cliente S con factor de carga 0,798, medido de enero a octubre de 2026.
 - [x] T34. Conclusiones cuantitativas, demanda antes y después y cargas en espera. (RF-54, RF-55, RF-56)
       Hecho cuando: `pytest -q tests/test_informe_factibilidad_un_paso.py -k "conclusiones or demanda or cola"` en
-      verde con medidas sorteadas, y el informe de Santa María sale con COPARA en área libre.
-      Hecho el 2026-11-02: output/informes/Informe_Santa_Maria_NA205_COPARA_Area_Libre.*, con seis flujos nativos
-      (AUDIT/anotacion_copara_20261102/operacion_area_libre.json) y la cola de 35 cargas sin obras, que no converge
+      verde con medidas sorteadas, y el informe de Cliente S sale con BOREALIS en área libre.
+      Hecho el 2026-11-02: output/informes/Informe_Cliente S_NA295_BOREALIS_Area_Libre.*, con seis flujos nativos
+      (AUDIT/anotacion_borealis_20261102/operacion_area_libre.json) y la cola de 35 cargas sin obras, que no converge
       (cola_sin_obras.json). «Cargas nuevas» lleva solo la carga analizada por orden del usuario.

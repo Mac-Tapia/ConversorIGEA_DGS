@@ -230,7 +230,7 @@ def test_la_obra_elegida_se_aplica_sin_el_atajo_de_ya_cumple():
 
 
 def test_la_regla_de_la_maxima_solo_cerca_del_criterio():
-    """087:RF-49 — con el 60 % de los sorteos (CHI201) no se elige; con el 94,5 % (SM218, 063:RF-33) sí, con aviso."""
+    """087:RF-49 — con el 60 % de los sorteos (CHI291) no se elige; con el 94,5 % (SM298, 063:RF-33) sí, con aviso."""
     def fila(nombre, fraccion):
         return {'nombre': nombre, 'maxima': True, 'fraccion': fraccion, 'valle': True, 'motivos': [],
                 'costo': {'costo_anual': 100.0, 'inversion': 1.0}, 'escalones': ('seccion',)}
@@ -250,15 +250,15 @@ def test_traslado_a_un_vecino_de_la_misma_tension(monkeypatch):
     barras = ['C', 'A', 'B', 'D']
     topo = red_de([Barra(b) for b in barras], [Tramo('L1', 'C', 'A', 10), Tramo('L2', 'A', 'B', 10),
                                               Tramo('L3', 'C', 'D', 10)])
-    red = op.RedAlimentador('CHI201', 22.9, {b: 22.9 for b in barras},
+    red = op.RedAlimentador('CHI291', 22.9, {b: 22.9 for b in barras},
                             {n: op.Tramo(n, 'AAAC_70') for n in ('L1', 'L2', 'L3')}, topologia=topo, cabecera='C')
-    obra = op.validar_obra({'clase': 'migracion', 'alimentador': 'CHI201', 'nodo': 'A', 'kv_destino': 22.9,
+    obra = op.validar_obra({'clase': 'migracion', 'alimentador': 'CHI291', 'nodo': 'A', 'kv_destino': 22.9,
                             'casos': ['Con proyecto']})
-    (con_enlace,) = op.plan_simulacion([obra], {'CHI201': red}, [], destinos_enlace={'CHI201': 'B'})
+    (con_enlace,) = op.plan_simulacion([obra], {'CHI291': red}, [], destinos_enlace={'CHI291': 'B'})
     assert not con_enlace['error'], con_enlace
     assert {e['clase'] for e in con_enlace['elementos']} == {'ElmLne'}
     assert any(e['elemento'] == 'L1' and 'se abre' in e['cambio'] for e in con_enlace['elementos'])
-    (sin_enlace,) = op.plan_simulacion([obra], {'CHI201': red}, [])
+    (sin_enlace,) = op.plan_simulacion([obra], {'CHI291': red}, [])
     assert 'ya está' in sin_enlace['error'] and 'traslado' in sin_enlace['error']
 
 
@@ -368,7 +368,7 @@ def test_la_confirmacion_conjunta_mide_todo_el_sistema_sin_apartar_nada(monkeypa
 
 
 def test_el_conjunto_que_no_cumple_sin_motivos_dice_lo_que_fallo(monkeypatch):
-    """087:RF-46 — CA101 + CHN102: solo fallaba la fracción de sorteos y el aviso salía vacío."""
+    """087:RF-46 — CA191 + CHN192: solo fallaba la fracción de sorteos y el aviso salía vacío."""
     prep = {'p': P, 'anio_casos': 2026, 'sorteos': [], 'perfil': PERFIL, 'valle': {'puntos': []}}
     monkeypatch.setattr(services, 'obras_escalera', lambda *a, **k: prep)
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
@@ -468,22 +468,22 @@ def test_solo_reciben_carga_los_vecinos_que_operan(monkeypatch):
               {'nombre': 'R1', 'desde': 'B1', 'hasta': 'RAMA', 'largo_m': 500, 'u': {'RAMA': 0.93}, 'corriente_a': 20,
                'maniobra': SW}]
     d = {'caminos': {'RAMA': camino}, 'troncal': [{'nombre': 'T1'}]}
-    leidos = {'vecinos': {'F1': {'B1': [_vecino('SC215', 190), _vecino('PA108', 900)], 'RAMA': [_vecino('SC215', 300)]}}}
+    leidos = {'vecinos': {'F1': {'B1': [_vecino('SC215', 190), _vecino('PA198', 900)], 'RAMA': [_vecino('SC215', 300)]}}}
     monkeypatch.setattr(services, '_guion_pf', lambda *a, **k: (0, leidos, None))
-    objetivos = {'PA108': {'kw': 2396.0}, 'SC215': {}, 'SI114': {'kw': 0}}
+    objetivos = {'PA198': {'kw': 2396.0}, 'SC215': {}, 'SI194': {'kw': 0}}
     vs, vecinos, avisos = services._variantes_de_traspaso(object(), _Ctx(), {}, 'F1', d, ['RAMA'], 10.0, TIPOS, P, objetivos)
-    assert vecinos == ['PA108'] and all(o['alimentador'] != 'SC215' for v in vs for o in v.obras if o['clase'] == 'enlace')
+    assert vecinos == ['PA198'] and all(o['alimentador'] != 'SC215' for v in vs for o in v.obras if o['clase'] == 'enlace')
     assert any('SC215' in a and 'no operan' in a for a in avisos)
 
 
 def test_una_zona_pequena_sola_va_al_alimentador_nuevo(monkeypatch):
-    """087:RF-54 — CHI201 sola con 0,66 MW: alimentador expreso, no SET nueva; y la orden directa, sin escalera."""
+    """087:RF-54 — CHI291 sola con 0,66 MW: alimentador expreso, no SET nueva; y la orden directa, sin escalera."""
     import inspect
 
     monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil',
                         lambda: {'planificacion': {'set_nueva_desde_kw': 10000, 'radio_zona_set_km': 10}})
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [
-        {'sed': 'SALUD', 'alimentador': 'CHI201', 'kw': 660.0, 'variacion': 'Carga_SALUD', 'lat': -13.7, 'lon': -75.9}])
+        {'sed': 'SALUD', 'alimentador': 'CHI291', 'kw': 660.0, 'variacion': 'Carga_SALUD', 'lat': -13.7, 'lon': -75.9}])
     monkeypatch.setattr(services, 'optimizar_con_proyecto', lambda *a, **k: (_ for _ in ()).throw(AssertionError('escalera')))
     monkeypatch.setattr(services, 'escalera_por_alimentador', lambda *a, **k: (_ for _ in ()).throw(AssertionError('escalera')))
     vistos = {}
@@ -495,7 +495,7 @@ def test_una_zona_pequena_sola_va_al_alimentador_nuevo(monkeypatch):
     monkeypatch.setattr(services, 'set_nueva_proponer', set_nueva)
     monkeypatch.setattr(services, '_registrar_corrida', lambda *a, **k: None)
     monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: vistos.setdefault('repone', a[-1]))
-    r = services.con_proyecto_optimizar(None, _Ctx(), 'P', ['CHI201'], directo_set_nueva=True)
+    r = services.con_proyecto_optimizar(None, _Ctx(), 'P', ['CHI291'], directo_set_nueva=True)
     assert vistos['repone'] == ['Carga_SALUD']                                   # antes de la zona
     assert vistos['expreso'] is True and r['set_nueva']['solucion'] == 'expreso'
     guion = cargar_herramienta('sistema_web.py', 'sistema_rf54', tools_en_path=True)

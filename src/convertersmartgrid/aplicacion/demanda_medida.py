@@ -582,14 +582,14 @@ def leer_medidores(path: Path | str, alias=ALIAS) -> list[Medidor]:
 
 
 def partir_medidores(celda: str) -> list[str]:
-    """Una celda puede traer dos medidores: «IN111_V18 Y IN111_V119» en el libro real."""
+    """Una celda puede traer dos medidores: «IN191_V18 Y IN191_V119» en el libro real."""
     return [m.strip() for m in re.split(r'\s+(?:y|e)\s+|\s*[,;/+]\s*', celda, flags=re.I) if m.strip()]
 
 
 def alimentadores_de(medidores: Sequence[Medidor]) -> list[str]:
     """Alimentadores del libro, sin repetir y ordenados, para elegir de una lista (RF-42).
 
-    El libro real repite el código con otra grafía («PA217» y «pa 217»): se queda la
+    El libro real repite el código con otra grafía («PA297» y «pa 297»): se queda la
     primera que aparece.
     """
     vistos: dict[str, str] = {}
@@ -603,7 +603,7 @@ def medidores_de(medidores: Sequence[Medidor], alimentador: str,
     """Cada medidor que el libro asigna al alimentador, sin repetir y en su orden (RF-22).
 
     ``equivalentes``: otras grafías del mismo alimentador según la estructura (022:RF-81),
-    CHN101 en el libro para el CN101 de la red.
+    CHN191 en el libro para el CN191 de la red.
     """
     claves = {clave_codigo(alimentador)} | {clave_codigo(e) for e in equivalentes}
     return list(dict.fromkeys(parte for m in medidores if clave_codigo(m.alimentador) in claves
@@ -674,7 +674,7 @@ def indexar_libro_cabecera(path: Path | str, alias=ALIAS) -> dict[str, Any]:
 def hojas_del_alimentador(hojas: Sequence[str], alimentador: str) -> list[str]:
     """Hojas que se llaman como el alimentador, solo o tras un prefijo separado (025:RF-12).
 
-    «L-PA217», «ALIM PA217» o «PA217»; no «PA2170» ni «PA217_kW»: el código va al final y
+    «L-PA297», «ALIM PA297» o «PA297»; no «PA2970» ni «PA297_kW»: el código va al final y
     entero. Sin prefijos de una empresa: cualquiera separado por guion, espacio, punto o
     subrayado.
     """
@@ -686,10 +686,10 @@ def hojas_del_alimentador(hojas: Sequence[str], alimentador: str) -> list[str]:
 
 
 def base_del_medidor(medidor: str) -> str | None:
-    """Medidor del que ``medidor`` es un canal: ``IN111_V18`` → ``IN111`` (RF-44).
+    """Medidor del que ``medidor`` es un canal: ``IN191_V18`` → ``IN191`` (RF-44).
 
-    En Ica el libro de medidores nombra canales sueltos de un medidor (``IN111_V18``, el
-    kW) y su kVAR está en la hoja hermana ``IN111_V19``. La base ha de tener un dígito:
+    En Ica el libro de medidores nombra canales sueltos de un medidor (``IN191_V18``, el
+    kW) y su kVAR está en la hoja hermana ``IN191_V19``. La base ha de tener un dígito:
     sin él, ``L-6613`` daría ``L`` y juntaría hojas de medidores distintos.
     """
     m = re.match(r'^(.+?)[\s_\-.]+[^\s_\-.]+$', medidor.strip())
@@ -1087,12 +1087,12 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
     en ``pico``, como referencia. Sin ninguna hora completa (huecos), el mayor registro, y se dice.
 
     Con ``periodo`` (``AAAA-MM``, o ``AAAA`` para el año entero, 025:RF-7), la máxima de
-    ese mes o año (013:RF-11): NA205 da la suya en
+    ese mes o año (013:RF-11): NA295 da la suya en
     agosto de 2026 y la empresa solo tiene libros de clientes hasta julio; se calibra en el
     mes que tiene libro. La curva sigue siendo la del registro entero (006:RF-32).
 
     Con ``instante``, no la máxima sino la hora que termina en esa fecha y hora (021:RF-50, 004:RF-112): con
-    varios alimentadores se calibra a la vez, en la máxima de uno de ellos (NA203 + NA205
+    varios alimentadores se calibra a la vez, en la máxima de uno de ellos (NA293 + NA295
     y su central, 2026-10-17). La máxima propia del periodo queda en ``sostenida``, solo como referencia.
     """
     corruptos = 0
@@ -1105,7 +1105,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         kva = r.valores.get('kva')
         if kva is not None and kva < 0:
             # Un kVA negativo no es físico: L-LL123 el 2026-10-18 dio 32 765 kW (el tope de
-            # un contador de 16 bits) con −30 818 kVA y ganaba como máxima de LL203.
+            # un contador de 16 bits) con −30 818 kVA y ganaba como máxima de LL293.
             corruptos += 1
             continue
         f = _como_datetime(r.fecha)
@@ -1189,7 +1189,7 @@ def maxima_de_registros(registros: Sequence[Registro], resultado: MaximaCabecera
         resultado.avisos.append(f'sin una hora seguida de registros en {periodo or "lo medido"}: la máxima es el '
                                 'mayor registro, no la media de una hora.')
     if instante is None and len(ventana) == 1:
-        # 091:RF-26: TM102 da 211 kW el 2026-02-04 y el 2026-08-16; cada fecha llevaría otro libro de clientes.
+        # 091:RF-26: TM192 da 211 kW el 2026-02-04 y el 2026-08-16; cada fecha llevaría otro libro de clientes.
         iguales = [r for r in registros if r is not mejor and r.valores.get('kw') == v['kw'] and en_periodo(r.fecha, periodo)
                    and (r.valores.get('kva') is None or r.valores['kva'] >= 0)]
         if iguales:
@@ -1532,8 +1532,8 @@ class Cabecera:
                    res: MaximaCabecera) -> list[Registro]:
         """kVAR y kVA que le faltan a la hoja del kW, de hojas de una sola magnitud (RF-44).
 
-        Se buscan entre las partes del medidor y las de su base: ``IN111_V18`` trae solo el
-        kW y su kVAR está en ``IN111_V19``. Se unen por fecha y hora, así que el kVAR es el
+        Se buscan entre las partes del medidor y las de su base: ``IN191_V18`` trae solo el
+        kW y su kVAR está en ``IN191_V19``. Se unen por fecha y hora, así que el kVAR es el
         del mismo registro que el kW máximo (RF-28). Si dos hojas dan la misma magnitud no
         se elige ninguna: se avisa.
         """
@@ -1588,7 +1588,7 @@ class Cabecera:
         """La hoja con el código del alimentador, si la del medidor no está (025:RF-12).
 
         En la cabecera de 2025 de una distribuidora real, cuatro hojas se llaman como su alimentador
-        («L-PA217») y no como el medidor que da el libro de medidores («L-PA235»).
+        («L-PA297») y no como el medidor que da el libro de medidores («L-PA235»).
         """
         if alimentador:
             casan = [(p, h) for p in self.libros
@@ -1622,8 +1622,8 @@ class Cabecera:
             if entera or partes:
                 hallados.append((path, entera, partes))
         if not hallados:
-            # «IN111_V119» en el libro de medidores, sin hoja: es un canal de IN111, que sí
-            # está (RF-45). Se lee IN111; ``maximas`` lo junta con IN111_V18 si también se pidió.
+            # «IN191_V119» en el libro de medidores, sin hoja: es un canal de IN191, que sí
+            # está (RF-45). Se lee IN191; ``maximas`` lo junta con IN191_V18 si también se pidió.
             base = base_del_medidor(medidor)
             if base and any(any(hojas_del_medidor(self._hojas(p), base))
                             for p in self.libros):
@@ -1738,7 +1738,7 @@ def _maximas_con(cabecera: 'Cabecera', medidores: Sequence[tuple[str, str]], per
 def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
     """Un canal sin hoja cuyo medidor ya da otro resultado del alimentador no se repite (RF-45).
 
-    «IN111_V18 Y IN111_V119»: V18 ya trae el kW y, por RF-44, el kVAR de IN111; V119
+    «IN191_V18 Y IN191_V119»: V18 ya trae el kW y, por RF-44, el kVAR de IN191; V119
     leería el mismo medidor y daría una segunda fila igual.
     """
     def da(r: MaximaCabecera, base: str) -> bool:
@@ -1753,8 +1753,8 @@ def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
             otro = next((s for s in resultados if s is not r and s.libro == r.libro and da(s, r.canal_de)
                          and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)), None)
             if otro is None:
-                # 025: en el libro de 2025 de IN111 ningún canal tiene hoja; los dos se leen
-                # como IN111, y el segundo es la misma fila que el primero.
+                # 025: en el libro de 2025 de IN191 ningún canal tiene hoja; los dos se leen
+                # como IN191, y el segundo es la misma fila que el primero.
                 otro = next((s for s in out if s.canal_de and s.error is None
                              and clave_codigo(s.canal_de) == clave_codigo(r.canal_de)
                              and s.libro == r.libro
@@ -1780,7 +1780,7 @@ Curva = Sequence[tuple[datetime, float, 'float | None']]
 class MaximaConCentral:
     """La máxima de un alimentador con una central en serie en su troncal (spec 021).
 
-    NA205 tiene en su troncal la central de Nasca: la cabecera solo ve lo que entra
+    NA295 tiene en su troncal la central de Nasca: la cabecera solo ve lo que entra
     desde la SET, que con la central generando es casi nada (1 123 kW frente a una
     demanda de 10 753 kW el 2026-08-20 16:45). La demanda son dos zonas: aguas arriba
     de la central (cabecera + llegada) y aguas abajo (la salida).
@@ -1847,9 +1847,9 @@ def instante_coincidente(cabeceras: Mapping[str, Curva], centrales: Mapping[str,
                          periodo: str | None = None) -> dict[str, Any]:
     """El único instante de un proyecto de varios alimentadores: su mayor demanda conjunta (028:RF-28).
 
-    Cada alimentador con su máxima propia mezcla momentos que nunca ocurrieron juntos: en NA203 +
-    NA205 (2026-11-02) eran el 29 y el 25 de septiembre, con NA203 un 23 % sobre lo que medía a la hora
-    de NA205. Con central cuentan sus dos zonas y no los registros de maniobra: el mayor total crudo de
+    Cada alimentador con su máxima propia mezcla momentos que nunca ocurrieron juntos: en NA293 +
+    NA295 (2026-11-02) eran el 29 y el 25 de septiembre, con NA293 un 23 % sobre lo que medía a la hora
+    de NA295. Con central cuentan sus dos zonas y no los registros de maniobra: el mayor total crudo de
     ese mes (09-30 03:45, 23 220 kW) era un disparo de un solo registro. ``centrales``: por
     alimentador, las curvas de generación, llegada y salida.
     """
@@ -1899,7 +1899,7 @@ def demanda_con_central(cabecera: Curva, generacion: Curva, llegada: Curva,
     carga). Solo se usan los registros que están en las cuatro.
 
     El balance de la barra de la central es generación = salida + llegada, con los
-    flujos que salen de ella positivos. Cada medidor exporta con su convención: en NA205
+    flujos que salen de ella positivos. Cada medidor exporta con su convención: en NA295
     CTNA_BH2 (llegada) es negativo cuando la central está parada y la SET la alimenta.
     Los signos son la combinación que deja la menor mediana de desbalance (RF-29); si ni
     esa queda bajo el 5 % de la generación máxima, la central no se usa (RF-30).
@@ -2729,7 +2729,7 @@ def registros_de_maxima(path: Path | str, pot_de: Mapping[str, float | None],
 
     Con ``instante`` (el de la barra de 60 kV de su alimentador, 022:RF-84), el registro de esa
     fecha y hora, con su kW y su kVAR: tomar la POT de cada cliente, cada una de un día, sumaba
-    en NA203 9 261 kW de fijas frente a 7 876 medidos y 4 432 kVAR frente a 483, y Nasca dejó
+    en NA293 9 261 kW de fijas frente a 7 876 medidos y 4 432 kVAR frente a 483, y Nasca dejó
     de cuadrar (2026-10-28). Sin ``instante``, el registro de su POT, sin kW.
 
     Con ``solo_instante`` (criterio «coincidente», 039:RF-4), un cliente con hoja pero sin el
@@ -3034,7 +3034,7 @@ def cruzar(clientes: Sequence[ClienteImportante], suministros: Sequence[Suminist
         c.sed, c.radial = s.sed, s.radial
         c.radial_libro = s.radial
         c.nota_asignacion = s.nota_asignacion
-        # 004:RF-71: la tabla cruzada de PA217 salía con «—» en «Cliente» (2026-11-12): los libros mensuales casi nunca
+        # 004:RF-71: la tabla cruzada de PA297 salía con «—» en «Cliente» (2026-11-12): los libros mensuales casi nunca
         # traen el nombre y el de suministros sí («nombre_cliente»). El del libro mensual, si lo trae, manda.
         if not c.nombre and s.nombre:
             c.nombre = s.nombre
@@ -3161,7 +3161,7 @@ class MedidorBarra:
     siglas: str
     central: bool
     fila: int
-    alimentador: str = ''           # «Barra/CHI201»: la barra suelta de ese alimentador
+    alimentador: str = ''           # «Barra/CHI291»: la barra suelta de ese alimentador
     rotulo: str = ''                # lo que dice la columna: «Barra60KV_T1», «Barra CT10KV»
 
 
@@ -3309,7 +3309,7 @@ KV_MAX_SUBTRANSMISION = 72.5
 class BarraMedida:
     """Una barra de SET (o suelta) con sus medidores y sus alimentadores (022:RF-38)."""
 
-    clave: str                      # «SET 32 22,9 kV», «Suelta CHN 10 kV»…
+    clave: str                      # «SET 72 22,9 kV», «Suelta CHN 10 kV»…
     set_codigo: str
     kv: float
     medidores: list[str] = field(default_factory=list)
@@ -3368,7 +3368,7 @@ def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
 
     Un medidor de barra va a la barra de su SET (por sus siglas, código o nombre, RF-85) y
     de su nivel; uno de 220 kV no se usa (RF-43). Unas siglas sin SET en media son una barra
-    suelta propia, de los alimentadores con ese prefijo, y «Barra/CHI201», la de ese
+    suelta propia, de los alimentadores con ese prefijo, y «Barra/CHI291», la de ese
     alimentador (RF-45). Cada alimentador marcado va a la barra de su SET y su tensión; si
     su tensión no se sabe y su SET tiene una sola barra con medidor, a esa.
 
@@ -3389,7 +3389,7 @@ def barras_de_calibracion(estructura, medidores: Sequence[MedidorBarra],
     for m in medidores:
         if m.central and clave_codigo(m.medidor) in en_tramo:
             # RF-88: la central conectada en un tramo de media de su alimentador (CT_BH4 NA
-            # en la troncal de 22,9 kV de NA205) no va a la barra de la SET: se mide con su
+            # en la troncal de 22,9 kV de NA295) no va a la barra de la SET: se mide con su
             # alimentador, en su mismo instante (021:RF-28).
             avisos.append(f'{m.medidor}: central en el tramo de {en_tramo[clave_codigo(m.medidor)]}'
                           f' ({m.kv:g} kV), no en la barra; se mide con su alimentador.'
@@ -3589,7 +3589,7 @@ def instante_de_barras_de_alta(curvas_por_barra: Mapping[str, Sequence[Curva]], 
 
     Cada barra suma sus transformadores y no se suma a medias (022:RF-84). Entre barras, cada
     una cuenta donde tiene registro: exigirlo a todas dejaba el instante en manos del medidor
-    con más huecos (Chincha, julio de 2026: SET CHN, de 8 kW y 801 de 2 976 registros, cambiaba
+    con más huecos (Chincha, julio de 2026: SET QHN, de 8 kW y 801 de 2 976 registros, cambiaba
     los 48 925 kW del día 15 por 40 215 kW del 25). Un hueco solo puede bajar la suma, nunca
     inflarla. A igual suma, la primera: determinismo. ``None`` si no hay ningún registro.
     """
@@ -3621,7 +3621,7 @@ def completar_sin_medida(res: Sequence[MaximaCabecera], fecha: datetime, periodo
     """El alimentador sin medida positiva en el instante del sistema: su máxima del mes de ese instante y, si no, la del
     periodo (028:RF-38). Solo a esos; el resto sigue en el instante.
 
-    Sin esto PI101 (Pisco, 2026-11-03) se quedaba con la demanda del archivo, donde muchas SED traen 0 kW: sin carga.
+    Sin esto PI191 (Pisco, 2026-11-03) se quedaba con la demanda del archivo, donde muchas SED traen 0 kW: sin carga.
     """
     def falta(r: MaximaCabecera) -> bool:
         return not r.alimentador.lower().startswith('central ') and (bool(r.error) or not (r.kw and r.kw > 0))
@@ -3750,8 +3750,8 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
             mx = maxima_de_barra(curvas, periodo) if curvas else None
             comunes = comunes_de_la_set(b.clave) if b.alta and mx is not None else None
             if comunes is not None and mx['fecha'] not in comunes:
-                # 022:RF-91: CHNB6T1 dio su máxima el 2026-07-24 11:45 y CHN101, CHN102 y
-                # CHN201 no tienen ese registro: se quedaban sin calibrar. La máxima de la
+                # 022:RF-91: CHNB6T1 dio su máxima el 2026-07-24 11:45 y CHN191, CHN192 y
+                # CHN291 no tienen ese registro: se quedaban sin calibrar. La máxima de la
                 # barra, entre los registros que tienen también todos sus alimentadores.
                 filtradas = [[x for x in c if x[0] in comunes] for c in curvas]
                 otra = maxima_de_barra(filtradas, periodo) if all(filtradas) else None
@@ -3869,7 +3869,7 @@ ALIAS_TABLA = {
 def leer_tabla_excel(ruta: Path | str) -> Estructura:
     """La tabla de la estructura en Excel, como la publica la empresa (022:RF-4, RF-5).
 
-    Una fila por alimentador; la SET puede venir con su nombre («SET 21 EL CARMEN») o en
+    Una fila por alimentador; la SET puede venir con su nombre («SET 61 EL CARMEN») o en
     columnas aparte, y el zonal en todas sus filas.
     """
     alias = {**ALIAS, **{k: tuple(normalizar(x) for x in v) for k, v in ALIAS_TABLA.items()}}
@@ -3894,7 +3894,7 @@ def leer_tabla_excel(ruta: Path | str) -> Estructura:
 
 
 def _partir_set(codigo: str, nombre: str) -> tuple[str, str]:
-    """«SET 21 EL CARMEN» → («SET 21», «EL CARMEN»); con el nombre aparte, tal cual."""
+    """«SET 61 EL CARMEN» → («SET 61», «EL CARMEN»); con el nombre aparte, tal cual."""
     partes = codigo.split()
     if not nombre and len(partes) > 2 and partes[0].upper() == 'SET':
         return ' '.join(partes[:2]), ' '.join(partes[2:])

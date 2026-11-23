@@ -180,7 +180,7 @@ def dibujar(geo: Mapping[str, Any], modo: str, destino: Path, *, titulo: str,
     ``obras`` (017:RF-133), en la vista de ubicación y en ``detalle``: ``tramos`` con el
     conductor nuevo, ``trechos`` como ``[(desde, hasta), ...]``, ``bancos`` nuevos y
     ``existentes`` como ``[(barra, kvar), ...]``. ``detalle`` es la vista de ubicación
-    ampliada sobre la zona de las obras: en CA101 el cambio de 6,6 km quedaba en una
+    ampliada sobre la zona de las obras: en CA191 el cambio de 6,6 km quedaba en una
     esquina del alimentador entero, con los rótulos unos encima de otros.
     """
     from PIL import Image, ImageDraw

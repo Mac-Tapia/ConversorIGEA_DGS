@@ -11,7 +11,7 @@ entre la subida y el recibo: el reintento devuelve el recibo sin subir otra vez.
 
 Compartir (RF-10, RF-11, RF-20): primero la previa, con quién tendrá acceso y una confirmación de un solo uso, ligada
 al espacio, al paquete, a los destinatarios y a si hay enlace público; «cualquiera con el enlace» solo con
-``autorizo_enlace_publico`` en ese envío; y nunca un paquete con datos crudos de la distribuidora (TXT de CYMDIST,
+``autorizo_enlace_publico`` en ese envío; y nunca un paquete con datos crudos de la distribuidora (TXT,
 bases Access o paquetes VNR-GIS), reconocidos por su contenido aunque vayan renombrados.
 """
 from __future__ import annotations

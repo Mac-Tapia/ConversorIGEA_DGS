@@ -29,7 +29,7 @@ def require_active_source_run(ws: Workspace, *, verify_files: bool = False):
             raise UserError('SOURCE_SELECTION_CHANGED: la modalidad o las entradas seleccionadas '
                             'no corresponden a la red cargada. Vuelva a cargar la fuente.')
     # Tras reiniciar la web la red ya no está en memoria aunque nada haya cambiado: decir
-    # «las entradas cambiaron» (IN111 + TA225, 2026-10-14) mandaba a buscar un cambio
+    # «las entradas cambiaron» (IN191 + TA295, 2026-10-14) mandaba a buscar un cambio
     # que no existía.
     if snapshot is not None and ws.loaded_run_id is None:
         raise UserError(

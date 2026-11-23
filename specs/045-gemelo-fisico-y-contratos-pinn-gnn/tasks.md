@@ -9,7 +9,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       y están guardadas las evidencias adicionales descritas en T1 del plan.
 
 - [x] T2. Física representada y fronteras comprobables. (RF-4, RF-5, RF-6, RF-7)
-      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in111_ta225.py` pasa
+      Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in191_ta295.py` pasa
       y están guardadas las evidencias adicionales descritas en T2 del plan.
 
 - [x] T3. Ablaciones, dominio y candidato opcional PyG. (RF-8, RF-9, RF-12, RF-13)
@@ -40,7 +40,7 @@ código y no debió ejecutarse.
 - **T1, cerrada.** `tests/test_gemelo_contratos_v2.py`, `test_digital_twin_episode.py`, `test_digital_twin_buffer.py`
   y `test_digital_twin_snapshot_pf.py` pasan. La central, el banco y el caso se capturan con el doble `fake_pf`: es
   el contrato. Que persistan en una red real es el `test_central_y_bancos_persisten` de la T4.
-- **T2, cerrada.** `tests/test_pinn_fisica_y_fronteras.py`, `test_digital_twin_flujo.py` y `test_digital_twin_in111_ta225.py`
+- **T2, cerrada.** `tests/test_pinn_fisica_y_fronteras.py`, `test_digital_twin_flujo.py` y `test_digital_twin_in191_ta295.py`
   pasan; ninguna entrena. El gradiente se contrasta en float64 en CPU, porque es una fórmula y no un modelo. Relación
   fuera de la nominal, toma y banco se contrastan con pandapower (`test_transformador_y_banco_coinciden_con_pandapower`),
   no con DIgSILENT: eso es la T4.
@@ -52,14 +52,14 @@ código y no debió ejecutarse.
     Necesita antes los episodios con grafo versión 3, que salen de DIgSILENT.
 - **T4, abierta, medida el 2026-11-07** (rama `worktree-agent-a578852c96aa94605` sobre `7e81450c`, DIgSILENT 24.0.2, sin GPU).
   `tests/test_gemelo_fisico_nativo.py` (045:RF-11) con `CSG_EVIDENCIA_NATIVA=D:/converter/evidencia_nativa/20261107_PE10_t4c`:
-  3 passed, 0 omitidas. Proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10` (CA101 + PE104); cada caso releído en un
+  3 passed, 0 omitidas. Proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10` (CA191 + PE194); cada caso releído en un
   proceso nuevo de `digital_twin_snapshot_pf.py` tras reabrir, y contrastado con el flujo mallado del gemelo (CPU) en 1 065 barras:
   «Caso base» error medio 0,0048 p.u. y máximo 0,125; «Sin proyecto» 0,0066 y 0,129; «Con proyecto» con el banco de la obra
   0,0067 y 0,129. Los tres, fuera de dominio para uso predictivo: DIgSILENT calcula desequilibrado (`iopt_net=1`) y la física es
   equilibrada; el máximo supera la tolerancia de 0,01 p.u. Inventario: 12 bancos y 0 centrales en «Caso base» y «Sin proyecto»
   antes y después; «Con proyecto» con 13, el nuevo es solo el declarado. Sigue abierta porque se piden los cuatro papeles y el
   proyecto no tiene «Cargas nuevas» (DIgSILENT: «el proyecto no tiene el caso Cargas nuevas»): hace falta un proyecto de prueba
-  con el libro de cargas nuevas (spec 037). NA203–NA205 no se tocaron.
+  con el libro de cargas nuevas (spec 037). NA293–NA295 no se tocaron.
 
 Limitaciones de lo cerrado:
 
@@ -77,7 +77,7 @@ Limitaciones de lo cerrado:
 - [x] T5. La física base de la PINN nunca da 0 p.u.: Newton-Raphson y, si no, barrido radial. (RF-14)
       Hecho cuando: `tests/test_digital_twin_flujo.py` (045:RF-14) en verde y la red 9f53b98… del búfer a 0,005 p.u. de DIgSILENT.
 
-- [ ] T6 [GPU]. El híbrido no empeora a la física: corrección nula al empezar, época elegida con el tope de residuo,
+- [x] T6 [GPU]. El híbrido no empeora a la física: corrección nula al empezar, época elegida con el tope de residuo,
       corrección acotada al predecir, retirada del modelo en uso peor que la física y redes de prueba declaradas en el
       contrato de la ablación. (RF-15, RF-16, RF-17, RF-18)
       Hecho cuando: el código y `tests/test_gemelo_hibrido_acotado.py` (sin GPU) en verde, `tests/test_digital_twin_oraculo.py`
@@ -97,3 +97,9 @@ Limitaciones de lo cerrado:
       dentro del dominio (30–5 147 nodos) y con la física a 4,0·10⁻³ p.u. Acepta si el híbrido pasa las puertas de 044 en
       global y en las 6 familias con `ejemplos_fuera_de_dominio` = 0; si no, queda la física (`eleccion.brazo`) con el motivo
       medido.
+
+      Hecho el 2026-11-22 en la GPU (cola de la noche de d8, D:/csg/PM_IMPL/GPU_BLOQUE/045_T6b_noche/): la ablación
+      repetida con el contrato de la T3 sobre una copia nueva del búfer (2260 s) da los cuatro brazos evaluados con
+      `veredicto.approved` en global y en las 6 familias, el híbrido incluido (`ablaciones.json`, experimento b9792fa957f3;
+      `eleccion.brazo` = powerflownet, el de menor error de tensión entre los que pasan las puertas de 044), y las pruebas
+      en CUDA dan 60 passed (`pytest_gpu.log`); espejo en Drive verificado por sha256 (596 iguales).

@@ -21,7 +21,7 @@ a lo que ya existe**:
 | `runtime_paths.staging_publicacion`, `util.publicar_duradero` | Copia, vínculo y recibo se escriben de forma atómica: nunca a medias (P6) |
 | `adaptadores/fuentes_estables.abrir_fuente_estable` (vía `source_runs`) | La huella de la copia local se recalcula al reabrirla |
 | `adaptadores/entrada/vnr/pipeline.safe_extract_package` y `discovery/download.safe_extract_zip` (**solo lectura, no se tocan**) | Un paquete VNR de la nube se valida con `validate_vnr_package_file` desde `_validar_entrada`; las rutas maliciosas las rechaza el mismo extractor que hoy |
-| `identify.fuente_de` | RF-20: reconoce por su contenido un TXT de CYMDIST, una base Access o un paquete VNR dentro del expediente |
+| `identify.fuente_de` | RF-20: reconoce por su contenido un TXT, una base Access o un paquete VNR dentro del expediente |
 | `salidas_red.py`: `SALIDAS`, `exigir_salida`, `motivo_apagada`, `CAMBIABLES_DESDE_LA_WEB` | Una salida nueva, `nube`, con su variable `CSG_SALIDA_NUBE`, apagada en la edición de producto (086:RF-22). `tests/test_seguridad_web.py` ya falla si un módulo abre la red sin figurar ahí |
 | `web/seguridad.py` (086:RF-17 a RF-20) | Host local, `Origin` propio, token y cabeceras. La ruta de retorno de OAuth va fuera de `/api/` (ver Decisiones), así que el middleware no cambia |
 | `asistente/equipo.py`: `autorizar_peticion` | RF-15: el asistente no puede pedir ninguna ruta de la nube, ni con un plan confirmado |

@@ -344,7 +344,7 @@ def test_cargas_sed_une_topologia_con_etiqueta_alimentador(guion):
     app = _app()
     extra = app.proyecto.CreateObject('ElmLod', 'F1_S99')
     # PowerFactory 2024 relee la propiedad definida por DGS como una lista, incluso con
-    # un solo valor (CA101 real: ``['CA101']``).
+    # un solo valor (CA191 real: ``['CA191']``).
     extra.SetAttribute('p:alimentador', ['F1'])
     extra.outserv = 0
     original = _carga(app, 'F1_S1')
@@ -368,7 +368,7 @@ def test_cargas_sed_une_topologia_con_etiqueta_alimentador(guion):
 
 
 def test_medidor_unico_mide_la_suma_de_dos_troncales(guion):
-    """006:RF-4 — un medidor en la fuente mide juntas las dos salidas de CA101.
+    """006:RF-4 — un medidor en la fuente mide juntas las dos salidas de CA191.
 
     La rama a la que apunta ``ElmFeeder`` representa solo una troncal (4 MW); el
     ``ElmXnet`` conectado a la misma barra registra los 6 MW de ambas troncales.
@@ -389,7 +389,7 @@ def test_medidor_unico_mide_la_suma_de_dos_troncales(guion):
     object.__setattr__(cub_troncal.obj_id, 'm_Qsum:bus1', 0.8)
     object.__setattr__(troncal_2, 'm_Psum:bus1', 2.0)
     object.__setattr__(troncal_2, 'm_Qsum:bus1', 0.4)
-    # PowerFactory 2024 en CA101 entrega la inyeccion del ElmXnet positiva, igual que
+    # PowerFactory 2024 en CA191 entrega la inyeccion del ElmXnet positiva, igual que
     # la suma de los flujos que salen por las dos troncales.
     object.__setattr__(fuente, 'm_Psum:bus1', 6.0)
     object.__setattr__(fuente, 'm_Qsum:bus1', 1.2)
@@ -404,7 +404,7 @@ def test_medidor_unico_mide_la_suma_de_dos_troncales(guion):
 
 
 def test_medidor_unico_mide_la_suma_de_tres_troncales(guion):
-    """006:RF-4 — la regla multitroncal no está limitada al caso particular CA101."""
+    """006:RF-4 — la regla multitroncal no está limitada al caso particular CA191."""
     app = _app(n=2)
     elm = next(f for f in app.proyecto.GetContents('*.ElmFeeder', 1)
                if f.loc_name == 'F1')
@@ -557,7 +557,7 @@ def test_validacion_de_perdidas_usa_consumo_efectivo_no_plini(guion):
 
 
 def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
-    """015:RF-47 / 015:RF-48 / 015:RF-49 / 015:RF-51 — CA101, 2026-10-15: con la adaptación
+    """015:RF-47 / 015:RF-48 / 015:RF-49 / 015:RF-51 — CA191, 2026-10-15: con la adaptación
     automática del modelo las cargas consumían lo escrito por u² y la relectura de lo
     escrito daba «válido». Ahora la fija y la escalada que no consumen lo suyo se nombran,
     con lo escrito, lo consumido y el ajuste del flujo como causa."""
@@ -587,7 +587,7 @@ def test_carga_que_consume_menos_de_lo_escrito_no_es_valida(guion):
     aviso = guion.aviso_consumo_fisico(validacion)
     assert aviso.startswith('VALIDACION_FISICA') and 'F1_S1' in aviso and 'iopt_lev' in aviso
 
-    # 015:RF-59 — PA217, 2026-10-16: sin la adaptación no convergía ni con las escaladas
+    # 015:RF-59 — PA297, 2026-10-16: sin la adaptación no convergía ni con las escaladas
     # casi en cero; el aviso nombra a la fija que pide más que su transformador.
     historial = [{'a': 0.08, 'converge': False}, {'a': 0.005, 'converge': False},
                  {'a': 0.08, 'converge': True}]
@@ -674,7 +674,7 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
     """006:RF-11 / 006:RF-41 / 015:RF-50 — la rama NO_REDISTRIBUIR mide pérdidas como la
     validación.
 
-    En CA101 reabierto (168 cargas, ``_6`` reutilizada) el informe restaba la ``plini``
+    En CA191 reabierto (168 cargas, ``_6`` reutilizada) el informe restaba la ``plini``
     escrita a la cabecera y daba -846 kW de pérdidas, mientras el flujo aplicado sobre el
     mismo estado daba +499,8 kW.
     """
@@ -699,11 +699,11 @@ def test_no_redistribuir_informa_perdidas_con_consumo_efectivo(guion):
 
 
 def test_calibracion_con_cargas_dependientes_de_la_tension_no_es_valida(guion):
-    """015:RF-47 / 015:RF-49 / 015:RF-51 / 015:RF-69 — CA101 en DIgSILENT, 2026-10-15: las
+    """015:RF-47 / 015:RF-49 / 015:RF-51 / 015:RF-69 — CA191 en DIgSILENT, 2026-10-15: las
     cargas consumían lo escrito por u² con ``iopt_lev=1`` y la calibración quedaba «válida».
     Ahora no lo es y el aviso nombra la fija que no consume lo suyo; el ajuste heredado vuelve
     a 0 y queda dicho (083:RF-26); el reparto que cuadró queda grabado y ninguna escalada
-    vuelve a cero (SL144 + SM117)."""
+    vuelve a cero (SL194 + SM197)."""
     app = _app()
     object.__setattr__(app.ldf, 'iopt_lev', 1)
     antes = {o.loc_name: (o.plini, o.scale0) for o in app.proyecto.GetContents('*.ElmLod', 1)}
@@ -967,7 +967,7 @@ def test_ajustes_de_antes_de_la_015_no_se_tocan(guion):
     """014:RF-3 / 015:RF-26 — los ajustes de antes de la spec 015 activos donde se calibra
     no se apagan ni se borran, y se dicen; la calibración nueva no crea ninguna variación.
 
-    SI213 (2026-10-12): tres ajustes activos con etapas de la misma fecha y la etapa del
+    SI293 (2026-10-12): tres ajustes activos con etapas de la misma fecha y la etapa del
     cuarto no quedó grabando; desde la 015 ya no hay etapa que grabar."""
     app = _app()
     instante = int(getattr(app.GetActiveStudyCase(), 'iStudyTime', 0) or 0)
@@ -1004,7 +1004,7 @@ def test_etapa_que_no_graba_nombra_las_variaciones(guion, monkeypatch):
     """006:RF-19 — si DIgSILENT sigue sin dejar grabar la etapa nueva, no se escribe nada, la
     variación vacía no se queda activa y el error nombra las variaciones con las que choca.
 
-    En una copia de SI213 (2026-10-12) la etapa nueva grababa hasta reactivar el cuarto
+    En una copia de SI293 (2026-10-12) la etapa nueva grababa hasta reactivar el cuarto
     ajuste: esa variación se modela aquí quitando la grabación al activarse.
     """
     import cargas_pf
@@ -1032,7 +1032,7 @@ def test_etapa_que_no_graba_nombra_las_variaciones(guion, monkeypatch):
 def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
     """016:RF-74 — cada etapa nueva toma la siguiente fecha libre antes de la del estudio.
 
-    IN111 + TA225 (2026-10-15): con tres o más etapas activas de la misma fecha DIgSILENT
+    IN191 + TA295 (2026-10-15): con tres o más etapas activas de la misma fecha DIgSILENT
     no aplica ninguna; con fechas propias entran todas y la más nueva se aplica la última.
     """
     import cargas_pf
@@ -1047,7 +1047,7 @@ def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
     # NewStage lleva la hora del caso a la de la etapa: se devuelve, o las anteriores
     # quedarían después de la hora del estudio, inactivas.
     assert app.caso.iStudyTime == 5_000_000
-    # 035:RF-23 — si una etapa activa quedó después de la hora del caso (SED_NTP_ de SM218,
+    # 035:RF-23 — si una etapa activa quedó después de la hora del caso (SED_NTP_ de SM298,
     # 2026-10-29), se adelanta a la siguiente fecha libre antes del estudio para que se aplique,
     # sin tocar la hora; una etapa de años después (PIDE), no.
     assert cargas_pf.etapas_al_dia(app) == []
@@ -1065,7 +1065,7 @@ def test_etapas_nuevas_con_fecha_propia_antes_del_estudio(guion):
 
 def _con_escenario_que_manda(**kw):
     """Proyecto con el escenario del operador guardando las demandas importadas, como el
-    «Operation Scenario» de SI213: con él activo manda su potencia, no la de la variación."""
+    «Operation Scenario» de SI293: con él activo manda su potencia, no la de la variación."""
     app = _app(escenario=True, **kw)
     app.escenario_manda = True
     app.escenario.fotografiar()
@@ -1079,7 +1079,7 @@ def test_el_escenario_lleva_el_ajuste(guion, monkeypatch):
     proyecto»; el «Caso base» conserva su demanda y su escenario, y ve la marca fija o
     escalable, que DIgSILENT guarda en la red (sonda T1 de la 015).
 
-    SI213 (2026-10-12): cuadró a 1.621,8 kW con el escenario apagado y, con el
+    SI293 (2026-10-12): cuadró a 1.621,8 kW con el escenario apagado y, con el
     «Operation Scenario» activo, la verificación medía 229,2 kW; ahora se mide con él.
     """
     monkeypatch.setattr(guion, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
@@ -1151,7 +1151,7 @@ def _activas(app, nombre):
 
 def test_el_ajuste_conserva_las_variaciones_del_operador(guion, monkeypatch):
     """014:RF-1, 014:RF-2, 014:RF-3, 014:RF-14, 014:RF-15, 014:RF-20 / 015:RF-25, 015:RF-26 — un ajuste
-    de antes de la 015 con cambios del operador (CA101 ``_3``: cargas y un ElmTr2) sigue
+    de antes de la 015 con cambios del operador (CA191 ``_3``: cargas y un ElmTr2) sigue
     activo en «Sin» y «Con», y se mide con él; cada caso termina con su escenario."""
     app = _app(escenario=True)
     sys_casos = __import__('sys').modules['casos_pf']
@@ -1277,7 +1277,7 @@ def test_gana_el_cambio_manual_de_demanda(guion, monkeypatch):
 
 def test_el_factor_de_escala_que_mueve_el_conversor_no_es_un_cambio_manual(guion):
     """014:RF-10 — con la P y la Q escritas guardadas, una carga cuyo factor de escala cambió
-    no es un cambio a mano, y una cuya P escrita cambió sí: en SM218 el scale0 de las
+    no es un cambio a mano, y una cuya P escrita cambió sí: en SM298 el scale0 de las
     escaladas pasó de 0,10214 a 0,10305 entre dos calibraciones y 257 cargas salían «a mano»,
     que tapaban a los 15 clientes importantes."""
     import random
@@ -1326,7 +1326,7 @@ def test_el_ajuste_no_comprueba_la_red(guion):
 def test_la_cabecera_se_mide_con_el_escenario_de_sin_proyecto(guion, monkeypatch):
     """006:RF-29, 006:RF-30 (con la 015:RF-26) — cada medida de la cabecera, la del cuadre y la
     del informe, se hace con el escenario de «Sin proyecto» activo: no queda otra cabecera
-    «con el escenario» que pueda diferir de la ajustada, como en SI213 (2026-10-12)."""
+    «con el escenario» que pueda diferir de la ajustada, como en SI293 (2026-10-12)."""
     app = _con_escenario_que_manda()
     escenarios = []
     original = guion.medir_cabecera
@@ -1355,7 +1355,7 @@ def test_si_no_cuadra_los_ajustes_del_flujo_se_restituyen(guion):
 
 
 def test_escaladas_a_fp_del_perfil_y_fijas_con_su_ea_eri(guion):
-    """015:RF-53 / 015:RF-54 / 015:RF-56 — CA101, 2026-10-15: las escaladas con el factor de
+    """015:RF-53 / 015:RF-54 / 015:RF-56 — CA191, 2026-10-15: las escaladas con el factor de
     potencia del perfil (0,98) y las fijas con el de su EA/ERI; el informe dice de dónde
     sale cada uno."""
     app = _app()
@@ -1413,7 +1413,7 @@ def test_lista_los_bancos_instalados_del_alimentador_y_no_otros(guion):
 
 
 def test_cliente_que_pide_mas_que_su_transformador_se_avisa(guion):
-    """015:RF-59 — CA101, 2026-10-15: un cliente pedía 248 kW en SE20859, de
+    """015:RF-59 — CA191, 2026-10-15: un cliente pedía 248 kW en SE20859, de
     50 kVA (496 %). Se nombra la SED con su cliente, kVA y porcentaje, y se calibra igual."""
     app = _app(kva=lambda f, i: 50.0)
     clientes = [{'codigo': 'CI-9', 'sed': 'F1_S2', 'pot': 200.0, 'ea': 1.0, 'eri': 0.2}]
@@ -1495,7 +1495,7 @@ def test_toda_escalada_con_el_fp_del_perfil(guion):
 
 
 def test_con_proyecto_recibe_la_demanda_aunque_sin_proyecto_ya_este_calibrado(guion, monkeypatch):
-    """014:RF-4 — CA101, 2026-10-15, en DIgSILENT: «Sin proyecto» estaba calibrado y la
+    """014:RF-4 — CA191, 2026-10-15, en DIgSILENT: «Sin proyecto» estaba calibrado y la
     calibración salía por «ya cargado y válido», pero «Con proyecto» conservaba en su
     escenario la demanda del archivo (3861 kW frente a 5264). Ahora se compara y se le
     escribe lo que falte, y el informe lo dice."""
@@ -1522,7 +1522,7 @@ def test_con_proyecto_recibe_la_demanda_aunque_sin_proyecto_ya_este_calibrado(gu
 
 
 def test_kva_de_la_sed_cuenta_las_unidades_en_paralelo(guion):
-    """015:RF-59 / 015:RF-44 — PA217, 2026-10-16: SE30940 quedó con 8 × 630 kVA (``ntnum``)
+    """015:RF-59 / 015:RF-44 — PA297, 2026-10-16: SE30940 quedó con 8 × 630 kVA (``ntnum``)
     y el ajuste la veía con 630 kVA al 606 %; un ElmTr2 con ``ntnum`` unidades cuenta todas."""
     app = _app(n=2)
     carga = next(c for c in app.proyecto.GetContents('*.ElmLod', 1)
@@ -1695,7 +1695,7 @@ def test_implementar_unidades_en_paralelo(guion):
 
 def test_un_transformador_que_ya_tiene_la_propuesta_no_se_anuncia_como_cambio(guion):
     """020:RF-24 — al recalibrar se vuelven a mandar los transformadores ya marcados: la SED que ya tiene ese tipo y esas
-    unidades no es un cambio. Pisco y PE102 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA»."""
+    unidades no es un cambio. Pisco y PE192 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA»."""
     app = _app(n=3)
     clientes = [{**_sobrecargada(app)[0], 'pot': 2000.0}]
     plan = _con_propuesta(guion, app, clientes, kw=2300.0)
@@ -1810,7 +1810,7 @@ def test_simular_no_cambia_transformadores(guion):
 
 def test_tras_implementar_la_calibracion_sale_valida(guion):
     """020:RF-26 — con el transformador nuevo ninguna fija queda sobre su potencia, la cambiada
-    queda en el umbral y la calibración es válida (PA217, 2026-10-16)."""
+    queda en el umbral y la calibración es válida (PA297, 2026-10-16)."""
     app = _app(n=3)
     plan = _con_propuesta(guion, app, _sobrecargada(app))
 
@@ -1861,8 +1861,8 @@ def test_la_sed_cambiada_por_encima_del_umbral_se_nombra(guion):
 
 def test_la_variacion_de_una_central_no_bloquea_los_transformadores(guion):
     """020:RF-17, 021:RF-37 — la variación de la central (del conversor) se apaga mientras se
-    escriben los transformadores y se vuelve a encender. En NA203 + NA205 (2026-10-17) la
-    central de NA205 bloqueaba los transformadores de NA203."""
+    escriben los transformadores y se vuelve a encender. En NA293 + NA295 (2026-10-17) la
+    central de NA295 bloqueaba los transformadores de NA293."""
     app = _app(n=3)
     plan = _con_propuesta(guion, app, _sobrecargada(app))
     activas = []
@@ -1910,7 +1910,7 @@ def test_cambios_en_la_red_original_y_nuevo(guion):
 
 def test_la_cambiada_a_mano_no_entra_en_el_factor_comun(guion):
     """014:RF-10 / 015:RF-47 — una escalada cambiada a mano conserva su demanda y no lleva el
-    factor común: no hace «no proporcionales» a las demás (SE20027 de TM104 en Chincha,
+    factor común: no hace «no proporcionales» a las demás (SE20027 de TM194 en Chincha,
     2026-10-18, con su transformador nuevo, era la primera de la lista)."""
     from types import SimpleNamespace as N
 

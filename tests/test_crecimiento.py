@@ -104,7 +104,7 @@ def test_los_libros_de_clientes_se_leen_como_trabajo():
 
 
 def test_la_pot_de_cada_libro_se_guarda_con_su_huella(tmp_path, monkeypatch):
-    """042:RF-96 — un libro con la misma huella no se vuelve a leer; el que cambia, sí. PE102: cada «Con proyecto»
+    """042:RF-96 — un libro con la misma huella no se vuelve a leer; el que cambia, sí. PE192: cada «Con proyecto»
     releía los 21 libros de clientes importantes."""
     import os
     from types import SimpleNamespace

@@ -1,16 +1,16 @@
 # Spec 014 — Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto»
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: aceptación de CA101 del 2026-10-14
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: aceptación de CA191 del 2026-10-14
 
 ## Contexto y objetivo
 
 La spec 011 (2026-10-11) llevaba la calibración a «Sin proyecto» y «Con proyecto»
 activando en ellos la variación del último ajuste y desactivando las de ajustes
-anteriores (011:RF-7, RF-50). En CA101 eso apagó cambios deliberados del operador. El
+anteriores (011:RF-7, RF-50). En CA191 eso apagó cambios deliberados del operador. El
 14/10 a las 08:34 el ajuste `_2` daba TR_SE20701 al 499 %, TR_SE20859 al 434 % y
 TR_SE21082 al 214 %. El operador cambió a mano el tipo de cuatro transformadores
 (200→250, 800→2000, 50→520 y 100→250 kVA), y esos cambios quedaron grabados en
-`Ajuste_CA101_20261013_203247_3`, la variación que grababa en ese momento. Los ajustes
+`Ajuste_CA191_20261013_203247_3`, la variación que grababa en ese momento. Los ajustes
 siguientes (`_4` a `_6`) desactivaron `_3`, en su caso y en «Con proyecto». El modelo
 calculó entonces la cabecera, las pérdidas y los estudios sin esos transformadores. Solo
 un aviso lo decía: «Ajustes anteriores desactivados».
@@ -37,7 +37,7 @@ Definiciones para esta spec:
 - **Variación de carga nueva**: la que crea la spec 007 para una carga nueva.
 - **Variación del operador**: cualquier otra variación. Entra aquí una variación de ajuste
   que contenga objetos distintos de las cargas existentes del alimentador ajustado, como
-  `_3` de CA101 con sus cuatro transformadores.
+  `_3` de CA191 con sus cuatro transformadores.
 - **Cambio manual de demanda**: una carga existente cuya demanda en el escenario de
   «Sin proyecto» difiere de la que grabó allí el último ajuste.
 
@@ -130,11 +130,11 @@ Inserción sin duplicados
   existente y el del libro.
 - Aclaración de RF-24 y RF-28 (cambian con 004:RF-76 y RF-77, 2026-11-12): se reutiliza solo si la fila del libro es la
   misma con que se creó la carga; si cambian sus coordenadas, su kW o kVAR, su kVA o su barra, la variación anterior se
-  elimina y la carga se crea de nuevo. SE0001 (PA217) se creó con un dígito de menos en Y y, corregida, se habría
+  elimina y la carga se crea de nuevo. SE0001 (PA297) se creó con un dígito de menos en Y y, corregida, se habría
   reutilizado la mal puesta. Lo que el operador retocó a mano en DIgSILENT, con la misma fila, sigue avisándose (RF-28).
 - RF-29: EL SISTEMA reconocerá la carga de RF-27 en una variación también cuando DIgSILENT
   le ha añadido un sufijo «(n)» al guardarla en la etapa, donde la SED, su barra y su carga
-  comparten carpeta y nombre (PN107, 2026-10-16: la carga CH_9 estaba guardada como
+  comparten carpeta y nombre (PN197, 2026-10-16: la carga CH_9 estaba guardada como
   «CH_9(2)», no se reconoció, se creó otra en una segunda variación que partía otra vez el
   trozo de la primera y «Con proyecto» no ejecutaba el flujo).
 - RF-30: SI una fila del libro no coincide por nombre con ninguna carga nueva ya creada,
@@ -143,7 +143,7 @@ Inserción sin duplicados
   motivo dice con qué nombre está (usuario, 2026-10-16: «la comparación podría ser por el
   nombre y el mismo punto de coordenadas»).
 
-Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto» (usuario, 2026-10-16: en PN107 se
+Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto» (usuario, 2026-10-16: en PN197 se
 creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyecto»)
 
 - RF-31: ANTES de insertar cargas nuevas, aplicar obras, preparar los casos, estudiar
@@ -182,7 +182,7 @@ creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyect
 
 ## Casos límite
 
-- Cambios manuales grabados por el operador dentro de una variación de ajuste (CA101,
+- Cambios manuales grabados por el operador dentro de una variación de ajuste (CA191,
   `_3`): es una variación del operador y no se desactiva (RF-3, RF-15).
 - Recalibrar cuando «Con proyecto» ya tiene cargas nuevas en servicio (RF-4, RF-7 a RF-9).
 - Una carga existente con su demanda cambiada a mano en «Sin proyecto» (RF-10 a RF-12).
@@ -195,7 +195,7 @@ creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyect
 
 ## Fuera de alcance
 
-- Reorganizar o borrar las variaciones de proyectos que ya existen (CA101 `_151034` a
+- Reorganizar o borrar las variaciones de proyectos que ya existen (CA191 `_151034` a
   `_6`). Cuáles se activan en cada caso lo decide el operador.
 - Desactivar en «Con proyecto» una variación que el operador desactivó en «Sin proyecto»:
   RF-21 solo activa, nunca apaga.
@@ -205,7 +205,7 @@ creó un banco de condensadores en «Sin proyecto» y no estaba en «Con proyect
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "014:RF-[0-9]+" tests`).
 - Suite en verde con los datos reales (variables `CSG_*`).
-- Prueba en DIgSILENT con CA101: un ajuste en «Sin proyecto» que deje activa `_3` con sus
+- Prueba en DIgSILENT con CA191: un ajuste en «Sin proyecto» que deje activa `_3` con sus
   cuatro transformadores, y una inserción repetida que no cree cargas duplicadas.
 
 ## Dudas resueltas

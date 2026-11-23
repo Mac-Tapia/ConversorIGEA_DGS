@@ -1,7 +1,7 @@
 # Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo
 
 Estado: cumplida (revisión 033 del 2026-10-29) · implementada (2026-10-15; RF-9 a RF-12 añadidos y hechos el mismo día) - Fecha:
-2026-10-15 - Origen: PROJECT_BINDING_MISSING sobre CA101 en un espacio de trabajo que no
+2026-10-15 - Origen: PROJECT_BINDING_MISSING sobre CA191 en un espacio de trabajo que no
 aceptó el proyecto (2026-10-15)
 
 ## Contexto y objetivo
@@ -46,7 +46,7 @@ que compartir el vínculo exige comprobar también el DGS que se aceptó.
 
 ### Usar la fuente con la que se aceptó (añadido el 2026-10-15)
 
-El registro compartido no bastó para CA101: el navegador abrió un espacio nuevo, sin fuente
+El registro compartido no bastó para CA191: el navegador abrió un espacio nuevo, sin fuente
 cargada, y el proyecto quedó bloqueado con `PROJECT_BINDING_NO_ACTIVE_SOURCE`, aunque su
 ejecución fuente seguía en disco en el espacio que lo aceptó y su «Caso base» estaba
 verificado. La pestaña de cargas promete trabajar «sin convertir nada»; pedir que se vuelva
@@ -81,7 +81,7 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   proyectos» la actualiza. Como la carpeta es común, manda la lectura más reciente, sea del
   espacio o de otro; y SI una acción pide un proyecto que estaba en una lectura anterior y
   falta en la más reciente, ENTONCES el sistema la rechazará antes de abrir DIgSILENT,
-  proponiendo los de sus mismos alimentadores, sea cual sea su nombre (CA101_CHN102,
+  proponiendo los de sus mismos alimentadores, sea cual sea su nombre (CA191_CHN192,
   2026-11-13).
 - RF-14: Cuando una acción sobre un proyecto de DIgSILENT (verificar el «Caso base» y toda
   acción nativa) reciba el nombre de una red unida o por sistema del espacio (`SISTEMA_NASCA`),
@@ -93,7 +93,7 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   deberá usar sola la ejecución del vínculo, como con
   «Usar la fuente del vínculo» (RF-10), y decirlo, en vez de pedir DGS que nunca se
   importaron. (Nasca, 2026-10-24: tras importar `SISTEMA_NASCA` se volvió a cargar la misma
-  fuente; la verificación pedía `CH101.dgs` y los demás de la ejecución nueva.) Las demás
+  fuente; la verificación pedía `CH191.dgs` y los demás de la ejecución nueva.) Las demás
   acciones nativas trabajan sobre el proyecto ya importado y no cambian la ejecución activa
   (Chincha, 2026-10-24: puesto también en ellas, la escalera cambió sola de ejecución y falló).
 - RF-16: Si el proyecto vinculado no se puede activar en DIgSILENT al verificar el «Caso base», la

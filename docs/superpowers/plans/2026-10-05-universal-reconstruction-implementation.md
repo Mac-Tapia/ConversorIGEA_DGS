@@ -19,7 +19,7 @@
 - Producir DGS, importar, releer y converger son estados separados.
 - Un supuesto permite continuar, pero nunca se etiqueta como dato original ni como solución eléctrica definitiva.
 - Toda mutación PowerFactory usa el mismo plan y `source_run_id` verificados en preflight.
-- Empresa A/IN111 es evidencia de aceptación, no una dependencia funcional.
+- Empresa A/IN191 es evidencia de aceptación, no una dependencia funcional.
 - El fundamento metodológico se conserva en la especificación: McMorran, Özdamar, Yang et al., Valverde et al. y la tesis doctoral sobre redes con datos limitados.
 
 ## Review Focus
@@ -63,7 +63,7 @@ def test_vnr_multiple_companies_requires_explicit_selection():
     assert scope.selected_company is None
 ```
 
-Add API/UI contract assertions that `EMPA`, `IN111` and Empresa A do not appear as defaults and that a multi-scope package exposes selectors.
+Add API/UI contract assertions that `EMPA`, `IN191` and Empresa A do not appear as defaults and that a multi-scope package exposes selectors.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -299,7 +299,7 @@ git commit -m "feat: reconstruct incomplete feeders before conversion"
 
 - [ ] **Step 1: Write failing API/UI contract tests**
 
-Assert generic labels, no `EMPA`/IN111 defaults, selectable incomplete feeders, semantic status tones, report links and disabled mutation only for active-job or stale-run conditions.
+Assert generic labels, no `EMPA`/IN191 defaults, selectable incomplete feeders, semantic status tones, report links and disabled mutation only for active-job or stale-run conditions.
 
 - [ ] **Step 2: Run tests to verify they fail**
 
@@ -405,7 +405,7 @@ Expected: exit 0.
 
 - [ ] **Step 5: Run real controlled acceptance**
 
-Execute current TXT and MDB originals independently for IN111 through reconstruction, DGS, PowerFactory reread and `ComLdf`. Run VNR real only if a complete package exists; otherwise retain the explicit external blocker. Compare original hashes before/after.
+Execute current TXT and MDB originals independently for IN191 through reconstruction, DGS, PowerFactory reread and `ComLdf`. Run VNR real only if a complete package exists; otherwise retain the explicit external blocker. Compare original hashes before/after.
 
 - [ ] **Step 6: Reconcile every spec section**
 

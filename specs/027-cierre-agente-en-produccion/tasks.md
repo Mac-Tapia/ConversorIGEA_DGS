@@ -18,22 +18,22 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Nasca y Chincha desde la web, el búfer tiene episodios de las dos familias.
       Hecho el 2026-10-28: la lectura nativa trae el grafo eléctrico (antes solo tensiones) y el
       episodio de la calibración de Nasca en DIgSILENT es entrenable (4067 nodos con tensión).
-      Pendiente (2026-10-28): Nasca dejó de cuadrar en DIgSILENT. NA203 se arregló con 004:RF-67
-      (de +6,18 % a −0,18 %), pero la cabecera de NA205 se queda en 8631 kW con el factor de 1,11
+      Pendiente (2026-10-28): Nasca dejó de cuadrar en DIgSILENT. NA293 se arregló con 004:RF-67
+      (de +6,18 % a −0,18 %), pero la cabecera de NA295 se queda en 8631 kW con el factor de 1,11
       a 1,46 en 30 flujos (en la corrida buena respondía: 9510 → 8634 → 8732). Igual antes y
       después de RF-67, así que cambió el proyecto: revisar con una sonda los 6 bancos de
       450 kvar de la calibración fallida, las maniobras y la central de Nasca (¿fuente?).
-      Sonda del 2026-10-28 (solo lectura): las 109 cargas de NA205 tienen tensión y consumen
+      Sonda del 2026-10-28 (solo lectura): las 109 cargas de NA295 tienen tensión y consumen
       7,877 MW, sin fuentes dentro; las escaladas están en scale0 0,014 y 0,037 (el factor que
       dejaron corridas con las fijas por su POT) y con 004:RF-67 deben subir ~19 veces: el ajuste
       parte del factor anterior y avanza ~1 % por flujo. Además los bancos BC_CAL_* se acumulan
-      entre corridas (NA205 tiene 8: _1, _1_2, _1_3, _2 a _6). Corregir en tools/ajuste_cabecera_pf.py:
+      entre corridas (NA295 tiene 8: _1, _1_2, _1_3, _2 a _6). Corregir en tools/ajuste_cabecera_pf.py:
       partir de la base de las escaladas (kVA × FP, 015:RF-44) y no repetir bancos ya puestos
       (021:RF-64); después recalibrar Nasca y Chincha y cerrar T1.
-      Decisión del usuario (2026-10-28): las centrales y los bancos de NA205 los pone él a mano en
+      Decisión del usuario (2026-10-28): las centrales y los bancos de NA295 los pone él a mano en
       DIgSILENT (cambio manual, que se respeta). `tools/sistema_web.py` pasa al plan la central del
       perfil solo si trae su `nodo`; el perfil local ya no lo trae.
-      Pendiente (usuario, 2026-10-28): la central de NA205 no se puede poner a mano; Nasca se
+      Pendiente (usuario, 2026-10-28): la central de NA295 no se puede poner a mano; Nasca se
       recalibra cuando esté en el proyecto (028:T6).
 - [x] T2. Particiones «un sistema fuera» y mínimo de episodios de prueba por familia. (RF-2, RF-3)
       Hecho cuando: `pytest -q tests/test_digital_twin_evaluacion.py` en verde con familias
@@ -152,7 +152,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       si una cita no existe o no comparte términos con su frase; `indice.medir` da la fracción con
       cita correcta y la de «No lo sé» acertados. Falta el informe: no hay aún preguntas reales del
       operador con su fuente esperada.
-- [x] T19. Corpus PIDE desde `referencia/PIDEELOR` con `pide_dataset` (texto completo) y su
+- [x] T19. Corpus PIDE desde `referencia/PIDEEMPA` con `pide_dataset` (texto completo) y su
       auditoría con T0: ficheros, formatos no leídos y fragmentos por artículo. (RF-46, RF-47, RF-51)
       Hecho cuando: el manifiesto cubre los 1397 ficheros con su huella, cada no leído
       (MPP, DWG, RAR) dicho, y `test_pide_dataset` en verde.
@@ -168,10 +168,10 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho cuando: prueba con un corpus sintético; informe del real con los 20 artículos y
       los 15 formatos cubiertos o dichos como ausentes.
       Hecho el 2026-10-28: `asistente/ejemplos_pide.py` y `construir_dataset_pide.py --solo-ejemplos`.
-      En PIDEELOR: 20 de 20 artículos con ejemplos de 2021 y 2026 (fragmentos con artículo de 6 758
+      En PIDEEMPA: 20 de 20 artículos con ejemplos de 2021 y 2026 (fragmentos con artículo de 6 758
       a 9 035: el artículo sale también del texto, y «diagnóstico»/«pérdida» con tilde no
       coincidían nunca en `clasificar_ruta`), 15 de 15 formatos con sus hojas y columnas, y las
-      secciones del 4.1 (82) y del 4.2 (65); en `output/pide_dataset/PIDEELOR/ejemplos_agente.json`.
+      secciones del 4.1 (82) y del 4.2 (65); en `output/pide_dataset/PIDEEMPA/ejemplos_agente.json`.
 - [x] T21. Orquestador del proyecto desde cero, etapa por etapa, con puntos de control y
       reanudación, por las rutas de la web. (RF-43, RF-44)
       Hecho cuando: prueba con `fake_pf` cortada a mitad y reanudada sin repetir etapas.
@@ -186,7 +186,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Avance del 2026-10-28 (código): `ejemplos_pide.comparar_formatos` (palabras y unidades de
       cada campo frente a las celdas de encabezado entregadas) en el resultado del PIDE de la web
       (`comparacion_formatos`) y en `--solo-ejemplos`; los encabezados del conversor coinciden en
-      63 de 122 campos con los entregados de PIDEELOR (F10 7/9, F13 9/15; F15 1/4). Falta producir
+      63 de 122 campos con los entregados de PIDEEMPA (F10 7/9, F13 9/15; F15 1/4). Falta producir
       F01 a F15 de un sistema en DIgSILENT (con T14).
       Revisado el 2026-11-03: el código está. 072 T7 genera F01 a F15 con sus huecos nombrados
       (`tests/test_formatos_pide.py`, 17 aprobadas) y `comparar_formatos` mide la fracción
@@ -203,23 +203,23 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       T11 en DIgSILENT y en el navegador) y las puertas del asistente no se cumplen (T11). Sin informe de los
       cuatro sistemas en DIgSILENT.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN101` → `NODE_…_CHN101`) en el DGS,
+- [x] T23. El nodo de cabecera con la sigla canónica (`NODE_…_CN191` → `NODE_…_CHN191`) en el DGS,
       sus metadatos y lo que los guiones buscan por él. (022:RF-90)
       Hecho cuando: Chincha reconvertido e importado sin `CN` en sus nombres y calibrado válido
       en DIgSILENT.
       Avance del 2026-10-28 (código): `naming.nombre_canonico` cambia la sigla de cada trozo
-      «sigla + número» (`NODE_2030_1192582_CN101` → `…_CHN101`, también `NET_` y `SRC_`) y el DGS
+      «sigla + número» (`NODE_2030_1192582_CN191` → `…_CHN191`, también `NET_` y `SRC_`) y el DGS
       lo aplica a todos los `loc_name` con las siglas leídas una vez por fichero. Falta reconvertir
       e importar Chincha en DIgSILENT.
       Cerrada el 2026-10-28: la primera reconversión falló en la validación estricta, que buscaba
-      `…_CN101`; `validate._loc` usa ya la misma tabla de siglas que el DGS (prueba con las dos
+      `…_CN191`; `validate._loc` usa ya la misma tabla de siglas que el DGS (prueba con las dos
       disposiciones). Chincha reconvertido, importado (20261028-103442_CSG_SISTEMA_CHINCHA) y
       calibrado por la web: 26 válidos y 0 con fallos, y ningún `CN` suelto en su DGS.
 - [x] T24. Episodios por sistema según RF-53 y curva de aprendizaje por familia. (RF-53, RF-54)
       Hecho cuando: informe por sistema con sus 30/10/10 episodios y la curva que dice si ha
       convergido.
       Avance del 2026-10-28 (código): `digital_twin/curva.py` y `digital_twin_entrenar.py --curva`.
-      En el búfer real hay una red (IN111–TA225, 2470 nodos) con 14/4/6 episodios: faltan 16/6/4
+      En el búfer real hay una red (IN191–TA295, 2470 nodos) con 14/4/6 episodios: faltan 16/6/4
       para la curva, que se piden con «Aprender» (T3) en cada sistema; el episodio de la
       calibración de Nasca no sale como red entrenable y hay que revisarlo.
       Código cerrado el 2026-10-29 (033) con sus pruebas en verde; lo que falta en DIgSILENT pasa a T31.
@@ -266,7 +266,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       Hecho el 2026-10-28: `oraculo.entrenar(sistema=…)` y `--sistema RED`; curva con `inestable`.
       Chincha entero (red 2a5bc4f3e4ee, 4944 nodos): 70 escenarios simulados en DIgSILENT, 52/10/10;
       el gemelo se aparta 0,0024 p.u. en sus 10 episodios de prueba y queda promovido
-      (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN111–TA225 daba 0,31 p.u.
+      (20261028-114528-e6f5). Antes, con «un sistema fuera», el modelo de IN191–TA295 daba 0,31 p.u.
       en Chincha.
 - [x] T32. Búsqueda de hiperparámetros por ensayos, con el reloj como tope de seguridad, y un ensayo que falla
       para la búsqueda con su error. (RF-70, RF-71)

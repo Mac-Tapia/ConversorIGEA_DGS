@@ -84,7 +84,7 @@ def test_lee_sin_escribir_y_con_reapertura(guion):
 def test_perdidas_de_un_alimentador_en_proyecto_de_varios(guion):
     """044:RF-9 — leer un alimentador de un proyecto de varios da sus pérdidas, no las de todo el proyecto.
 
-    Con CA101 + PE104 y el plan de solo CA101 (2026-11-07) las pérdidas salían −4 690 kW: se restaban de su
+    Con CA191 + PE194 y el plan de solo CA191 (2026-11-07) las pérdidas salían −4 690 kW: se restaban de su
     cabecera las cargas de los dos alimentadores, y la aceptación nativa rechazaba la medición por negativa.
     """
     from estudios_pf import medida

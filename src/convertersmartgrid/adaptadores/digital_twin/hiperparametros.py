@@ -1,6 +1,6 @@
 """Búsqueda de hiperparámetros del gemelo (spec 027, T6; RF-7).
 
-Los de la PINN/GNN se eligieron a mano en IN111–TA225 (64 ocultas, 8 pasos, peso físico
+Los de la PINN/GNN se eligieron a mano en IN191–TA295 (64 ocultas, 8 pasos, peso físico
 10⁻⁴; 2026-10-24) y no tenían por qué valer para otro sistema. La búsqueda es bayesiana (TPE
 de Optuna, Bischl et al., *WIREs DMKD* 2023) con poda por mediana sobre la curva de
 validación, con presupuesto de ensayos, y evalúa cada ensayo **solo en la partición de

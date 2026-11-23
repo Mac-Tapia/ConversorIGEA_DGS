@@ -66,7 +66,7 @@ config/terminos_prohibidos*
 # utility identifiers and machine-specific paths; publish only curated summaries.
 AUDIT/
 
-# Large CYMDIST sample TXT (keep local; do not publish utility dumps)
+# Large sample TXT (keep local; do not publish utility dumps)
 referencia/RED_*.txt
 referencia/CARGA_*.txt
 referencia/BD_Equipo*.txt
@@ -78,7 +78,7 @@ referencia/*.xlsx
 referencia/*.xls
 referencia/*.csv
 referencia/*.mdb
-# DGS exportados de una red real (NA205.dgs estuvo versionado hasta el 2026-11-01 y hubo
+# DGS exportados de una red real (NA295.dgs estuvo versionado hasta el 2026-11-01 y hubo
 # que reescribir el historial para sacarlo): se quedan en local como los TXT.
 referencia/*.dgs
 referencia/audit_ternas_*.json

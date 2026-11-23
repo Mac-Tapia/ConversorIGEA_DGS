@@ -17,7 +17,7 @@ ORDENES = {
     'busca la maxima': ('buscar_maxima', 0.99, {}),
     'reentrena la pinn': ('gemelo_entrenar', 0.98, {}),
     'xyzzy': ('estado', 0.2, {}),
-    'convierte IN111': ('convertir', 0.97, {'alimentadores': [{'valor': 'IN111', 'confianza': 0.9}]}),
+    'convierte IN191': ('convertir', 0.97, {'alimentadores': [{'valor': 'IN191', 'confianza': 0.9}]}),
     'carga la fuente': ('cargar_fuente', 0.99, {}),
     'que hay cargado acceso=secreto1 token=secreto2 Authorization: Bearer secreto3abc': ('estado', 0.99, {}),
 }
@@ -136,7 +136,7 @@ def test_convertir_carga_antes_la_fuente(client, monkeypatch):
     """026:RF-6 / 026:RF-10 — con las entradas puestas y la fuente sin cargar, convertir empieza
     por cargarla, con la misma ruta de la web."""
     monkeypatch.setattr(services, 'check_ready', lambda ws: None)
-    plan = _orden(client, _wid(client), 'convierte IN111')['plan']
+    plan = _orden(client, _wid(client), 'convierte IN191')['plan']
     assert plan['listo'] and plan['pasos'] == ['cargar la fuente', 'convertir'], plan
     assert any('primero se carga' in x for x in plan['razonamiento'])
 
@@ -145,16 +145,16 @@ def test_correccion_y_registro(client):
     """026:RF-15 / 026:RF-19 / 026:RF-28 — la corrección del operador da un plan nuevo y un
     ejemplo corregido; el registro muestra órdenes y decisiones."""
     wid = _wid(client)
-    plan = _orden(client, wid, 'convierte IN111')['plan']
+    plan = _orden(client, wid, 'convierte IN191')['plan']
     assert plan['tarea'] == 'convertir'
     r = client.post(f"/api/workspaces/{wid}/asistente/{plan['id']}/corregir",
-                    json={'tarea': 'flujo', 'datos': {'alimentadores': ['IN111']}})
+                    json={'tarea': 'flujo', 'datos': {'alimentadores': ['IN191']}})
     assert r.status_code == 200 and r.json()['plan']['tarea'] == 'flujo'
     ejemplo = almacen.leer('ejemplos')[-1]
     assert ejemplo['tarea'] == 'flujo' and ejemplo['origen'] == 'corregido'
     assert ejemplo['datos'][0][2] == 'alimentadores'
     registro = client.get('/api/asistente/registro').json()
-    assert registro['ordenes'][-1]['texto'] == 'convierte IN111'
+    assert registro['ordenes'][-1]['texto'] == 'convierte IN191'
     assert registro['decisiones'][-1]['decision'] == 'corregida'
 
 
@@ -211,16 +211,16 @@ def test_revisar_tras_error_propone_al_operador():
     """027:RF-20 — con otros datos u otra tarea, no se ejecuta solo: vuelve al operador."""
     from convertersmartgrid.aplicacion.asistente.ejecutor import revisar_tras_error
 
-    datos = {'alimentadores': [{'valor': 'IN111'}]}
-    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x')['accion'] == 'reintentar'
-    igual = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'in111 '}]}})
-    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', igual)['accion'] == 'reintentar'
-    otro = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'IN112'}]}})
-    d = revisar_tras_error('convierte IN111', 'convertir', datos, 'no existe IN111', otro)
-    assert d['accion'] == 'operador' and d['datos']['alimentadores'][0]['valor'] == 'IN112'
+    datos = {'alimentadores': [{'valor': 'IN191'}]}
+    assert revisar_tras_error('convierte IN191', 'convertir', datos, 'x')['accion'] == 'reintentar'
+    igual = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'in191 '}]}})
+    assert revisar_tras_error('convierte IN191', 'convertir', datos, 'x', igual)['accion'] == 'reintentar'
+    otro = _Revisor({'tarea': 'convertir', 'datos': {'alimentadores': [{'valor': 'IN192'}]}})
+    d = revisar_tras_error('convierte IN191', 'convertir', datos, 'no existe IN191', otro)
+    assert d['accion'] == 'operador' and d['datos']['alimentadores'][0]['valor'] == 'IN192'
     otra = _Revisor({'tarea': 'sistema_completo', 'datos': {}})
-    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', otra)['accion'] == 'operador'
-    assert revisar_tras_error('convierte IN111', 'convertir', datos, 'x', _Revisor(None))['accion'] == 'reintentar'
+    assert revisar_tras_error('convierte IN191', 'convertir', datos, 'x', otra)['accion'] == 'operador'
+    assert revisar_tras_error('convierte IN191', 'convertir', datos, 'x', _Revisor(None))['accion'] == 'reintentar'
 
 
 def test_senales_preferencias_y_reflexiones(client, monkeypatch):
@@ -252,13 +252,13 @@ def test_orden_parecida_lleva_su_nota_y_sus_ejemplos(client, monkeypatch):
     fallo y las órdenes confirmadas más parecidas."""
     from convertersmartgrid.aplicacion.asistente import senales
 
-    almacen.anotar('ejemplos', {'texto': 'convierte el alimentador IN111', 'tarea': 'convertir',
+    almacen.anotar('ejemplos', {'texto': 'convierte el alimentador IN191', 'tarea': 'convertir',
                                 'datos': [], 'origen': 'confirmado'})
-    senales.reflexion('convierte el alimentador IN112', 'convertir', 'la ejecución falló: no existe IN112',
+    senales.reflexion('convierte el alimentador IN192', 'convertir', 'la ejecución falló: no existe IN192',
                       'pida el código correcto')
-    textos = senales.contexto_para('convierte el alimentador IN113')
-    assert any('Ejemplo confirmado' in t and 'IN111' in t for t in textos)
-    assert any('no existe IN112' in t for t in textos)
+    textos = senales.contexto_para('convierte el alimentador IN193')
+    assert any('Ejemplo confirmado' in t and 'IN191' in t for t in textos)
+    assert any('no existe IN192' in t for t in textos)
     assert senales.contexto_para('reentrena la pinn') == [] or all('IN11' not in t for t in senales.contexto_para('xyz'))
 
     class Ollama:
@@ -272,13 +272,13 @@ def test_orden_parecida_lleva_su_nota_y_sus_ejemplos(client, monkeypatch):
     o = Ollama()
     monkeypatch.setattr(services, '_asistente_modelos', lambda: (None, o))
     wid = _wid(client)
-    _orden(client, wid, 'convierte el alimentador IN113')
-    assert o.vistos and any('no existe IN112' in t for t in o.vistos[-1])
+    _orden(client, wid, 'convierte el alimentador IN193')
+    assert o.vistos and any('no existe IN192' in t for t in o.vistos[-1])
 
 
 def test_tamano_del_conjunto_real_en_el_registro(client):
     """027:RF-17 / 027:RF-19 — el registro dice cuántas órdenes reales hay de las 200 y que,
     hasta entonces, toda escritura pide confirmación."""
-    almacen.anotar('ejemplos', {'texto': 'convierte IN111', 'tarea': 'convertir', 'datos': [], 'origen': 'confirmado'})
+    almacen.anotar('ejemplos', {'texto': 'convierte IN191', 'tarea': 'convertir', 'datos': [], 'origen': 'confirmado'})
     [c] = client.get('/api/asistente/registro').json()['conjunto_real']
     assert c == {'ordenes': 1, 'hacen_falta': 200, 'confirmacion_obligatoria': True}

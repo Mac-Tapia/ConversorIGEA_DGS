@@ -18,11 +18,11 @@ H = 'f' * 64
 LIM = Limites('NTCSE', 0.95, 1.05, 100, 80)
 
 
-def _plan(action='obras_ejecutar', feeders=('TA225', 'IN111')):
-    binding = {'project': 'P_IN111', 'source_run_id': 'run-7', 'source_mode': 'vnr',
+def _plan(action='obras_ejecutar', feeders=('TA295', 'IN191')):
+    binding = {'project': 'P_IN191', 'source_run_id': 'run-7', 'source_mode': 'vnr',
                'source_fingerprint': H}
-    return {'project': 'P_IN111', 'feeders': list(feeders),
-            'native_action_context': build_native_action_context(binding, 'P_IN111', feeders, action)}
+    return {'project': 'P_IN191', 'feeders': list(feeders),
+            'native_action_context': build_native_action_context(binding, 'P_IN191', feeders, action)}
 
 
 def _flujo(v=0.97):
@@ -34,10 +34,10 @@ def _flujo(v=0.97):
 
 
 def _lectura(v=0.97, **cambios):
-    base = {'project': 'P_IN111', 'folder': 'sistemaeletricoELD', 'pf_version': '2024',
-            'feeders': ['IN111', 'TA225'], 'reopen_verified': True,
+    base = {'project': 'P_IN191', 'folder': 'sistemaeletricoELD', 'pf_version': '2024',
+            'feeders': ['IN191', 'TA295'], 'reopen_verified': True,
             'topologia': {'frontera': ['SEC_1091_1055021(1)'],
-                          'huellas_gps': {'Enlace_TA225_IN111': 'a' * 64},
+                          'huellas_gps': {'Enlace_TA295_IN191': 'a' * 64},
                           'grafo': {'version': VERSION_GRAFO, **contrato_fisico(), 'ramas': [],
                                     'nodos': {'3091': {'kv': 10.0, 'fuente': True, 'v_pu': 1.0}}}},
             'flujo': _flujo(v)}
@@ -70,7 +70,7 @@ def test_episodio_liga_fuente_proyecto_y_orientacion():
     y el orden de alimentadores de la lectura, que expresa la orientación."""
     e = _construir()
     assert e.fuente == {'source_run_id': 'run-7', 'source_mode': 'vnr', 'source_fingerprint': H}
-    assert e.nativo['project'] == 'P_IN111' and e.nativo['feeders'] == ['IN111', 'TA225']
+    assert e.nativo['project'] == 'P_IN191' and e.nativo['feeders'] == ['IN191', 'TA295']
     assert e.accion['tipo'] == 'obras_ejecutar' and e.accion['context_sha256']
     assert e.topologia['frontera'] == ['SEC_1091_1055021(1)']
     assert e.clase is Clase.ACCEPTED
@@ -96,18 +96,18 @@ def test_sin_lectura_nativa_va_a_cuarentena():
 def test_lectura_de_otro_proyecto_va_a_cuarentena():
     """024:RF-7 — una lectura de otro proyecto o con otros alimentadores no se mezcla."""
     assert _construir(lectura=_lectura(project='X')).clase is Clase.QUARANTINE
-    assert _construir(lectura=_lectura(feeders=['IN111'])).clase is Clase.QUARANTINE
+    assert _construir(lectura=_lectura(feeders=['IN191'])).clase is Clase.QUARANTINE
 
 
 def test_trazado_manual_cambiado_bloquea_el_positivo():
     """024:RF-3 — si la huella del trazado manual cambió sin autorización, el episodio no es
     positivo."""
     plan = _plan()
-    plan['huellas_gps_esperadas'] = {'Enlace_TA225_IN111': 'c' * 64}
+    plan['huellas_gps_esperadas'] = {'Enlace_TA295_IN191': 'c' * 64}
     e = _construir(plan=plan)
     assert e.clase is Clase.QUARANTINE
-    assert any('Enlace_TA225_IN111' in b for b in e.aceptacion['bloqueos'])
-    plan['huellas_gps_esperadas'] = {'Enlace_TA225_IN111': 'a' * 64}
+    assert any('Enlace_TA295_IN191' in b for b in e.aceptacion['bloqueos'])
+    plan['huellas_gps_esperadas'] = {'Enlace_TA295_IN191': 'a' * 64}
     assert _construir(plan=plan).clase is Clase.ACCEPTED
 
 
@@ -136,7 +136,7 @@ def test_simulacion_validada_es_contrafactual():
 
 
 def test_caso_dorado_con_subtension():
-    """024:RF-26 — IN111–TA225 tras reabrir: 0,8683 p.u. queda como violación."""
+    """024:RF-26 — IN191–TA295 tras reabrir: 0,8683 p.u. queda como violación."""
     e = _construir(lectura=_lectura(v=0.8683284313))
     assert e.clase is Clase.CONVERGED_WITH_VIOLATIONS
     assert any('SE41154_BT' in v for v in e.aceptacion['violaciones'])
@@ -166,7 +166,7 @@ def test_misma_evidencia_misma_huella():
     (None, {}), ('', {})])
 def test_el_nombre_del_escenario_de_un_estudio_no_es_una_variante(escenario, esperado):
     """024:RF-12 — la variante va en ``accion.escenario``; el nombre del escenario de operación
-    que trae un estudio de 4.2 (011:RF-49), en ``accion.escenario_operacion``. PE102,
+    que trae un estudio de 4.2 (011:RF-49), en ``accion.escenario_operacion``. PE192,
     2026-11-06: ``dict('Con proyecto')`` mandaba cada episodio a cuarentena."""
     e = _construir(resultado={'status': 'OK', 'converged': True, 'escenario': escenario})
     assert {k: v for k, v in e.accion.items() if k.startswith('escenario')} == esperado

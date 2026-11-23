@@ -118,7 +118,7 @@ def comprobar_ranura(path: Path | str, esperado: str) -> str:
     ruta = Path(path)
     if ident.tipo == DESCONOCIDO:
         return (
-            f'«{ruta.name}» no parece un export de CYMDIST: no declara ninguna de '
+            f'«{ruta.name}» no parece un TXT: no declara ninguna de '
             f'las tablas conocidas. Tablas que trae: {ident.evidencia()}.'
         )
     return (
@@ -181,7 +181,7 @@ _EXTENSIONES_COMPARTIDAS = frozenset({'.txt', '.csv', '.tsv', '.json', '.mdb', '
 def fuente_de(path: Path | str) -> Fuente:
     """La fuente del fichero por su contenido (059:RF-3).
 
-    El 2026-11-01 la web abrió un espacio vacío como «Tres TXT de CYMDIST» por un valor por
+    El 2026-11-01 la web abrió un espacio vacío como «Tres TXT» por un valor por
     defecto, con un paquete VNR-GIS: nada se supone, lo dice el fichero.
     El orden importa: Access por su cabecera y CYMDIST por sus tablas antes que VNR-GIS, que
     por extensión admite también .txt y .mdb.
@@ -208,5 +208,5 @@ def fuente_de(path: Path | str) -> Fuente:
             else:
                 return Fuente(FUENTE_VNR)
     return Fuente(DESCONOCIDO, motivo=(
-        f'«{ruta.name}» no es un TXT de CYMDIST (no declara tablas conocidas), ni una base '
+        f'«{ruta.name}» no es un TXT (no declara tablas conocidas), ni una base '
         'Access, ni un paquete VNR-GIS'))

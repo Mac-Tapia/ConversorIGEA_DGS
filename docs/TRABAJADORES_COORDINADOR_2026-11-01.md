@@ -71,7 +71,7 @@ Directorio `output/auditoria_ia_20261101_actual/`:
 - QLoRA, con el corpus real anterior: `qlora_con_datos_reales/training_manifest.json`
   conserva `BLOQUEADO_POR_DATOS`, por huella modificada. No produjo pesos.
 - GRU, con el libro real `MEDICIONES ALIMEN_MOD PIT_2025.xlsx`: `gru_fuente_real.json`
-  conserva `BLOQUEADO_POR_DATOS`, `L-TM105: fecha o potencia ausente`. No se descartó
+  conserva `BLOQUEADO_POR_DATOS`, `L-TM195: fecha o potencia ausente`. No se descartó
   el registro para aparentar continuidad. Otra inspección de ese libro encontró
   timestamps duplicados y saltos en la curva leída; requiere reconciliación antes
   de acreditar entrenamiento. No se modifica el libro ni se imputa para superarlo.

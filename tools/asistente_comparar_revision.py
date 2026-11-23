@@ -41,10 +41,14 @@ HUELLA_047E = '649863d4f383978a1e1e62984a4aa7b95140a76c556078a057b667adae0ae5da'
 #: 047 T13, MEJ24d: la medida del 047e (2026-11-21) orientó las cuentas, la conversión a total y la comprobación del
 #: coste (047:RF-75 a RF-78), así que la siguiente es con otro conjunto, declarado el 2026-11-21 antes de medir.
 HUELLA_047F = '05c423913e4e49d4ebb370fd8d760f89e4cfb3319ce9001395dde08da33afea6'
+#: 047 T14, MEJ24e: la medida del 047f (2026-11-22) orientó las reglas de RF-79 a RF-83, así que la siguiente es con
+#: otro conjunto, declarado el 2026-11-22 antes de medir.
+HUELLA_047G = '6553d4ae2cdb29b228e56d209cebb15ce53c4ae823deb0d9e17628ed60b4ca8a'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
 DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
               'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E,
-              'REVISION_ROLES_CASOS_047f.json': HUELLA_047F}
+              'REVISION_ROLES_CASOS_047f.json': HUELLA_047F,
+              'REVISION_ROLES_CASOS_047g.json': HUELLA_047G}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}

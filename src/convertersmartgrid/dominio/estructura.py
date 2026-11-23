@@ -34,7 +34,7 @@ class Sistema:
 
 @dataclass(frozen=True)
 class SetElectrica:
-    codigo: str                     # «SET 21»
+    codigo: str                     # «SET 61»
     nombre: str                     # «El Carmen»
     zonal: str
     siglas: tuple[str, ...] = ()    # de los medidores de barra (022:RF-38): «CA»
@@ -79,8 +79,8 @@ class Estructura:
     def equivalentes(self, codigo: str) -> list[str]:
         """El código y sus grafías con las otras siglas de su SET, el primero el dado (022:RF-81).
 
-        La SET nueva Chincha Nueva sale en la red de RED_231026 como CN101 a CN201 y en los
-        libros de la empresa como CHN101 a CHN201 (medidor de barra CHNB1T1): sin casarlos,
+        La SET nueva Chincha Nueva sale en la red de RED_231026 como CN191 a CN291 y en los
+        libros de la empresa como CHN191 a CHN291 (medidor de barra CHNB1T1): sin casarlos,
         sus alimentadores no encontraban medidor y su barra quedaba suelta. Solo valen las
         siglas que el perfil declara juntas en una misma SET; nada se adivina.
         """
@@ -99,9 +99,9 @@ class Estructura:
     def set_de_texto(self, valor: str) -> SetElectrica | None:
         """La SET de la columna «SET» del libro: sus siglas, su código o su nombre (022:RF-85).
 
-        El libro real de medidores (2026-10-27) la escribe «SET 31», «SET41», «PA», «SEICA»
+        El libro real de medidores (2026-10-27) la escribe «SET 71», «SET81», «PA», «SEZET»
         y «SET CHINCHA NUEVA»; y la mitad de las SET no tienen siglas en el perfil, así que
-        también valen las de sus alimentadores (IN → SET 44) si son de una sola SET.
+        también valen las de sus alimentadores (IN → SET 84) si son de una sola SET.
         """
         v = clave(valor)
         if not v:
@@ -114,7 +114,7 @@ class Estructura:
                 or self.set_de_siglas_de_alimentadores(v))
 
     def set_de_siglas_de_alimentadores(self, siglas: str) -> SetElectrica | None:
-        """La SET de unas siglas por sus alimentadores (IN111 → SET 44), si son de una sola."""
+        """La SET de unas siglas por sus alimentadores (IN191 → SET 84), si son de una sola."""
         s = clave(siglas)
         sets = {a.set_codigo for a in self.alimentadores.values() if siglas_de(a.codigo) == s}
         return self.sets.get(next(iter(sets))) if len(sets) == 1 else None
@@ -280,7 +280,7 @@ def _con_clientes_de_alta(estructura: Estructura, datos: Mapping[str, Any]) -> E
 
 # =========================================================================== nuevos
 def siglas_de(codigo: Any) -> str:
-    """Las letras del código antes del número: «PA» de PA219, «CHI» de CHI201 (022:RF-71)."""
+    """Las letras del código antes del número: «PA» de PA219, «CHI» de CHI291 (022:RF-71)."""
     m = re.match(r'([A-Z]+)\d', clave(codigo))
     return m.group(1) if m else ''
 
@@ -299,11 +299,11 @@ def completar(estructura: Estructura,
     """La estructura con los alimentadores de la entrega que no traía (022:RF-71 a RF-76).
 
     La tabla de la empresa va por detrás de las entregas: RED_231026 trajo la SET Chincha
-    Nueva (CN101 a CN201), PA219, COH101 y SC215, y quedaban «Sin SET», fuera de la
+    Nueva (CN191 a CN291), PA219, COH191 y SC215, y quedaban «Sin SET», fuera de la
     conversión por zonal. Las siglas dicen la SET (PA219 → Paracas); si no llevan a
     ninguna, los de unas mismas siglas forman una SET deducida en el zonal de la cabecera
     conocida más cercana. La distancia solo elige el zonal, sin umbral: no hace falta el
-    CRS, y no distingue SET (CN101 está a 6,5 km de El Carmen y es otra SET). La de entrada
+    CRS, y no distingue SET (CN191 está a 6,5 km de El Carmen y es otra SET). La de entrada
     no cambia.
     """
     nuevos = sorted({clave(a) for a in cabeceras} - set(estructura.alimentadores) - {''})
@@ -385,7 +385,7 @@ def asignar(estructura: Estructura, alimentadores: Iterable[str]) -> Asignacion:
     vistos = set()
     for codigo in sorted({clave(a) for a in alimentadores if clave(a)}):
         propio = estructura.alimentador(codigo)
-        vistos.add(propio.codigo if propio else codigo)                  # RF-81: CHN101 es CN101
+        vistos.add(propio.codigo if propio else codigo)                  # RF-81: CHN191 es CN191
         st = estructura.set_de(codigo)
         if st is None:
             out.sin_set.append(codigo)

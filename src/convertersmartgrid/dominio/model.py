@@ -320,7 +320,7 @@ class FeederModel:
     #: La fuente del dataset del que salió (056:RF-3).
     fuente: str = 'txt'
     # Unidades de diagrama por metro del perfil de empresa (spec 002, RF-31). None deja
-    # la del motor, calibrada con NA205.
+    # la del motor, calibrada con NA295.
     diagram_units_per_meter: float | None = None
     # Alias explícitos de nodos duplicados por el export; se usan también en la prueba
     # From/To para no ocultar qué identidad del RED se normalizó.
@@ -484,7 +484,7 @@ def capacitor_owner_candidates(
 def _tension_de_fuente(source: Mapping[str, str]) -> float:
     """Tensión nominal de la fuente en kV entre fases, de donde la traiga el export.
 
-    Los dos exports de CYMDIST que se han visto la dan de forma distinta:
+    Los dos TXT que se han visto la dan de forma distinta:
 
     * el reducido, en ``DesiredVoltage``, ya entre fases (``10.0``);
     * el completo, en ``OperatingVoltageA/B/C``, **entre fase y neutro**
@@ -848,12 +848,12 @@ def _section_projected_path(
 
 
 #: Cómo se nombra cada cosa en los avisos según la fuente (056:RF-4). El 2026-11-01 una conversión de VNR-GIS
-#: decía «0 conservaron Length del TXT» o «revise el export CYMDIST», y el operador creyó que se había cargado
-#: un TXT. Las palabras del TXT son las de siempre, letra a letra.
+#: decía «0 conservaron Length del TXT» o le pedía revisar el export de los TXT, y el operador creyó que se había cargado
+#: un TXT. Las palabras del TXT no nombran el programa que los exporta (056:RF-8): los TXT no los exporta CYMDIST.
 PALABRAS_POR_FUENTE: dict[str, dict[str, str]] = {
     'txt': {'fuente': 'TXT', 'del': 'del TXT', 'longitud': 'Length del TXT', 'nodo': 'nodo TXT',
-            'ubicacion': 'TXT Location', 'catalogo': 'BD_Equipo', 'export': 'export CYMDIST',
-            'sin_tramos': 'el RED no tiene filas SECTION', 'b1b0': 'CYMDIST B1/B0', 'datos': 'supplied TXT data'},
+            'ubicacion': 'TXT Location', 'catalogo': 'BD_Equipo', 'export': 'los TXT',
+            'sin_tramos': 'el RED no tiene filas SECTION', 'b1b0': 'TXT B1/B0', 'datos': 'supplied TXT data'},
     'mdb': {'fuente': 'MDB', 'del': 'de la base Access', 'longitud': 'la longitud de la base Access',
             'nodo': 'nodo de la base Access', 'ubicacion': 'Location of the Access database',
             'catalogo': 'el catálogo de equipos de la base', 'export': 'la base Access',

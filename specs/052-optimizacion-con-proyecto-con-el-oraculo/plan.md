@@ -13,8 +13,8 @@
    `obras_escalera` (la elegida con k y las más cercanas con k + 1, en el orden del oráculo y con
    «basta una»); discrepancias y tiempos en el informe; si el oráculo no puede, la búsqueda de la
    042 en DIgSILENT.
-4. Pruebas con el doble de DIgSILENT y con redes sintéticas cuyo flujo se conoce; después, NA203
-   + NA205 por la web.
+4. Pruebas con el doble de DIgSILENT y con redes sintéticas cuyo flujo se conoce; después, NA293
+   + NA295 por la web.
 
 ## Ampliación del 2026-11-01 (RF-11 a RF-16), con los módulos que ya tiene el proyecto
 

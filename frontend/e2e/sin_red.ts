@@ -70,6 +70,29 @@ export const test = base.extend<{ red: Red }>({
 export { expect };
 export type { Page } from '@playwright/test';
 
+/**
+ * 111:RF-16 — la red en reposo según las peticiones que la página y sus marcos hacen de verdad.
+ *
+ * `waitForLoadState('networkidle')` espera además al «networkidle» propio de cada marco, y el del plano es un `<iframe
+ * sandbox>` sin origen propio que Chromium lleva en otro proceso: a veces su evento no le llega a Playwright aunque no
+ * quede ninguna petición en vuelo, y la espera dura hasta el tope de la prueba (Actions 45046057235 y 3 de 10
+ * repeticiones locales del 2026-11-22, siempre en «Plano de la red», con cero peticiones abiertas). Aquí se cuentan las
+ * peticiones con los eventos de la página: 500 ms sin ninguna abierta, como «networkidle»; si una no termina, la prueba
+ * falla diciendo cuál.
+ */
+export function vigilarRed(pagina: import('@playwright/test').Page): () => Promise<void> {
+  const enVuelo = new Map<import('@playwright/test').Request, string>();
+  let cambio = Date.now();
+  pagina.on('request', (r) => { enVuelo.set(r, r.url().slice(0, 120)); cambio = Date.now(); });
+  const sale = (r: import('@playwright/test').Request) => { enVuelo.delete(r); cambio = Date.now(); };
+  pagina.on('requestfinished', sale);
+  pagina.on('requestfailed', sale);
+  return async () => {
+    await expect.poll(() => (enVuelo.size === 0 && Date.now() - cambio >= 500 ? 'en reposo' : [...enVuelo.values()]),
+      { message: 'peticiones que no terminan', timeout: 30_000, intervals: [100] }).toBe('en reposo');
+  };
+}
+
 /** 070:RF-78 — el mismo patrón de `test/e2e/comun.mjs` (CITA_EN_PANTALLA): nada a la vista cita requisitos o tareas. */
 const CITA_EN_PANTALLA = /RF-\d|\b\d{3}:RF|\(spec \d{3}\b|(?:\b\d{3}[ :]|\btarea\s)T\d+\b/g;
 

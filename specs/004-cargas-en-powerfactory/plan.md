@@ -124,7 +124,7 @@ módulo de cargas del 2026-10-08 (resumida en el contexto de la spec).
   propuesta en el campo, y en el plan del libro; la columna «Ubicación» de las cargas del plan y la línea en la conexión.
 - Pruebas: `tests/test_cargas_pf_ubicacion.py`, sintéticas (un dígito de menos en Y, X/Y y Lat/Lon intercambiadas, un
   punto bueno, el tope del perfil, la reutilización con y sin cambios con `tests/fake_pf.py`). La fila real de SE0001 se
-  comprueba en solo lectura con la geografía de PA217 del espacio del usuario; sus cifras no van a git.
+  comprueba en solo lectura con la geografía de PA297 del espacio del usuario; sus cifras no van a git.
 
 ## Importar y diagnosticar un `.pfd` (RF-81 a RF-107, 2026-11-14)
 

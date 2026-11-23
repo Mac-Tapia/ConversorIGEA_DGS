@@ -311,7 +311,7 @@ def test_transformador_con_el_delta_de_los_flujos_guardados(client, tmp_path, mo
 
 
 def test_informe_de_estudio_con_las_obras_ya_aplicadas(client, tmp_path):
-    """017:RF-35 / 019:RF-12 — CA101, 2026-10-15: al aplicarse una obra sale de la lista del
+    """017:RF-35 / 019:RF-12 — CA191, 2026-10-15: al aplicarse una obra sale de la lista del
     espacio, y el informe salía solo con el estado actual. Ahora toma las obras aplicadas
     cuya variación está activa en el flujo de «Con proyecto», con la consigna de cabecera
     como etapa de regulación."""
@@ -451,7 +451,7 @@ def test_asunto_propuesto_con_el_tipo_y_los_alimentadores():
     """017:RF-80 — el asunto propuesto lleva el tipo de informe y los alimentadores."""
     from convertersmartgrid.adaptadores.informes import asunto_propuesto
 
-    assert asunto_propuesto('estudio', ['CA101', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA101, CA102'
+    assert asunto_propuesto('estudio', ['CA191', 'CA102']) == 'ESTUDIO ELÉCTRICO DE LOS ALIMENTADORES CA191, CA102'
     assert asunto_propuesto('factibilidad', ['XA218'], 'ANDES BERRIES') == \
         'FACTIBILIDAD Y PUNTO DE DISEÑO - ANDES BERRIES (XA218)'
 
@@ -601,7 +601,7 @@ def test_ampliacion_nis_y_ficha_llegan_del_formulario_al_word(client, tmp_path):
 
 
 def test_islas_y_baja_tension_no_deciden_el_informe():
-    """063:RF-43, 063:RF-44 — SM218: los nodos 8674 y 8675 a 0 p.u. y la baja de una SED a 0,887 dejaban
+    """063:RF-43, 063:RF-44 — SM298: los nodos 8674 y 8675 a 0 p.u. y la baja de una SED a 0,887 dejaban
     no factible una red cuya media tensión cumple."""
     from convertersmartgrid.aplicacion.estudios_pf import Limites
     from convertersmartgrid.adaptadores.informes import Caso
@@ -616,7 +616,7 @@ def test_islas_y_baja_tension_no_deciden_el_informe():
 
 
 def test_el_desequilibrado_que_no_cuadra_no_entra_en_el_informe(tmp_path):
-    """063:RF-45 — SM218: 11 873 kW frente a 9 284 kW, con cuellos del 185 % que no existen. Si cuadra,
+    """063:RF-45 — SM298: 11 873 kW frente a 9 284 kW, con cuellos del 185 % que no existen. Si cuadra,
     se prefiere el desequilibrado (017:RF-17)."""
     from convertersmartgrid.presentacion.web import services
 
@@ -646,7 +646,7 @@ def test_transformador_opcional_no_impide_concluir(client, tmp_path):
 
 
 def test_imagenes_de_cargas_nuevas_salen_de_su_flujo(tmp_path, monkeypatch):
-    """063:RF-47 — T7 en SM218: el flujo estaba y el informe decía «imagen ... sin obras» como hueco."""
+    """063:RF-47 — T7 en SM298: el flujo estaba y el informe decía «imagen ... sin obras» como hueco."""
     from convertersmartgrid.adaptadores import mapa_informe
     from convertersmartgrid.presentacion.web import services
 

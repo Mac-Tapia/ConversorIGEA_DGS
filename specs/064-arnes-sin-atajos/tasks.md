@@ -34,7 +34,7 @@ orden fallida por la web sin estado que reponer) no probaba la cadena entera; la
 camino de la web (`services._guion_pf` → `pf_cliente` → `pf_servidor.atender`) sobre una copia
 exclusiva `PRUEBA064_*`, borrada al terminar; el original no se modifica:
 
-- copia de SM218 (`AUDIT/auditoria_otra_sesion_20261102/aceptacion_T7_064_sm218.json`): la orden
+- copia de SM298 (`AUDIT/auditoria_otra_sesion_20261102/aceptacion_T7_064_sm298.json`): la orden
   cambió el caso («Caso base»), la hora de «Sin proyecto» (−10⁶ s), el escenario («Operation
   Scenario») y las variaciones (sin `SED_NTP_…`) y terminó con código 1; el registro dice
   «se deja DIgSILENT como estaba al empezar (064:RF-5): caso «Sin proyecto» activo de nuevo;

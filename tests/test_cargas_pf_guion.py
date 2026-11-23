@@ -199,7 +199,7 @@ def test_escritura_por_modo_sin_simulado(guion):
 
 def test_carga_monofasica_escribe_tambien_su_plini(guion):
     """054:RF-7 — una SED de menos de tres fases (i_sym=1, «1PH PH-E») consume las entradas de
-    su modo: se escriben con la fase (en NJA202, 2026-11-01, quedaba la plini de la importación;
+    su modo: se escriben con la fase (en NJA292, 2026-11-01, quedaba la plini de la importación;
     en 0205, FP 1). La trifásica desequilibrada sigue con sus fases sin tocar su plini."""
     class Carga:
         i_sym = 1
@@ -573,7 +573,7 @@ def _tr_de(app, sed):
 def test_sin_kva_en_el_libro_el_transformador_sale_de_la_ficha_al_umbral(guion):
     """004:RF-68 / 004:RF-69 — sin kVA en el libro, la menor potencia de la ficha con la máxima
     en el umbral del perfil, con Po, Pc, Io y uk de la ficha; por encima de la mayor, unidades
-    en paralelo. PE102: 245,5 kVA en 250 kVA quedaban al 102,9 %."""
+    en paralelo. PE192: 245,5 kVA en 250 kVA quedaban al 102,9 %."""
     rnd = random.Random(SEMILLA)
     kw_chica = rnd.uniform(201.0, 240.0)            # 0,8 × 250 < kVA ≤ 0,8 × 315
     kw_grande = rnd.uniform(1100.0, 1450.0)         # más de 0,8 × 630: unidades en paralelo
@@ -614,7 +614,7 @@ def test_kva_del_libro_con_su_ficha_y_sin_fichas_como_antes(guion):
 
 
 def test_el_transformador_de_ficha_cuenta_la_corriente_a_la_tension_minima(guion):
-    """004:RF-68 — aclaración: el umbral, con la corriente a la tensión mínima del perfil. PE102: el vivero, elegido al
+    """004:RF-68 — aclaración: el umbral, con la corriente a la tensión mínima del perfil. PE192: el vivero, elegido al
     80 % a la nominal, quedó al 81,3 % en DIgSILENT con la baja a 0,96 p.u."""
     rnd = random.Random(SEMILLA + 68)
     u_min = rnd.choice([0.94, 0.95])
@@ -636,7 +636,7 @@ def test_el_transformador_de_ficha_cuenta_la_corriente_a_la_tension_minima(guion
 
 def test_linea_con_un_extremo_fuera_del_alimentador_no_es_candidata(guion):
     """016:RF-78 — una línea del ``ElmFeeder`` que no tiene sus dos extremos en barras suyas no
-    es un tramo de su red (016:RF-2): no se ofrece para conectar. CA101_CHN102 (2026-11-13)
+    es un tramo de su red (016:RF-2): no se ofrece para conectar. CA191_CHN192 (2026-11-13)
     acababa con «KeyError: 'SEC_1091_315216'» al aplicar las cargas."""
     app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True)
     suelta = next(o for o in app.proyecto.GetContents('*.ElmLne', 1) if o.loc_name == 'F1_L4')
@@ -653,7 +653,7 @@ def test_linea_con_un_extremo_fuera_del_alimentador_no_es_candidata(guion):
 
 def test_la_carga_que_ya_esta_en_digsilent_se_dice_con_su_nombre_punto_y_potencia(guion):
     """004:RF-77 — antes de conectar, la carga nueva que ya está en DIgSILENT se dice con su nombre, sus coordenadas y
-    su potencia, y si se reutiliza o se reemplaza; nunca queda conectada dos veces (SECA001 y SECA0001 en CA101,
+    su potencia, y si se reutiliza o se reemplaza; nunca queda conectada dos veces (SECA001 y SECA0001 en CA191,
     2026-11-13)."""
     app = fake_pf.proyecto(cargas_por_alim=4)
     destino = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == 'F2_B3')

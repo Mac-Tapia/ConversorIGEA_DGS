@@ -575,7 +575,7 @@ def escaladas_de(cabecera: Curva, clientes: Sequence[Curva], ultimo_clientes: da
 
     Un instante sin dato de un cliente no se resta como cero: daría una punta falsa. Después de su último dato, su libro va atrasado
     y el instante queda sin dato, salvo que los demás clientes sigan más de 45 días: se dio de baja (089:RF-72). Antes del primero,
-    medido en PA217 (cabecera desde 2023, libros desde 2025) y PE102 (cabecera plana y un cliente que aparece en 2026): lo que falta
+    medido en PA297 (cabecera desde 2023, libros desde 2025) y PE192 (cabecera plana y un cliente que aparece en 2026): lo que falta
     casi siempre es el libro, no el cliente, y dar toda la cabecera como escaladas enseña un nivel falso (089:RF-81, RF-82). Un resto
     negativo es ruido de medida de un alimentador casi dedicado, no una escalada que genere. La Q no se recorta: los bancos pueden
     dejarla negativa.

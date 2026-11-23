@@ -1,6 +1,6 @@
 """Spec 054: fases reales en el DGS (tramos y SED monofásicos y bifásicos).
 
-Lo medido en DIgSILENT en una copia de NJA202 (2026-11-01) está en la spec; aquí se comprueba
+Lo medido en DIgSILENT en una copia de NJA292 (2026-11-01) está en la spec; aquí se comprueba
 lo que el conversor escribe, con la muestra de las pruebas (que trae tramos monofásicos) y con
 la misma muestra forzada a trifásica.
 """

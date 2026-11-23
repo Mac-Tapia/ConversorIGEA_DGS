@@ -202,7 +202,7 @@ los dos entregables.
   acceso al paso de la web que lo hace, sin quitar ni duplicar ningún paso. El estado también sale de lo guardado en disco
   (calibración, cargas nuevas aplicadas, flujos de «Con proyecto», obras e informes), no solo de la sesión; y CUANDO los
   alimentadores marcados ya están calibrados, EL SISTEMA ofrecerá ir directo a 4.2 y a 4.4, sin ocultar los pasos 2 y 3
-  (CA101_CHN102, 2026-11-13).
+  (CA191_CHN192, 2026-11-13).
 - RF-34: CUANDO se planifique como largo plazo, EL SISTEMA escribirá solo los módulos del plan de largo plazo.
 - RF-35: SI se planifica como largo plazo con la aplicación de obras pedida, ENTONCES EL SISTEMA lo rechazará antes de
   encolar: el plan plantea las obras, no las aplica en «Con proyecto».

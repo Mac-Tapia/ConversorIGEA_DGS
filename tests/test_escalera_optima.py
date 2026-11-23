@@ -264,7 +264,7 @@ def test_sin_regulador_salvo_que_el_perfil_lo_pida():
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_la_seccion_sube_de_una_en_una(semilla):
-    """063:RF-27 — SM218 (2026-11-01): el cambio de sección no salta a la mayor; las variantes de
+    """063:RF-27 — SM298 (2026-11-01): el cambio de sección no salta a la mayor; las variantes de
     sección van de la menor apta a la mayor, todas, y si cumplen varias se queda la menor."""
     rng = random.Random(semilla)
     kv = rng.choice([10.0, 22.9])
@@ -284,7 +284,7 @@ def test_la_seccion_sube_de_una_en_una(semilla):
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
 def test_la_seccion_solo_cambia_los_tramos_mas_delgados(semilla):
-    """063:RF-30 — SM218 (2026-11-01): «sección CU 50 mm²» reemplazaba los 10,32 km y bajaba casi
+    """063:RF-30 — SM298 (2026-11-01): «sección CU 50 mm²» reemplazaba los 10,32 km y bajaba casi
     toda la troncal; ahora cada conductor solo cambia los tramos de menor corriente nominal, y
     no se propone si no mejora ninguno."""
     rng = random.Random(semilla)
@@ -336,7 +336,7 @@ def test_obras_sobre_el_camino_electrico_de_la_carga(semilla):
 
 
 def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
-    """063:RF-33 — SM218 (2026-11-01): banco + AA 120 mm² cumplía con la máxima y los sorteos daban
+    """063:RF-33 — SM298 (2026-11-01): banco + AA 120 mm² cumplía con la máxima y los sorteos daban
     94,5 %; se elige la primera por prioridad, se avisa, y no se sigue a la terna ni a la SET nueva."""
     tabla = [dict(_evaluada('banco+seccion', True, 0.945, 500.0), escalones=('bancos', 'seccion')),
              dict(_evaluada('terna', True, 0.945, 300.0), escalones=('terna',)),
@@ -353,7 +353,7 @@ def test_con_solucion_en_la_maxima_no_se_pasa_a_otras_obras():
 def test_cada_obra_dice_su_nodo_de_mt_o_sus_nodos_de_inicio_y_fin(semilla):
     """063:RF-31 — el banco dice el nodo de MT donde va; la sección y la terna, cada tramo con su
     nodo de inicio y su nodo final, y la obra entera desde el primero hasta el último, en orden
-    de la cabecera a la carga (SM218, 2026-11-01: el informe no decía dónde iba cada obra)."""
+    de la cabecera a la carga (SM298, 2026-11-01: el informe no decía dónde iba cada obra)."""
     rng = random.Random(semilla)
     n = rng.randint(4, 30)
     red = [{'nombre': f'L{i}', 'desde': f'B{i - 1}' if i else 'CAB', 'hasta': f'B{i}',
@@ -863,7 +863,7 @@ def test_la_definitiva_se_presenta_aunque_no_sea_de_las_tres_mas_baratas():
 
 def test_los_bancos_segun_el_perfil_mandan_si_cumplen():
     """094:RF-18 — si la variante de bancos según el perfil cumple, es la elegida aunque otra cueste menos, y la más
-    barata queda como alternativa; si no cumple, manda la escalera de siempre (AL209, 2026-11-06)."""
+    barata queda como alternativa; si no cumple, manda la escalera de siempre (AL299, 2026-11-06)."""
     perfil = {**_evaluada('bancos según perfil 4×450 kvar en A, B, C, D', True, 1.0, 4000), 'escalones': ('bancos',)}
     dos = {**_evaluada('bancos 2×450 kvar', True, 1.0, 2000), 'escalones': ('bancos',)}
     r = eo.elegir([dos, perfil], P)
@@ -874,7 +874,7 @@ def test_los_bancos_segun_el_perfil_mandan_si_cumplen():
 
 
 def test_el_refuerzo_de_un_tramo_aereo_es_primero_la_seccion():
-    """042:RF-94, 042:RF-43 — PE102: el tramo aéreo al 136 % se cambia de sección; el cable y lo que ninguna sección
+    """042:RF-94, 042:RF-43 — PE192: el tramo aéreo al 136 % se cambia de sección; el cable y lo que ninguna sección
     resuelve van con terna."""
     import random
 
@@ -975,7 +975,7 @@ def test_la_seccion_de_un_circuito_no_pasa_de_la_mayor_normalizada(semilla):
 def test_conductor_terna_deja_los_dos_circuitos_en_el_del_perfil(semilla):
     """042:RF-98, 042:RF-99, 042:RF-103 — el tramo más delgado pasa al conductor del perfil (aéreo o cable) y la
     terna es del mismo; el que ya lleva más corriente añade la de su tipo, con aviso; el cambio se costea como
-    sección de esos tramos (PE102, 2026-11-07: «la nueva terna debe ser en 120 mm², ambas ternas»)."""
+    sección de esos tramos (PE192, 2026-11-07: «la nueva terna debe ser en 120 mm², ambas ternas»)."""
     rng = random.Random(semilla)
     kv = rng.choice([10.0, 22.9])
     p = _p_terna(conductor_terna={'aereo': 'AX120', 'cable': 'CX120'})

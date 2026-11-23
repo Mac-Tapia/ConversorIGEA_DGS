@@ -76,9 +76,9 @@ def test_los_proyectos_nuevos_de_digsilent_llevan_la_sigla_csg():
         'aceptacion', RAIZ / 'tools' / 'powerfactory_acceptance.py')
     mod = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(mod)
-    corto = mod._generated_project_name('20261101-063543', 'W12882')
+    corto = mod._generated_project_name('20261101-063543', 'W19882')
     largo = mod._generated_project_name('20261101-063543', 'SISTEMA_ELECTRICO_MUY_LARGO_DE_PRUEBA')
-    assert corto == '20261101-063543_CSG_W12882'
+    assert corto == '20261101-063543_CSG_W19882'
     assert '_CSG_' in largo and len(largo) <= 40
 
 
@@ -91,7 +91,7 @@ def test_la_carpeta_por_defecto_es_convertersmartgrid():
 
 def test_lo_guardado_con_el_nombre_anterior_se_sigue_leyendo(tmp_path):
     """058:RF-6: el registro de vínculos y los vínculos escritos antes del cambio de nombre se
-    leen; el 2026-11-01 la importación de NJA202 falló por el esquema anterior del registro."""
+    leen; el 2026-11-01 la importación de NJA292 falló por el esquema anterior del registro."""
     import json
 
     from convertersmartgrid.adaptadores.powerfactory_binding import (
@@ -117,7 +117,7 @@ def test_lo_guardado_con_el_nombre_anterior_se_sigue_leyendo(tmp_path):
 
 
 def test_casos_y_biblioteca_de_antes_del_cambio_de_nombre():
-    """058:RF-9: los casos marcados con el nombre anterior se reconocen (NA203 + NA205 y SM218,
+    """058:RF-9: los casos marcados con el nombre anterior se reconocen (NA293 + NA295 y SM298,
     2026-11-01: «falta Con proyecto») y al volver a marcarlos queda solo la marca nueva."""
     import sys
 

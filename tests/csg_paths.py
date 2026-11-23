@@ -1,4 +1,4 @@
-"""Locate CYMDIST TXT exports for integration tests."""
+"""Locate TXT files for integration tests."""
 
 from __future__ import annotations
 
@@ -22,7 +22,7 @@ EQUIP_NAMES = (
 )
 
 SKIP_MSG = (
-    'TXT CYMDIST no encontrados. Defina CSG_TXT_DIR (carpeta con RED_*.txt, '
+    'TXT no encontrados. Defina CSG_TXT_DIR (carpeta con RED_*.txt, '
     'CARGA_*.txt, BD_Equipo*.txt) o CSG_RED / CSG_LOADS / CSG_EQUIPMENT.'
 )
 

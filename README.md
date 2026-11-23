@@ -4,7 +4,7 @@ Convierte la red de una distribuidora (TXT, base Access o paquete VNR-GIS) en ar
 
 Este README es para quien desarrolla. Para instalar y usar el programa: [manual de instalación](docs/MANUAL_INSTALACION.md), [manual del operador](docs/MANUAL_OPERADOR.md) y [hoja de seguridad y privacidad](docs/SEGURIDAD_Y_PRIVACIDAD.md). El instalador se arma con `tools/construir_candidato.py`.
 
-**Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN111/TA121. Cualquier export CYMDIST con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
+**Universal por diseño:** no está limitado a una empresa, a un número fijo de alimentadores ni a códigos como IN191/TA191. Cualquier conjunto de TXT con otras denominaciones de NetworkID, tipos de línea o CRS regionales se puede cargar; los nombres y conteos salen de los TXT, no de listas fijas en el código.
 
 ### Tres fuentes aisladas y aceptación auditable
 
@@ -191,7 +191,7 @@ Cada entrada —los tres TXT, la base Access `.mdb` o el paquete VNR-GIS— y ca
 cada alimentador con su fuente, enlaces como interruptores abiertos):
 
 ```bash
-convertersmartgrid convert --mdb 260924.mdb --feeder NA203 --feeder NA205 --unir NA203_NA205 --out-dir out
+convertersmartgrid convert --mdb 260924.mdb --feeder NA293 --feeder NA295 --unir NA293_NA295 --out-dir out
 convertersmartgrid convert --red R.txt --loads C.txt --equipment E.txt --all --out-dir out   # hoja a medida, escala real
 ```
 
@@ -261,7 +261,7 @@ La fuente de verdad para cada conversión es:
 
 - `RED_*.txt`: alimentadores, cabeceras, fuentes, nodos, secciones, configuración de línea, maniobras y nodos intermedios.
 - `CARGA_*.txt`: ubicación de cargas y datos de cliente/carga.
-- `BD_Equipo_*.txt`: parámetros eléctricos de tipos de línea/cable y otros catálogos CYMDIST.
+- `BD_Equipo_*.txt`: parámetros eléctricos de tipos de línea/cable y otros catálogos.
 
 ## Estado del proyecto (diagnóstico)
 
@@ -278,8 +278,8 @@ La fuente de verdad para cada conversión es:
 | Base de datos SQL/Access | No aplica — `BD_Equipo` es TXT |
 | Aceptación en PowerFactory | Requiere PF + importar el `.dgs` |
 | Cargas, calibración, estudios y obras en PowerFactory | Implementado (specs 004 a 008, 011, 014, 015); falta la prueba en DIgSILENT de varias specs |
-| Troncal, enlace, migración y cargas en un tramo (spec 016) | Cumplida: probada en DIgSILENT con IN111 + TA225 el 2026-10-16 («Con proyecto» converge con 9 cargas, enlace por la vía, migración y segunda terna) |
-| Informes de estudio y factibilidad (spec 017) | Estudio probado con IN111 y TA225; factibilidad pendiente, con otro alimentador |
+| Troncal, enlace, migración y cargas en un tramo (spec 016) | Cumplida: probada en DIgSILENT con IN191 + TA295 el 2026-10-16 («Con proyecto» converge con 9 cargas, enlace por la vía, migración y segunda terna) |
+| Informes de estudio y factibilidad (spec 017) | Estudio probado con IN191 y TA295; factibilidad pendiente, con otro alimentador |
 | Arquitectura por capas (spec 002) | En curso: su estado, en `specs/README.md` |
 | Confiabilidad y capacidad (spec 012) | Implementada: falta su prueba en DIgSILENT |
 | Plan de inversiones en transmisión, PIT (spec 107) | Implementado en la web; su estado, en `specs/README.md` |
@@ -388,9 +388,9 @@ Sin datos, pasan solo las sintéticas, y la suite «pasa» sin haber probado nad
 
 Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DIgSILENT + flujo**.
 
-## Resultado de ejemplo (IN111)
+## Resultado de ejemplo (IN191)
 
-En un export concreto con `--source-crs EPSG:32718`, IN111 produjo del orden de ~1,936 `ElmTerm`, ~1,934 `ElmLne`, ~383 `ElmLod`, ~791 `StaSwitch` y cobertura geográfica 100 %. **Esos conteos no son fijos**: dependen del alimentador y de los TXT cargados. El número total de alimentadores también varía por export (puede ser más o menos que en un lote anterior). Artefactos de ejemplo en `output/IN111_CONVERTIDO/`.
+En un export concreto con `--source-crs EPSG:32718`, IN191 produjo del orden de ~1,936 `ElmTerm`, ~1,934 `ElmLne`, ~383 `ElmLod`, ~791 `StaSwitch` y cobertura geográfica 100 %. **Esos conteos no son fijos**: dependen del alimentador y de los TXT cargados. El número total de alimentadores también varía por export (puede ser más o menos que en un lote anterior). Artefactos de ejemplo en `output/IN191_CONVERTIDO/`.
 
 ## Licencia
 

@@ -46,10 +46,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_digital_twin_web.py
       tests/test_inventario.py` en verde.
       Hecho el 2026-10-22.
-- [x] T8. Caso dorado IN111–TA225: fixture saneado, prueba sin licencia y aceptación nativa de
+- [x] T8. Caso dorado IN191–TA295: fixture saneado, prueba sin licencia y aceptación nativa de
       solo lectura en dos procesos; clase `converged_with_violations` por ser «Con proyecto»;
       comandos en `docs/MANUAL_COMANDOS.md`. (RF-24, RF-25, RF-26, RF-27)
-      Hecho cuando: `pytest -q tests/test_digital_twin_in111_ta225.py` en verde y la aceptación
+      Hecho cuando: `pytest -q tests/test_digital_twin_in191_ta295.py` en verde y la aceptación
       en DIgSILENT sale con código 0 y `reopen_verified=true`.
       Hecho el 2026-10-22: probado en DIgSILENT, 11 de 11 comprobaciones (3091 a 0,95227 p.u., 3092 a 0,96043, mínima 0,86833 en SE41154_BT, `converged_with_violations`). Antes hubo que reactivar en «Con proyecto» las 13 variaciones de la obra: la sesión de Codex había dejado activa solo DT_6a2ebb58_12758e88 (las cinco DT_* siguen en el proyecto, inactivas).
 - [x] T9. Validación de esta entrega: RF-1 a RF-10 y RF-24 a RF-32 citados por pruebas en
@@ -64,7 +64,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T10. Generador de escenarios y aprendizaje activo en copias del proyecto, con presupuesto
       de licencia. (RF-11, RF-12, RF-40, RF-41)
       Hecho cuando: `pytest -q tests/test_digital_twin_escenarios.py en verde`.
-      Hecho el 2026-10-22: probado en DIgSILENT desde la web con IN111–TA225, 24 escenarios en una copia
+      Hecho el 2026-10-22: probado en DIgSILENT desde la web con IN191–TA295, 24 escenarios en una copia
       borrada al terminar; el grafo trae los acopladores (sin ellos solo 91 de 2470 nodos tenían fuente).
 - [x] T11. Oráculo PINN/GNN del estado eléctrico con incertidumbre, entrenamiento, registro y
       promoción automática con puertas; ordenar y proponer con el oráculo. (RF-13 a RF-19, RF-23,
@@ -72,7 +72,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py en verde, en GPU si la hay`.
       Pendiente (el usuario, 2026-10-22: «déjalo como pendiente para después»): código y pruebas en verde,
       solo en la GPU, híbrido barrido físico + GNN y modelo de carga elegido con los datos (impedancia
-      constante en IN111–TA225: el barrido se aparta 0,019 p.u. frente a 0,050 con potencia constante).
+      constante en IN191–TA295: el barrido se aparta 0,019 p.u. frente a 0,050 con potencia constante).
       Con los 24 escenarios reales el modelo aún no pasa las puertas (0,057 p.u. sobre 0,005), así
       que no se usa; falta reentrenar con el modelo de carga elegido y más escenarios.
       Cerrada el 2026-10-24 con T15: la causa era el barrido radial (descartaba los 3 lazos) y los
@@ -85,7 +85,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T13. Diagnóstico, mercado y plan por etapas de la norma del PIDE. (RF-49 a RF-53, RF-60 a
       RF-63)
       Hecho cuando: `pytest -q tests/test_pide.py tests/test_pide_pf.py en verde`.
-      Hecho el 2026-10-22: probado en DIgSILENT con IN111–TA225 («Sin proyecto», años 00, 04 y 08 al 3 %
+      Hecho el 2026-10-22: probado en DIgSILENT con IN191–TA295 («Sin proyecto», años 00, 04 y 08 al 3 %
       de prueba): la mínima baja de 0,765 a 0,632 p.u. y el factor del `ComLdf` se restituye.
 - [x] T14. Evaluación económica (art. 14, tarifas, tasa privada), priorización del art. 15,
       libro CAPEX y propuestas e implementación propias. (RF-33, RF-34, RF-45 a RF-48, RF-54 a
@@ -102,7 +102,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       como base y elige con él el modelo de carga; peso físico 10⁻⁴ elegido con los datos.
       (RF-64, RF-65, RF-66)
       Hecho cuando: `pytest -q tests/test_digital_twin_flujo.py tests/test_digital_twin_oraculo.py` en verde.
-      Hecho el 2026-10-24: coincide con pandapower en redes con lazos; en IN111–TA225 la física
+      Hecho el 2026-10-24: coincide con pandapower en redes con lazos; en IN191–TA295 la física
       sola se aparta 0,0032 p.u. (el barrido, 0,019) y la potencia constante es el modelo de carga.
 - [x] T16. Algoritmo genético, NSGA-II y jDE (`digital_twin/evolutivo.py`); bancos con frente
       y sobredimensionadas, reconfiguración radial y consigna; bancos del PIDE afinados en la web
@@ -111,7 +111,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-24.
 - [x] T17. Evaluación del aprendizaje (`oraculo.evaluar`, `tools/digital_twin_entrenar.py --evaluar`). (RF-74)
       Hecho cuando: `pytest -q tests/test_digital_twin_oraculo.py` en verde y la evaluación con los
-      episodios reales de IN111–TA225 dice el error de la partición de prueba.
+      episodios reales de IN191–TA295 dice el error de la partición de prueba.
 - [x] T18. Retro (033, 2026-10-29): RF-47b, RF-47c, RF-58b a RF-58d, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-47b, RF-47c, RF-58b a RF-58d)
       Hecho cuando: las pruebas que los citan pasan (pruebas de `tests/test_pide_economia.py` y `tests/test_pide_web.py`).

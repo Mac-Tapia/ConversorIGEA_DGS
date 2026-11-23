@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from convertersmartgrid.aplicacion.protecciones import leer_ajustes
 
-SEL = """Relay ID: CA101-R1
+SEL = """Relay ID: CA191-R1
 Manufacturer: SEL
 Model = SEL-751A
 CT 600/5 A
@@ -14,8 +14,8 @@ CT 600/5 A
 Interrupting rating: 25 kA
 """
 
-RECONECTADOR = """Reconectador del alimentador CA101
-Equipo: RC-CA101-04
+RECONECTADOR = """Reconectador del alimentador CA191
+Equipo: RC-CA191-04
 Fabricante: NOJA Power
 Modelo: OSM15
 Curva: IEC muy inversa
@@ -28,9 +28,9 @@ Celda: SEC_1091_315216
 
 def test_un_rele_estilo_sel_queda_completo_con_su_tc():
     """049:RF-2 — SEL-751A: arranque en amperios secundarios con su TC, curva, dial y poder de corte."""
-    r = leer_ajustes(SEL, 'CA101_R1.txt', cubiculo='CA101')
+    r = leer_ajustes(SEL, 'CA191_R1.txt', cubiculo='CA191')
     d = r['dispositivo']
-    assert (d['id'], d['fabricante'], d['modelo'], d['clase']) == ('CA101-R1', 'SEL', 'SEL-751A', 'rele')
+    assert (d['id'], d['fabricante'], d['modelo'], d['clase']) == ('CA191-R1', 'SEL', 'SEL-751A', 'rele')
     assert (d['arranque'], d['unidad_arranque'], d['curva'], d['dial'], d['unidad_dial']) == (2.5, 'A sec', 'U3', 3.0, 'dial')
     assert (d['ct_primario_a'], d['ct_secundario_a'], d['poder_corte_ka']) == (600.0, 5.0, 25.0)
     assert r['faltan'] == [] and r['errores'] == []
@@ -40,7 +40,7 @@ def test_un_reconectador_en_espanol_con_coma_decimal():
     """049:RF-2 — un reconectador NOJA con las etiquetas en español y la coma decimal."""
     r = leer_ajustes(RECONECTADOR, 'reconectador.pdf')
     d = r['dispositivo']
-    assert d['clase'] == 'reconectador' and d['id'] == 'RC-CA101-04' and d['cubiculo'] == 'SEC_1091_315216'
+    assert d['clase'] == 'reconectador' and d['id'] == 'RC-CA191-04' and d['cubiculo'] == 'SEC_1091_315216'
     assert (d['arranque'], d['unidad_arranque'], d['dial'], d['poder_corte_ka']) == (280.0, 'A', 0.15, 12.5)
     assert d['curva'] == 'IEC muy inversa' and d['fuente'] == 'reconectador.pdf'
     assert r['faltan'] == []

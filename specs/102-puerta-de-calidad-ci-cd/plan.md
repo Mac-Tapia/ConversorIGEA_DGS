@@ -65,7 +65,7 @@ Revisadas y en paralelo, con su motivo:
   de la 019 es de cada prueba (`VARIABLE_TURNO` en `tmp_path`, conftest). La puerta no abre DIgSILENT (fuera de alcance).
 - Word, Excel y COM: `test_informe_corrida`, `test_libro_informe`, `test_libro_perdidas_por_sistema` y
   `test_vnr_official_web` pasan `ejecutar=` o `clase_com=` falsos; `test_instalacion_programa` va en serie por `gpu`.
-- Access: `test_access_input`, `test_linea_base_001`, `test_feeder_pa217`, `test_feeder_sl143` y `test_sistema_web`
+- Access: `test_access_input`, `test_linea_base_001`, `test_feeder_pa297`, `test_feeder_sl193` y `test_sistema_web`
   abren las `.mdb` con `ReadOnly=1` (`access.py`): lectura compartida.
 - Puertos: `test_descarga_cancelable`, `test_lanzador_web`, `test_copia_datos` y `test_web_api` piden el puerto 0 (uno
   libre); `test_seguridad_web` (8791), `test_asistente_equipo` (8765), `test_monitor_agente` (9898) y

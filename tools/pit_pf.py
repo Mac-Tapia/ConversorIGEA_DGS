@@ -274,26 +274,61 @@ def _vk_tr3(tipo, elemento, sn: dict) -> dict[str, float | None]:
         # (10 · potencia del par)): con la de un solo devanado, la de MT-BT de un trafo de 240/240/80 MVA salía con
         # 0,052 % en vez de 0,156 % (sonda del 22-11).
         out[vkr] = _pct_cobre(_num(tipo, f'pcut3_{x}'), _potencia_del_par(sn, x))
-    if _num(tipo, 'itapzdep') != 1:
-        return out
     lado = next((x for x in 'hml' if _num(tipo, f'du3tp_{x}')), None)
     pos = _num(elemento, f'n3tap_{lado}') if lado else None
     if pos is None:
         return out
     neutro = _num(tipo, f'n3tp0_{lado}') or 0.0
+    if _num(tipo, 'itapzdep') == 1:
+        _vk_de_la_toma(out, tipo, lado, pos, neutro)
+    if _num(tipo, 'itapos') == 0:
+        _impedancia_fija_en_ohmios(out, sn, lado, 1 + (pos - neutro) * _num(tipo, f'du3tp_{lado}') / 100)
+    return out
+
+
+def _vk_de_la_toma(out: dict, tipo, lado: str, pos: float, neutro: float) -> None:
+    """107:RF-30: con ``itapzdep`` = 1, las vk y vkr de la toma: las del extremo y, entre el neutro y él, la
+    interpolación lineal."""
     minimo, maximo = _num(tipo, f'n3tmn_{lado}'), _num(tipo, f'n3tmx_{lado}')
     if pos > neutro and maximo is not None and maximo > neutro:
         extremo, fraccion = 'mx', min(1.0, (pos - neutro) / (maximo - neutro))
     elif pos < neutro and minimo is not None and minimo < neutro:
         extremo, fraccion = 'mn', min(1.0, (neutro - pos) / (neutro - minimo))
     else:
-        return out
+        return
     for x, vk, vkr in _PARES_TR3:
         for clave, del_extremo in ((vk, _num(tipo, f'uktr3{extremo}_{x}')), (vkr, _num(tipo, f'uktrr3{extremo}_{x}'))):
             nominal = out[clave]
             if nominal is not None and del_extremo is not None:
                 out[clave] = nominal + (del_extremo - nominal) * fraccion
-    return out
+
+
+def _impedancia_fija_en_ohmios(out: dict, sn: dict, lado: str, t: float) -> None:
+    """107:RF-38: con la toma en el punto estrella (``itapos`` = 0 en el tipo, lo que el conversor de pandapower desde
+    DIgSILENT lee como ``tap_at_star_point``), DIgSILENT pone la relación de la toma entre la estrella y la rama del
+    devanado, que queda así en ohmios de su lado; el exportador da la toma en el borne, donde pandapower deja esa rama
+    en p.u. de la tensión de la toma (la escala con t²). Para que den lo mismo, la rama sale dividida por t² y las
+    otras dos quedan: se pasan los tres pares a estrella sobre la potencia de alta, se corrige la rama y se vuelven a
+    los pares en la base de cada par (``tap_at_star_point`` de pandapower 3.5 no cambiaba el flujo con la toma). En la
+    copia de transmisión, dos trafos de 200/62,46 kV en la toma +2 (t = 1,1) llevaban con las tensiones de DIgSILENT
+    94,4 MW cada uno donde DIgSILENT da 116,5; con la rama en ohmios, 116,5, y su red de 60 kV quedaba ±50 MW
+    descuadrada; los de la misma ficha con la toma en el borne ya cuadraban."""
+    if abs(t - 1.0) < 1e-12:
+        return
+    base = sn.get('h')
+    pares = {x: _potencia_del_par(sn, x) for x in 'hml'}
+    if not base or not all(pares.values()):
+        return
+    i = 'hml'.index(lado)
+    for claves in (('vk_hv_percent', 'vk_mv_percent', 'vk_lv_percent'),
+                   ('vkr_hv_percent', 'vkr_mv_percent', 'vkr_lv_percent')):
+        if any(out.get(k) is None for k in claves):
+            continue
+        hm, ml, lh = (out[k] * base / pares[x] for k, x in zip(claves, 'hml'))
+        z = [(hm + lh - ml) / 2, (hm + ml - lh) / 2, (ml + lh - hm) / 2]
+        z[i] /= t * t
+        for k, x, par in zip(claves, 'hml', ((0, 1), (1, 2), (2, 0))):
+            out[k] = (z[par[0]] + z[par[1]]) * pares[x] / base
 
 
 def _potencia_del_par(sn: dict, x: str) -> float | None:

@@ -11,10 +11,10 @@ from convertersmartgrid.adaptadores.dgs import _ORIGEN_DGS
 from convertersmartgrid.dominio.model import FeederModel
 
 
-def test_el_txt_sigue_diciendo_cymdist_y_las_otras_fuentes_no():
-    """056:RF-3 — CYMDIST solo para su TXT, que así da el mismo DGS que antes."""
-    assert _ORIGEN_DGS['txt'] == 'CYMDIST'
-    for fuente in ('mdb', 'vnr'):
+def test_la_cabecera_dice_su_fuente_y_ninguna_dice_cymdist():
+    """056:RF-3, 056:RF-8 — la cabecera del DGS de los TXT dice «TXT»: los TXT no los exporta CYMDIST."""
+    assert _ORIGEN_DGS['txt'] == 'TXT'
+    for fuente in ('txt', 'mdb', 'vnr'):
         assert 'CYMDIST' not in _ORIGEN_DGS[fuente]
 
 

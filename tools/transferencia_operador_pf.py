@@ -1,9 +1,9 @@
 #!/usr/bin/env python
 """Transferencias de carga del operador en DIgSILENT: leerlas y desactivarlas mientras se calibra (spec 098).
 
-CA101 y CHN102 (2026-11-07): el operador pasó parte de CA101 a CHN102 con dos tramos nuevos y dejó abierto el punto
-que la unía a CA101. La recalibración, con medidas de antes de la transferencia, contaba en CA101 unas SED cuya
-potencia entraba por CHN102 y terminó con pérdidas negativas. Por decisión del usuario, mientras se calibra se abre lo
+CA191 y CHN192 (2026-11-07): el operador pasó parte de CA191 a CHN192 con dos tramos nuevos y dejó abierto el punto
+que la unía a CA191. La recalibración, con medidas de antes de la transferencia, contaba en CA191 unas SED cuya
+potencia entraba por CHN192 y terminó con pérdidas negativas. Por decisión del usuario, mientras se calibra se abre lo
 que el operador añadió para la transferencia y se cierra el punto que abrió, para medir cada alimentador completo, y
 al terminar —también si falla o se cancela— todo vuelve a como estaba. Cada cambio se anota en disco antes de hacerse
 (como las aperturas de las obras, 081:RF-80): si el proceso muere, la orden siguiente lo deshace.
@@ -181,7 +181,7 @@ def leer_transferencias(app, alims, plan: dict, interesan=None) -> tuple[list, d
 
 
 def equipos_de_las_zonas(app, zonas) -> list[dict[str, list[str]]]:
-    """098:RF-9: bancos y generadores de cada zona, que pasaron con ella (CA101: EBC_1, EBC_2 y EBC_3).
+    """098:RF-9: bancos y generadores de cada zona, que pasaron con ella (CA191: EBC_1, EBC_2 y EBC_3).
 
     Una pasada por clase para todas las zonas, no una por zona."""
     from convertersmartgrid.aplicacion.escaneo import CLASES_GENERADOR
@@ -224,7 +224,7 @@ def _por_ruta(app, clase: str, nombre: str, ruta: str):
     """El objeto anotado, por su nombre completo; también fuera de servicio (081:RF-81)."""
     donde = app.GetProjectFolder('netdat') if hasattr(app, 'GetProjectFolder') else None
     for patron in (f'{nombre}.{clase}', f'*.{clase}'):
-        # Por el nombre y, si no sale, por todos los de la clase: un nombre con «/» («Breaker/Switch(1)», CA101,
+        # Por el nombre y, si no sale, por todos los de la clase: un nombre con «/» («Breaker/Switch(1)», CA191,
         # 2026-11-07) no sirve de patrón, y dos acopladores se llaman casi igual. Se elige por el nombre completo.
         candidatos = list(app.GetCalcRelevantObjects(patron) or [])
         if donde is not None:

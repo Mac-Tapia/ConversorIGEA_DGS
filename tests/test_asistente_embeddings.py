@@ -20,9 +20,9 @@ from convertersmartgrid.aplicacion.asistente.indice import Fragmento
 
 
 FRAGMENTOS = [
-    Fragmento(1, 'casos/CA101.md:10', 'CA101 aceptado: flujo convergente y reapertura correcta.'),
-    Fragmento(2, 'casos/CA104.md:10', 'CA104 rechazado: flujo no convergente y tensión fuera de límite.'),
-    Fragmento(3, 'casos/CA101-viejo.md:3', 'CA101 versión obsoleta, no usar para aceptación.'),
+    Fragmento(1, 'casos/CA191.md:10', 'CA191 aceptado: flujo convergente y reapertura correcta.'),
+    Fragmento(2, 'casos/CA194.md:10', 'CA194 rechazado: flujo no convergente y tensión fuera de límite.'),
+    Fragmento(3, 'casos/CA191-viejo.md:3', 'CA191 versión obsoleta, no usar para aceptación.'),
 ]
 
 
@@ -34,15 +34,15 @@ def test_rrf_fusiona_rangos_y_no_puntuaciones_incompatibles():
 
 def test_dataset_contrastivo_incluye_negativo_dificil_obsoleto_y_abstencion():
     pares = construir_dataset_contrastivo(FRAGMENTOS, [
-        {'pregunta': '¿Convergió y se reabrió CA101?', 'fuente': 'casos/CA101.md:10',
+        {'pregunta': '¿Convergió y se reabrió CA191?', 'fuente': 'casos/CA191.md:10',
          'confirmada': True},
         {'pregunta': '¿Cuál es la receta del juane?', 'sin_respuesta': True, 'confirmada': True},
-        {'pregunta': 'pregunta todavía no revisada', 'fuente': 'casos/CA104.md:10'},
+        {'pregunta': 'pregunta todavía no revisada', 'fuente': 'casos/CA194.md:10'},
     ])
     assert len(pares) == 2
     positivo = next(p for p in pares if p.answerable)
-    assert positivo.positive_ids == ('casos/CA101.md:10',)
-    assert {'casos/CA104.md:10', 'casos/CA101-viejo.md:3'} <= set(positivo.hard_negative_ids)
+    assert positivo.positive_ids == ('casos/CA191.md:10',)
+    assert {'casos/CA194.md:10', 'casos/CA191-viejo.md:3'} <= set(positivo.hard_negative_ids)
     assert any(not p.answerable and not p.positive_ids for p in pares)
 
 
@@ -57,14 +57,14 @@ def test_preguntas_extractivas_declaran_que_no_son_evaluacion_independiente():
 
 def test_metricas_por_consulta_recall_mrr_ndcg_cita_y_abstencion():
     pares = [
-        ParContraste('CA101', ('casos/CA101.md:10',), ('casos/CA104.md:10',), True, 'g1'),
+        ParContraste('CA191', ('casos/CA191.md:10',), ('casos/CA194.md:10',), True, 'g1'),
         ParContraste('sin respuesta', (), (), False, 'g2'),
     ]
 
     def buscar(pregunta, _k):
         if pregunta == 'sin respuesta':
             return []
-        return [{'fuente': 'casos/CA104.md:10'}, {'fuente': 'casos/CA101.md:10'}]
+        return [{'fuente': 'casos/CA194.md:10'}, {'fuente': 'casos/CA191.md:10'}]
 
     metricas = evaluar_recuperador(pares, buscar)
     assert metricas['recall@1'] == 0.0 and metricas['recall@5'] == 1.0
@@ -83,8 +83,8 @@ def test_indice_versionado_verifica_hashes_y_reabre_identico(tmp_path):
     assert {'corpus_sha256', 'model_sha256', 'segmentation_sha256'} <= set(manifest)
 
     reabierto = reabrir_indice_versionado(tmp_path / 'indice')
-    assert reabierto.buscar('CA101 convergente', 3, [1.0, 0.0]) == (
-        reabrir_indice_versionado(tmp_path / 'indice').buscar('CA101 convergente', 3, [1.0, 0.0]))
+    assert reabierto.buscar('CA191 convergente', 3, [1.0, 0.0]) == (
+        reabrir_indice_versionado(tmp_path / 'indice').buscar('CA191 convergente', 3, [1.0, 0.0]))
     assert json.loads((tmp_path / 'indice' / 'manifest.json').read_text(encoding='utf-8')) == manifest
 
     filas = json.loads((tmp_path / 'indice' / 'fragmentos.json').read_text(encoding='utf-8'))

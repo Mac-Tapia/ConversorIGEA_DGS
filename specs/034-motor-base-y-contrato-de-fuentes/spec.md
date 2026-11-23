@@ -39,7 +39,7 @@ Quien convierte (web y CLI), PowerFactory al importar, y quien mantiene el motor
 
 Entrada
 
-- RF-1: EL SISTEMA leerá los TXT de RED, CARGA y BD_Equipo de CYMDIST, en la disposición
+- RF-1: EL SISTEMA leerá los TXT de RED, CARGA y BD_Equipo, en la disposición
   reducida y en la completa, leyendo cada tabla una sola vez.
 - RF-2: EL SISTEMA reconocerá cada TXT por su contenido y no por su nombre, y SI un fichero
   no encaja, ENTONCES dirá qué es, qué se esperaba y con qué evidencia.
@@ -83,7 +83,7 @@ Salida
   número de tramos.
 - RF-17: DONDE se pida, EL SISTEMA unirá todos los alimentadores en una sola red,
   separando un nodo compartido a dos tensiones y dejando fuera de servicio lo inalcanzable.
-- RF-18: EL SISTEMA convertirá los alimentadores de aceptación (PA217 de 22,9 kV y SL143 de
+- RF-18: EL SISTEMA convertirá los alimentadores de aceptación (PA297 de 22,9 kV y SL193 de
   10 kV) por las dos entradas con los mismos elementos que la fuente.
 
 Contrato universal de fuentes (2026-10-13)

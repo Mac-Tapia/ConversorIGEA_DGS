@@ -1,4 +1,4 @@
-"""Las dos disposiciones de export de CYMDIST tienen que dar el mismo modelo.
+"""Las dos disposiciones de TXT tienen que dar el mismo modelo.
 
 El conversor se había afinado contra un export concreto. Cuando llegó el otro —el largo,
 de 21 MB, con las mismas 96 alimentadores— el resultado medido fue:

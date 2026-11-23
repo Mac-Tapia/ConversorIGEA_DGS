@@ -292,8 +292,8 @@ def test_sin_hoja_del_medidor_ni_del_codigo(tmp_path):
 
 def test_dos_canales_sin_hoja_del_mismo_medidor_dan_una_fila(tmp_path):
     """025:RF-12 (004:RF-45) — el libro de un año sin las hojas de los canales: los dos se
-    leen como su medidor base y quedan en una sola fila (IN111 en 2025: «IN111_V18 Y
-    IN111_V119» y solo la hoja «IN111»; el plan del ajuste se paraba con dos medidores)."""
+    leen como su medidor base y quedan en una sola fila (IN191 en 2025: «IN191_V18 Y
+    IN191_V119» y solo la hoja «IN191»; el plan del ajuste se paraba con dos medidores)."""
     libro = _libro_cabecera(tmp_path / '2025/c.xlsx', {'QX7': 640.0})
     res = dm.maximas([libro], [('QX7', 'QX7_V18'), ('QX7', 'QX7_V119')])
     assert len(res) == 1 and res[0].kw == 640.0 and res[0].canal_de == 'QX7'
@@ -405,7 +405,7 @@ def test_real_cada_anio_da_la_maxima_de_sus_alimentadores():
         assert con_hoja, anio
         pares = [(a, m) for a in con_hoja for m in dm.medidores_de(meds, a)]
         res = dm.maximas(libros, pares, periodo=str(anio))
-        # Una hoja sin kW numérico en el año es un dato de la medición (PI101 en 2026), no
+        # Una hoja sin kW numérico en el año es un dato de la medición (PI191 en 2026), no
         # que no se encontrara: lo que no puede pasar es «no está en ningún libro».
         perdidos = sorted({r.alimentador for r in res if r.error and 'ningún libro' in r.error})
         assert not perdidos, (anio, perdidos)

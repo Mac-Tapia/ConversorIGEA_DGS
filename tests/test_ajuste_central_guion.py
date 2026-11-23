@@ -3,7 +3,7 @@
 DIgSILENT no se ejecuta en la suite (P11). El doble calcula el flujo de cada línea del
 alimentador en cadena (B0…B6, con una SED en cada barra) y la inyección de la central;
 lo que DIgSILENT hace de verdad con un ``ElmGenstat`` lo dio la sonda del 2026-10-17 en
-una copia de NA203 + NA205 (inyecta lo escrito; su etapa sigue grabando aunque se
+una copia de NA293 + NA295 (inyecta lo escrito; su etapa sigue grabando aunque se
 desactive y active la variación).
 """
 from __future__ import annotations
@@ -143,7 +143,7 @@ def test_sin_central_el_plan_de_siempre(guion):
 
 def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatch):
     """021:RF-38 — la barra de la central en el alimentador pero fuera del camino más largo
-    (NA205 del TXT, 2026-10-18: la central 1720 en otra rama): se avisa y se calibra igual
+    (NA295 del TXT, 2026-10-18: la central 1720 en otra rama): se avisa y se calibra igual
     por zonas."""
     import convertersmartgrid.dominio.troncal as tr
 
@@ -158,8 +158,8 @@ def test_la_central_fuera_del_camino_mas_largo_avisa_y_calibra(guion, monkeypatc
 
 def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
     """021:RF-37 — lo que la etapa de la central haya grabado que no sea su generador y su
-    cubículo se quita (sistema Nasca, 2026-10-18: 167 cargas en «Central_NA205» pisaban la
-    marca fija de NA203)."""
+    cubículo se quita (sistema Nasca, 2026-10-18: 167 cargas en «Central_NA295» pisaban la
+    marca fija de NA293)."""
     from types import SimpleNamespace
 
     borrados = []
@@ -182,10 +182,10 @@ def test_la_etapa_de_la_central_queda_solo_con_la_central(guion):
             borrados.append('activada')
 
     etapa = O(clase='IntSstage', loc_name='Etapa_central', hijos=[
-        O(clase='ElmGenstat', loc_name='Central_NA205'), O(clase='StaCubic', loc_name='Cub_Central_NA205'),
+        O(clase='ElmGenstat', loc_name='Central_NA295'), O(clase='StaCubic', loc_name='Cub_Central_NA295'),
         O(clase='ElmLod', loc_name='SE50320'), O(clase='ElmLod', loc_name='SE50033')])
-    variacion = O(clase='IntScheme', loc_name='Central_NA205', hijos=[etapa])
-    assert guion._limpiar_etapa_de_la_central(variacion, 'Central_NA205') == 2
+    variacion = O(clase='IntScheme', loc_name='Central_NA295', hijos=[etapa])
+    assert guion._limpiar_etapa_de_la_central(variacion, 'Central_NA295') == 2
     assert borrados == ['desactivada', 'SE50320', 'SE50033', 'activada'], (
         'DIgSILENT solo borra lo de la etapa con la variación desactivada')
 
@@ -206,13 +206,13 @@ def test_la_marca_fija_se_restaura_con_las_centrales_apagadas(guion):
             activas.append(self)
             registro.append(('on', self.loc_name))
 
-    central, obra = V(loc_name='Central_NA205'), V(loc_name='Obra_X')
+    central, obra = V(loc_name='Central_NA295'), V(loc_name='Obra_X')
     activas += [central, obra]
     app = SimpleNamespace(GetActiveNetworkVariations=lambda: list(activas))
     with guion._centrales_apagadas(app):
         assert activas == [obra], 'solo las de central se apagan'
-    assert set(v.loc_name for v in activas) == {'Central_NA205', 'Obra_X'}
-    assert registro == [('off', 'Central_NA205'), ('on', 'Central_NA205')]
+    assert set(v.loc_name for v in activas) == {'Central_NA295', 'Obra_X'}
+    assert registro == [('off', 'Central_NA295'), ('on', 'Central_NA295')]
 
 
 def test_015_rf72_con_central_los_bancos_existentes_tambien_a_su_maxima(guion):

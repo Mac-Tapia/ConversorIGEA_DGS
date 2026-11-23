@@ -9,7 +9,7 @@ def test_activate_existing_project_returns_import_compatible_identity(monkeypatc
     from apoyo import cargar_herramienta
 
     tool = cargar_herramienta('powerfactory_acceptance.py')
-    project = SimpleNamespace(loc_name='20261013-121930_CSG_CA101')
+    project = SimpleNamespace(loc_name='20261013-121930_CSG_CA191')
     monkeypatch.setattr(
         tool,
         '_activate_project_by_path',
@@ -18,13 +18,13 @@ def test_activate_existing_project_returns_import_compatible_identity(monkeypatc
     app = SimpleNamespace(GetActiveProject=lambda: project)
 
     info = tool.activate_existing_project(
-        app, '20261013-121930_CSG_CA101', 'ConverterSmartGrid',
+        app, '20261013-121930_CSG_CA191', 'ConverterSmartGrid',
     )
 
     assert info['ok'] is True
     assert info['existing_project'] is True
-    assert info['project_name'] == '20261013-121930_CSG_CA101'
-    assert info['project_path'] == '20261013-121930_CSG_CA101'
+    assert info['project_name'] == '20261013-121930_CSG_CA191'
+    assert info['project_path'] == '20261013-121930_CSG_CA191'
     assert info['project_folder'] == 'ConverterSmartGrid'
     assert info['errors'] == []
 
@@ -54,35 +54,35 @@ def _vincular(report):
             'status': 'VERIFIED_BEFORE_MUTATION',
             'source_run_id': 'run-active', 'source_mode': 'mdb',
             'source_fingerprint': 'f' * 64, 'dgs_sha256': 'd' * 64,
-            'feeders': ['CA101'],
+            'feeders': ['CA191'],
         },
         {
             'ok': True, 'existing_project': True,
-            'project_path': '20261013-121930_CSG_CA101',
+            'project_path': '20261013-121930_CSG_CA191',
             'project_folder': 'sistemaeletricoELD',
         },
-        fallback_feeder='CA101',
+        fallback_feeder='CA191',
     )
     return report['project_binding']
 
 
 def test_caso_base_sin_converger_se_vincula_sin_verificar():
-    """015:RF-10, 015:RF-14 — CA101 sin converger: el vínculo existe, para volver a verificar,
+    """015:RF-10, 015:RF-14 — CA191 sin converger: el vínculo existe, para volver a verificar,
     pero su «Caso base» no queda verificado (antes, «pendiente de convergencia»)."""
     binding = _vincular({
         'powerfactory_runtime_pass': False,
         'caso_base': {'status': 'NO_VERIFICADO', 'comprobaciones': {
             'gps_barras': {'pass': True}, 'flujo': {'pass': False}}},
     })
-    assert binding['project'] == '20261013-121930_CSG_CA101'
+    assert binding['project'] == '20261013-121930_CSG_CA191'
     assert binding['native_reread']['status'] == 'CASO_BASE_NO_VERIFICADO'
-    assert binding['native_reread']['caso_base']['CA101']['fallos'] == ['flujo']
+    assert binding['native_reread']['caso_base']['CA191']['fallos'] == ['flujo']
 
 
 def test_sin_manifiesto_no_queda_verificado():
     """015:RF-1 — sin el resumen del «Caso base» no hay verificación."""
     binding = _vincular({'powerfactory_runtime_pass': True})
-    assert binding['native_reread']['caso_base']['CA101']['status'] == 'NO_VERIFICADO'
+    assert binding['native_reread']['caso_base']['CA191']['status'] == 'NO_VERIFICADO'
 
 
 def test_caso_base_verificado_en_el_vinculo():
@@ -92,6 +92,6 @@ def test_caso_base_verificado_en_el_vinculo():
         'caso_base': {'status': 'VERIFICADO', 'comprobaciones': {'flujo': {'pass': True}}},
     })
     assert binding['native_reread']['status'] == 'VERIFICADO_PERSISTENCIA'
-    assert binding['native_reread']['caso_base']['CA101'] == {
-        **binding['native_reread']['caso_base']['CA101'],
+    assert binding['native_reread']['caso_base']['CA191'] == {
+        **binding['native_reread']['caso_base']['CA191'],
         'status': 'VERIFICADO', 'fallos': []}

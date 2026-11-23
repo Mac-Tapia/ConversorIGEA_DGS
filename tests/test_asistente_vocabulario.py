@@ -1,7 +1,7 @@
 """El vocabulario del asistente nombra los alimentadores como el operador (026:RF-6).
 
-Prueba del auditor (2026-11-14): «convierte el PA217» respondía que faltaban alimentadores, porque el vocabulario
-era el NetworkID de la fuente («NET_2030_179_PA217») y no el código del alimentador. Ahora es el código corto,
+Prueba del auditor (2026-11-14): «convierte el PA297» respondía que faltaban alimentadores, porque el vocabulario
+era el NetworkID de la fuente («NET_2030_179_PA297») y no el código del alimentador. Ahora es el código corto,
 el mismo de la tabla de la web y de las demás rutas, y una orden con el NetworkID resuelve al mismo alimentador.
 Con las dos disposiciones del TXT, cada convención de NetworkID y las filas de inventario de una .mdb y de un
 paquete VNR-GIS, con alimentadores sorteados: ningún tamaño ni nombre fijo.

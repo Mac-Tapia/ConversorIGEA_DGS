@@ -47,7 +47,7 @@ test('012:RF-75, RF-77 la tabla se edita sin mutar y marca las filas con error',
   assert.equal(editarCelda(filas, 0, 'a', '  ')[0].a, null);
   assert.deepEqual(quitarFila(filas, 0), [{ a: 'Y', b: null }]);
   assert.deepEqual(filaVacia(esquema('impedancia', PCC)), { a: null, b: null });
-  assert.deepEqual([...filasConError(['Fila 2, «B»: falta', 'CA101: mezcla p.u. y kW'])], [1]);
+  assert.deepEqual([...filasConError(['Fila 2, «B»: falta', 'CA191: mezcla p.u. y kW'])], [1]);
   const muchas = Array.from({ length: 250 }, (_, i) => ({ a: String(i) }));
   const p = pagina(muchas, 9);
   assert.equal(p.paginas, 3);

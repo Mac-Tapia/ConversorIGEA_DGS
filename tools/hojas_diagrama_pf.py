@@ -7,7 +7,7 @@ comprobara en DIgSILENT (``prueba_representacion.py`` mira el DGS): esta dice, p
 ``IntGrfnet``, el recuadro de sus gráficos y conectores, su formato, su orientación y si todo
 cae dentro. Solo lee.
 
-En Nasca por SET (2026-10-29) la SET 52, la 53 y la 56 son más altas que anchas y DIgSILENT
+En Nasca por SET (2026-10-29) la SET 92, la 53 y la 56 son más altas que anchas y DIgSILENT
 les dio hoja vertical; los vectores de los conectores llevan −1 en los puntos sin usar, que
 no son del dibujo.
 

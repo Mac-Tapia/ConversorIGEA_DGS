@@ -119,7 +119,7 @@ def test_new_operation_scenario_is_saved_but_existing_one_is_not():
 
 def test_generated_project_name_fits_powerfactory_limit():
     mod = _load_pf_mod()
-    long_name = 'AL104_AL105_AL106_AL107_AL108_AL209_CA101_CA104_ETC'
+    long_name = 'AL194_AL195_AL196_AL197_AL198_AL299_CA191_CA194_ETC'
     result = mod._generated_project_name('20260929-055603', long_name)
     assert len(result) <= 40
     assert result.startswith('20260929-055603_CSG_')
@@ -133,7 +133,7 @@ def test_import_dgs_nombres_caben_en_powerfactory(tmp_path):
     from fake_pf import App
 
     mod = _load_pf_mod()
-    dgs = tmp_path / 'AL104_AL105_AL106_AL107_ETC.dgs'
+    dgs = tmp_path / 'AL194_AL195_AL196_AL197_ETC.dgs'
     dgs.write_text('DGS', encoding='ascii')
     app = App()
     result = mod.import_dgs_file(app, dgs, carpeta='Red')
@@ -396,16 +396,16 @@ def test_run_load_flow_until_converged_succeeds_on_second_attempt(monkeypatch):
 
 def test_persist_feeder_dgs_already_in_place(tmp_path):
     mod = _load_pf_mod()
-    dgs = tmp_path / 'AL104.dgs'
+    dgs = tmp_path / 'AL194.dgs'
     dgs.write_text('DGS', encoding='utf-8')
-    geo = tmp_path / 'AL104_geography.json'
+    geo = tmp_path / 'AL194_geography.json'
     geo.write_text('{}', encoding='utf-8')
     info = mod.persist_feeder_dgs(dgs)
     assert info['ok'] is True
     assert info['already_in_place'] is True
     assert info['copied_dgs'] is False
     assert Path(info['dgs']) == dgs.resolve()
-    assert any(s['name'] == 'AL104_geography.json' for s in info['sidecars'])
+    assert any(s['name'] == 'AL194_geography.json' for s in info['sidecars'])
 
 
 def test_persist_feeder_dgs_copies_into_out_dir(tmp_path):
@@ -414,21 +414,21 @@ def test_persist_feeder_dgs_copies_into_out_dir(tmp_path):
     out_dir = tmp_path / 'gui_out'
     src_dir.mkdir()
     out_dir.mkdir()
-    src = src_dir / 'AL104.dgs'
+    src = src_dir / 'AL194.dgs'
     src.write_text('DGS-CONTENT', encoding='utf-8')
-    (src_dir / 'AL104_validation.json').write_text('{"ok":true}', encoding='utf-8')
+    (src_dir / 'AL194_validation.json').write_text('{"ok":true}', encoding='utf-8')
     info = mod.persist_feeder_dgs(src, out_dir=out_dir)
     assert info['ok'] is True
     assert info['copied_dgs'] is True
-    dest = out_dir / 'AL104.dgs'
+    dest = out_dir / 'AL194.dgs'
     assert dest.is_file()
     assert dest.read_text(encoding='utf-8') == 'DGS-CONTENT'
-    assert (out_dir / 'AL104_validation.json').is_file()
+    assert (out_dir / 'AL194_validation.json').is_file()
 
 
 def test_persist_after_pf_gate_export_fallback(tmp_path, monkeypatch):
     mod = _load_pf_mod()
-    dgs = tmp_path / 'IN111.dgs'
+    dgs = tmp_path / 'IN191.dgs'
     dgs.write_text('DGS', encoding='utf-8')
 
     def fake_export(app, dest_path):
@@ -455,7 +455,7 @@ def test_persist_after_pf_gate_export_fallback(tmp_path, monkeypatch):
 
 def test_persist_after_pf_gate_export_ok(tmp_path, monkeypatch):
     mod = _load_pf_mod()
-    dgs = tmp_path / 'AL105.dgs'
+    dgs = tmp_path / 'AL195.dgs'
     dgs.write_text('DGS', encoding='utf-8')
 
     def fake_export(app, dest_path):
@@ -478,7 +478,7 @@ def test_persist_after_pf_gate_export_ok(tmp_path, monkeypatch):
     )
     assert report['ok'] is True
     assert report['converged_dgs']
-    assert Path(report['converged_dgs']).name == 'AL105_pf_converged.dgs'
+    assert Path(report['converged_dgs']).name == 'AL195_pf_converged.dgs'
     assert Path(report['converged_dgs']).read_text(encoding='utf-8') == 'EXPORTED'
 
 
@@ -532,15 +532,15 @@ class _ObjPF:
 def test_los_alimentadores_se_cuentan_en_la_carpeta_feeders_de_la_grid():
     """PF guarda los ElmFeeder en «Feeders», fuera de la grid: antes contaba 0 siempre.
 
-    Visto en la red unida NA203_NA205 importada: 2 ElmFeeder en el proyecto, 0 contados.
+    Visto en la red unida NA293_NA295 importada: 2 ElmFeeder en el proyecto, 0 contados.
     Los de otra grid del mismo proyecto no cuentan.
     """
     mod = _load_pf_mod()
     datos = _ObjPF('Network Data')
-    red = _ObjPF('NA203_NA205', datos, 'ElmNet')
+    red = _ObjPF('NA293_NA295', datos, 'ElmNet')
     otra = _ObjPF('OTRA', datos, 'ElmNet')
     feeders = _ObjPF('Feeders', datos, 'IntFeeder')
-    for nombre, grid in (('NA203', red), ('NA205', red), ('X', otra)):
+    for nombre, grid in (('NA293', red), ('NA295', red), ('X', otra)):
         barra = _ObjPF(f'B_{nombre}', grid, 'ElmTerm')
         cub = _ObjPF(f'Cub_{nombre}', barra, 'StaCubic')
         _ObjPF(nombre, feeders, 'ElmFeeder', obj_id=cub)
@@ -551,7 +551,7 @@ def test_los_alimentadores_se_cuentan_en_la_carpeta_feeders_de_la_grid():
 def test_las_definiciones_dgs_se_buscan_solo_en_el_primer_nivel_del_usuario():
     """La búsqueda recursiva recorría todos los proyectos del usuario de PowerFactory.
 
-    Con la base llena, AL107 sin georreferenciación (3 tramos) no terminaba en 8 minutos
+    Con la base llena, AL197 sin georreferenciación (3 tramos) no terminaba en 8 minutos
     tras converger; con la búsqueda en el primer nivel, 37 s.
     """
     mod = _load_pf_mod()

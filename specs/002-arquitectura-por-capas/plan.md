@@ -24,8 +24,8 @@ Estado: propuesto el 2026-10-10, pendiente de aprobar. No se ha movido código t
   por defecto en 6 módulos de `src/` (`batch`, `cli`, `geography`, `web.app`,
   `web.services`, `web.workspace`) y 7 herramientas (`accept_three_sources`,
   `apply_catalog_to_model`, `base_scenario`, `build_system_grid`, `convertir_grupos_mdb`,
-  `linea_base_dgs`, `prueba_representacion`); `IN111` por defecto en
-  `accept_three_sources`; la exclusión de SED `M…` en `reglas`/`trafomix`; la escala NA205
+  `linea_base_dgs`, `prueba_representacion`); `IN191` por defecto en
+  `accept_three_sources`; la exclusión de SED `M…` en `reglas`/`trafomix`; la escala NA295
   en `dgs`. `reglas` importa `powerfactory_env` solo por `project_root`.
 - **Perfil de empresa:** existe `config/perfil_empresa.json` (spec 005) con una sola
   clave, `carpeta_proyectos_pf`, leída por `carpeta_pf.nombre_de_perfil`.

@@ -6,14 +6,14 @@ def test_access_capacitor_rows_keep_database_values():
     from convertersmartgrid.adaptadores.access import capacitor_rows_from_access
 
     rows = [
-        ('BC1', 'CA101', 'N2', 7, 150, 3, 450, 10, 1),
-        ('BC2', 'CA101', 'N3', 1, None, None, None, 10, 0),
+        ('BC1', 'CA191', 'N2', 7, 150, 3, 450, 10, 1),
+        ('BC2', 'CA191', 'N3', 1, None, None, None, 10, 0),
     ]
 
-    mapped = capacitor_rows_from_access(rows, wanted={'CA101'})
+    mapped = capacitor_rows_from_access(rows, wanted={'CA191'})
 
     assert mapped[0] == {
-        'DeviceNumber': 'BC1', 'NetworkID': 'CA101', 'NodeID': 'N2',
+        'DeviceNumber': 'BC1', 'NetworkID': 'CA191', 'NodeID': 'N2',
         'Phase': 'ABC', 'KVARPerStep': '150', 'NumberOfSteps': '3',
         'TotalKVAR': '450', 'NominalKV': '10', 'Status': '1',
         'SourceTable': 'CYMSHUNTCAPACITOR',

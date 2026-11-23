@@ -288,3 +288,32 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       (2026-11-21), la misma en el fichero, en la herramienta y en la prueba. Lo escribió quien escribió la
       corrección: limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+      Medida del 047f, 2026-11-22 (bloque de GPU, `qwen3:8b`, tope 1024, huella `05c42391…afea6`): **no pasa**. Rol
+      único 5 de 6, 1 perdido (riesgo, f06: nadie vio el trabajo en caliente prohibido), 1 falsa alarma (f07: el
+      coste frente a cada partida). Equipo 6 de 6, 0 perdidos, 2 falsas alarmas (f05: «buzones» como incertidumbre
+      cuando la acción dice «2 buzones», y una partida frente al total en la segunda ronda; f07: el coste frente a
+      cada partida) y 1 sin respuesta (f12: riesgo «bloqueada» sin hallazgo). El código resolvió solo los dos
+      defectos de coste (f02 y f10, `comprobaciones_fallidas` 2); el modelo, los de física y fuentes. El riesgo del
+      equipo se «halló» por una contradicción de la acción que comparaba un 2 de su frase con 22,9 kV. Sigue en la T14.
+
+- [ ] T14. El código decide el coste que comprobó, las dudas que fija la acción y el riesgo por prohibición, y medida con un conjunto nuevo. (RF-79, RF-80, RF-81, RF-82, RF-83)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047g.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8g.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T13, la T11, la T10 y la T8.
+      Código, 2026-11-22 (MEJ24e): con la comprobación del coste que cuadra, el LLM no decide ese campo (RF-79); una
+      incertidumbre que es un campo fijado por la acción se descarta (RF-80); un dictamen no válido se pide de nuevo
+      (RF-81); el encargo de riesgo incluye las prohibiciones de la evidencia, que van en incertidumbres (RF-82); la
+      frase de la acción no se compara como cifra (RF-83). Pruebas, con dobles y sin LLM:
+      `tests/test_revision_reglas_t13.py` y `tests/test_revision_conjunto_047g.py`. Diagnóstico sin LLM, que no vale
+      como medida: volver a filtrar con este código lo que devolvió el LLM en la medida del 047f deja 0 falsas alarmas
+      y 1 perdido en cada modo, el riesgo de f06, que el encargo nuevo pide y solo una medida puede comprobar.
+      Conjunto nuevo, 2026-11-22: el 047f orientó este diagnóstico y no vale para la aceptación, así que la medida es
+      con `docs/REVISION_ROLES_CASOS_047g.json`, 12 casos sintéticos del maestro con las clases del 047f (coste por
+      precio unitario por cantidad y por precio por km, física por tensión bajo el límite y por sobrecarga de una SED,
+      riesgo por una maniobra que el procedimiento prohíbe, fuentes por la evidencia de otro reconectador) y cifras
+      escritas de otras formas (decimales con coma, moneda delante o detrás, «dólares», «/km», «cada una», miles con
+      punto o espacio), sin repetir propuestas ni evidencias del 047 al 047f, nombres opacos, con las mismas reglas
+      de declaración, declarado antes de medir con huella sha256 `6553d4ae2cdb29b228e56d209cebb15ce53c4ae823deb0d9e17628ed60b4ca8a`
+      (2026-11-22), la misma en el fichero, en la herramienta y en la prueba. Lo escribió quien escribió la
+      corrección: limitación declarada.
+      Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.

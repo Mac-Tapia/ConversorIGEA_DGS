@@ -168,16 +168,16 @@ def test_correcciones_y_variaciones_no_bloquean():
     """015:RF-12, 015:RF-31, 015:RF-34, 015:RF-35 — se avisan con sus valores y no bloquean."""
     corr = [{'nombre': 'TR_A', 'kv_baja': {'digsilent': 0.22, 'archivo': 0.38}, 'corregido': True}]
     r = tool.resumen_caso_base(_report(gps={'sin_coordenadas_en_archivo': 4}), _SIN_FALLOS, corr,
-                               ['Ajuste_CA101_20261013_203247_3'])
+                               ['Ajuste_CA191_20261013_203247_3'])
     assert r['status'] == 'VERIFICADO'
     assert any('0.22 → 0.38' in a for a in r['avisos'])
     assert any('4 barras sin coordenadas' in a for a in r['avisos'])
-    assert any('Ajuste_CA101_20261013_203247_3' in a for a in r['avisos'])
+    assert any('Ajuste_CA191_20261013_203247_3' in a for a in r['avisos'])
 
 
 
 def test_diagrama_dice_su_motivo_y_la_curva_del_unifilar_solo_avisa():
-    """015:RF-5, 015:RF-10 — caso real CA101 (2026-10-15): «diagrama» salía ✗ con la lista de
+    """015:RF-5, 015:RF-10 — caso real CA191 (2026-10-15): «diagrama» salía ✗ con la lista de
     fallos vacía, por 296 curvas del unifilar distintas del mapa con el GPS perfecto. El
     diagrama que falla dice por qué; la curva del unifilar se avisa y no bloquea."""
     falla = tool.resumen_caso_base(
@@ -193,7 +193,7 @@ def test_diagrama_dice_su_motivo_y_la_curva_del_unifilar_solo_avisa():
 
 
 def test_equipos_que_el_archivo_no_trae_se_avisan_con_su_nombre():
-    """015:RF-11 — caso real CA101 (2026-10-15): dos tramos partidos y tres condensadores
+    """015:RF-11 — caso real CA191 (2026-10-15): dos tramos partidos y tres condensadores
     dibujados a mano en el «Caso base» se avisan con su nombre y no bloquean."""
     equipos = {**_SIN_FALLOS, 'no_en_archivo': [{'clase': 'ElmLne', 'nombre': 'SEC_1_a'}]}
     reread = {'expected': 0, 'reread': 1, 'banks': [
@@ -277,7 +277,7 @@ def test_si_no_converge_ni_al_minimo_vuelve_la_demanda_original():
 
 def test_proyecto_existente_exige_manifiesto(tmp_path, capsys):
     """015:RF-1 — sin la geografía del archivo original no se verifica el «Caso base»."""
-    dgs = tmp_path / 'CA101.dgs'
+    dgs = tmp_path / 'CA191.dgs'
     dgs.write_text('', encoding='utf-8')
     rc = tool.main(['--existing-project', 'P', '--source-dgs', str(dgs)])
     assert rc == 1
@@ -286,8 +286,8 @@ def test_proyecto_existente_exige_manifiesto(tmp_path, capsys):
 
 def test_proyecto_existente_sin_remedios_del_flujo(tmp_path, capsys):
     """015:RF-8 — el «Caso base» se verifica tal como está, sin escalar cargas."""
-    dgs = tmp_path / 'CA101.dgs'
-    geo = tmp_path / 'CA101_geography.json'
+    dgs = tmp_path / 'CA191.dgs'
+    geo = tmp_path / 'CA191_geography.json'
     dgs.write_text('', encoding='utf-8')
     geo.write_text('{}', encoding='utf-8')
     rc = tool.main(['--existing-project', 'P', '--source-dgs', str(dgs), '--manifest', str(geo),
@@ -375,8 +375,8 @@ def test_un_proyecto_ya_importado_se_verifica_sin_flujo(tmp_path, capsys):
     proyecto existente no hay comprobación de flujo, y la orden no admite correrlo."""
     r = tool.resumen_caso_base(_report(load_flow={'requested': False}), _SIN_FALLOS, [], [])
     assert 'flujo' not in r['comprobaciones'] and r['status'] == 'SIN_DATO_DE_FLUJO'
-    dgs = tmp_path / 'CA101.dgs'
-    geo = tmp_path / 'CA101_geography.json'
+    dgs = tmp_path / 'CA191.dgs'
+    geo = tmp_path / 'CA191_geography.json'
     dgs.write_text('', encoding='utf-8')
     geo.write_text('{}', encoding='utf-8')
     for opcion in ('--run-load-flow', '--run-studies'):

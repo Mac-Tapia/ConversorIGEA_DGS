@@ -4,13 +4,13 @@ from convertersmartgrid.dominio.naming import feeder_short_name, feeder_tokens, 
 
 
 def test_feeder_short_name_handles_varied_utility_patterns():
-    assert feeder_short_name('NET_2030_142_IN111') == 'IN111'
+    assert feeder_short_name('NET_2030_142_IN191') == 'IN191'
     # 080:RF-28: un número solo no identifica al alimentador; queda el NetworkID entero.
     assert feeder_short_name('ALIMENTADOR-12') == 'ALIMENTADOR-12'
     assert feeder_short_name('Feeder.A1') == 'A1'
     assert feeder_short_name('CIRCUITO/NORTE') == 'NORTE'
     assert feeder_short_name('SIMPLE') == 'SIMPLE'
-    assert feeder_tokens('NET_2030_142_IN111') == ['NET', '2030', '142', 'IN111']
+    assert feeder_tokens('NET_2030_142_IN191') == ['NET', '2030', '142', 'IN191']
     assert sort_key_feeder('NET_Z') == 'z'
 
 
@@ -33,18 +33,18 @@ def test_sufijo_de_tension_es_uno_para_el_dgs_y_las_obras():
 
 
 def test_siglas_canonicas_del_perfil(monkeypatch):
-    """022:RF-90 — con la estructura que declara ``["CHN", "CN"]``, CN101 de la red se llama
-    CHN101 desde la carga; las demás siglas y los nombres sin número, tal cual; sin perfil,
+    """022:RF-90 — con la estructura que declara ``["CHN", "CN"]``, CN191 de la red se llama
+    CHN191 desde la carga; las demás siglas y los nombres sin número, tal cual; sin perfil,
     nada cambia."""
     from convertersmartgrid.dominio import naming
 
     monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {'CN': 'CHN'})
-    assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CHN101'
-    assert naming.feeder_short_name('NET_2030_1192601_cn201') == 'CHN201'
-    assert naming.feeder_short_name('NET_2030_131_CA101') == 'CA101'
+    assert naming.feeder_short_name('NET_2030_1192582_CN191') == 'CHN191'
+    assert naming.feeder_short_name('NET_2030_1192601_cn291') == 'CHN291'
+    assert naming.feeder_short_name('NET_2030_131_CA191') == 'CA191'
     assert naming.feeder_short_name('ALIMENTADOR-CN') == 'CN'
     monkeypatch.setattr(naming, 'siglas_canonicas', lambda: {})
-    assert naming.feeder_short_name('NET_2030_1192582_CN101') == 'CN101'
+    assert naming.feeder_short_name('NET_2030_1192582_CN191') == 'CN191'
 
 
 def test_nombre_canonico_de_los_trozos():
@@ -52,9 +52,9 @@ def test_nombre_canonico_de_los_trozos():
     from convertersmartgrid.dominio.naming import nombre_canonico
 
     canon = {'CN': 'CHN'}
-    assert nombre_canonico('NODE_2030_1192582_CN101', canon) == 'NODE_2030_1192582_CHN101'
-    assert nombre_canonico('NET_2030_1192598_CN103', canon) == 'NET_2030_1192598_CHN103'
-    assert nombre_canonico('CN201', canon) == 'CHN201'
+    assert nombre_canonico('NODE_2030_1192582_CN191', canon) == 'NODE_2030_1192582_CHN191'
+    assert nombre_canonico('NET_2030_1192598_CN193', canon) == 'NET_2030_1192598_CHN193'
+    assert nombre_canonico('CN291', canon) == 'CHN291'
     assert nombre_canonico('SE20859', canon) == 'SE20859'
-    assert nombre_canonico('ACN101', canon) == 'ACN101' and nombre_canonico('CHN101', canon) == 'CHN101'
-    assert nombre_canonico('NODE_1_CN101', {}) == 'NODE_1_CN101'
+    assert nombre_canonico('ACN191', canon) == 'ACN191' and nombre_canonico('CHN191', canon) == 'CHN191'
+    assert nombre_canonico('NODE_1_CN191', {}) == 'NODE_1_CN191'

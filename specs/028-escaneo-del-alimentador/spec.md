@@ -3,16 +3,16 @@
 Estado: cumplida (reabierta el 2026-11-20 con MEJ11-MAXIMA por orden del usuario: RF-43, RF-44, T17) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
 al alimentador para hacer la recalibración donde identifique los cambios y centrales térmicas
 en cualquier alimentador; recuerda que este proyecto es universal, general, nada debe estar
-fijo»), tras decir que las centrales y los bancos de NA205 los pone él a mano en DIgSILENT.
+fijo»), tras decir que las centrales y los bancos de NA295 los pone él a mano en DIgSILENT.
 
 ## Por qué
 
 La recalibración de un sistema solo sabía de una central si el perfil de la empresa la traía
-con su barra (la de Nasca en NA205, `nodo` 1720). Lo que el operador cambia a mano en
+con su barra (la de Nasca en NA295, `nodo` 1720). Lo que el operador cambia a mano en
 DIgSILENT (un generador, un banco, una variación propia) no se veía hasta que la calibración
-fallaba: en Nasca (2026-10-28) la cabecera de NA205 mide la demanda menos la generación de su
+fallaba: en Nasca (2026-10-28) la cabecera de NA295 mide la demanda menos la generación de su
 central y la calibración subía el factor de escala 30 flujos sin cuadrar, y los bancos de
-calibración se acumulaban entre corridas (8 en NA205). Ningún nombre de empresa, central o
+calibración se acumulaban entre corridas (8 en NA295). Ningún nombre de empresa, central o
 alimentador puede estar fijo: el escaneo vale para cualquier alimentador de cualquier
 distribuidora.
 
@@ -111,7 +111,7 @@ alimentador o barra de cabecera»)
   juntos, RF-28), SET (máxima de su barra, 022:RF-37) y sistema eléctrico (RF-31). Propondrá sistema eléctrico si el proyecto
   es de un sistema y alimentadores en otro caso, y el operador podrá cambiarlo. Con más de tres alimentadores no
   buscará como «alimentadores» y lo dirá. Cambiado el 2026-11-02 por el usuario: «esto debe venir desde la web, la
-  selección de qué análisis se va a hacer»; solo para proyectos futuros: NA203_NA205 no se recalibra.
+  selección de qué análisis se va a hacer»; solo para proyectos futuros: NA293_NA295 no se recalibra.
 - RF-28: DONDE un proyecto tenga dos o más alimentadores, EL SISTEMA los calibrará en un único instante:
   el de la mayor demanda coincidente de todos, sumando en cada alimentador con central sus dos zonas
   (021:RF-31) y descartando los registros que no pasen los filtros de esa central (021:RF-30, RF-32).
@@ -132,7 +132,7 @@ alimentador o barra de cabecera»)
   con la selección desplegable, pero por defecto está bien así».
 - RF-33: DONDE el análisis sea de sistema eléctrico, EL SISTEMA leerá del libro de medidores las líneas LT de 60 kV: la
   fila con sufijo «_L» o «-L» en su código o su SET es la llegada a las barras, y «_S» o «-S» la salida de la línea; su SET
-  sale de la columna SET sin el prefijo «LT» ni el sufijo (LTSET25_L → SET 25). Usuario, 2026-11-03: «los que comienzan con
+  sale de la columna SET sin el prefijo «LT» ni el sufijo (LTSET65_L → SET 65). Usuario, 2026-11-03: «los que comienzan con
   s son de mediciones de la línea LT salidas y l son llegada a las barras».
 - RF-34: SI una SET del sistema no tiene medidor de barra de 60 kV y sí LT de llegada, ENTONCES EL SISTEMA obtendrá su
   aporte por balance: sus llegadas menos sus salidas, menos sus clientes de alta; y, si el libro no da otras salidas que las
@@ -154,11 +154,11 @@ alimentador o barra de cabecera»)
 - RF-39: DONDE el análisis sea de sistema eléctrico, EL SISTEMA no fijará el instante en un registro de maniobra: el que tenga
   algún alimentador a más de 3 rangos intercuartílicos de sus cuartiles (021:RF-32), porque es una transferencia de carga y no su
   demanda. Dirá cuántos descartó; SI quedaran todos fuera, ENTONCES no filtrará. Pisco (2026-11-03): la máxima cruda del año, el
-  10-abr 12:00, tenía a PA110 en 3 408 kW con su red para 885 kW y a PA218 en 2 864 kW, y los dos quedaban sin calibrar. Usuario:
+  10-abr 12:00, tenía a PA190 en 3 408 kW con su red para 885 kW y a PA298 en 2 864 kW, y los dos quedaban sin calibrar. Usuario:
   «deben entrar todos, analizar las mediciones y corregirlos».
 - RF-40: DONDE el proyecto sea de un sistema eléctrico, EL SISTEMA dejará elegir en «Recalibrar» de la web qué alimentadores
-  del sistema se recalibran, y sin elegir ninguno los recalibrará todos. Usuario, 2026-11-05, tras recalibrar solo AL209 y
-  PA217 de Pisco con `tools/sistema_web.py --alimentadores`: «ese modo de recalibración debe estar implementado en la web;
+  del sistema se recalibran, y sin elegir ninguno los recalibrará todos. Usuario, 2026-11-05, tras recalibrar solo AL299 y
+  PA297 de Pisco con `tools/sistema_web.py --alimentadores`: «ese modo de recalibración debe estar implementado en la web;
   haz que la web haga lo mismo que tú haces».
 - RF-41: CUANDO se recalibran solo unos alimentadores del sistema, EL SISTEMA tomará el instante del sistema igual que con
   todos, y no escribirá las cargas de los demás: conservan las que dejó su última calibración.

@@ -4,14 +4,14 @@ Estado: cumplida (2026-11-19: T25 comprobada en DIgSILENT por la web con un proy
 
 ## Contexto y objetivo
 
-En el diagrama de `20261016-160231_CSG_NA203_NA205` (vía Access, 260924.mdb) aparecen
+En el diagrama de `20261016-160231_CSG_NA293_NA295` (vía Access, 260924.mdb) aparecen
 grupos de tres y cuatro puntos negros en menos de 1 m donde en campo hay una derivación
 con fusibles. La causa no es un hueco del archivo: CYMDIST cuelga cada seccionador o
 fusible de un tramo puente `DEFAULT` de unos 2 m, y el conversor funde el tramo pero deja
 el equipo como `ElmCoup` entre dos barras (`puentes.py`). En EQ_1080_320414/15/16 eso da
 línea → barra 432 → EQ_320415 → barra 431 → EQ_320416 → barra 433 → línea, y de la 431
 sale EQ_320414 hacia la barra 1004 del trafomix M50226, que se excluye y deja la barra
-sin nada. En el DGS de NA203 + NA205 hay 550 `ElmCoup` así: 464 extremos caen en una
+sin nada. En el DGS de NA293 + NA295 hay 550 `ElmCoup` así: 464 extremos caen en una
 barra que solo tiene una línea más, 88 en una barra sin nada y 119 barras están hechas
 solo de acopladores. PowerFactory modela un seccionador en el extremo de una línea como
 `StaSwitch` en su cubículo, sin barra propia: el cable queda corrido y la maniobra sigue
@@ -27,13 +27,13 @@ Por último, en la web, el ajuste a la máxima con dos o más alimentadores dibu
 del medidor de cabecera de uno solo y obliga a cambiarla en un desplegable: no se ve si
 las máximas coinciden en el tiempo.
 
-NA205 tiene una central térmica en serie en su troncal (en DIgSILENT, «NA203 NA205v1»:
+NA295 tiene una central térmica en serie en su troncal (en DIgSILENT, «NA293 NA295v1»:
 GENERADOR NASCA, 9,9 MVA, en una barra de 22,9 kV con «Llegada de C. G.» desde la SET y
 «Salida de C. G.» hacia la carga). El libro de medidores la trae como tres «alimentadores»
 que no son de la red: CTBarra (CT_BH4 NA, la generación), CTLADOSET (CTNA_BH2, la
 llegada) y CTLADOCARGA (CTNA_BH1, la salida). En sus registros de 2026 se cumple
-BH4 = BH1 + BH2 (mediana −5 kW), y cabecera NA205 + BH2 da la demanda entre la SET y la
-central (mediana 849 kW). Hoy el ajuste toma la máxima de cabecera de NA205 (2026-08-21
+BH4 = BH1 + BH2 (mediana −5 kW), y cabecera NA295 + BH2 da la demanda entre la SET y la
+central (mediana 849 kW). Hoy el ajuste toma la máxima de cabecera de NA295 (2026-08-21
 00:15, 10 585 kW) con la central parada (BH4 = −111 kW); la máxima demanda real es la del
 2026-08-20 16:45, 10 753 kW, con la central dando 9 605 kW y solo 1 123 kW por la
 cabecera. Los archivos de la distribuidora no traen la central: los proyectos que crea el conversor
@@ -147,7 +147,7 @@ Central térmica en un tramo: declaración y medidas
   cabecera + llegada, y la de aguas abajo como la salida, con los signos de RF-29.
 - RF-32: SI la zona aguas arriba de un registro queda a más de 3 rangos intercuartílicos de
   su mediana, ENTONCES EL SISTEMA no usará ese registro para la máxima y contará cuántos
-  descartó (en NA205, 532 de 23 751: maniobras o transferencias).
+  descartó (en NA295, 532 de 23 751: maniobras o transferencias).
 - RF-33: MIENTRAS un alimentador tiene central, EL SISTEMA tomará como objetivo el registro
   de mayor demanda (aguas arriba + aguas abajo), no el de mayor kW de cabecera.
 - RF-34: EL SISTEMA mostrará en la máxima de un alimentador con central: fecha, demanda,
@@ -165,7 +165,7 @@ Central térmica en la calibración
 - RF-38: SI el nodo declarado no está en el alimentador en DIgSILENT, ENTONCES EL SISTEMA
   rechazará el plan nombrando el nodo y el alimentador; SI está pero fuera del camino más
   largo (la troncal), ENTONCES lo dirá y calibrará por zonas con lo de aguas abajo de su
-  barra. (Cambiado el 2026-10-18: en el NA205 del TXT la central 1720 queda en serie en otra
+  barra. (Cambiado el 2026-10-18: en el NA295 del TXT la central 1720 queda en serie en otra
   rama que la del camino más largo.)
 - RF-39: EL SISTEMA separará las cargas del alimentador en las de aguas arriba y las de
   aguas abajo del nodo de la central.
@@ -205,8 +205,8 @@ Instante coincidente (añadido el 2026-10-17 a petición del usuario)
 - RF-53: SI un medidor no tiene registro en ese instante, ENTONCES EL SISTEMA lo dirá y ese
   alimentador no tendrá objetivo.
 
-Calibración por proyecto (añadido el 2026-10-17; usuario, al ir a aplicar NA203 y luego
-NA205: «la calibración se debe hacer por proyecto en DIgSILENT; si es un alimentador se
+Calibración por proyecto (añadido el 2026-10-17; usuario, al ir a aplicar NA293 y luego
+NA295: «la calibración se debe hacer por proyecto en DIgSILENT; si es un alimentador se
 hace de ese y dos o más se hacen de todas según el proyecto, no de forma independiente»)
 
 - RF-54: CUANDO el operador aplica el ajuste de dos o más alimentadores de un mismo
@@ -227,7 +227,7 @@ hace de ese y dos o más se hacen de todas según el proyecto, no de forma indep
 - RF-60: MIENTRAS el ajuste sea de un solo alimentador, EL SISTEMA lo calibrará como hasta
   ahora.
 
-Tensión en la fuente (usuario, 2026-10-17, NA203 y NA205: «ambos alimentadores son de 22,9
+Tensión en la fuente (usuario, 2026-10-17, NA293 y NA295: «ambos alimentadores son de 22,9
 kV, puede enviar desde la fuente con 1,05 pu»)
 
 - RF-61: DONDE el operador indica una tensión en la fuente, en pu, EL SISTEMA la escribirá
@@ -237,8 +237,8 @@ kV, puede enviar desde la fuente con 1,05 pu»)
   la original y la nueva (020:RF-60).
 - RF-63: SI el operador no indica tensión, ENTONCES EL SISTEMA dejará la fuente como está.
 
-Bancos que faltan (usuario, 2026-10-17, NA203 y NA205: «coloca los bancos necesarios en
-cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 560 medidos)
+Bancos que faltan (usuario, 2026-10-17, NA293 y NA295: «coloca los bancos necesarios en
+cada alimentador»; NA293 no tenía ninguno y la red daba 2 645 kVAR frente a 1 560 medidos)
 
 - RF-64: DONDE el operador marca «Poner los bancos que falten», EL SISTEMA calculará, tras
   un cuadre del proyecto, el déficit reactivo de cada alimentador: el kVAR de la red en su
@@ -259,9 +259,9 @@ cada alimentador»; NA203 no tenía ninguno y la red daba 2 645 kVAR frente a 1 
   SISTEMA no usará el kVAR de la red, que no es el de las cargas escritas (Chincha,
   2026-10-18: 36 bancos con una calibración que no convergía), y calculará los bancos que
   faltan con la Q escrita de las cargas frente a la medida, que no depende del flujo
-  (CA101: 5 316 kW con 13 kVAR medidos y ningún banco en la base: sin ellos no converge).
+  (CA191: 5 316 kW con 13 kVAR medidos y ningún banco en la base: sin ellos no converge).
 
-Tensión medida en la fuente (usuario, 2026-11-12, con la tabla «2.2 · Máxima de cabecera» de PA217:
+Tensión medida en la fuente (usuario, 2026-11-12, con la tabla «2.2 · Máxima de cabecera» de PA297:
 «quiero que en esta tabla se extraiga la tensión del mismo instante de la columna VLL avg mean y esa
 tensión se suba a la fuente en pu en DIgSILENT»)
 
@@ -353,16 +353,16 @@ tensión se suba a la fuente en pu en DIgSILENT»)
 ## Criterios de finalización
 
 Cada RF citado por al menos una prueba (`grep -rnoE "021:RF-[0-9]+" tests`), suite en verde
-con los datos reales (TXT y MDB), DGS idéntico con `workers=1` y `workers>1`, y NA203 +
-NA205 reimportado en DIgSILENT: sin grupos de puntos en las derivaciones, SE50195 movida a
+con los datos reales (TXT y MDB), DGS idéntico con `workers=1` y `workers>1`, y NA293 +
+NA295 reimportado en DIgSILENT: sin grupos de puntos en las derivaciones, SE50195 movida a
 mano con el cable unido, flujo de «Caso base» igual que antes y transferencia con los
-mismos seccionadores. NA205 calibrado con su central en DIgSILENT en el registro del
+mismos seccionadores. NA295 calibrado con su central en DIgSILENT en el registro del
 2026-08-20 16:45, con las dos zonas dentro de la tolerancia.
 
 ## Dudas abiertas
 
-- Resuelta el 2026-10-17 (T6): en el NA205 que exporta PowerFactory el `SecSubProd` no
+- Resuelta el 2026-10-17 (T6): en el NA295 que exporta PowerFactory el `SecSubProd` no
   tiene conectores propios y la línea entra en la barra de MT de dentro de la SED (131
   SED). RF-12 se cumple así: la barra de la que cuelga una SED sola pasa a ser su barra
   de MT, dentro del `ElmSubstat`, con su nombre y sin el acoplador `SW_SE…`. Probado en
-  DIgSILENT con NA203 + NA205: al mover SE50195 el cable la sigue.
+  DIgSILENT con NA293 + NA295: al mover SE50195 el cable la sigue.

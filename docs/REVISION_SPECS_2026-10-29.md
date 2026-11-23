@@ -68,7 +68,7 @@ de `CLAUDE.md` y las casillas de `tasks.md`), y ninguna comprobación los compar
 | 022 | implementada, «T11c y T11d abiertas» | cumplida | **ninguna abierta** |
 | 028 | pedida | implementada | T6 y T9 abiertas; el texto de T9 dice que está hecha y probada con Chincha |
 | 029, 030 | pedida | cumplida o implementada | todas cerradas |
-| 017 | aprobada | informe de estudio probado con IN111 y TA225 | **T5, T7 a T15 y T17 abiertas**; T7 nombra `tools/informes_pf.py`, que **no existe**: el plan y el código han seguido caminos distintos |
+| 017 | aprobada | informe de estudio probado con IN191 y TA295 | **T5, T7 a T15 y T17 abiertas**; T7 nombra `tools/informes_pf.py`, que **no existe**: el plan y el código han seguido caminos distintos |
 | 013 | **borrador, sin `tasks.md`** | RF-1 a RF-6 con prueba, selector de mes hecho | — |
 | 002 | aprobada | plan y tareas **pendientes de aprobar desde el 2026-10-10** | T1 y T5 hechas, el resto abiertas |
 
@@ -238,10 +238,10 @@ con `tools/sistema_web.py`, sin tocar proyectos ya trabajados:
 
 | Lo que piden | Tareas |
 | --- | --- |
-| Un alimentador desde cero (CA101 u otro) | 017 T13; 016 T16; 007 T11 (SI213) |
+| Un alimentador desde cero (CA191 u otro) | 017 T13; 016 T16; 007 T11 (SI293) |
 | Dos alimentadores calibrados con carga nueva | 005 T12; 008 T7; 011 T19; 012 T13; 028 T9 |
 | Un sistema entero (Chincha, Pisco) | 025 T21; 027 T8 y T22 |
-| Nasca con la central de NA205 | 028 T6 |
+| Nasca con la central de NA295 | 028 T6 |
 | Una carga nueva sola (factibilidad) | 017 T14 |
 | Órdenes del asistente y todos los sistemas | 026 T12; 027 T14 y T24 |
 

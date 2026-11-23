@@ -214,7 +214,7 @@ def test_web_convierte_por_sistema_electrico_con_la_tabla_subida(tmp_path, monke
         # 022:RF-61: la conversión por sistema acepta las reconstrucciones con sus medidas, y
         # el informe dice qué hizo con cada una (unido o, sin vecino cerca, como estaba).
         r = c.post(f'/api/workspaces/{wid}/convert/sistema',
-                   json={'zonales': [], 'reconstruir': 'TM106'})
+                   json={'zonales': [], 'reconstruir': 'TM196'})
         assert r.status_code == 422
         j = esperar(c.post(f'/api/workspaces/{wid}/convert/sistema', json={
             'zonales': [], 'reconstruir': {nombres[0]: 100.0},

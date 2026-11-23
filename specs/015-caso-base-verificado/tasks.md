@@ -57,21 +57,21 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T16. Fijas con su P y Q y factor 1; escaladas con su P y Q del archivo y un mismo
       ``scale0``; sin el remedio de dependencia de tensión; el doble aplica ``scale0`` en el
       flujo. (RF-42 a RF-45)
-      Hecho cuando: `pytest -q tests/test_ajuste_cabecera.py tests/test_ajuste_cabecera_guion.py tests/test_casos_pf.py` en verde y la calibración de CA101 desde cero repetida en DIgSILENT.
+      Hecho cuando: `pytest -q tests/test_ajuste_cabecera.py tests/test_ajuste_cabecera_guion.py tests/test_casos_pf.py` en verde y la calibración de CA191 desde cero repetida en DIgSILENT.
 - [x] T17. Los ajustes del flujo que necesitó la calibración se quedan en «Sin» y «Con
       proyecto» si cuadra; la columna «Alimentador» se resuelve con metadatos sin red; la
       interfaz revisada. (RF-46)
-      Hecho cuando: suite en verde y CA101 desde cero con «Sin proyecto» convergiendo en DIgSILENT.
+      Hecho cuando: suite en verde y CA191 desde cero con «Sin proyecto» convergiendo en DIgSILENT.
 - [x] T18. Validación física de la calibración: cada fija y cada escalada consume en el
       flujo lo escrito; balance de la cabecera; ajuste del flujo nombrado como causa; carga
       sin resultado no verificada. (RF-47 a RF-52)
       Hecho cuando: `pytest -q tests/test_ajuste_cabecera_guion.py` en verde.
-- [x] T19. Prueba en DIgSILENT con CA101 de T18: la calibración en «Sin proyecto» cuadra con
+- [x] T19. Prueba en DIgSILENT con CA191 de T18: la calibración en «Sin proyecto» cuadra con
       las fijas consumiendo su P y Q, o el informe nombra las cargas y el ajuste del flujo
       que lo impide. (RF-47 a RF-52)
       Hecho cuando: el informe del ajuste real trae `validacion_posterior_nativa.balance`.
-      Resultado del 2026-10-15 en `20261014-205212_CSG_CA101`, con la última calibración
-      del espacio (06:50) (`output/spec015/T19_ajuste_CA101.json`; sondas de solo lectura
+      Resultado del 2026-10-15 en `20261014-205212_CSG_CA191`, con la última calibración
+      del espacio (06:50) (`output/spec015/T19_ajuste_CA191.json`; sondas de solo lectura
       `T19_sonda_*.json`): cuadra la cabecera en 5994,9 kW (−0,09 %), pero la validación
       física no pasa: 71 cargas no consumen lo escrito; las 9 fijas escriben 3677,0 kW y
       consumen 2680,5 kW (SE20701, 1582,3 → 980,5 kW a 0,787 pu); causa nombrada
@@ -91,9 +91,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       escala; FP de las escaladas del perfil de empresa (Empresa A 0,98) o, sin él, el
       de la máxima; fijas con su EA/ERI; el informe y la web dicen de dónde sale cada uno.
       (RF-44, RF-45, RF-53 a RF-58)
-      Hecho cuando: suite de web, front y calibración en verde y la calibración real de CA101.
-      Resultado del 2026-10-15 en `20261014-205212_CSG_CA101`
-      (`output/spec015/T20_ajuste_CA101_kva_fp098.json`): cuadra en 5985,4 kW (−0,24 %) en 3
+      Hecho cuando: suite de web, front y calibración en verde y la calibración real de CA191.
+      Resultado del 2026-10-15 en `20261014-205212_CSG_CA191`
+      (`output/spec015/T20_ajuste_CA191_kva_fp098.json`): cuadra en 5985,4 kW (−0,24 %) en 3
       flujos, sin adaptar el modelo, y la validación física pasa en las 169 cargas: fijas
       3677,0 kW, escaladas 1212,7 kW (factor 0,087 de su kVA), pérdidas 1095,7 kW. Grabado en
       «Sin proyecto» y «Con proyecto»; registrado en el espacio de la web. Pero la red así
@@ -104,8 +104,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       propio proyecto listados en el informe y en la web, sin crear ni tomar nada de otro
       proyecto ni alimentador. (RF-59 a RF-61)
       Hecho cuando: suite de web, front y calibración en verde y una simulación (sin
-      escribir) en DIgSILENT con CA101.
-      Resultado del 2026-10-15 (simulación sobre `20261014-205212_CSG_CA101`): los 3 bancos
+      escribir) en DIgSILENT con CA191.
+      Resultado del 2026-10-15 (simulación sobre `20261014-205212_CSG_CA191`): los 3 bancos
       de 300 kvar en 10 kV, en servicio, dos en «Terminal» y uno en «Terminal(1)»; avisadas
       SE20859 (509 % en kVA aparentes), SE21082 (236 %), SE20444 (125 %) y SE20426 (120 %,
       FP 0,43); ningún cambio manual, porque la calibración registrada en la web coincide
@@ -119,7 +119,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Tipos propios `TR_400kVA_NTP370400` y `TR_315kVA_NTP370400`, copiados del `TR_315kVA`
       del archivo (grupo Dyn5, 10/0,22 kV), sin tocar los tipos que usan otras SED. En «Sin
       proyecto», en la red, sin variación (se ve también desde el «Caso base», como decidió
-      el usuario). Recalibrado (`output/spec015/T22_ajuste_CA101_trafos_ntp.json`): 5987,9 kW
+      el usuario). Recalibrado (`output/spec015/T22_ajuste_CA191_trafos_ntp.json`): 5987,9 kW
       (−0,20 %), validación física correcta, ninguna fija sobre su transformador, pérdidas
       1050 kW (17,5 %), 0,637 pu en SE20701; registrado en el espacio de la web.
       Hecho cuando: las dos SED con su transformador nuevo en DIgSILENT y la calibración válida.
@@ -127,7 +127,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       0,98 y dichos en el informe de la calibración, en la web y en el informe de estudio
       con su FP real y el corregido; bancos existentes a su máxima capacidad; toda escalada
       con el FP de las escaladas comprobado escrito y en el flujo. (RF-62 a RF-67)
-      Hecho cuando: suite de web, front, calibración e informes en verde y CA101 en DIgSILENT.
+      Hecho cuando: suite de web, front, calibración e informes en verde y CA191 en DIgSILENT.
       Resultado del 2026-10-15 (`output/spec015/T23_*.json`): 8 de 9 fijas llevadas a 0,98
       (SE20426 0,430, SE20531 0,615, SE20730 0,706, SE20444 0,792, SE21082 0,851, SE20701
       0,894, SE21081 0,962, SE20859 0,975; SE20069 conserva 0,981); cuadra en 5998,6 kW
@@ -137,22 +137,22 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       YA_CARGADO_VALIDADO con las 160 escaladas a 0,98 en lo escrito y en el flujo. Antes, en
       una copia: sin bancos SE20701 caía de 0,637 a 0,546 pu y las pérdidas subían 486 kW.
 - [x] T24. [DIgSILENT] «Con proyecto» con la demanda calibrada de «Sin proyecto» (014:RF-4), probado con
-      la obra de cambio de conductor de CA101. Hallazgo en DIgSILENT real (2026-10-15): en
+      la obra de cambio de conductor de CA191. Hallazgo en DIgSILENT real (2026-10-15): en
       las cargas desequilibradas las fases son dato de la red y `plini` lo deriva DIgSILENT
       en el escenario activo; «Con proyecto» conservaba la `plini` del archivo (consumía
       3861 kW frente a 5264) porque `potencia()` sumaba las fases y la escritura se saltaba.
       Ahora `potencia()` lee `plini` del escenario (lo que usa el flujo), cada escalada se
       comprueba en el escenario tras escribirla, y aun con «Sin proyecto» ya calibrado se
-      sincroniza «Con proyecto» (143 cargas corregidas en CA101).
-      Obra (`output/spec015/T25_*.json`), variación `Obra_seccion_CA101` solo en «Con
+      sincroniza «Con proyecto» (143 cargas corregidas en CA191).
+      Obra (`output/spec015/T25_*.json`), variación `Obra_seccion_CA191` solo en «Con
       proyecto»: los 21 tramos aéreos de 25 a 50 mm² del camino a SE20701 y SE20730
       (6,58 km) a AA12003D. Con la misma demanda (5264,3 kW): pérdidas 734 → 388 kW
       (12,2 → 6,9 %), SE20701 0,751 → 0,890 pu, SE20730 0,792 → 0,903 pu, carga máxima de
       esos tramos 112 → 38 %, bancos 581 → 748 kvar; «Caso base» y «Sin proyecto» sin la
       variación y con sus tipos; las 169 cargas consumen lo escrito y las 160 escaladas a
       0,98 en «Sin» y «Con proyecto».
-      Hecho cuando: «Con proyecto» de CA101 consume en DIgSILENT la demanda calibrada de «Sin proyecto».
-- [x] T25. [DIgSILENT] Etapas siguientes en «Con proyecto» de CA101, cada obra en su variación (pedido del
+      Hecho cuando: «Con proyecto» de CA191 consume en DIgSILENT la demanda calibrada de «Sin proyecto».
+- [x] T25. [DIgSILENT] Etapas siguientes en «Con proyecto» de CA191, cada obra en su variación (pedido del
       usuario, 2026-10-15): bancos nuevos de 600 kvar en SE20701(1) y 300 kvar en SE20730(1)
       con la herramienta de obras; como no bastaba (SE20701 0,942 pu, 357 barras < 0,95), la
       consigna de la red externa a 1,05 pu (máxima del perfil) en el escenario de «Con
@@ -160,8 +160,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       MT 0,990 pu, ninguna barra fuera de 0,95–1,05, pérdidas 381 kW, cabecera 125 kvar; «Sin
       proyecto» sin cambios. La consigna de cabecera no es aún una clase de obra: queda para
       una spec.
-      Hecho cuando: «Con proyecto» de CA101 converge en DIgSILENT con cada obra en su variación.
-- [x] T26. [DIgSILENT] PA217 (`20261016-094237_CSG_PA217`, 22,9 kV), 2026-10-16: la calibración no
+      Hecho cuando: «Con proyecto» de CA191 converge en DIgSILENT con cada obra en su variación.
+- [x] T26. [DIgSILENT] PA297 (`20261016-094237_CSG_PA297`, 22,9 kV), 2026-10-16: la calibración no
       era válida (VALIDACION_FISICA). Con cargas PQ no convergía ni con las escaladas al
       0,5 % de su kVA; solo con la adaptación automática del modelo, y entonces las fijas
       escribían 7896 kW y consumían 6250 (SE30940, 3800 → 2535 kW a 0,817 pu). Causa: la
@@ -174,21 +174,21 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (Po 1486 W, Pc 8144 W, Io 1,15 %, uk 4 %) y SE30424 500 kVA (1221 W, 6464 W, 1,87 %,
       4 %); tipos propios `TR_<kVA>kVA_NTP370400_22.9-220V_DYN5`, copiados del tipo de cada
       SED, en «Sin proyecto», en la red y sin variación
-      (`output/spec015/T27_trafos_PA217_ntp.json`). Recalibrado
-      (`output/spec015/T27_ajuste_PA217.json`): 9505,3 kW frente a 9537,9 (−0,34 %) en 2
+      (`output/spec015/T27_trafos_PA297_ntp.json`). Recalibrado
+      (`output/spec015/T27_ajuste_PA297.json`): 9505,3 kW frente a 9537,9 (−0,34 %) en 2
       flujos, sin remedios y con `iopt_lev=0`; validación física correcta (fijas 7896,3 kW
       escritos y consumidos, escaladas 984,4 kW), pérdidas 625 kW. En el código: `kva_en_pf`
       cuenta las `ntnum` unidades (sin eso SE30940 se veía con 630 kVA al 606 %), y el aviso
       de VALIDACION_FISICA dice que sin el ajuste del flujo no converge y nombra las fijas
       sobre su transformador (RF-59). Pendiente: registrar la calibración en la web
       (volver a pulsar el ajuste: ya cargado, la valida y la guarda).
-      Hecho cuando: PA217 calibrado y válido en DIgSILENT tras corregir la fija sobre su transformador.
-- [x] T12. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
+      Hecho cuando: PA297 calibrado y válido en DIgSILENT tras corregir la fija sobre su transformador.
+- [x] T12. Prueba en DIgSILENT con CA191, sobre el proyecto existente y sin datos
       inventados: la verificación lista lo que falla; corregido, pasa; se crea
       «Sin proyecto»; la calibración solo cambia su escenario y el «Caso base» queda igual;
       una inserción crea «Con proyecto» y una variación por carga. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
-      Resultado del 2026-10-14, sobre una copia de `20261013-121930_CSG_CA101` (borrada al
+      Resultado del 2026-10-14, sobre una copia de `20261013-121930_CSG_CA191` (borrada al
       terminar; informe superado, en `output/_historico/2026-10-14_spec015/`): se verificó el caso «Caso base»
       con la geografía de la ejecución MDB del 13/10. Pasan el GPS de barras (1002 de 1002),
       el trazado de líneas (482 de 482), la conectividad, el diagrama y la capacidad de
@@ -197,18 +197,18 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       tramos partidos a mano y los 3 bancos del catálogo. **Bloquea el flujo: no converge**
       (ComLdf 1, divergencia por exceso de carga), y el «Caso base» queda NO_VERIFICADO.
       Desde cero, el mismo día (el usuario pidió no trabajar con el proyecto existente): DGS
-      de CA101 de la ejecución MDB del 13/10 importado en `PRUEBA_015_CA101_NUEVO`
-      (`output/spec015/T12_importacion_CA101.json`). «Caso base» VERIFICADO: GPS, trazado,
+      de CA191 de la ejecución MDB del 13/10 importado en `PRUEBA_015_CA191_NUEVO`
+      (`output/spec015/T12_importacion_CA191.json`). «Caso base» VERIFICADO: GPS, trazado,
       conectividad, diagrama y capacidades bien, y el flujo converge con las cargas del
       archivo sin reducir nada (3016,2 kW). Falló, aparte, la columna «Alimentador» de las
       cargas (`powerfactory_metadata`, fuera de la 015; el 13/10 sí se asignó). La
-      calibración (máxima 6000 kW de L-CA131, `output/spec015/T12_ajuste_CA101.json`) creó
+      calibración (máxima 6000 kW de L-CA131, `output/spec015/T12_ajuste_CA191.json`) creó
       «Sin proyecto», cuadró a −0,24 % en kW con AVISO_KVAR y escribió 95 cargas en su
       escenario, sin ninguna variación; el «Caso base» sigue con 3016,2 kW y converge.
       Hallazgo: el flujo de «Sin proyecto» con su ComLdf normal no converge (rc 1), porque
       el cuadre necesitó dos remedios (iopt_lev, iopt_pq) que se restituyen al terminar
       (006:RF-16). Pendiente de decisión del usuario.
-      Repetida tras T16 (reimportado desde cero; `output/spec015/T12_ajuste_CA101.json`): 6
+      Repetida tras T16 (reimportado desde cero; `output/spec015/T12_ajuste_CA191.json`): 6
       SED fijas con su P y Q y 89 escaladas con su P y Q del archivo y un mismo factor de
       escala de 3,67; cuadró a −0,04 % en kW (AVISO_KVAR), sin variaciones. El «Caso base»
       sigue con 3016,2 kW y converge. Sigue el hallazgo: hizo falta el remedio
@@ -218,25 +218,25 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       objetos, metadatos sin red); calibración a −0,13 % en kW con los ajustes del flujo
       itrlx=75, iStepAdapt=1 e iopt_lev=1 conservados en «Sin proyecto», que ahora converge
       con su flujo (rc 0); el «Caso base» sigue en 3016,2 kW y converge.
-      Proyecto CA101 existente, a pedido del usuario el mismo día (excepción expresa al
-      RF-19, con respaldo previo `RESPALDO_CA101_20261014`;
-      `output/spec015/T12_correccion_CA101_existente.json`): su «Caso base» no convergía;
+      Proyecto CA191 existente, a pedido del usuario el mismo día (excepción expresa al
+      RF-19, con respaldo previo `RESPALDO_CA191_20261014`;
+      `output/spec015/T12_correccion_CA191_existente.json`): su «Caso base» no convergía;
       la demanda de sus 168 cargas se redujo por igual al 91,9 % en su escenario
       «Operation Scenario» y converge; «Sin proyecto» converge también.
       Verificado desde la web a las 19:04 del mismo día, sobre ese proyecto y con el DGS de
-      CA101 reconvertido de la misma `.mdb` (idéntico byte a byte al del 13/10;
-      `output/spec015/T12_caso_base_CA101_existente.json`): «Caso base» VERIFICADO, con el
+      CA191 reconvertido de la misma `.mdb` (idéntico byte a byte al del 13/10;
+      `output/spec015/T12_caso_base_CA191_existente.json`): «Caso base» VERIFICADO, con el
       GPS, el trazado, la conectividad, el diagrama y las capacidades bien, y solo los avisos
       de los 8 transformadores de 800 kVA; el vínculo del proyecto lo guarda. Los informes
-      del 13/10 de CA101 se apartaron a `output/_historico/2026-10-13_ca101/`.
+      del 13/10 de CA191 se apartaron a `output/_historico/2026-10-13_ca191/`.
       Pendiente, a cargo del usuario: una inserción de cargas nuevas que cree «Con
       proyecto» con una variación por carga.
-      Cerrada el 2026-10-24 desde la web, en `20261022-134643_CSG_CA101` (CA101 desde cero,
-      como pidió el usuario, calibrado el 22/10), con la carga de CA101 del libro de la empresa
+      Cerrada el 2026-10-24 desde la web, en `20261022-134643_CSG_CA191` (CA191 desde cero,
+      como pidió el usuario, calibrado el 22/10), con la carga de CA191 del libro de la empresa
       `NuevosclientesMayoresv1.xlsx` (CH_7) y la base de esa calibración
       (`output/pruebas_pf/20261024-130319_cargas_aplicacion.json`): se creó «Con proyecto»
       como copia de «Sin proyecto», con su escenario, y una sola variación, la de su carga
-      (`Carga_CH_7_CA101_20261024_125011`), dibujada en el unifilar; «Caso base» y «Sin
+      (`Carga_CH_7_CA191_20261024_125011`), dibujada en el unifilar; «Caso base» y «Sin
       proyecto» sin ninguna variación; los dos convergen, y «Cargas nuevas» también. De paso:
       la base de un proyecto de un solo alimentador no se encontraba por su token (su informe
       no lleva `_n`), arreglado con su prueba (025:RF-37).

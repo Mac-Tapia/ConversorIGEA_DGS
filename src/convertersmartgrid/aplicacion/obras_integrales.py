@@ -115,7 +115,7 @@ def candidatos_de_transferencia(camino: Sequence[Mapping[str, Any]], troncal: se
     """087:RF-52: las barras de la troncal, en el camino de la carga, desde las que se puede transferir la cola: desde la
     que sale de límites (o la de 2/3) hasta el final de la troncal. Cuál se usa lo decide la distancia a cada vecino.
 
-    098:RF-11: solo donde ya hay una maniobra que abrir. CA101 (2026-11-07): el operador transfiere en un punto con
+    098:RF-11: solo donde ya hay una maniobra que abrir. CA191 (2026-11-07): el operador transfiere en un punto con
     seccionador; una transferencia propuesta en una barra sin él obligaba a cortar el tramo en campo.
     """
     return [b for b, m in _desde_el_nodo(camino, troncal, tension_min_pu) if m is not None]
@@ -174,7 +174,7 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
                           f'la que hacer la {clase} tiene un interruptor o seccionador que abrir: no se propone.')
     corriente = {str(t.get('hasta')): t.get('corriente_a') for t in camino}
     out: list[Variante] = []
-    # 087:RF-52: por cada vecino con margen, la transferencia desde la barra de la troncal más cercana a él. CHI201 (Pisco,
+    # 087:RF-52: por cada vecino con margen, la transferencia desde la barra de la troncal más cercana a él. CHI291 (Pisco,
     # 2026-11-04): con un único nodo fijo, la de 189 m a SC215 dejaba de proponerse en cuanto cambiaba la tensión leída.
     por_vecino: dict[str, tuple[str, dict[str, Any]]] = {}
     for nodo in nodos['transferencia']:
@@ -219,8 +219,8 @@ def variantes(alimentador: str, kv: float, camino: Sequence[Mapping[str, Any]], 
 def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]], p: Parametros) -> tuple[list[Variante], list[str]]:
     """098:RF-21, RF-22: transferir la cola por un enlace que ya existe, abriendo una maniobra que ya existe.
 
-    CA101 y CHN102 (2026-11-07): la escalera fue al paso a 22,9 kV de 107 km y a la obra integral sin probar la
-    transferencia por el enlace que ya unía los dos («ya existe el punto de enlace con CHN102»). ``enlaces``: los que
+    CA191 y CHN192 (2026-11-07): la escalera fue al paso a 22,9 kV de 107 km y a la obra integral sin probar la
+    transferencia por el enlace que ya unía los dos («ya existe el punto de enlace con CHN192»). ``enlaces``: los que
     da ``obras_pf.py --escalera-datos``, cada uno con ``enlace``, ``clase``, ``cerrado``, ``vecino`` y ``puntos`` (las
     maniobras del camino de la cabecera a su barra, en orden). Se proponen de la más cercana al enlace hacia la cabecera;
     sin línea nueva, así que sin cantidades: el costo es el de las pérdidas. Un vecino sin margen de tensión o de carga
@@ -236,7 +236,7 @@ def variantes_por_enlace(alimentador: str, enlaces: Sequence[Mapping[str, Any]],
         # 098:RF-43: devolver parte de la zona del operador a su alimentador se mide con los dos (098:RF-25), aunque el que
         # la recibe de vuelta no tenga margen ahora: es mover el corte de la misma transferencia.
         # 098:RF-47: un enlace que ya existe solo cuesta la maniobra, y la medida de DIgSILENT juzga los dos alimentadores
-        # (098:RF-25): no se descarta antes por el margen del que recibe. CA101 + CHN102 (2026-11-07): «CHN102 no conserva
+        # (098:RF-25): no se descarta antes por el margen del que recibe. CA191 + CHN192 (2026-11-07): «CHN192 no conserva
         # margen» dejó el escalón de transferencia sin medir nada, y la transferencia del operador no se evaluó.
         if (e.get('u_min') is not None and not e.get('devuelve_zona')
                 and not vecinos_con_margen([{**e, 'alimentador': vecino, 'distancia_m': 0.0}], p)):

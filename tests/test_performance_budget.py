@@ -41,7 +41,7 @@ def _chain_model(sections: int, *, stub_every: int = 3) -> FeederModel:
     The micro stubs are essential: ``is_micro_service_stub_line`` returns early for
     any span longer than ``max_stub_m``, so a chain of ordinary sections never
     reaches ``diagram_anchor_node`` and would not exercise the regression at all.
-    Real CYMDIST exports hang each SED off a ~0.3 m stub, which is what made the
+    Real TXT files hang each SED off a ~0.3 m stub, which is what made the
     quadratic path dominate.
     """
     node_ids = ['SRC'] + [f'N{i}' for i in range(1, sections + 1)]

@@ -3,7 +3,7 @@
 El catálogo de estudios nombraba ``ComProtgraphic`` y con eso parecía que la coordinación era
 cuestión de pulsar un botón. No lo es: la referencia de Python de PowerFactory 2024 documenta
 ``ComProtgraphic`` solo para refrescar páginas de gráficos (``AddToUpdatePages``), y ninguna
-fuente trae los ajustes. El TXT de CYMDIST trae en FUSE, RECLOSER, BREAKER y RELAY una única
+fuente trae los ajustes. El TXT trae en FUSE, RECLOSER, BREAKER y RELAY una única
 fila ``DEFAULT`` con ``InterruptingRating = 0``; la base Access y el VNR-GIS no traen curvas.
 Un flujo que converge no dice nada de la selectividad (049:RF-10).
 

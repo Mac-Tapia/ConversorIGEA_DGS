@@ -1,6 +1,6 @@
 """Episodios por sistema eléctrico y curva de aprendizaje del gemelo (spec 027, T24; RF-53, RF-54).
 
-El 2026-10-28 el búfer tenía 24 muestras de una sola red (IN111–TA225): el gemelo no podía
+El 2026-10-28 el búfer tenía 24 muestras de una sola red (IN191–TA295): el gemelo no podía
 decir nada de Nasca, Chincha o Pisco. Antes de promoverlo con un sistema hacen falta al menos
 30 episodios de entrenamiento, 10 de validación y 10 de prueba de ese sistema (usuario,
 2026-10-28), repartidos por la huella de cada episodio para que el reparto no cambie al crecer

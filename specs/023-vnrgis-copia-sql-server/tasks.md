@@ -17,7 +17,7 @@
 - [x] T5. Real: un alimentador de la copia de Empresa A convertido, validado e importado
       en DIgSILENT. (todos)
       Hecho cuando: el DGS pasa validación e inventario y el flujo converge.
-      2026-10-18: IN111 desde EMPA_VNR_24_APR.bak importado en «VNR_BAK_IN111»: «Caso base»
+      2026-10-18: IN191 desde EMPA_VNR_24_APR.bak importado en «VNR_BAK_IN191»: «Caso base»
       VERIFICADO (GPS, trazado, conectividad, diagrama, capacidades, flujo), flujo converge;
       699/699 tramos, 694 nodos, 364 cargas, 274 SED, 95 maniobras, 4 bancos y 1 483 puntos
       intermedios iguales en DIgSILENT; GPS en 968/968 barras y 699/699 tramos, curvas del

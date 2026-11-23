@@ -4,6 +4,7 @@ from types import SimpleNamespace
 
 import pytest
 
+from apoyo import codigo_real
 from convertersmartgrid.aplicacion.batch import convert_group, convert_selection, load_aliases, sort_key_feeder
 from convertersmartgrid.dominio.naming import feeder_short_name
 
@@ -106,13 +107,13 @@ def test_cli_list_and_convert_do_not_accept_reference_dgs(csg_paths, sample_feed
 def test_unir_incluye_solo_los_alimentadores_seleccionados(ds, opciones_reales, tmp_path):
     """Unir mete en el DGS exactamente los alimentadores elegidos, ni uno más.
 
-    IN111 + TA225 (2026-10-14) dio un DGS de 15 alimentadores: se añadían en cadena los
+    IN191 + TA295 (2026-10-14) dio un DGS de 15 alimentadores: se añadían en cadena los
     que comparten un nodo a la misma tensión. Con los datos de referencia se prueba ese
     par; con otra exportación, dos cualesquiera.
     """
     nombres = {feeder_short_name(n) for n in ds.feeder_ids()}
-    seleccion = (['IN111', 'TA225'] if {'IN111', 'TA225'} <= nombres
-                 else sorted(nombres, key=sort_key_feeder)[:2])
+    par = [codigo_real('IN191'), codigo_real('TA295')]   # LIMPIEZA-CODIGOS: el par real, de la lista local
+    seleccion = par if set(par) <= nombres else sorted(nombres, key=sort_key_feeder)[:2]
     man = convert_group(ds, seleccion, tmp_path, name='UNIDOS', include_geography=False,
                         **{k: v for k, v in opciones_reales.items() if k != 'source_crs'})
     assert man['status'] == 'ok', man.get('error')

@@ -1,0 +1,164 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T8 de la spec 047: el conjunto con que se mide la revisión después de las contradicciones de coste resueltas por el código, las incertidumbres que fija la acción, el dictamen no válido pedido de nuevo y el riesgo por prohibición de la evidencia del 2026-11-22 (MEJ24e). El 047f orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047f y las cifras van escritas de otras formas (decimales con coma, moneda delante o detrás, «dólares», «/km», «cada una», miles con punto o espacio). Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia: las restricciones deterministas de cada caso se cumplen.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-22",
+    "sha256": "6553d4ae2cdb29b228e56d209cebb15ce53c4ae823deb0d9e17628ed60b4ca8a",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "g01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reforzar la puesta a tierra de la SET S41 con 6 jabalinas y un conductor de enlace",
+        "jabalinas": 6,
+        "coste_usd": 1530
+      },
+      "evidencia": {
+        "e1": "Jabalina de cobre de 3 m, instalada: USD 155,00 c/u.",
+        "e2": "Conductor de enlace de 50 mm² con soldadura exotérmica: US$ 600."
+      }
+    },
+    {
+      "id": "g02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "cambiar 18 luminarias del alumbrado de la avenida V9 a LED",
+        "luminarias": 18,
+        "coste_usd": 2430
+      },
+      "evidencia": {
+        "e1": "Luminaria LED de 60 W, instalada: 165 dólares por unidad.",
+        "e2": "Inventario de la avenida V9: 18 luminarias de vapor de sodio."
+      }
+    },
+    {
+      "id": "g03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "tender 2,8 km de fibra óptica OPGW en la línea L66 de 60 kV",
+        "coste_usd": 25200
+      },
+      "evidencia": {
+        "e1": "OPGW tendido sobre estructuras existentes: 9.000 USD por kilómetro.",
+        "e2": "La línea L66 tiene 2,8 km entre la SET S50 y la SET S51."
+      }
+    },
+    {
+      "id": "g04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar el grupo de bombeo L70 de 1,5 MW en el extremo del alimentador A140",
+        "tension_final_pu": 0.97,
+        "coste_usd": 4100
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con L70: tensión mínima en el extremo de A140 0,93 pu; límite 0,95 pu.",
+        "e2": "Derivación, transformador de medida y celda para L70: US$4,100."
+      }
+    },
+    {
+      "id": "g05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "renovar 120 m de cable de baja tensión de la SED S-1210",
+        "coste_usd": 2160
+      },
+      "evidencia": {
+        "e1": "Cable de baja tensión de 3×95 mm²: 18 USD por metro; 120 m, 2 160 USD en total.",
+        "e2": "El cable actual de la SED S-1210 tiene el aislamiento agrietado en varios tramos."
+      }
+    },
+    {
+      "id": "g06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "abrir con carga el seccionador S88 para aislar el ramal R40",
+        "usuarios_afectados": 210,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El seccionador S88 es de apertura sin carga: el procedimiento de maniobra prohíbe abrirlo con el ramal energizado.",
+        "e2": "Aguas abajo de S88, el ramal R40 alimenta 210 usuarios."
+      }
+    },
+    {
+      "id": "g07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "modernizar la protección de la celda C21 de la SET S55",
+        "coste_usd": 16500
+      },
+      "evidencia": {
+        "e1": "Partidas: celda 12.300 USD; relé de protección 3.450 USD; cableado y pruebas 750 USD.",
+        "e2": "La celda C21 tiene un relé electromecánico sin registro de eventos."
+      }
+    },
+    {
+      "id": "g08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "subir el ajuste de sobrecorriente del reconectador R70 a 280 A",
+        "corriente_max_a": 236,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro del reconectador R71: corriente máxima del año 236 A.",
+        "e2": "El cambio de ajuste se hace por telemando, sin coste de obra."
+      }
+    },
+    {
+      "id": "g09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 4 cámaras termográficas fijas en la SET S60",
+        "camaras": 4,
+        "coste_usd": 11600
+      },
+      "evidencia": {
+        "e1": "Cámara termográfica fija con su soporte: USD 2.900 cada una.",
+        "e2": "La SET S60 tiene 4 bahías sin vigilancia térmica."
+      }
+    },
+    {
+      "id": "g10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reconductorar 1,75 km del ramal R80 a 70 mm²",
+        "cargabilidad_final_pct": 49,
+        "coste_usd": 14000
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con R80 en 70 mm²: cargabilidad máxima 49 %; límite 100 %.",
+        "e2": "Reconductorado a 70 mm²: US$ 9 600/km."
+      }
+    },
+    {
+      "id": "g11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "trasladar 95 kVA de carga de la SED S-1301 a la SED S-1302",
+        "carga_s1302_pct": 78,
+        "coste_usd": 650
+      },
+      "evidencia": {
+        "e1": "Con el traslado, la SED S-1302 de 100 kVA queda al 112 % de su potencia; límite 100 %.",
+        "e2": "Puentes y acometidas para el traslado: 650 USD."
+      }
+    },
+    {
+      "id": "g12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de condensadores de 2,4 Mvar en la barra B70 de 22,9 kV",
+        "factor_potencia_final": 0.98,
+        "coste_usd": 31750
+      },
+      "evidencia": {
+        "e1": "Flujo en máxima con 2 400 kvar en B70: factor de potencia 0,98; en valle, tensión máxima 1,04 pu.",
+        "e2": "Banco de 2,4 Mvar en 22,9 kV con su celda: USD 31.750."
+      }
+    }
+  ]
+}

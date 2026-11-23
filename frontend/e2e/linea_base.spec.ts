@@ -9,7 +9,7 @@
 import { existsSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { comprobar_sin_citas, expect, test, type Page } from './sin_red';
+import { comprobar_sin_citas, expect, test, vigilarRed, type Page } from './sin_red';
 
 const AQUI = dirname(fileURLToPath(import.meta.url));
 const FIJADAS = join(AQUI, 'linea_base_acciones.json');
@@ -40,6 +40,8 @@ test('111:RF-16 — todas las pestañas de la web siguen y conservan sus accione
   const errores: string[] = [];
   page.on('pageerror', (e) => errores.push(String(e)));
   await page.goto(process.env.CSG_E2E_ENTRADA!, { waitUntil: 'networkidle' });
+  // Las pestañas se esperan con las peticiones de verdad, no con «networkidle»: el marco del plano lo dejaba colgado.
+  const redQuieta = vigilarRed(page);
   const lista = page.getByRole('tablist');
   await expect(lista).toBeVisible();
 
@@ -58,7 +60,7 @@ test('111:RF-16 — todas las pestañas de la web siguen y conservan sus accione
     await expect(page.locator('dialog[open]')).toHaveCount(0);
     await boton.click();
     await expect(boton).toHaveAttribute('aria-selected', 'true');
-    await page.waitForLoadState('networkidle');
+    await redQuieta();
     vistas[p.id] = await acciones(page);
     await comprobar_sin_citas(page, `pestaña ${p.id}`);
     expect(vistas[p.id].length, `la pestaña ${p.id} no ofrece ninguna acción`).toBeGreaterThan(0);

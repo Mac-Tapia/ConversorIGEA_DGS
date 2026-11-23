@@ -405,7 +405,7 @@ def test_la_etapa_lista_lo_que_creo_y_la_copia_de_lo_que_cambio():
 
 # --------------------------------------------------------------------------- spec 016
 # ``Application.SplitLine`` como se comportó en DIgSILENT 2024 el 2026-10-14, sobre una
-# copia de IN111_TA225 (T1 de la 016): si el doble no devolviera la línea entera al
+# copia de IN191_TA295 (T1 de la 016): si el doble no devolviera la línea entera al
 # desactivar la variación, el «deshacer» de una carga nueva que parte un tramo pasaría
 # sin probar nada.
 

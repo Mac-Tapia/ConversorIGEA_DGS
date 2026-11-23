@@ -839,11 +839,11 @@ def test_un_tramo_cerrado_en_una_salida_con_red_sigue_descartandose():
 
 @pytest.mark.parametrize('red, nombre', [
     ('AN01-642-001', 'AN01-642-001'),   # el último trozo no identifica: hay 498 «001»
-    ('NET_2030_142_IN111', 'IN111'),    # los nombres de siempre no cambian
+    ('NET_2030_142_IN191', 'IN191'),    # los nombres de siempre no cambian
     ('Feeder.A1', 'A1'),
-    ('TI01', 'TI01'),
+    ('TI09', 'TI09'),
     ('0205', '0205'),
-    ('NET_2030_150_NA205', 'NA205'),
+    ('NET_2030_150_NA295', 'NA295'),
 ])
 def test_no_se_recorta_a_un_ultimo_trozo_numerico(red, nombre):
     """080:RF-28 — sin tocar los nombres que sí identifican al alimentador."""

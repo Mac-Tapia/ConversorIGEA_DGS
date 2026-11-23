@@ -185,7 +185,7 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
   const total = visibles.reduce((n, s) => n + (s.curva?.total ?? 0), 0);
   const fuera = visibles.reduce((n, s) => n + (s.curva?.fuera_de_curva ?? 0), 0);
   const reducida = visibles.some((s) => s.curva?.reducida);
-  // Las curvas de una central («NA205·demanda»…) son del mismo alimentador: se cuentan alimentadores.
+  // Las curvas de una central («NA295·demanda»…) son del mismo alimentador: se cuentan alimentadores.
   const nAlimentadores = new Set(series.map((s) => s.clave.split('·')[0])).size;
   const titulo = varias
     ? (nAlimentadores > 1 ? `Registro de cabecera de ${nAlimentadores} alimentadores` : `Registro de cabecera de ${series[0].clave} con su central`)

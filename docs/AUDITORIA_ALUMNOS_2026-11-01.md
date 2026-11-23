@@ -70,7 +70,7 @@ La comparación maestro–base–alumno y las pruebas específicas de dominio de
 
 ## 4. GRU/RNN temporal
 
-No existe el almacenamiento heredado esperado `output/web/_digital_twin/modelos_temporales`. En los directorios de esta campaña no se acreditó un predictor temporal ajustado. La operación real con el libro 2025 quedó **BLOQUEADO_POR_DATOS: «L-TM105: fecha o potencia ausente»**; [decisión](../output/auditoria_ia_20261101_actual/gru_fuente_real.json).
+No existe el almacenamiento heredado esperado `output/web/_digital_twin/modelos_temporales`. En los directorios de esta campaña no se acreditó un predictor temporal ajustado. La operación real con el libro 2025 quedó **BLOQUEADO_POR_DATOS: «L-TM195: fecha o potencia ausente»**; [decisión](../output/auditoria_ia_20261101_actual/gru_fuente_real.json).
 
 **Receta del código, todavía no un entrenamiento acreditado:** ventana96 puntos de 15 minutos, 2 entradas, ocultas32, máximo40 épocas, paciencia8, validación interna0,20, recorte1, Adam LR0,01 y programación coseno. El trabajador separa periodos cronológicos con huecos de ventana y selección de semilla. No hay pasos, épocas completadas ni MAE del nuevo alumno que puedan informarse como reales.
 

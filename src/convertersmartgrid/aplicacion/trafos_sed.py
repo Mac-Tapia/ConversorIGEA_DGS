@@ -1,6 +1,6 @@
 """Transformadores nuevos para las SED fijas sobrecargadas (spec 020, RF-6 a RF-11).
 
-Por qué. En PA217 (2026-10-16) la SED fija SE30940 recibía los 3818 kVA de su cliente
+Por qué. En PA297 (2026-10-16) la SED fija SE30940 recibía los 3818 kVA de su cliente
 sobre 400 kVA (955 %), y con cargas PQ «Sin proyecto» no convergía ni con las escaladas al
 0,5 % de su kVA. Se resolvió a mano (015, T26) con la menor potencia de la ficha que deja
 la máxima al 80 % o menos y, por encima de la mayor de la tabla (630 kVA en la NTP
@@ -49,7 +49,7 @@ def tabla_para(tablas: list[dict[str, Any]], kv_primaria: float | None) -> dict[
 
 def nombre_tipo(kva: float, codigo: str, kv_at: float | None, v_bt: float | None,
                 grupo: str | None) -> str:
-    """Nombre del tipo propio, el mismo que se creó a mano en PA217 (015, T26; 020:RF-21).
+    """Nombre del tipo propio, el mismo que se creó a mano en PA297 (015, T26; 020:RF-21).
 
     ``TR_630kVA_NTP370400_22.9-220V_DYN5``: potencia, norma, tensiones y grupo, para que dos
     SED de distinta tensión de baja o grupo no compartan tipo. DIgSILENT guarda 22,9 kV como

@@ -21,21 +21,21 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       transformador. (RF-20 a RF-22, RF-50, RF-107, RF-108, RF-121, RF-122)
       Hecho cuando: `pytest -q tests/test_informes.py` en verde.
 - [x] T4. Sonda en DIgSILENT (solo lectura, sobre un proyecto ya importado): exportar el
-      diagrama geográfico de CA101 a PNG con el coloreado por tensión y restaurar el
+      diagrama geográfico de CA191 a PNG con el coloreado por tensión y restaurar el
       coloreado. Anotar en el plan qué llamadas sirven. (RF-10, RF-11, RF-116)
       Hecho cuando: hay un PNG legible a 150 ppp y el plan lo anota.
       Resultado (2026-10-15): con el motor sin ventana `WriteWMF` deja un fichero vacío,
       así que no hay imagen de DIgSILENT que exportar (RF-11b). Las imágenes se dibujan con
       `src/convertersmartgrid/adaptadores/mapa_informe.py` desde el GPS de barras y tramos y los resultados del
       flujo que guarda `tools/estudios_pf.py` (`geo`), a 250 ppp con las bandas del perfil.
-      En CA101: 6 imágenes (ubicación, tensión y cargabilidad, actual y proyectado) en el
+      En CA191: 6 imágenes (ubicación, tensión y cargabilidad, actual y proyectado) en el
       informe generado desde la web.
 - [x] T5. `src/convertersmartgrid/adaptadores/libros_informe.py`: libro de pérdidas y tabla de costes, y
       `config/costes_referenciales.example.json` con precios de la web y su fuente. (RF-39b a
       RF-39e, RF-40c, RF-61 a RF-64)
       Hecho cuando: `pytest -q tests/test_libros_informe.py` en verde.
       Estado 2026-10-15: libro de pérdidas hecho y probado; la tabla de costes queda para la
-      evaluación económica (el usuario: en CA101 bancos fijos de 300 kvar en 10 kV y 450 kvar
+      evaluación económica (el usuario: en CA191 bancos fijos de 300 kvar en 10 kV y 450 kvar
       en 22,9 kV, sin costes).
 - [x] T6. `src/convertersmartgrid/adaptadores/informe_docx.py`: los dos informes sobre un modelo base, con
       huecos, tablas y figuras, y escritura atómica. (RF-2, RF-3, RF-6 a RF-9, RF-23 a
@@ -75,12 +75,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF-42c (la SED que no está se dice), en `tests/test_obras_pf_016.py`.
       Sonda del 2026-10-15 (solo lectura, solo cargas, barras y trafos de AD08): las 859
       cargas de AD08 son por barra de SET y tensión (`LElCarmen10` en `CAR10A`, 7,53 MW;
-      `LElCarmen23` en `CAR23A`), ninguna por alimentador; CA101 va dentro de `LElCarmen10`,
+      `LElCarmen23` en `CAR23A`), ninguna por alimentador; CA191 va dentro de `LElCarmen10`,
       bajo el `ElmTr3` `TR1 EL CARMEN_N` (60/23/10 kV). Decidido por el usuario: Δ de
       cabecera de 4.2 sumado a la carga de la barra, caso «{año}_D» (RF-67 cambiado).
       Estado 2026-10-15: `tools/transformador_set_pf.py` (con `--listar`), probado en
       `tests/test_transformador_set_pf.py` y en DIgSILENT real sobre AD08 con Δ = 0
-      (no hay flujo de «Con proyecto» de CA101 guardado): 2026_D, `LElCarmen10`,
+      (no hay flujo de «Con proyecto» de CA191 guardado): 2026_D, `LElCarmen10`,
       devanado de 10 kV al 42,27 %, carga restituida; el listado da 525 cargas con
       transformador en 28 s. Botones en 4.4.2. Cierre 2026-11-03: el unifilar (RF-69,
       RF-119) lo dibuja `mapa_informe.transformador_de_la_set`, probado en
@@ -110,8 +110,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       `tsc`, `npm run build` y la checklist en el navegador sobre esta revisión.
       Cierre 2026-11-04: `npm run typecheck` y `npm run build` correctos; en el navegador, con la web de esta rama y datos
       propios, la pestaña del asistente en modo claro y oscuro. El paso 4.4 con un proyecto de DIgSILENT sigue en T13, T14 y T19.
-- [x] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA101 desde cero, con los bancos de
-      «CA101 13», revisado por el usuario.
+- [x] T13. [DIgSILENT] Prueba en DIgSILENT: informe de estudio de CA191 desde cero, con los bancos de
+      «CA191 13», revisado por el usuario.
       Hecho cuando: el usuario da por bueno el `.docx`.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T14. [DIgSILENT] Prueba en DIgSILENT: informe de factibilidad de una carga nueva del libro de
@@ -119,7 +119,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el usuario da por bueno el `.docx`.
       Pendiente aparte (usuario, 2026-10-16): es otro análisis, el punto de diseño de una
       carga nueva ingresada sola en 3.2, no las del libro en bloque. La prueba de estudio
-      con IN111 + TA225 se cerró sin ella.
+      con IN191 + TA295 se cerró sin ella.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T15. Validación: cada RF citado por al menos una prueba y en verde. (Todos; RF-142 y RF-143, el resumen
       ejecutivo de cualquier corrida de 4.2, añadidos el 2026-11-13 con sus pruebas en
@@ -131,14 +131,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T16. Etapa «refuerzo de la red» con la terna y el enlace, y su descripción en el
       informe. (RF-126, RF-127)
       Hecho cuando: las pruebas que citan 017:RF-126 y RF-127 pasan y el informe de
-      estudio de TA225 en DIgSILENT trae la etapa.
+      estudio de TA295 en DIgSILENT trae la etapa.
 
 - [x] T17. Alternativas de obras en el informe de estudio: bancos y cambio de sección,
       con el trecho del conductor desde–hasta, su plano y los bancos existentes por nodo.
       (RF-128 a RF-135)
       Hecho cuando: las pruebas que citan 017:RF-128 a RF-135 pasan y el informe de
-      CA101 medido en DIgSILENT trae las dos alternativas.
-      Estado 2026-10-16: pruebas en `tests/test_informe_alternativas.py`; CA101 medido en
+      CA191 medido en DIgSILENT trae las dos alternativas.
+      Estado 2026-10-16: pruebas en `tests/test_informe_alternativas.py`; CA191 medido en
       DIgSILENT (alternativa 1, bancos: 0,883 p.u. y 108 %, no cumple; alternativa 2, con
       el cambio de sección: 0,985 p.u. y 63 %, cumple; un trecho de 6,58 km en 21 tramos de
       14812 hasta SE20701) e informe generado; falta que el usuario lo dé por bueno, y que
@@ -155,7 +155,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_datos_duraderos.py::test_pdf_con_la_lectura_anterior_en_curso_responden_409`
       (017:RF-141) en verde.
 
-- [x] T19. [DIgSILENT] Informe de estudio de CA101 con las dos alternativas medidas en
+- [x] T19. [DIgSILENT] Informe de estudio de CA191 con las dos alternativas medidas en
       DIgSILENT desde la web, revisado por el usuario. (RF-128 a RF-135)
       Hecho cuando: el usuario da por bueno el `.docx`.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

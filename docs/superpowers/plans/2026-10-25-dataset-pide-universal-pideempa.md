@@ -1,18 +1,18 @@
-# Dataset PIDE universal PIDEELOR Implementation Plan
+# Dataset PIDE universal PIDEEMPA Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Construir desde `referencia/PIDEELOR` un dataset universal, auditable y apto para RAG/reentrenamiento que cubra los artículos 1–20 sin convertir los resultados particulares de EMPB en reglas de otra empresa.
+**Goal:** Construir desde `referencia/PIDEEMPA` un dataset universal, auditable y apto para RAG/reentrenamiento que cubra los artículos 1–20 sin convertir los resultados particulares de EMPB en reglas de otra empresa.
 
 **Architecture:** Un módulo puro inventaría y clasifica cada archivo, extractores acotados publican texto y metadatos estructurados, y un constructor genera corpus `context`, plantillas metodológicas y tarjetas de calidad. Un CLI materializa JSONL/JSON sin modificar fuentes y valida que toda fila conserve custodia empresarial y SHA-256.
 
 **Tech Stack:** Python 3.12, biblioteca estándar, PyPDF, python-docx, openpyxl, pyogrio opcionales, JSON/JSONL, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideelor-design.md`
+**Spec:** `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideempa-design.md`
 
 ## Global Constraints
 
-- Los originales de `referencia/PIDEELOR` son solo lectura.
+- Los originales de `referencia/PIDEEMPA` son solo lectura.
 - Cada archivo aparece exactamente una vez en el manifiesto y recibe SHA-256 calculado por flujo.
 - La empresa queda en procedencia; ninguna regla universal depende de `EMPB`.
 - Todo contenido empresarial derivado se publica como `context`; `gold` exige aceptación humana o nativa externa.
@@ -92,11 +92,11 @@
 - [ ] Implementar publicación determinista y CLI con `--raiz`, `--destino`, `--empresa`, `--contrato` y `--sin-texto`.
 - [ ] Confirmar GREEN y reconstrucción byte-idéntica del fixture.
 
-### Task 5: Construcción real y auditoría PIDEELOR
+### Task 5: Construcción real y auditoría PIDEEMPA
 
 **Files:**
-- Create under ignored output: `output/pide_dataset/PIDEELOR/*`
-- Create: `docs/evidence/PIDEELOR_DATASET.md`
+- Create under ignored output: `output/pide_dataset/PIDEEMPA/*`
+- Create: `docs/evidence/PIDEEMPA_DATASET.md`
 - Modify: `tests/test_pide_dataset.py`
 
 **Interfaces:**

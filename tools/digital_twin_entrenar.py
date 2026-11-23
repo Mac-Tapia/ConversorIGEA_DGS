@@ -2,7 +2,7 @@
 """Entrena el oráculo PINN/GNN del gemelo digital en su propio proceso (spec 024, T11).
 
 La web lo lanza tras el aprendizaje activo: si el entrenamiento se queda sin memoria o
-el driver de la GPU falla, cae este proceso y no la web (IN111–TA225, 2026-10-22: la web
+el driver de la GPU falla, cae este proceso y no la web (IN191–TA295, 2026-10-22: la web
 se cayó entrenando dentro de su proceso). Reentrena solo si toca (RF-39) o, con
 ``--forzar``, siempre; promueve si pasa las puertas (RF-16, RF-42).
 

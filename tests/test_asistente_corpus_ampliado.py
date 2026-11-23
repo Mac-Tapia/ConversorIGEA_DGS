@@ -648,7 +648,7 @@ def test_097_rf19_las_preguntas_nuevas_del_maestro_no_estan_en_el_corpus(frags_0
     assert {f['origen'] for f in nuevas} == {'maestro'} and {f['reparto'] for f in nuevas} == {'corpus'}
     assert {(f['revision'] or {}).get('veredicto') for f in nuevas} == {'correcta'}
     assert len({f['entregable'] for f in nuevas}) >= 15
-    # P13: ningún código de alimentador, SED ni empresa en las preguntas (como «AL209», «M0123» o una razón social).
+    # P13: ningún código de alimentador, SED ni empresa en las preguntas (como «AL299», «M0123» o una razón social).
     assert not [f['pregunta'] for f in nuevas if re.search(r'\b[A-Z]{1,3}-?\d{2,}\b|Electro|Dunas|S\.A\.', f['pregunta'])]
     con = [f for f in nuevas if f['tipo'] == 'con_respuesta']
     assert con and all(f['fuentes'] for f in con) and not [f for f in nuevas if f['tipo'] == 'sin_respuesta' and f['fuentes']]

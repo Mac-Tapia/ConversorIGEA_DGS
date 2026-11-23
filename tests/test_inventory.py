@@ -5,6 +5,7 @@ Spec 034: 034:RF-28.
 
 from __future__ import annotations
 
+from apoyo import codigo_real
 from convertersmartgrid.aplicacion.inventory import build_dataset_inventory, format_inventory_report, write_inventory
 
 
@@ -25,8 +26,9 @@ def test_inventory_on_referencia_dataset(ds):
         assert totals['convertible_feeders'] == 93
         assert totals['stub_feeders'] == 3
         assert totals['sections'] == 38657
-        assert set(inv['conversion']['source_only_feeders']) == {'CA103', 'PI101', 'PN208'}
-        assert set(inv['conversion']['full_topology_feeders']) & {'CA103', 'PI101', 'PN208'} == set()
+        solo_cabecera = {codigo_real(c) for c in ('CA193', 'PI191', 'PN298')}
+        assert set(inv['conversion']['source_only_feeders']) == solo_cabecera
+        assert set(inv['conversion']['full_topology_feeders']) & solo_cabecera == set()
     report = format_inventory_report(inv)
     assert 'INVENTARIO TXT' in report
     assert str(totals['feeders']) in report

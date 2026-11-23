@@ -5,7 +5,7 @@ DGS 7.0, apartado 6.7 de `Dgs/DGS_Documentation.pdf`: con la cabecera
 `GPScoords:MATRIX` (la que ya usa el perfil `pf21_dgs_1_8_4`), la celda de la línea lleva
 el FID de una matriz, y la matriz va en la tabla auxiliar
 `$$Matrix;FID(a:40);MatColumn(i);MatRow(i);Val(r)`, una fila por valor. PowerFactory la
-importa como n filas (puntos) × 2 columnas: `MatColumn` 0 latitud, 1 longitud. En AL106
+importa como n filas (puntos) × 2 columnas: `MatColumn` 0 latitud, 1 longitud. En AL196
 (172 líneas) el trazado importado coincidió punto a punto con el origen y ninguna
 longitud cambió (diferencia máxima 0,017 mm).
 
@@ -41,5 +41,5 @@ número de puntos varía por línea y por entrega.
   DGS idéntico con `workers=1` y `workers=2`.
 - `tests/test_powerfactory_gate.py`: comprobación del trazado en la aceptación con
   objetos falsos de PowerFactory.
-- Datos reales: suite con las tres `CSG_*`; red unida NA203 + NA205 importada en
+- Datos reales: suite con las tres `CSG_*`; red unida NA293 + NA295 importada en
   PowerFactory con `--manifest`.

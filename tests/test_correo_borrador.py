@@ -210,7 +210,7 @@ def test_con_un_trabajo_de_informes_en_curso_no_se_adjunta(tmp_path):
         b.adjuntos_del_informe(out, destino.name, informes_en_curso=True)
 
 
-def _txt_cymdist() -> bytes:
+def _txt_red() -> bytes:
     return b'[SECTION]\nFORMAT_SECTION=SectionID,FromNodeID\nS1,N1\n[CUSTOMER LOADS]\nX\n'
 
 
@@ -221,12 +221,12 @@ def _mdb() -> bytes:
 def _zip() -> bytes:
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, 'w') as z:
-        z.writestr('RED.txt', _txt_cymdist())
+        z.writestr('RED.txt', _txt_red())
     return buf.getvalue()
 
 
 PROHIBIDOS = {
-    'txt_cymdist': _txt_cymdist(),
+    'txt_red': _txt_red(),
     'mdb': _mdb(),
     'vnr_bak': b'TAPE' + b'\x00' * 64,
     'zip': _zip(),

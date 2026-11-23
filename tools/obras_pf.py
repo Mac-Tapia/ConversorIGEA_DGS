@@ -631,7 +631,7 @@ def anotar_valores(ctx, cambios: list[tuple]) -> None:
 def _activar_en_el_flujo(ctx, atributo: str, que: str, propios=()) -> None:
     """098:RF-34: el flujo de cada caso de la obra ajusta lo que la obra deja regulando; si no lo hacía, se activa y se anota.
 
-    CHN102 (2026-11-07): con ``ComLdf.iopt_at = 0`` las variantes con «+ regulador 500 A» y «300 A» daban la misma
+    CHN192 (2026-11-07): con ``ComLdf.iopt_at = 0`` las variantes con «+ regulador 500 A» y «300 A» daban la misma
     tensión que sin él (0,956 frente a 0,956): el regulador se quedaba en su toma central. Al borrar la variante
     evaluada, el flujo vuelve a como estaba (como lo abierto, 081:RF-81); en la obra aplicada, se queda y se dice.
     """
@@ -886,7 +886,7 @@ def construir_reconectador(ctx) -> None:
     Lo que usan la confiabilidad y la ubicación de reconectadores de DIgSILENT son las
     marcas del interruptor (``rel_hasProt``, ``rel_hasRecl``; comprobado en DIgSILENT real
     con la spec 012). El relé con su bloque ``RelRecl`` no se crea: sin su ``TypRelay``,
-    DIgSILENT no calcula el flujo («missing type», NA203, 2026-10-24), y ese tipo es de las
+    DIgSILENT no calcula el flujo («missing type», NA293, 2026-10-24), y ese tipo es de las
     protecciones (RF-73b).
     """
     o = ctx.obra
@@ -917,8 +917,8 @@ def construir_regulador(ctx) -> None:
         if getattr(origen, atributo, None) is not None:
             setattr(nueva, atributo, getattr(origen, atributo))
     if nueva.Move(cub) != 0:
-        # 025:RF-76: grabando en una variación DIgSILENT no deja mover el cubículo (PN107 y
-        # SI213, 2026-10-24); el tramo pasa a un cubículo nuevo de la barra nueva, por el
+        # 025:RF-76: grabando en una variación DIgSILENT no deja mover el cubículo (PN197 y
+        # SI293, 2026-10-24); el tramo pasa a un cubículo nuevo de la barra nueva, por el
         # mismo lado, como conecta la línea la obra de enlace.
         # La API da un envoltorio nuevo en cada acceso: se compara por nombre completo.
         cabeza = getattr(ctx.elm, 'obj_id', None)
@@ -1151,8 +1151,8 @@ def construir_enlace(ctx) -> None:
     los dos puntos los da ``troncal.extremos_del_enlace`` (RF-27, RF-28) o el operador
     (RF-31). Cada punto parte su tramo dentro de la variación, o usa la barra si está a
     menos de la distancia mínima (RF-20). La línea va en recta, con el trazado de sus dos
-    extremos, y el seccionador del lado del que cede queda abierto: IN111 es de 10 kV y
-    TA225 de 22,9 kV, y cerrado el flujo no converge (usuario, 2026-10-14). Nunca se cierra
+    extremos, y el seccionador del lado del que cede queda abierto: IN191 es de 10 kV y
+    TA295 de 22,9 kV, y cerrado el flujo no converge (usuario, 2026-10-14). Nunca se cierra
     aquí (RF-62).
     """
     o, app, fila = ctx.obra, ctx.app, ctx.fila
@@ -1229,7 +1229,7 @@ def construir_enlace(ctx) -> None:
     linea.dline = max(largo_m / 1000.0, 1e-6)                                         # RF-34
     # Entre tensiones distintas DIgSILENT no calcula con la línea en servicio, aunque el
     # seccionador esté abierto («Line is connected between different voltage levels»,
-    # IN111 + TA225, 2026-10-15): queda fuera de servicio hasta que una migración iguale
+    # IN191 + TA295, 2026-10-15): queda fuera de servicio hasta que una migración iguale
     # las tensiones y la ponga en servicio (RF-76).
     distinta = not math.isclose(float(getattr(origen, 'uknom', 0) or 0),
                                 float(getattr(destino, 'uknom', 0) or 0), rel_tol=1e-3)
@@ -1449,7 +1449,7 @@ def construir_migracion(ctx) -> None:
 
     El caso es «Con proyecto» y la variación de la obra ya graba. La parte que pasa se
     vuelve a calcular aquí, con la red de ahora: un enlace de la misma tanda pudo partir un
-    tramo de esa parte, y la mitad nueva no estaba en la simulación (IN111 cede a TA225 y
+    tramo de esa parte, y la mitad nueva no estaba en la simulación (IN191 cede a TA295 y
     el enlace llega a su troncal, 2026-10-15). Cambian las barras de media, los tipos de
     las líneas y de las SED (solo la alta) y se abre el tramo que entra al nodo; nada más
     del alimentador (RF-57).
@@ -1461,7 +1461,7 @@ def construir_migracion(ctx) -> None:
     origen, destino = float(fila['kv_origen']), float(o.kv_destino)
     # Un flujo antes de leer, como el enlace: sin él, el ElmFeeder no daba el nodo que
     # partió el enlace de la misma variación activa («no tiene camino cerrado desde su
-    # cabecera»; IN111 + TA225, 2026-10-15, la simulación sí lo encontraba).
+    # cabecera»; IN191 + TA295, 2026-10-15, la simulación sí lo encontraba).
     flujo_de_carga(ctx.app)
     cabecera = cabecera_de(ctx.elm)
     if cabecera is None:
@@ -1480,7 +1480,7 @@ def construir_migracion(ctx) -> None:
     lineas = {ln.loc_name: ln for ln in ctx.elm.GetObjs('ElmLne')}
     # Toda línea con sus dos barras en la parte que pasa, no solo los tramos del árbol:
     # los que cierran un anillo quedaban a 10 kV entre barras de 22,9 y el flujo no se
-    # ejecutaba (IN111, SEC_1091_1059394 y SEC_1091_1059767, 2026-10-15).
+    # ejecutaba (IN191, SEC_1091_1059394 y SEC_1091_1059767, 2026-10-15).
     anillo = [n for n, ln in lineas.items() if n not in set(parte.tramos)
               and len(_barras_de(ctx.app, ln)) == 2 and _barras_de(ctx.app, ln) <= dentro]
     nuevos = []
@@ -1511,7 +1511,7 @@ def construir_migracion(ctx) -> None:
     # 081:RF-80: la transferencia y el traslado (087:RF-31) abrían la entrada sin anotarla: al cortarse la escalera en
     # Pisco (2026-11-07), nada la volvió a cerrar y «Con proyecto» quedó con 724 barras de media sin tensión.
     if entrada in lineas:
-        # 098:RF-12: se abre la maniobra que ya tiene el tramo, como hace el operador (CA101 a CHN102, 2026-11-07);
+        # 098:RF-12: se abre la maniobra que ya tiene el tramo, como hace el operador (CA191 a CHN192, 2026-11-07);
         # solo un tramo sin ella (una migración pedida a mano, 016) sale de servicio, y se dice.
         cub = next((c for c in (getattr(lineas[entrada], 'bus1', None), getattr(lineas[entrada], 'bus2', None))
                     if c is not None and (c.GetContents('*.StaSwitch') or [])), None)
@@ -1541,7 +1541,7 @@ def construir_migracion(ctx) -> None:
                                                                    for b in barras)                 and all(b is not None and math.isclose(float(b.uknom), destino, rel_tol=1e-3) for b in barras):
             linea.outserv = 0
             # RF-80: la parte que pasa ya no cuelga de su alimentador (se abrió el tramo de
-            # entrada) y sin el enlace cerrado quedaba sin servicio: 142 SED de IN111 en
+            # entrada) y sin el enlace cerrado quedaba sin servicio: 142 SED de IN191 en
             # «Con proyecto», y la transferencia no hallaba camino (2026-10-15).
             cerrados = []
             for cub in cubiculos:
@@ -1753,7 +1753,7 @@ def construir_set_nueva(ctx) -> None:
     punto_inicial = punto
     red = cabecera.GetParent()
     kv_mt = float(cabecera.uknom)
-    # 052:RF-19: con el nombre que da el operador («SET COPARA» → SET_COPARA_AT, TR_SET_COPARA…).
+    # 052:RF-19: con el nombre que da el operador («SET BOREALIS» → SET_BOREALIS_AT, TR_SET_BOREALIS…).
     base = nombre_pf(getattr(o, 'nombre_set', '') or 'SET_NUEVA')
     at = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', f'{base}_AT'))
     mt = red.CreateObject('ElmTerm', nombre_libre(red, 'ElmTerm', f'{base}_MT'))
@@ -1784,12 +1784,12 @@ def construir_set_nueva(ctx) -> None:
     tipo_tr.ntpmn, tipo_tr.ntpmx, tipo_tr.nntap0 = -int(cfg.get('tomas') or 0), int(cfg.get('tomas') or 0), 0
     tr = red.CreateObject('ElmTr2', nombre_libre(red, 'ElmTr2', f'TR_{base}'))
     # 042:RF-14: n transformadores iguales en paralelo son un ElmTr2 con ntnum = n (cada uno con
-    # la uk de su potencia); NA203 + NA205 pedían 45,5 MVA y el mayor módulo era de 40.
+    # la uk de su potencia); NA293 + NA295 pedían 45,5 MVA y el mayor módulo era de 40.
     tr.typ_id, tr.ntnum, tr.outserv, tr.nntap = tipo_tr, int(getattr(o, 'unidades', None) or 1), 0, 0
     # 042:RF-16: la media de la SET nueva a la consigna de la cabecera actual, con el cambiador en
     # carga regulando y, para el flujo del caso aunque no ajuste tomas, en la toma que la deja ahí.
     # Sin regular, la red externa en 60 kV con la consigna copiada dejaba la media baja y 15 barras
-    # de NA203 + NA205 bajo 0,95 p.u. con la SET COPARA en su mejor punto (2026-11-01).
+    # de NA293 + NA295 bajo 0,95 p.u. con la SET BOREALIS en su mejor punto (2026-11-01).
     consigna = float(getattr(fuentes[0], 'usetp', 0) or 1.0)
     regula = {}
     for atributo, valor in (('ntrcn', 1), ('usetp', consigna)):
@@ -1927,8 +1927,8 @@ def construir_set_nueva(ctx) -> None:
         if destino is None:
             break
         punto = _hacia(mejor['punto'], destino, paso)
-    # El punto que queda es el mejor probado: antes quedaba el último, sin medir, y en NA203 +
-    # NA205 la SET COPARA acabó a 18 km de las cargas con 460 barras fuera (2026-11-01).
+    # El punto que queda es el mejor probado: antes quedaba el último, sin medir, y en NA293 +
+    # NA295 la SET BOREALIS acabó a 18 km de las cargas con 460 barras fuera (2026-11-01).
     punto, elegido = mejor['punto'], mejor['intento']
     if elegido is not intentos[-1]:
         situar(punto)
@@ -2031,7 +2031,7 @@ def construir_maniobra(ctx) -> None:
 
     Se cierra el enlace si estaba abierto y se abre la maniobra, las dos anotadas (081:RF-80) para que la variante
     evaluada se restituya; después dice qué SED pasaron, con cuántos kW, y la tensión mínima y la carga máxima de los dos
-    alimentadores antes y después. CA101 y CHN102 (2026-11-07): el enlace ya existía y no se probaba.
+    alimentadores antes y después. CA191 y CHN192 (2026-11-07): el enlace ya existía y no se probaba.
     """
     from cargas_pf import potencia
 
@@ -2085,7 +2085,7 @@ def leer_troncal(elm, f: str) -> tuple[tuple[str, ...], object, str, list[str]]:
     """(troncal, red, cabecera, avisos) del alimentador en el caso activo (016:RF-1, RF-2).
 
     Es la troncal del camino más largo de ``convertersmartgrid.dominio.troncal``, no la de ``ComBbone``:
-    DIgSILENT solo dibuja troncales entre alimentadores con un enlace, e IN111 no tenía
+    DIgSILENT solo dibuja troncales entre alimentadores con un enlace, e IN191 no tenía
     ninguno (2026-10-14). El N-1 y la transferencia siguen con ``ComBbone`` (016:RF-10).
     Solo cuentan las líneas: un seccionador del camino une, pero no se le cambia el tipo.
     """
@@ -2139,8 +2139,8 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
                 solo_con[g] = solo_con.get(g, True) and NOMBRES['sin'] not in o.casos
     con_troncal = {f for f, clases in toca.items() if clases & set(CON_TRONCAL)}
     # También las obras que el operador pone solo en «Con proyecto»: tras una migración,
-    # la parte que pasó cuelga de otro alimentador allí (SEC_1091_307903 de IN111 lo
-    # alimenta TA225), y leída en «Sin proyecto» la terna se rechazaba (2026-10-15).
+    # la parte que pasó cuelga de otro alimentador allí (SEC_1091_307903 de IN191 lo
+    # alimenta TA295), y leída en «Sin proyecto» la terna se rechazaba (2026-10-15).
     en_con = {f for f, clases in toca.items()
               if clases <= set(SOLO_CON_PROYECTO) or solo_con.get(f)}
     for rol, grupo in (('con', [f for f in feeders if f in en_con]),
@@ -2156,7 +2156,7 @@ def _leer(app, plan, alims, feeders, obras, casos) -> tuple[dict, list, list[str
         try:
             # El ElmFeeder da sus objetos según la última topología calculada: sin un flujo
             # después de cambiar las variaciones activas, el nodo que creó el enlace unas
-            # veces estaba en IN111 y otras no (2026-10-15).
+            # veces estaba en IN191 y otras no (2026-10-15).
             flujo_de_carga(app)
             _leer_grupo(grupo, alims, con_troncal, redes, avisos)
         finally:
@@ -2177,8 +2177,8 @@ def _apartar_cargas_nuevas(app) -> list:
     """Desactiva las variaciones de cargas nuevas (007) del caso activo y las devuelve.
 
     DIgSILENT no deja grabar una etapa nueva con tres o más etapas activas de la misma
-    fecha, ni con ``Activate(1)`` ni cambiando el orden de reactivación: IN111 + TA225
-    (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas de TA225 activas en
+    fecha, ni con ``Activate(1)`` ni cambiando el orden de reactivación: IN191 + TA295
+    (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas de TA295 activas en
     «Con proyecto», el enlace no grababa; con dos, sí. La 007 ya crea cada carga con las
     demás apartadas; la obra hace lo mismo y se devuelven antes de su flujo.
     """
@@ -2198,8 +2198,8 @@ def _leer_grupo(grupo, alims, con_troncal, redes, avisos) -> None:
         leido = leer_alimentador(elm)
         # RF-102: si otro alimentador sale de la misma barra, comparte barra y fuente, y
         # migrar esa barra lo cambiaría también a él. Por su clave y no con ``is``: la API da
-        # un objeto nuevo en cada acceso, y la barra de la SET 51 de Nasca, de la que salen
-        # NA203, NA205 y los demás, no se veía compartida (2026-10-24).
+        # un objeto nuevo en cada acceso, y la barra de la SET 91 de Nasca, de la que salen
+        # NA293, NA295 y los demás, no se veía compartida (2026-10-24).
         cabecera = cabecera_de(elm)
         propia = clave_pf(cabecera) if cabecera is not None else None
         leido['cabecera_compartida_con'] = sorted(
@@ -2330,7 +2330,7 @@ def _grabar_una(app, plan, proyecto, casos, alims, obra: Obra, fila: dict, red,
         CONSTRUCTORES[obra.clase](ctx)
     except Exception as exc:  # noqa: BLE001 - la obra no queda a medias; las demás siguen
         # Activa y grabando, DIgSILENT no la borra y se quedaba con lo escrito a medias
-        # (una Obra_migracion_IN111 inactiva con 1457 objetos, 2026-10-15).
+        # (una Obra_migracion_IN191 inactiva con 1457 objetos, 2026-10-15).
         variacion.Deactivate()
         variacion.Delete()
         cerrar_lo_abierto(app, fila, plan)                                    # 042:RF-19
@@ -3559,7 +3559,7 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
             informe['avisos'].append('No se retiran, por no estar en el proyecto o no ser obra de los alimentadores '
                                      'pedidos: ' + ', '.join(sin_borrar) + '.')
         # 098:RF-36: lo que la obra retirada abrió, cerró o cambió en el flujo es del escenario y del caso, no de su
-        # variación: sin esto, CHN102 se quedaba con el ajuste de tomas y lo abierto de la obra que ya no está.
+        # variación: sin esto, CHN192 se quedaba con el ajuste de tomas y lo abierto de la obra que ya no está.
         filas = [f for f in plan.get('operacion_de_obras') or [] if f.get('variacion') in informe['retiradas']]
         cambiados = deshacer_operacion(app, plan, casos, filas, informe['avisos']) if filas else set()
         if not filas:
@@ -3673,7 +3673,7 @@ def marcar_cortes_del_operador(app, alims, plan: dict, enlaces: dict, avisos: li
     """098:RF-43: el enlace abierto por donde la zona transferida por el operador volvería a su alimentador es otro punto
     de corte de la misma transferencia: se marca (``devuelve_zona``) para probar a pasar por él menos carga, abriendo
     otra maniobra de la zona, aunque el que la recibe de vuelta aún no tenga margen: se miden los dos (098:RF-25).
-    CHN102 (2026-11-07) recibía la cola de CA101 (unos 1 730 kW) y quedaba en 0,703 p.u.; CA101, sin ella, en 0,986."""
+    CHN192 (2026-11-07) recibía la cola de CA191 (unos 1 730 kW) y quedaba en 0,703 p.u.; CA191, sin ella, en 0,986."""
     if not (plan.get('dgs_fuente') or plan.get('tramos_dgs')) or not any(enlaces.values()):
         return
     try:
@@ -3711,7 +3711,7 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
     Acopladores, tramos y equipos en serie, con sus interruptores, en una pasada por clase para todos (nada de recorrer
     la red una vez por alimentador). De cada uno, su barra en el alimentador y las maniobras del camino eléctrico de la
     cabecera hasta ella (los tramos con su interruptor y los acopladores, 098:RF-11), en orden; y el margen del vecino
-    con el flujo de ahora (087:RF-32). CA101 y CHN102 (2026-11-07): el enlace con CHN102 ya existía y la escalera no lo
+    con el flujo de ahora (087:RF-32). CA191 y CHN192 (2026-11-07): el enlace con CHN192 ya existía y la escalera no lo
     veía.
     """
     from convertersmartgrid.aplicacion.escalera_optima import camino_electrico
@@ -3739,7 +3739,7 @@ def enlaces_existentes(app, alims, feeders, tramos_red: list[dict], margen: dict
             duenos = [de_barra.get(b.loc_name) for b in barras]
             if None in duenos or duenos[0] == duenos[1] or not pedidos & set(duenos):
                 continue
-            # 098:RF-42: tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: cerrarlo no es posible.
+            # 098:RF-42: tras pasar CHN192 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: cerrarlo no es posible.
             distintas = tensiones_distintas(barras) if clase not in UNEN_TENSIONES else None
             if distintas:
                 if descartados is not None:
@@ -3909,7 +3909,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
         flujo = flujo_de_carga(app)                                   # con todas las cargas
         informe['converge'] = bool(flujo['converged'])
         # 042: una ampliación (040:RF-4) cuelga de la barra de baja de su SED; lo que mide la
-        # escalera es la de media (025:RF-50). Con la de baja, en NA203 + NA205 (2026-10-31) todas
+        # escalera es la de media (025:RF-50). Con la de baja, en NA293 + NA295 (2026-10-31) todas
         # las variantes salían «la carga nueva en SE50150_BT queda a ? p.u.».
         terminales = {b.loc_name: b for b in app.GetCalcRelevantObjects('*.ElmTerm')}
         media: dict[str, str] = {}
@@ -3950,8 +3950,8 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
             lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
             barras = {b.loc_name: b for b in elm.GetObjs('ElmTerm')}
             # 098:RF-29: las barras de media del alimentador bajo el límite con «Con proyecto» como está (todas las cargas):
-            # un alimentador sin cargas nuevas que viola límites también lleva su escalera. CHN102 (2026-11-07) quedó
-            # en 0,73 p.u. en la zona que recibió y la escalera solo trabajó CA101.
+            # un alimentador sin cargas nuevas que viola límites también lleva su escalera. CHN192 (2026-11-07) quedó
+            # en 0,73 p.u. en la zona que recibió y la escalera solo trabajó CA191.
             bajas = sorted((u, n) for n, b in barras.items() if float(getattr(b, 'uknom', 0) or 0) > 1.0
                            and flujo['converged'] and vmin and (u := _resultado(b, 'm:u')) is not None and u < vmin)
             corriente, fuera = None, None
@@ -3961,7 +3961,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                 corriente = c * 1000 if c is not None else corriente  # partido por una carga: el anterior
                 t['corriente_a'] = corriente
                 # 063:RF-30: el conductor de cada tramo, para que el cambio de sección solo suba de
-                # sección (SM218, 2026-11-01: «sección CU 50 mm²» bajaba casi toda la troncal).
+                # sección (SM298, 2026-11-01: «sección CU 50 mm²» bajaba casi toda la troncal).
                 tipo = getattr(ln, 'typ_id', None) if ln is not None else None
                 if tipo is not None:
                     t['tipo'] = tipo.loc_name
@@ -3986,7 +3986,7 @@ def datos_escalera(app, plan: dict) -> tuple[dict, int]:
                                              'la troncal para su terna o su sección.')
             # 063:RF-25: la barra de una carga que crea su propia variación (NODE_T_ al partir un
             # tramo) no existe sin ella; su banco va en la barra existente de ese tramo de la
-            # troncal, la de aguas arriba. SM218 (2026-11-01): INKA quedaba sin escalón de bancos.
+            # troncal, la de aguas arriba. SM298 (2026-11-01): CLIENTE K quedaba sin escalón de bancos.
             sin_ellas = sin_cargas_de.get(f, set())
             banco_en = {}
             for nombre, i in indices.items():
@@ -4100,7 +4100,7 @@ def datos_oraculo(app, plan: dict) -> tuple[dict, int]:
                 r['largo_km'] = largos[r['id']]
         # Lo que pone cada variación, por diferencia: la red con ella activa y sin ella. Una carga
         # nueva aparece; una ampliación de un cliente existente (040) cambia su P y su Q. Por el
-        # nombre, en NA203 + NA205 (2026-11-01) solo se hallaban 3 de 35.
+        # nombre, en NA293 + NA295 (2026-11-01) solo se hallaban 3 de 35.
         def foto() -> dict:
             out = {}
             for c in app.GetCalcRelevantObjects('*.ElmLod'):
@@ -4153,14 +4153,14 @@ def datos_oraculo(app, plan: dict) -> tuple[dict, int]:
 def _cargas_de(alims, feeder: str) -> list:
     """Las cargas en servicio del alimentador, en todas sus troncales (063:RF-39).
 
-    ``ElmFeeder.GetObjs`` solo ve lo que cuelga de su cubículo: en SM218 (2026-11-02), 242 de 306
+    ``ElmFeeder.GetObjs`` solo ve lo que cuelga de su cubículo: en SM298 (2026-11-02), 242 de 306
     cargas; las 64 de la segunda troncal (1,698 MW) no se escalaban en los sorteos y las pérdidas
     salían en 2 126 kW en vez de 428 kW. ``cargas_sed`` une la topología y ``p:alimentador``, como la
-    calibración (CA101: 95 de 168).
+    calibración (CA191: 95 de 168).
     """
     cargas = {_clave_objeto_nativo(c): c for c in cargas_sed(alims, feeder)[0].values()}
     # La lista de ``alims`` se guardó en «Sin proyecto»: la carga nueva de «Con proyecto» solo la ve
-    # el ElmFeeder en el caso activo. Sin esto, INKA (1 100 kW) salía como pérdidas.
+    # el ElmFeeder en el caso activo. Sin esto, CLIENTE K (1 100 kW) salía como pérdidas.
     elm = alims.elm.get(feeder)
     for c in (elm.GetObjs('ElmLod') if elm is not None else []):
         if not getattr(c, 'outserv', 0):
@@ -4203,7 +4203,7 @@ def medida_para_criterio(app, alims, feeders: list[str], *, ligera: bool = False
     def objetos(f, clase):
         # 025:RF-75: los del alimentador en este caso y con esta variante; la lista guardada de
         # ``alims`` es la de «Sin proyecto», sin la barra de la carga nueva (NODE_T_CH_9 de
-        # PN107 salía «a ? p.u.», 2026-10-24).
+        # PN197 salía «a ? p.u.», 2026-10-24).
         elm = alims.elm.get(f)
         if elm is None:
             return alims.objetos(f, clase)
@@ -4251,10 +4251,10 @@ def medida_para_criterio(app, alims, feeders: list[str], *, ligera: bool = False
                 pass
         out['aisladas'] = sorted(aisladas)
     # 025:RF-70: lo que entra por la cabecera menos lo que consumen las cargas en el flujo; con
-    # su potencia nominal, a 0,88 p.u. las pérdidas de SI213 salían −2044 kW (2026-10-24).
+    # su potencia nominal, a 0,88 p.u. las pérdidas de SI293 salían −2044 kW (2026-10-24).
     # 087:RF-51: lo que entra por todas las cabeceras menos lo que consumen todas sus cargas, cada una una vez. Con una
     # transferencia, la parte que pasa sigue en la lista de su alimentador de antes y en el ElmFeeder del que la recibe;
-    # por alimentador se contaba dos veces y las pérdidas salían negativas (CHI201 a SC215, Pisco, 2026-11-04).
+    # por alimentador se contaba dos veces y las pérdidas salían negativas (CHI291 a SC215, Pisco, 2026-11-04).
     entra, consumo, vistas = 0.0, 0.0, set()
     for f in feeders:
         elm = alims.elm.get(f)
@@ -4347,12 +4347,12 @@ class _Sorteo:
         self.temporal = carpeta.AddCopy(self.original, nombre)
         self.original.Deactivate(0)
         self.temporal.Activate()
-        # 063:RF-28: se escala ``scale0``, no ``plini``/``qlini``. Sonda en una copia de SM218
+        # 063:RF-28: se escala ``scale0``, no ``plini``/``qlini``. Sonda en una copia de SM298
         # (2026-11-02): las existentes daban 7,2 MW; tras escribir ``plini × 0,35`` en el
         # escenario, 9,1 MW, y lo mismo con cualquier factor (en PC escribir la Q mueve el cos φ
-        # y la calibración vive en ``scale0``). Todos los sorteos medían la misma red: INKA a
+        # y la calibración vive en ``scale0``). Todos los sorteos medían la misma red: CLIENTE K a
         # 0,938 p.u. con factores de 0,35 a 0,74, y las variantes salían al 94,5 %. Con
-        # ``scale0 × 0,35`` la demanda bajó a 3,2 MW e INKA subió a 0,960 p.u.
+        # ``scale0 × 0,35`` la demanda bajó a 3,2 MW e CLIENTE K subió a 0,960 p.u.
         self.base = {}
         self.nuevas = {}
         for f in self.feeders:
@@ -4528,7 +4528,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 errores = [o['error'] for o in hecho.get('obras') or [] if o.get('error')] + (
                     [hecho['error']] if hecho.get('error') else [])
                 # 098:RF-28: una obra que quedó inactiva en «Con proyecto» (su flujo no convergió, 011:RF-66) no se mide
-                # como si estuviera: CA101 (2026-11-07) dio «cambio a 22.9 kV» con las tensiones de sin obra.
+                # como si estuviera: CA191 (2026-11-07) dio «cambio a 22.9 kV» con las tensiones de sin obra.
                 inactivas = [o for o in hecho.get('obras') or [] if o.get('variacion') and not o.get('error')
                              and NOMBRES['con'] in (o.get('casos') or [])
                              and NOMBRES['con'] not in (o.get('casos_activos') or [])]
@@ -4571,14 +4571,14 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                                         + ', '.join(sorted({str(e.get('nombre')) for e in restos})) + '.')
                 # 087:RF-51: una obra que cambia la topología (enlace, migración) deja el ElmFeeder con la red de la variante
                 # hasta otro flujo; sin él, la siguiente creación de la misma obra no hallaba su nodo («no tiene camino
-                # cerrado desde su cabecera», CHI201, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
+                # cerrado desde su cabecera», CHI291, Pisco, 2026-11-04) y sus sorteos y su alcance salían vacíos.
                 if creadas and any(o.get('clase') in TOPOLOGIA for o in v['obras']):
                     casos['con'].Activate()
                     flujo_de_carga(app)
 
         def bajas(con: dict[str, Any]) -> dict[str, Any]:
             """086:RF-48: de cada barra, solo las que quedan bajo el límite con la máxima; las dos medidas ya están
-            hechas, y guardar la ``u`` entera por variante pesaría sin que nadie la use (SI112, 2026-11-04)."""
+            hechas, y guardar la ``u`` entera por variante pesaría sin que nadie la use (SI192, 2026-11-04)."""
             return clasificar_bajo_limite(sin_max.get('u') or {}, con.get('u') or {}, barras, p.tension_min_pu, p.tolerancia_pu)
 
         fallidos: list[dict] = []        # 063:RF-28: qué sorteos fallan y por qué, de la última variante
@@ -4587,7 +4587,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
         def sortear(desde=0, hasta=None, fallos_antes=0):
             """Fracción de sorteos que cumplen; deja de sortear en cuanto ya no puede llegar a la
             del perfil (RF-72). Anota en ``fallidos`` el instante, el factor y el motivo de cada
-            sorteo que falla: en SM218 (2026-11-01) tres variantes se quedaban en el 94,5 % y no se
+            sorteo que falla: en SM298 (2026-11-01) tres variantes se quedaban en el 94,5 % y no se
             sabía si era por la máxima o por el valle."""
             # 087:RF-8: con la marca del plan se para también a favor, en cuanto la certeza lo permite; sigue
             # contando lo de la etapa anterior (042:RF-87), para no empezar de cero la posterior.
@@ -4698,7 +4698,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             informe['conjunto'] = confirmar_conjunto(con_actual)                 # 087:RF-45
             return informe, 0
         # 087:RF-44: al aplicar la obra ya elegida no hay sorteos (042:RF-59) y sin ellos «ya cumple» con la máxima
-        # salía al 100 %: CHI201 (Pisco, 2026-11-04) se dio por resuelto con su sección elegida y sin aplicarla.
+        # salía al 100 %: CHI291 (Pisco, 2026-11-04) se dio por resuelto con su sección elegida y sin aplicarla.
         if not plan.get('aplicando_elegida') and cumple(sin_max, con_actual, barras, p)[0]:
             fraccion = por_etapas()[0] if sorteos else 1.0
             if fraccion is None:
@@ -4797,7 +4797,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
                 fila['perdidas_kw'] = con_max['perdidas_kw']
                 fila['maxima'], fila['motivos'] = cumple(sin_max, con_max, barras, p)
                 # 063:RF-28: cuánto deja cada escalón, también cuando no basta: la tensión de cada
-                # barra de carga nueva y la mínima de media (SM218: «primero debiste probar con
+                # barra de carga nueva y la mínima de media (SM298: «primero debiste probar con
                 # bancos, ver cuánto mejora»).
                 u = con_max.get('u') or {}
                 fila['u_cargas'] = {b: u.get(b) for b in barras}
@@ -4814,7 +4814,7 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             filas.append((v, fila))
             # 042:RF-2: para saber si las cargas caben basta una variante con costo que cumpla;
             # la más barata solo hace falta al aplicar. Se sortea en cuanto cumple la máxima y,
-            # si también cumple en los sorteos, no se prueba ninguna más (NA203 + NA205,
+            # si también cumple en los sorteos, no se prueba ninguna más (NA293 + NA295,
             # 2026-11-01: cada prueba recorría las 20 y las 40 variantes, unos 60 min).
             if (plan.get('alternativas') and fila['maxima'] and v.get('costo_base') is not None
                     and fila.get('valle') is not False):                                # 042:RF-55
@@ -4963,7 +4963,7 @@ def datos_set_nueva(app, plan: dict) -> tuple[dict, int]:
                 cargas.append({'nombre': c.loc_name, 'barra': barra.loc_name, 'kw': p, 'kvar': q})
             # 042: las cargas que pasan a la SET nueva son justo las que la escalera apartó, así
             # que en «Con proyecto» no están activas y no se encuentran por su nombre: se llega a
-            # su barra de media desde la barra que dio la escalera (NA203 + NA205, 2026-10-31:
+            # su barra de media desde la barra que dio la escalera (NA293 + NA295, 2026-10-31:
             # 29 de 32 quedaban fuera de la SET nueva con «no está activa»).
             terminales = {b.loc_name: b for b in app.GetCalcRelevantObjects('*.ElmTerm')}
             media = {}
@@ -5050,7 +5050,7 @@ def datos_vecinos(app, plan: dict) -> tuple[dict, int]:
             for nodo in nodos:
                 punto = propio.get(nodo)
                 if punto is None:
-                    # 098:RF-20: sin GPS propio, el de la barra con GPS más cercana por la red. CA101 + CHN102
+                    # 098:RF-20: sin GPS propio, el de la barra con GPS más cercana por la red. CA191 + CHN192
                     # (2026-11-07): 12333, 11969 y la barra nueva de CH_10 no tenían coordenadas, la búsqueda de vecinos
                     # salía vacía y la escalera daba la transferencia por imposible sin haberla probado.
                     punto, desde = _gps_por_la_red(barras_f.get(nodo), propio)

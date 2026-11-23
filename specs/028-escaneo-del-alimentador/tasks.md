@@ -2,7 +2,7 @@
 
 Estado: pedida por el usuario el 2026-10-28; T1 a T5 hechas el mismo día (`tests/test_escaneo.py`,
 `test_ajuste_proyecto_guion.py -k segunda`, `test_sistema_web.py -k escanea`); falta T6 en DIgSILENT,
-cuando el usuario ponga a mano la central de NA205.
+cuando el usuario ponga a mano la central de NA295.
 
 - [x] T1. `escaneo.py`: origen por los prefijos del conversor, resumen y barra de la central.
       (RF-3, RF-4, RF-5, RF-7, RF-11, RF-12)
@@ -18,7 +18,7 @@ cuando el usuario ponga a mano la central de NA205.
       Hecho cuando: pruebas con `fake_pf` en verde.
 - [x] T5. `tools/sistema_web.py` escanea antes de calibrar. (RF-15)
       Hecho cuando: prueba de `sistema_web` en verde.
-- T6. Retirada el 2026-11-08 por orden del usuario, sin hacer: dependía de una central puesta a mano que el proyecto no tiene; sin ella no hay nada real que escanear. Era: [DIgSILENT] Prueba en DIgSILENT: escanear Nasca con la central de NA205 puesta a mano por el
+- T6. Retirada el 2026-11-08 por orden del usuario, sin hacer: dependía de una central puesta a mano que el proyecto no tiene; sin ella no hay nada real que escanear. Era: [DIgSILENT] Prueba en DIgSILENT: escanear Nasca con la central de NA295 puesta a mano por el
 - [x] T7. Recalibrar sin bloqueos: escaneo automático al simular y aplicar, tramos nuevos frente al
       DGS aceptado, generador del operador sin central y central sin barra que no detiene.
       (RF-16 a RF-20)
@@ -26,7 +26,7 @@ cuando el usuario ponga a mano la central de NA205.
       DIgSILENT con sus tramos nuevos.
       Hecho el 2026-10-28: pruebas en verde; en DIgSILENT, el escaneo de Chincha compara con los
       3358 tramos de su DGS aceptado (0 nuevos en el proyecto recién importado) y ve los bancos de
-      calibración de TM106 y PN107; la calibración desde la web escanea antes y no se detiene.
+      calibración de TM196 y PN197; la calibración desde la web escanea antes y no se detiene.
 - [x] T8. Botón «Recalibrar» con su ruta, que corre `tools/sistema_web.py` sin reconvertir.
       (RF-21 a RF-23)
       Hecho cuando: prueba de la API y del front en verde y una recalibración de Chincha desde el
@@ -49,15 +49,15 @@ cuando el usuario ponga a mano la central de NA205.
       eléctrica. La API local respondió a la consulta de lectura del espacio 5f11283a33c94ea5:
       fuente sin cargar y sin trabajos activos; no se ejecutó el recorrido nativo ni informes
       en esta continuación. T9 sigue abierta hasta obtener esa evidencia. Sustento: `research.md`.
-      2026-10-29: un alimentador convertido, calibrado y recalibrado desde la web con `--red` (SM218 y
-      CA101 de la entrega 231026, VÁLIDOS); dos unidos, IN111 + TA225 calibrados en DIgSILENT (025).
+      2026-10-29: un alimentador convertido, calibrado y recalibrado desde la web con `--red` (SM298 y
+      CA191 de la entrega 231026, VÁLIDOS); dos unidos, IN191 + TA295 calibrados en DIgSILENT (025).
       Falta su informe de estudio: espera las cargas nuevas que el usuario sube en bloque (3.3).
       Código cerrado el 2026-10-29 (033): CLI, API y botón con sus pruebas en verde (028:RF-23 a RF-25); la prueba en DIgSILENT pasa a T11.
 - [x] T10. Tramos cambiados a mano en el escaneo: los del DGS aceptado que graba una variación
       del operador, con su variación, tipo y longitud; resumen y columna en la tabla. (RF-26)
-      Hecho cuando: `pytest -q tests/test_escaneo.py` en verde y en DIgSILENT el escaneo de CA101
+      Hecho cuando: `pytest -q tests/test_escaneo.py` en verde y en DIgSILENT el escaneo de CA191
       nombra la variación del operador.
-      Hecho el 2026-10-28: suite del escaneo en verde; en DIgSILENT el escaneo de CA101 nombró
+      Hecho el 2026-10-28: suite del escaneo en verde; en DIgSILENT el escaneo de CA191 nombró
       «Prueba_operador_032» como del operador (vacía: sin tramos que listar).
 - [x] T11. [DIgSILENT] Desde la web, un alimentador y dos unidos convertidos, calibrados,
       recalibrados y con su informe de estudio (sigue a T9). (RF-23 a RF-25)
@@ -66,17 +66,17 @@ cuando el usuario ponga a mano la central de NA205.
 - [x] T16. «Recalibrar» de la web con la elección de los alimentadores del sistema: la ruta los valida y los pasa a
       `sistema_web.py --alimentadores`; el front los lista para marcar. (RF-40, RF-41, RF-42)
       Hecho cuando: `pytest -q tests/test_escaneo.py -k recalibrar` en verde y la elección comprobada en el navegador real.
-      Hecho el 2026-11-05: 19 pruebas de `test_escaneo.py` en verde; en el navegador, Pisco con AL209 y PA217 marcados
-      lanzó «Recalibrar AL209 + PA217» con `--alimentadores` y la máxima con todo el sistema.
+      Hecho el 2026-11-05: 19 pruebas de `test_escaneo.py` en verde; en el navegador, Pisco con AL299 y PA297 marcados
+      lanzó «Recalibrar AL299 + PA297» con `--alimentadores` y la máxima con todo el sistema.
 - [x] T15. [DIgSILENT] Pisco desde cero: instante con barras, balance de LT y centrales, y calibración válida. (RF-33, RF-34, RF-35, RF-36, RF-37, RF-38, RF-39)
       Hecho cuando: el proyecto calibrado por la web converge con ese instante en «Sin proyecto».
       Hecho el 2026-11-07 (sesión 63935039): `tools/sistema_web.py --espacio 35ff5dab8b2b46a6 --zonal Pisco --periodo 2026-07`,
       proyecto de prueba nuevo `20261107-043049_CSG_TXT_SISTEMA_PISCO` convertido e importado desde el TXT. Instante del
-      sistema 2026-07-14 18:30 por las barras de 60 kV (SET 31, 32 y 33); SEIN sin barra de 60 kV, por el balance de
+      sistema 2026-07-14 18:30 por las barras de 60 kV (SET 71, 32 y 33); SEIN sin barra de 60 kV, por el balance de
       L-6605 + L-6606 (4 135,6 kW, RF-34); centrales CT_PEDREG, CT_LUREN y CT_BH4 NA; 112 registros en maniobra fuera del
-      instante (RF-39); AL107, PI101 y SI114 sin medida positiva quedan con la demanda del archivo (RF-38). Calibración:
+      instante (RF-39); AL197, PI191 y SI194 sin medida positiva quedan con la demanda del archivo (RF-38). Calibración:
       17 válidos y 0 con fallos, 2 flujos cada uno, desvío de −0,39 % a +0,94 %, validación nativa VALIDO; 5 sin medidor
-      (AL107, PA218, PI101, SC215, SI114) en los mismos flujos (022:RF-53).
+      (AL197, PA298, PI191, SC215, SI194) en los mismos flujos (022:RF-53).
 - [x] T14. Desplegable con la máxima de la cabecera de cada alimentador, y por defecto el instante común. (RF-32)
       Hecho cuando: `pytest -q tests/test_demanda_medida_web.py -k desplegable` en verde.
 - [x] T13. Selector de los tres tipos de análisis e instante común de las barras de 60 kV. (RF-27, RF-31)
@@ -85,7 +85,7 @@ cuando el usuario ponga a mano la central de NA205.
 - [x] T12. El tipo de proyecto decide el instante y lo detectado activa la selección. (RF-27, RF-28, RF-29, RF-30)
       Hecho cuando: `pytest -q tests/test_demanda_medida.py tests/test_demanda_medida_web.py tests/test_escaneo.py
       -k "coincidente or barra_de_cabecera or detectado"` en verde, y comprobado en el navegador real.
-      Hecho el 2026-11-02: con NA203_NA205 en el navegador, «Detectado en DIgSILENT» y el formulario de la central
+      Hecho el 2026-11-02: con NA293_NA295 en el navegador, «Detectado en DIgSILENT» y el formulario de la central
       salen del escaneo guardado, sin casilla de barra y sin errores en la consola; la búsqueda por la web da
       2026-09-25 12:00 y 19 641,5 kW, con 651 registros de maniobra descartados.
 - [x] T17. MEJ11-MAXIMA (orden del usuario del 20-11): el resultado de la máxima dice su ámbito; la tabla de 2.2 da en el

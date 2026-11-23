@@ -38,7 +38,7 @@ En serie por lo que comparten: `web/app.py`, `web/services.py` y `workspace.py`.
 | Aplicar el modelo provisional con `tools/asistente_modelo_provisional.py poner` tras reiniciar | 085 T7 |
 
 Al cerrar F0, las ramas ya integradas se archivan en un `git bundle`, con orden del usuario, y las 10 ramas locales que aún llevan
-`referencia/NA205.dgs` en su historial no se suben nunca: un push las publicaría de nuevo.
+`referencia/NA295.dgs` en su historial no se suben nunca: un push las publicaría de nuevo.
 
 ## F1: datos
 

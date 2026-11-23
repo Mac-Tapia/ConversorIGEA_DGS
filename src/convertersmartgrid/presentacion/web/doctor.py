@@ -173,7 +173,7 @@ def _perfil() -> Comprobacion:
 def _calibracion_del_perfil() -> Comprobacion:
     """086:RF-55: sin fichas de transformadores de SED ni tamaño de banco, la calibración no resuelve una SED sobrecargada.
 
-    Programa instalado de prueba (2026-11-11): sin perfil, «Perfil de empresa: se puede leer» salía en verde y CA101 no
+    Programa instalado de prueba (2026-11-11): sin perfil, «Perfil de empresa: se puede leer» salía en verde y CA191 no
     quedó válido porque SE20701 (1 506 kVA de cliente en 50 kVA) no se pudo cambiar por su ficha (101) ni se pusieron bancos.
     """
     from ...dominio.perfil_empresa import datos_perfil, seccion_transformadores_sed

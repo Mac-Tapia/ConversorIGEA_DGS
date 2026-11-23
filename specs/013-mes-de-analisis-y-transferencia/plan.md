@@ -583,7 +583,7 @@ la evaluación multitemporal descrita por Ding, Mahdavi et al. y Azizivahed et a
    sentido/enlace, cabeceras antes/después, tabla de SED y estado visible
    `comprobada | parcial/no aceptable`. No mostrar `0` cuando el valor es desconocido.
 
-3. Añadir al guion de aceptación los dos sentidos CA101 ↔ PE104, apertura del XLSX y
+3. Añadir al guion de aceptación los dos sentidos CA191 ↔ PE194, apertura del XLSX y
    comparación de una SED y una cabecera con la respuesta JSON.
 
 4. Ejecutar GREEN/build y commit:
@@ -646,7 +646,7 @@ pruebas sintéticas con resultado operacional.
    - cambiar a `todo`, exigir mes de clientes y revisar procedencia;
    - capturar catálogo, curvas comunes y resultado de transferencia.
 
-5. Aceptación PowerFactory 2024 con CA101 y PE104:
+5. Aceptación PowerFactory 2024 con CA191 y PE194:
 
    - registrar proyecto, caso, variación base, huella, periodo y candidatos;
    - para cada candidato no dominado, conservar objetivos y relectura P/Q de ambas
@@ -694,6 +694,6 @@ pruebas sintéticas con resultado operacional.
 La implementación no se declara terminada solo porque pytest y el build estén en verde.
 Queda terminada cuando RF-1 a RF-29 tienen prueba de conducta, los siete libros reales se
 indexan con su mes correcto, la UI conserva una selección explícita, y la aceptación nativa
-CA101/PE104 demuestra —con relectura y restauración— que todos los candidatos necesarios se
+CA191/PE194 demuestra —con relectura y restauración— que todos los candidatos necesarios se
 simularon usando el mismo instante para ambos alimentadores. Cualquier omisión se reporta
 como parcial o bloqueada, nunca como transferencia comprobada.

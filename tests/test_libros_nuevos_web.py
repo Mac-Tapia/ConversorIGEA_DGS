@@ -740,6 +740,86 @@ def test_104_rf45_al_terminar_el_proceso_ninguna_lectura_lo_da_por_muerto(app, c
     assert not any('sin proceso vivo' in t for t in textos), textos
 
 
+class _ProcesoTerminado:
+    """Un proceso de fondo que ya terminó bien, con su resumen."""
+
+    def __init__(self, resumen):
+        self.valor = (resumen, None)
+
+    def resultado(self):
+        return True, self.valor
+
+    def terminar(self):
+        pass
+
+
+_RESUMEN = {'huella': 'a' * 64, 'objetivos': 1, 'apartados': 0}
+_OCTUBRE = 'clientes/2026/1026clientes.xlsx'
+
+
+def test_104_rf45_al_terminar_bien_ninguna_lectura_lo_da_por_muerto_ni_vacia_sus_libros(app, client, tmp_path,
+                                                                                       monkeypatch):
+    """104:RF-43, 104:RF-45 — fallo intermitente de la e2e F10 (2026-11-22): al terminar bien la regeneración se quitaba
+    el proceso de la lista de esta web ANTES de guardar «al día». Una lectura del estado en medio lo daba por «sin
+    proceso vivo», lo pasaba a desactualizado y lo relanzaba sin libros nuevos, y la segunda vuelta dejaba el dataset
+    «al día» con ``libros_incluidos`` vacío. Se fuerza esa lectura justo cuando se escribe el estado."""
+    vig = app.state.libros_nuevos
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    _poner_regenerando(app, wid, inicio=time.time())
+    with vig._cv:
+        vig._procesos[wid] = (_ProcesoTerminado(dict(_RESUMEN)), [_OCTUBRE])
+        vig._datasets.add(wid)
+    monkeypatch.setattr(vig, '_espacio', lambda _wid: ws)
+    original = vig._modificar
+    lecturas = []
+
+    def modificar_con_lectura(ws_, fn):
+        if not lecturas:
+            lecturas.append(None)
+            lecturas[0] = vig.comprobar_regenerando(ws_)
+        return original(ws_, fn)
+    monkeypatch.setattr(vig, '_modificar', modificar_con_lectura)
+    vig._recoger_datasets()
+    monkeypatch.setattr(vig, '_modificar', original)
+
+    assert lecturas == [False], 'la lectura en medio dio el dataset por muerto'
+    dataset = _estado_guardado(app, wid)['dataset']
+    assert dataset['estado'] == 'al_dia' and dataset['libros_incluidos'] == [_OCTUBRE]
+    assert wid not in vig._procesos and wid not in vig._datasets, 'se relanzaría sin libros nuevos'
+    assert not any('sin proceso vivo' in a['texto'] for a in _avisos_del_dataset(client, wid))
+
+
+def test_104_rf43_la_interrupcion_no_pisa_un_dataset_que_ya_termino(app, client, tmp_path, monkeypatch):
+    """104:RF-43 — la otra mitad de la carrera de la e2e F10: la lectura vio «regenerando» y, antes de que guardara el
+    interrumpido, la regeneración terminó y guardó «al día». El paso a interrumpido se decide dentro del mismo guardado:
+    si el dataset ya no está regenerando, no se toca, ni se avisa, ni se relanza."""
+    from convertersmartgrid.aplicacion import libros_nuevos as ln
+    from convertersmartgrid.presentacion.web import libros_nuevos as wl
+
+    vig = app.state.libros_nuevos
+    wid = _espacio_con_dataset(client, tmp_path)
+    ws = app.state.store.get(wid)
+    _poner_regenerando(app, wid, inicio=time.time())
+    carpeta = wl.carpeta_estado(ws)
+
+    def termina_en_medio(_dataset):
+        estado = ln.leer_estado(carpeta)
+        estado['dataset'] = {'estado': 'al_dia', 'libros_incluidos': [_OCTUBRE], 'libros_nuevos': [], **_RESUMEN}
+        ln.guardar_estado(carpeta, estado)
+        return False
+    monkeypatch.setattr(vig, '_vivo_en_otro_sitio', termina_en_medio)
+    with vig._cv:
+        vig._datasets.discard(wid)
+
+    assert vig.comprobar_regenerando(ws) is False
+    dataset = _estado_guardado(app, wid)['dataset']
+    assert dataset['estado'] == 'al_dia' and dataset['libros_incluidos'] == [_OCTUBRE]
+    assert 'interrumpido' not in dataset
+    assert wid not in vig._datasets
+    assert not _avisos_del_dataset(client, wid)
+
+
 def test_104_rf45_el_dataset_cortado_por_su_plazo_sale_del_carril_hasta_la_proxima_revision(app, client, tmp_path,
                                                                                            monkeypatch):
     """104:RF-45 — aclaración (2026-11-14, causa de la F intermitente de la prueba del plazo): el dataset que se corta
@@ -805,6 +885,8 @@ def test_el_dataset_interrumpido_se_guarda_con_su_aviso_en_el_mismo_guardado(app
     guardan juntos. Antes eran dos guardados y la prueba del plazo (intermitente con H14) leía el estado sin el aviso."""
     wid = _espacio_con_dataset(client, tmp_path)
     ws = app.state.store.get(wid)
+    # Solo se interrumpe un dataset que sigue «regenerando» (aclaración de RF-43, 2026-11-22).
+    _poner_regenerando(app, wid, inicio=time.time())
     guardados = _espiar_guardados(monkeypatch)
     app.state.libros_nuevos._interrumpir(ws, 'motivo de prueba', retomar=False)
     interrumpidos = [g for g in guardados if (g.get('dataset') or {}).get('motivo_interrupcion') == 'motivo de prueba']
@@ -822,8 +904,11 @@ def test_cada_interrupcion_se_publica_aunque_su_aviso_ya_exista(app, client, tmp
     vig = app.state.libros_nuevos
     publicados: list[str] = []
     monkeypatch.setattr(vig, '_publicar', lambda w: publicados.append(w.id))
-    vig._interrumpir(ws, 'mismo motivo', retomar=False)
-    vig._interrumpir(ws, 'mismo motivo', retomar=False)
+    # Dos regeneraciones interrumpidas por el mismo motivo: cada una vuelve a estar «regenerando» antes de cortarse
+    # (aclaración de RF-43, 2026-11-22: un dataset que ya no regenera no se interrumpe).
+    for _ in range(2):
+        _poner_regenerando(app, wid, inicio=time.time())
+        assert vig._interrumpir(ws, 'mismo motivo', retomar=False)
     assert publicados == [wid, wid], publicados
 
 

@@ -3,7 +3,7 @@ from pathlib import Path
 
 def test_production_source_has_no_fixed_reference_dgs_dependency():
     root = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid'
-    forbidden = ('na205.dgs', 'reference_dgs', 'reference-dgs', '/mnt/data/na205')
+    forbidden = ('na295.dgs', 'reference_dgs', 'reference-dgs', '/mnt/data/na295')
     text = '\n'.join(p.read_text(encoding='utf-8', errors='replace').lower() for p in root.rglob('*') if p.is_file() and p.suffix in {'.py','.json'})
     for token in forbidden:
         assert token not in text

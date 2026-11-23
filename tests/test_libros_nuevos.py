@@ -135,7 +135,7 @@ def test_mes_repetido_en_una_hoja_de_cabecera(tmp_path):
     libro = _libro_cabecera(tmp_path / 'cab.xlsx', {
         'M1': marzo + _copia_al_mes(marzo, 2026, 4)[:-1],
         'M2': _mes_completo(2026, 3, 400., ruido=2) + _mes_completo(2026, 4, 400., ruido=3)[:-1],
-        # Un medidor congelado da el mismo valor todos los meses: no es un libro copiado (IN216 de Ica, 2026).
+        # Un medidor congelado da el mismo valor todos los meses: no es un libro copiado (IN296 de Ica, 2026).
         'M3': [(t, 7.0, 1.0) for t, _p, _q in _mes_completo(2026, 3) + _mes_completo(2026, 4)[:-1]]})
     ficha = ln.verificar_libro_cabecera(libro)
     assert [(r['hoja'], r['mes'], r['igual_a']) for r in ficha['repetidos']] == [('M1', '2026-04', '2026-03')]

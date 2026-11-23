@@ -169,9 +169,9 @@ Cambio del 2026-10-09, pedido por el operador al usarla con los libros reales:
   máxima, dirá cuántos de otros alimentadores no muestra y dejará aparte los que no
   están en el libro de suministros, porque no se sabe de qué alimentador son.
 
-Cambio del 2026-10-09, visto con el alimentador IN111 de Ica: su libro de medidores da
-«IN111_V18 Y IN111_V119»; en el libro de cabecera `IN111_V18` es solo el kW, `IN111_V19`
-el kVAR y `IN111_V20` el kVA (canales del medidor `IN111`), y `IN111_V119` no existe.
+Cambio del 2026-10-09, visto con el alimentador IN191 de Ica: su libro de medidores da
+«IN191_V18 Y IN191_V119»; en el libro de cabecera `IN191_V18` es solo el kW, `IN191_V19`
+el kVAR y `IN191_V20` el kVA (canales del medidor `IN191`), y `IN191_V119` no existe.
 
 - RF-44: SI la hoja de un medidor trae el kW pero le falta el kVAR o el kVA, ENTONCES EL
   SISTEMA los tomará, por la fecha y hora del registro del kW máximo, de las hojas de una
@@ -198,7 +198,7 @@ GPS, fuera de su sitio en el diagrama geográfico.
 - RF-49: CUANDO crea una carga nueva, EL SISTEMA escribirá en su SED, sus barras y su
   carga el GPS de la fila o, si la fila no lo trae, el de la barra de conexión.
 
-Cambio del 2026-10-12, con un libro de planificación de cargas nuevas de SI213 (hoja
+Cambio del 2026-10-12, con un libro de planificación de cargas nuevas de SI293 (hoja
 «DemandaNUEVA»): cabecera `DESCRIPCION`, `DEM PROY (KW)`, `TRONCAL`, `BARRA`, `SISTEMA`,
 `SUBESTACIÓN`, `COORDENADAS UTM (X)`, `COORDENADAS UTM (Y)`. Sin columna SED la hoja
 entera se rechazaba; tampoco trae el kVA del transformador, y su «BARRA» es la de la
@@ -276,11 +276,11 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
 - RF-67: CUANDO el objetivo del alimentador tenga su fecha y hora (el instante de su barra de
   60 kV, 022:RF-84, o su propia máxima), EL SISTEMA tomará de la hoja de 15 minutos de cada
   cliente fijo el registro de ese mismo instante, con su kW (EA × 4) y su kVAR (ERI × 4), en vez
-  de su POT del mes: sumar la POT de cada cliente, cada una de un día, dio en NA203 9 261 kW de
+  de su POT del mes: sumar la POT de cada cliente, cada una de un día, dio en NA293 9 261 kW de
   fijas frente a 7 876 medidos y Nasca dejó de cuadrar (DIgSILENT, 2026-10-28). Sin ese
   registro, RF-66.
 - Aclaración de RF-52 (2026-11-06): la serie R10 que cubre la demanda al 100 % solo vale sin
-  fichas de transformadores en el perfil. En PE102 dejó el transformador del Vivero Los Viñeros
+  fichas de transformadores en el perfil. En PE192 dejó el transformador del Vivero Los Viñeros
   (233 kW, 245,5 kVA) en 250 kVA, al 102,9 % en DIgSILENT, y el informe de estudio concluyó «se
   requieren obras adicionales» por un transformador del cliente; con fichas manda RF-68.
 - RF-68: SI una carga nueva no trae kVA_instalado y el perfil trae fichas de transformadores
@@ -296,7 +296,7 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
   potencia, o con menos de tres fases, se hace como antes y se avisa.
 - Aclaración de RF-68 (2026-11-06): la máxima del umbral se cuenta con la corriente a la tensión
   mínima de los estudios del perfil (`estudios.tension_min_pu`, la más baja de las normas de sus
-  alimentadores), porque DIgSILENT mide la cargabilidad por corriente. En PE102 los transformadores
+  alimentadores), porque DIgSILENT mide la cargabilidad por corriente. En PE192 los transformadores
   elegidos al 80 % a tensión nominal quedaron al 83,5 % (PTAR, 4 × 630) y al 81,3 % (vivero, 315)
   con la baja a 0,96 p.u.; sin ese límite en el perfil, se cuenta a la nominal y se avisa.
 - RF-70: SI una carga nueva trae kW y no trae kVAR ni FP, ENTONCES EL SISTEMA le dará el FP del perfil de la empresa
@@ -306,10 +306,10 @@ hojas trae SUMINISTRO y SED, y el cruce elegía uno de ellos como tabla de sumin
 - RF-71: CUANDO la hoja resumen del libro de clientes no traiga el nombre del cliente, EL SISTEMA tomará el de la columna
   del nombre del cliente del libro de suministros (`nombre_cliente`) del suministro con que cruzó; el del libro mensual, si
   lo trae, manda. Cambia RF-57: la celda queda vacía solo si ninguno de los dos lo trae. (Usuario, 2026-11-12: la tabla
-  cruzada de PA217 mostraba «—» en «Cliente».)
+  cruzada de PA297 mostraba «—» en «Cliente».)
 
 La ubicación se comprueba antes de conectar (web del usuario, 2026-11-12): en «3.2 · Una carga nueva» se escribió SE0001
-de PA217 (1 500 kW) con Y = 476 517, un dígito de menos (la real, hacia 8 476 517). El punto pasó a GPS cerca del Polo
+de PA297 (1 500 kW) con Y = 476 517, un dígito de menos (la real, hacia 8 476 517). El punto pasó a GPS cerca del Polo
 Sur, se conectó «al nodo de media más cercano» con una línea de miles de km, el flujo de «Cargas nuevas» no convergió y,
 al volver a aplicar, la carga mal puesta se reutilizó por su nombre (014:RF-24).
 

@@ -1,7 +1,7 @@
 """Transformer propio del asistente: entiende las órdenes escritas (spec 026, RF-2, RF-19, RF-20).
 
 Un codificador Transformer pequeño sobre caracteres, no sobre palabras: las órdenes
-llegan con erratas y los nombres de la red (IN111, 20261015-170359_CSG_IN111_TA225,
+llegan con erratas y los nombres de la red (IN191, 20261015-170359_CSG_IN191_TA295,
 SE41154) no están en ningún vocabulario, pero tienen forma. Dos salidas: la tarea, sobre
 el primer símbolo, y una etiqueta por carácter (B-tipo, I-tipo, O) que marca cada dato.
 

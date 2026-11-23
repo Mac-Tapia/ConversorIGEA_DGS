@@ -50,7 +50,7 @@ class TestUnusableInputFailsLoudly:
             _load(export)
         mensaje = str(excinfo.value)
         assert red.name in mensaje
-        assert 'no contiene filas' in mensaje or 'no parece un export' in mensaje
+        assert 'no contiene filas' in mensaje or 'no parece un TXT' in mensaje
 
     def test_truncated_red_is_rejected(self, export, tmp_path):
         red, carga, equipo = export

@@ -15,7 +15,7 @@ comprueba; uno que no se pueda comprobar no es un principio.
 3. **Dos disposiciones de export.** Todo cambio en el lector se prueba con la reducida y
    con la completa. *Se comprueba:* `tests/test_export_layouts.py`.
 4. **Modo estricto y sin referencia en runtime.** No se inventan tipos `DEFAULT`; los
-   alias solo vienen de un JSON del usuario; `NA205.dgs` es solo de desarrollo.
+   alias solo vienen de un JSON del usuario; `NA295.dgs` es solo de desarrollo.
 5. **Una sola vía para las reglas.** Toda conversión pasa por `reglas.py`
    (`preparar_dataset`, `aplicar_reglas`, `auditar_completitud`); una vía nueva las
    llama, no las copia. Lo mismo vale para leer la entrada y escribir el DGS: una

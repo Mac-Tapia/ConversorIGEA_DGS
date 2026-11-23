@@ -26,9 +26,9 @@ def _common(parser: argparse.ArgumentParser) -> None:
         'Alternativa 3 — paquete VNR-GIS: --vnr-package (con --company/--period si trae '
         'varias empresas o periodos).',
     )
-    src.add_argument('--red', help='Alternativa 1: export TXT RED de CYMDIST')
-    src.add_argument('--loads', help='Alternativa 1: export TXT CARGA de CYMDIST')
-    src.add_argument('--equipment', help='Alternativa 1: export TXT BD_Equipo de CYMDIST')
+    src.add_argument('--red', help='Alternativa 1: TXT RED')
+    src.add_argument('--loads', help='Alternativa 1: TXT CARGA')
+    src.add_argument('--equipment', help='Alternativa 1: TXT BD_Equipo')
     src.add_argument(
         '--equipment-extra', action='append', default=[], metavar='TXT',
         help=('Completar el catálogo con otro BD_Equipo cuando el de la entrega '
@@ -63,7 +63,7 @@ def _common(parser: argparse.ArgumentParser) -> None:
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog='convertersmartgrid',
-        description='Conversor universal CYMDIST (TXT o Access) a DGS de DIgSILENT PowerFactory',
+        description='Conversor universal de los TXT o de la base Access a DGS de DIgSILENT PowerFactory',
     )
     sub = parser.add_subparsers(dest='command', required=True)
 

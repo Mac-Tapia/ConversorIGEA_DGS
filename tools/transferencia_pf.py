@@ -606,7 +606,7 @@ def tensiones_del_enlace(redes, enlace) -> list[tuple[str, float]]:
 def _tensiones_distintas(redes, enlace) -> str:
     """El motivo para no cerrar el enlace, o vacío (016:RF-62, RF-63).
 
-    IN111 es de 10 kV y TA225 de 22,9 kV: cerrado sin migrar, el flujo no converge
+    IN191 es de 10 kV y TA295 de 22,9 kV: cerrado sin migrar, el flujo no converge
     (usuario, 2026-10-14). Hasta migrar la parte que pasa, la transferencia por ese enlace
     no se calcula.
     """
@@ -746,7 +746,7 @@ def _en_un_caso(app, alims, a, b, nombre_caso, entrada, limites, cancelado, info
                 v.Delete()
         # Se compara antes de volver a encender el escenario: la foto se tomó con él
         # apagado, y con él encendido cada scale0 calibrado salía «distinto» (311 avisos
-        # falsos en «Con proyecto» de IN111 + TA225, 2026-10-15).
+        # falsos en «Con proyecto» de IN191 + TA295, 2026-10-15).
         distintos = foto.distintos() if foto is not None else distintos
         if escenario is not None and app.GetActiveScenario() is None:
             escenario.Activate()

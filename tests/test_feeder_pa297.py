@@ -1,6 +1,6 @@
-"""Caso de aceptación por alimentador: PA217, por las dos alternativas de entrada.
+"""Caso de aceptación por alimentador: PA297, por las dos alternativas de entrada.
 
-PA217 es un buen caso de referencia: 1.324 tramos, 253 cargas con SED, 22,9 kV, y
+PA297 es un buen caso de referencia: 1.324 tramos, 253 cargas con SED, 22,9 kV, y
 mezcla de fases (ABC y AB). Cada prueba se ejecuta por separado con cada vía de entrada
 —tres TXT y base Access—: cada fuente es independiente y se valida por sí misma, sin
 compararla con la otra.
@@ -18,21 +18,23 @@ from __future__ import annotations
 from pathlib import Path
 
 
+from apoyo import codigo_real
 from convertersmartgrid.aplicacion.batch import convert_selection
 from convertersmartgrid.aplicacion.reglas import SIN_REGLAS
 from convertersmartgrid.adaptadores.validate import parse_dgs
 
-FEEDER = 'PA217'
+# LIMPIEZA-CODIGOS: el repositorio escribe la versión inventada; los datos reales piden la suya (apoyo.codigo_real).
+FEEDER = 'PA297'
 
 def _convert(ds, out_dir, **kw):
     manifest = convert_selection(
-        ds, [FEEDER], out_dir, include_geography=True, **kw,
+        ds, [codigo_real(FEEDER)], out_dir, include_geography=True, **kw,
         source_crs='EPSG:32718', strict=True, export_tsv=True,
     )
     return manifest, manifest['feeders'][0]
 
 
-class TestPa217ConvertsFromBothInputs:
+class TestPa297ConvertsFromBothInputs:
     def test_conversion_succeeds_without_errors(self, dataset_for, tmp_path):
         source, ds = dataset_for
         manifest, item = _convert(ds, tmp_path / source)
@@ -44,12 +46,12 @@ class TestPa217ConvertsFromBothInputs:
     def test_element_counts_match_the_source(self, dataset_for, tmp_path):
         """Lo que sale en el DGS es lo que la entrada contiene, no una aproximación."""
         source, ds = dataset_for
-        network_id = ds.resolve_feeder(FEEDER)
+        network_id = ds.resolve_feeder(codigo_real(FEEDER))
         sections = len(ds.feeders[network_id])
         loads = sum(1 for key in ds.customer_loads if ds.section_owner.get(key[0]) == network_id)
 
         # Sin las reglas del proyecto: con ellas los puentes DEFAULT de 10 m o menos se
-        # funden en acopladores (en PA217, 784 de 1.324 tramos) y la cuenta deja de ser
+        # funden en acopladores (en PA297, 784 de 1.324 tramos) y la cuenta deja de ser
         # una línea por tramo. Esta prueba mide la fidelidad literal a la entrada; que las
         # reglas no pierdan nada lo vigila auditar_completitud.
         _manifest, item = _convert(ds, tmp_path / source, reglas=SIN_REGLAS)
@@ -70,7 +72,7 @@ class TestPa217ConvertsFromBothInputs:
     def test_nominal_voltage_is_22_9_kv(self, dataset_for, tmp_path):
         """La tensión viene de la entrada; en Access se reconstruye ×√3."""
         source, ds = dataset_for
-        network_id = ds.resolve_feeder(FEEDER)
+        network_id = ds.resolve_feeder(codigo_real(FEEDER))
         assert abs(float(ds.sources[network_id]['DesiredVoltage']) - 22.9) < 1e-6
 
         _manifest, item = _convert(ds, tmp_path / source)

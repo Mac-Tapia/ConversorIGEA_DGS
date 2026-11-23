@@ -38,9 +38,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_inventario.py` en verde.
 - [x] T8d. La spec 015 (2026-10-14) cambia RF-5 y RF-10 y el contexto: anotado al
       final de la spec. La prueba de T9 se hace después de verificar el «Caso base» de
-      CA101 (015, T12).
+      CA191 (015, T12).
       Hecho cuando: la nota de la 015 está al final de esta spec y las pruebas de 014:RF-5 y RF-10 pasan.
-- [x] T9. Prueba en DIgSILENT con CA101, sobre el proyecto existente y sin datos
+- [x] T9. Prueba en DIgSILENT con CA191, sobre el proyecto existente y sin datos
       inventados:
       - un ajuste en «Sin proyecto» deja `_3` activa en «Sin» y «Con», y la cabecera
         incluye sus cuatro transformadores;
@@ -49,8 +49,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       - el tiempo de leer las etapas queda medido. (Criterios de finalización)
       Hecho cuando: informe JSON de cada paso en `output/` y resultados anotados aquí.
       Cerrada el 2026-10-29 con lo ya probado: desde la 015, «Sin proyecto» no lleva variación de ajuste
-      (el criterio de «_3» quedó obsoleto); el «Caso base» no cambia (sonda de la 032 T9 en CA101 y
-      SM218); repetir una inserción no duplica cargas (T11, PN107 en DIgSILENT); CA101 calibrado en
+      (el criterio de «_3» quedó obsoleto); el «Caso base» no cambia (sonda de la 032 T9 en CA191 y
+      SM298); repetir una inserción no duplica cargas (T11, PN197 en DIgSILENT); CA191 calibrado en
       «Sin proyecto» desde la web (−0,01 %).
 - [x] T10. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "014:RF-[0-9]+" tests | sort -u` lista los 28 RF y la suite
@@ -58,19 +58,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-14: los 28 RF citados; suite con las cinco variables, 1753 correctas
       (`docs/VERIFICACION_SPECS_2026-10-14.md`).
 - [x] T11. La carga de una variación se reconoce también con el sufijo «(n)» que le pone la
-      etapa (PN107, 2026-10-16), y por su punto con otro nombre. (RF-29, RF-30)
-      Hecho cuando: las pruebas que citan 014:RF-29 y RF-30 pasan y reaplicar las cargas de PN107 en
+      etapa (PN197, 2026-10-16), y por su punto con otro nombre. (RF-29, RF-30)
+      Hecho cuando: las pruebas que citan 014:RF-29 y RF-30 pasan y reaplicar las cargas de PN197 en
       DIgSILENT reutiliza la variación de CH_9 en vez de crear otra.
       Hecho el 2026-10-16: borrada la variación duplicada de CH_9 (14:05) y sus símbolos;
-      reaplicada la tanda en DIgSILENT, CH_9 se reutiliza (Carga_CH_9_PN107_20261016_100306),
+      reaplicada la tanda en DIgSILENT, CH_9 se reutiliza (Carga_CH_9_PN197_20261016_100306),
       no se crea ninguna y «Sin proyecto» y «Con proyecto» ejecutan el flujo.
 - [x] T12. Lo hecho a mano en «Sin proyecto» pasa a «Con proyecto»: `sin_a_con_proyecto` en
       `tools/casos_pf.py`, llamada desde cargas, obras, preparar, estudios, guiones del
       operador y ajuste. (RF-31 a RF-34)
-      Hecho cuando: las pruebas que citan 014:RF-31 a RF-34 pasan y en PN107 el banco
+      Hecho cuando: las pruebas que citan 014:RF-31 a RF-34 pasan y en PN197 el banco
       creado en «Sin proyecto» está en «Con proyecto» con sus datos de operación.
-      Hecho el 2026-10-17: en PN107 el banco PN107BC1 ya está en los tres casos con los mismos
-      datos y «Con proyecto» converge. En una copia de PN107 (borrada al terminar), el banco
+      Hecho el 2026-10-17: en PN197 el banco PN197BC1 ya está en los tres casos con los mismos
+      datos y «Con proyecto» converge. En una copia de PN197 (borrada al terminar), el banco
       fuera de servicio y sin escalones y un interruptor abierto a mano en «Sin proyecto»
       pasaron a «Con proyecto» (3 datos, aviso 014:RF-32); el «Caso base» no cambió y la
       segunda pasada no copió nada.

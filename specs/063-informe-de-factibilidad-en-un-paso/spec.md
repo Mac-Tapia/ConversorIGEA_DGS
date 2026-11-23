@@ -1,7 +1,7 @@
 # Spec 063 — Evaluación de conexión y operación comercial en un paso, para cualquier alimentador
 
 Estado: cumplida · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01 (informe de
-la ampliación de INKA'S BERRIES S.A.C. en SM218)
+la ampliación de CLIENTE K'S BERRIES S.A.C. en SM298)
 
 Cita la 017 (informe de factibilidad, RF-47 a RF-72 y RF-136 a RF-141), la 037 (casos de
 estudio) y la 011 (estudios en DIgSILENT). No las cambia: lo que aquí se pide se añade sobre ellas.
@@ -14,7 +14,7 @@ operación comercial, que dice si la carga se puede conectar ya o si antes hay q
 tramos o instalar bancos (usuario, 2026-11-01). Se hace sobre la recalibración del alimentador.
 
 
-Para el informe de INKA (2026-11-01) hizo falta ejecutar a mano los estudios del paso 4.2,
+Para el informe de CLIENTE K (2026-11-01) hizo falta ejecutar a mano los estudios del paso 4.2,
 revisar los casos y luego volver a 4.4. En medio, un estudio optimizador dejó «Sin proyecto»
 fuera de la recalibración: los bancos EBC/ECB y los transformadores NTP dejaron de aplicarse,
 y «Con proyecto» salió con SED al 826 %. El usuario: «esto debe aplicarse en el proyecto, en
@@ -99,14 +99,14 @@ Obras para conectar
   permitido de la norma, ahí debe quedar la solución».)
 
 - RF-23: CUANDO se evalúa la conexión de unas cargas nuevas, EL SISTEMA optimizará «Con proyecto»
-  solo con esas cargas y apartará las demás cargas nuevas del proyecto. (SM218, 2026-11-01: la
-  optimización de INKA contaba 4 cargas, entre ellas la copia de INKA del bloque mal ubicada.)
+  solo con esas cargas y apartará las demás cargas nuevas del proyecto. (SM298, 2026-11-01: la
+  optimización de CLIENTE K contaba 4 cargas, entre ellas la copia de CLIENTE K del bloque mal ubicada.)
 - RF-24: SI ninguna de las cargas pedidas está aplicada en los alimentadores marcados, ENTONCES
   EL SISTEMA lo dirá con sus nombres y no optimizará nada.
 
 - RF-25: CUANDO la barra de una carga nueva la crea su propia variación, EL SISTEMA probará el
   banco en la barra existente más cercana de la misma troncal, la de aguas arriba del tramo que
-  partió la carga. (SM218, 2026-11-01: el escalón de bancos quedaba vacío para INKA y se pasaba a
+  partió la carga. (SM298, 2026-11-01: el escalón de bancos quedaba vacío para CLIENTE K y se pasaba a
   terna con regulador sin haber probado bancos.)
 - RF-26: EL SISTEMA no probará reguladores en la escalera salvo que el perfil de la empresa lo
   pida (`escalera.con_regulador`). (Usuario, 2026-11-01: «hiciste con bancos en la misma troncal,
@@ -122,11 +122,11 @@ Obras para conectar
 
 - RF-29: CUANDO la calibración fija la consigna de la fuente, EL SISTEMA la llevará al «Caso
   base», a «Sin proyecto», a «Cargas nuevas» y a «Con proyecto». (Usuario, 2026-11-01: «esto debe
-  ser en caso base y caso con cargas y caso con proyecto, fuente a 1,02 p.u.»; SM218 medía las
+  ser en caso base y caso con cargas y caso con proyecto, fuente a 1,02 p.u.»; SM298 medía las
   obras con la fuente a 1,00 en «Con proyecto».)
 
 - RF-30: EL SISTEMA cambiará de sección solo los tramos cuya corriente nominal es menor que la del
-  conductor nuevo, y dejará los de igual o mayor sección. (SM218, 2026-11-01: la «sección CU 50 mm²»
+  conductor nuevo, y dejará los de igual o mayor sección. (SM298, 2026-11-01: la «sección CU 50 mm²»
   reemplazaba los 10,32 km y el punto de diseño bajaba de 0,934 a 0,909 p.u.)
 
 - RF-31: EL SISTEMA dirá de cada obra dónde va en la red de media tensión: el nodo de MT de cada
@@ -140,7 +140,7 @@ Obras para conectar
 
 - RF-32: EL SISTEMA probará la sección y la terna sobre el camino eléctrico de la cabecera a cada
   carga nueva, y pondrá su banco en la barra existente de ese camino justo aguas arriba de la carga.
-  (SM218, 2026-11-01: INKA cuelga de un ramal a 17,08 km con 5,8 km de 50, 35 y 16 mm²; la escalera
+  (SM298, 2026-11-01: CLIENTE K cuelga de un ramal a 17,08 km con 5,8 km de 50, 35 y 16 mm²; la escalera
   probaba las obras en los 10,32 km de troncal de 120 mm² más cercanos por GPS.)
 
 - RF-33: SI ninguna obra cumple en los sorteos pero alguna cumple con la máxima en DIgSILENT,
@@ -162,12 +162,12 @@ Obras para conectar
   cargas y obras previstas activas solo en los casos a los que corresponden.
 - RF-37: EL SISTEMA comprobará la solución de la SET nueva con el total de las cargas nuevas
   del proyecto, sin reducir ni apartar demanda para lograr convergencia o cumplimiento.
-- RF-38: EL SISTEMA evaluará la operación de NA203–NA205 con la SET nueva y la central térmica
+- RF-38: EL SISTEMA evaluará la operación de NA293–NA295 con la SET nueva y la central térmica
   fuera de servicio, y solo declarará aceptada la solución si convergen ambos flujos y se
   cumplen tensión y cargabilidad en toda la red del proyecto.
 - RF-39: EL SISTEMA tratará como del alimentador las cargas, barras y tramos de todas las troncales
   de su cabecera, en los sorteos, las pérdidas, el criterio y los estudios, también en un proyecto de
-  varios alimentadores. (SM218, 2026-11-02: `ElmFeeder` veía 242 de 306 cargas.)
+  varios alimentadores. (SM298, 2026-11-02: `ElmFeeder` veía 242 de 306 cargas.)
 - RF-40: CUANDO una evaluación incluya cargas de una troncal fuera del `ElmFeeder`, EL SISTEMA lo dirá
   en su informe con cuántas son.
 - RF-41: DONDE el libro de pérdidas de la empresa vaya en dos hojas, EL SISTEMA leerá el sistema del
@@ -202,7 +202,7 @@ Obras para conectar
 - RF-55: EL SISTEMA concluirá sobre la demanda de cada alimentador y fuente antes y después del proyecto, con una
   tabla de kW y kvar medidos, su variación y el total; una fuente que entra o sale del servicio se nombra como tal.
   Sin datos por fuente, usará la inyección del caso con el nombre del alimentador. (Usuario, 2026-11-02: «las
-  conclusiones en cuanto a demanda de los alimentadores NA203 y NA205, un antes y después del proyecto SET».)
+  conclusiones en cuanto a demanda de los alimentadores NA293 y NA295, un antes y después del proyecto SET».)
 - RF-56: DONDE haya otras cargas esperando conexión, EL SISTEMA dirá en el desarrollo del caso sin obras y en las
   conclusiones cuántas son, cuántos kW suman y por alimentador, qué da el flujo con todas ellas sin obras y, SI ese
   flujo no converge o incumple, ENTONCES que por eso no es posible conectarlas y se justifica la obra; solo afirmará
@@ -213,10 +213,10 @@ Obras para conectar
 
 ## Fuera de alcance
 
-- El informe juzga las obras aplicadas en «Con proyecto». La evaluación/refuerzo de COPARA
+- El informe juzga las obras aplicadas en «Con proyecto». La evaluación/refuerzo de BOREALIS
   solicitado en RF-36 a RF-38 se ejecuta en el arnés de obras existente; no se recrea la SET.
   El usuario ordenó el 2026-11-02 reubicarla en área libre: se hizo en una variación propia,
-  fuera del informe y de este arnés (AUDIT/anotacion_copara_20261102/).
+  fuera del informe y de este arnés (AUDIT/anotacion_borealis_20261102/).
 - Cortocircuito, curvas PV, capacidad de alojamiento y demás estudios nativos: siguen en 4.2.
 - El informe de estudio (con las cargas en bloque) de la 017: queda como está.
 - La cargabilidad del transformador de la SET (017:RF-71): sigue con su paso propio.
@@ -226,4 +226,4 @@ Obras para conectar
 - Pulsando solo «Generar informe de factibilidad», sobre un proyecto ya calibrado y con la
   carga aplicada, sale el informe con los tres casos.
 - La prueba sorteada con alimentadores de distinto tamaño y fuente pasa sin cambiar nada.
-- El informe de INKA en SM218 sale desde la web con un clic y dice lo mismo que el hecho a mano.
+- El informe de CLIENTE K en SM298 sale desde la web con un clic y dice lo mismo que el hecho a mano.

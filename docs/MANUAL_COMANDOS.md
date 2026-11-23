@@ -316,7 +316,7 @@ opcionales.
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
-    --feeder IN111 ^
+    --feeder IN191 ^
     --source-crs EPSG:32718 ^
     --out-dir output\produccion
 ```
@@ -403,7 +403,7 @@ momento.
 
 ---
 
-## 4.bis Caso de aceptación por alimentador: PA217
+## 4.bis Caso de aceptación por alimentador: PA297
 
 Ejemplo completo con un alimentador concreto por las **dos vías**, útil como
 comprobación rápida tras instalar o actualizar.
@@ -414,15 +414,15 @@ rem Alternativa 1 — TXT
     --red "D:\datos\RED_030826(1).txt" ^
     --loads "D:\datos\CARGA_030826(1).txt" ^
     --equipment "D:\datos\BD_Equipo_V261124 (1)(1).txt" ^
-    --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_txt
+    --feeder PA297 --source-crs EPSG:32718 --out-dir output\pa297_txt
 
 rem Alternativa 2 — base Access
 > .venv\Scripts\python.exe -m convertersmartgrid.presentacion.cli convert ^
     --mdb "<DATOS>\BaseDatos.mdb" ^
-    --feeder PA217 --source-crs EPSG:32718 --out-dir output\pa217_mdb
+    --feeder PA297 --source-crs EPSG:32718 --out-dir output\pa297_mdb
 ```
 
-Resultado esperado por ambas vías (`NET_2030_179_PA217`, 22,9 kV):
+Resultado esperado por ambas vías (`NET_2030_179_PA297`, 22,9 kV):
 
 | | Valor |
 | --- | --- |
@@ -441,7 +441,7 @@ los 1.324 tramos, el TXT trae `DEFAULT` en **784 (59,2 %)** mientras la base sol
 **79 (6,0 %)**. Leyendo la base, **705 tramos recuperan su conductor real** y con él sus
 R/X/ampacidad verdaderos. Las fases coinciden exactamente (1.316 ABC + 8 AB).
 
-Las pruebas automáticas de este caso están en `tests/test_feeder_pa217.py` (21 pruebas,
+Las pruebas automáticas de este caso están en `tests/test_feeder_pa297.py` (21 pruebas,
 parametrizadas sobre las dos alternativas).
 
 ---
@@ -475,14 +475,14 @@ Es exactamente éste, un alimentador por llamada:
 
 ```bat
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
-    --import-dgs output\produccion\IN111.dgs ^
-    --manifest output\produccion\IN111_geography.json ^
+    --import-dgs output\produccion\IN191.dgs ^
+    --manifest output\produccion\IN191_geography.json ^
     --ensure-scenario ^
     --run-load-flow ^
     --fix-until-converge ^
     --run-studies ^
-    --output-json output\produccion\IN111_powerfactory_acceptance.json ^
-    --output-txt output\produccion\IN111_powerfactory_acceptance.txt
+    --output-json output\produccion\IN191_powerfactory_acceptance.json ^
+    --output-txt output\produccion\IN191_powerfactory_acceptance.txt
 ```
 
 Qué hace cada opción:
@@ -510,11 +510,11 @@ y antes con el oráculo y las cargas del archivo (015:RF-8, RF-39, RF-41).
 
 ```bat
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
-    --existing-project "20261013-121930_CSG_CA101" ^
+    --existing-project "20261013-121930_CSG_CA191" ^
     --pf-carpeta "sistemaeletricoELD" ^
-    --source-dgs output\produccion\CA101.dgs ^
-    --manifest output\produccion\CA101_geography.json ^
-    --feeder-metadata output\produccion\CA101_feeder_metadata.json ^
+    --source-dgs output\produccion\CA191.dgs ^
+    --manifest output\produccion\CA191_geography.json ^
+    --feeder-metadata output\produccion\CA191_feeder_metadata.json ^
     --source-run-id RUN_ID --source-mode mdb --source-fingerprint SHA256 ^
     --require-diagram
 ```
@@ -534,7 +534,7 @@ nodo y cubículo, y mantiene cualquier diferencia como aviso no bloqueante.
 ### 5.3 Atajo con el `.bat`
 
 ```bat
-> tools\run_powerfactory_gate.bat output\produccion\IN111.dgs output\produccion\IN111_geography.json
+> tools\run_powerfactory_gate.bat output\produccion\IN191.dgs output\produccion\IN191_geography.json
 ```
 
 Configura `PF_PYTHON`/`PYTHONPATH` solo y ejecuta la puerta con
@@ -559,13 +559,13 @@ aceptación defendible, ejecute primero sin esa opción y registre por separado:
 ```bat
 rem 1) El caso original, tal cual
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
-    --import-dgs output\produccion\IN111.dgs --ensure-scenario --run-load-flow ^
-    --output-json output\produccion\IN111_original.json
+    --import-dgs output\produccion\IN191.dgs --ensure-scenario --run-load-flow ^
+    --output-json output\produccion\IN191_original.json
 
 rem 2) Solo si el anterior falla, con correcciones, y como resultado aparte
 > .venv\Scripts\python.exe tools\powerfactory_acceptance.py ^
-    --import-dgs output\produccion\IN111.dgs --ensure-scenario --run-load-flow ^
-    --fix-until-converge --output-json output\produccion\IN111_corregido.json
+    --import-dgs output\produccion\IN191.dgs --ensure-scenario --run-load-flow ^
+    --fix-until-converge --output-json output\produccion\IN191_corregido.json
 ```
 
 ---
@@ -618,7 +618,7 @@ set "CARGA=D:\datos\CARGA_030826(1).txt"
 set "EQUIPO=D:\datos\BD_Equipo_V261124 (1)(1).txt"
 set "SALIDA=output\produccion"
 set "CRS=EPSG:32718"
-set "ALIM=IN111"
+set "ALIM=IN191"
 
 echo === 1/3 Pruebas ===
 set "CSG_RED=%RED%"
@@ -838,11 +838,11 @@ máximas mensuales por salida, `tools/cabecera_ancha.py` la pasa a ese formato e
 del espacio de trabajo, nunca en la de los datos de la distribuidora:
 
 ```bash
-.venv/Scripts/python.exe tools/cabecera_ancha.py --ancho <carpeta de perfiles>     --alimentador NJA202=NJA202 --salida <carpeta del espacio>
-.venv/Scripts/python.exe tools/cabecera_ancha.py --mensual <libro de máximas>     --alimentador R205=R5 --salida <carpeta del espacio>
+.venv/Scripts/python.exe tools/cabecera_ancha.py --ancho <carpeta de perfiles>     --alimentador NJA292=NJA292 --salida <carpeta del espacio>
+.venv/Scripts/python.exe tools/cabecera_ancha.py --mensual <libro de máximas>     --alimentador R295=R5 --salida <carpeta del espacio>
 ```
 
-`NOMBRE_EN_DIGSILENT=CODIGO` une el alimentador con su columna de medición (R205 se mide como
+`NOMBRE_EN_DIGSILENT=CODIGO` une el alimentador con su columna de medición (R295 se mide como
 R5). Una reactiva marcada «CAPACITIVA» va con signo negativo. Las máximas mensuales no traen
 hora ni reactiva: la calibración ajusta solo la activa y no supone factor de potencia.
 
@@ -863,7 +863,7 @@ hora ni reactiva: la calibración ajusta solo la activa y no supone factor de po
 - **Calibración** (la primera): cuadra solo la P (kW) al ±1 %; las escaladas con el FP del perfil.
 - **Recalibración**: cuadra la P y la Q al ±1 % **si la medida de cabecera es coherente**: la red la
   alcanza con las escaladas entre FP 1 y su mínimo (`calibracion.factor_potencia_minimo_escaladas`
-  del perfil; Empresa A, 0,90). Si no es coherente (NA203: 2 454 kvar con las escaladas a FP 1
+  del perfil; Empresa A, 0,90). Si no es coherente (NA293: 2 454 kvar con las escaladas a FP 1
   frente a 1 777 medidos), no se fuerza: queda la Q que da DIgSILENT con las escaladas a su FP de
   perfil, y el informe y la web lo dicen con el flujo que lo demostró y recomiendan revisar
   bancos y medición. Los bancos existentes trabajan a su máxima capacidad y la medida de
@@ -924,11 +924,11 @@ API de DIgSILENT se busca en la instalación si no está en la ruta (spec 019, R
 Un sistema eléctrico entero, con la web abierta (spec 022, RF-56):
 
 ```bat
-> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--criterio-fijas maximo_mes] [--alimentadores COD …] [--reconstruir TM106 TM101]
+> python tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir referencia --periodo 2026-07 [--transformadores] [--tension-pu 1.05] [--criterio-fijas maximo_mes] [--alimentadores COD …] [--reconstruir TM196 TM191]
 ```
 
 Un espacio sin vínculo con el proyecto del sistema convierte e importa; pero si la carpeta de
-DIgSILENT ya tiene un proyecto de ese grupo y esa fuente (`<sello>_CSG_TXT_PA217`), para con el
+DIgSILENT ya tiene un proyecto de ese grupo y esa fuente (`<sello>_CSG_TXT_PA297`), para con el
 código 2 y lo nombra, porque importar lo borraría (spec 005, RF-22): se sigue desde el espacio
 vinculado con él, o se repite con `--reconvertir`, que lo borra al importar (spec 005, RF-24).
 
@@ -1166,7 +1166,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | Herramienta | Para qué | PF |
 | --- | --- | --- |
 | `accept_three_sources.py` | Aceptación universal TXT/MDB/VNR-GIS hasta ajuste y estudio nativos (`docs/runbooks/universal-native-load-acceptance.md`). | opcional |
-| `accept_digital_twin_in111_ta225.py` | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado` (`tests/fixtures/digital_twin/in111_ta225_topology_episode.json` para IN111–TA225) y su episodio en el búfer. Solo lee; no entrena ningún modelo (spec 024, T8). | PF |
+| `accept_digital_twin_in191_ta295.py` | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado` (`tests/fixtures/digital_twin/in191_ta295_topology_episode.json` para IN191–TA295) y su episodio en el búfer. Solo lee; no entrena ningún modelo (spec 024, T8). | PF |
 | `_plural.py` | Concordancia de número de los avisos de los guiones: `cuenta(3, 'carga', 'cargas')` da «3 cargas», nunca «carga(s)» (086:RF-110). La importan los guiones de `tools/`, también los que corren con el intérprete de PowerFactory; solo usa la biblioteca estándar de Python 3.9. `python tools/_plural.py 3 carga cargas` lo prueba a mano. | |
 | `ajuste_cabecera_pf.py` | Ajusta un alimentador a su máxima de cabecera (sección 7.ter). | PF |
 | `apply_catalog_to_model.py` | Corrige impedancias y ampacidades del modelo con el catálogo de fichas (sección 7.bis). | |
@@ -1274,7 +1274,7 @@ guardado, un bloqueo de datos y un error de recursos; terminar el cálculo no ac
 | --- | --- |
 | `digital_twin_temporal_entrenar.py` | `--cabeceras LIBRO --zona-horaria ZONA --raiz DIRECTORIO --output-json INFORME` ajusta GRU con observaciones sin imputar. `--hoja NOMBRE` es repetible; `--desde ISO --hasta ISO` fija un intervalo inclusivo/exclusivo antes del ajuste. `--codigos A,B` selecciona columnas de un libro ancho y no se combina con `--hoja`. `--semillas 11,23,37,53,71 --epocas 40` fija el presupuesto. `--reabrir CANDIDATO --raiz DIRECTORIO --output-json OTRO_INFORME` comprueba pesos y predicción en otro proceso. Con `--comparar`, `--sin-publicar` registra el candidato y conserva el modelo en uso para su publicación conjunta (050). |
 | `asistente_embeddings.py` | `entrenar --dataset DATASET --destino DIRECTORIO` ajusta E5 con pares de entrenamiento trazables; `evaluar --help` describe el ensayo independiente. No acepta consultas supervisadas repetidas como prueba ni promueve automáticamente el encoder. |
-| `asistente_comparar_revision.py` | `--solo-conjunto` comprueba sin Ollama los casos declarados de `docs/REVISION_ROLES_CASOS_047.json`, o los de `--conjunto CASOS.json` (el de la T8 es `docs/REVISION_ROLES_CASOS_047f.json`, declarado el 2026-11-21; del `047b` al `047e` ya se midieron); un conjunto con otra huella o sin huella declarada no se mide, y la huella va al informe (047:RF-43). `--modelo NOMBRE [--conjunto CASOS.json] --salida INFORME.json [--tokens N]` compara rol único y cuatro roles con Ollama local, en su turno de GPU: errores hallados, tokens, el tope (por omisión 1024), la intervención más larga y cuántas llegaron al tope, latencia, por qué no se reconoció cada respuesta y lo que devolvió el modelo (047:RF-47), y cuántas contradicciones descartó el código (por coincidir sus dos valores, no estar en la propuesta o en la fuente, o tener otra base) y cuántas decisiones recalculó (047:RF-48 a RF-56), y en cuántos casos el coste que calcula el código no cuadra (047:RF-77); una salida existente no se repite (047 T3). Solo mide. |
+| `asistente_comparar_revision.py` | `--solo-conjunto` comprueba sin Ollama los casos declarados de `docs/REVISION_ROLES_CASOS_047.json`, o los de `--conjunto CASOS.json` (el de la T8 es `docs/REVISION_ROLES_CASOS_047g.json`, declarado el 2026-11-22; del `047b` al `047f` ya se midieron); un conjunto con otra huella o sin huella declarada no se mide, y la huella va al informe (047:RF-43). `--modelo NOMBRE [--conjunto CASOS.json] --salida INFORME.json [--tokens N]` compara rol único y cuatro roles con Ollama local, en su turno de GPU: errores hallados, tokens, el tope (por omisión 1024), la intervención más larga y cuántas llegaron al tope, latencia, por qué no se reconoció cada respuesta y lo que devolvió el modelo (047:RF-47), y cuántas contradicciones descartó el código (por coincidir sus dos valores, no estar en la propuesta o en la fuente, o tener otra base) y cuántas decisiones recalculó (047:RF-48 a RF-56), y en cuántos casos el coste que calcula el código no cuadra (047:RF-77); una salida existente no se repite (047 T3). Solo mide. |
 | `asistente_evaluar_rag.py` | `--solo-conjunto` comprueba sin GPU ni modelos que las preguntas sintéticas anclan en el índice. `--datos CARPETA --salida docs/EVALUACION_RAG_047.json` mide BM25, híbrido y los rerankers fijados con el mismo conjunto sellado, en CUDA y bajo su turno de GPU; el reranker solo entra si la decisión del informe lo adopta (047:RF-27). `--datos CARPETA --calibrar` fija los umbrales de abstención en `docs/CALIBRACION_ABSTENCION_047.json`; `--datos CARPETA --sellado` mide con ellos el conjunto sellado una sola vez. Cada paso de GPU exige 2 GiB disponibles. |
 | `evaluacion_final.py` | `--entrada MEDIDAS.json --rev SHA1`: paso 4 de la evaluación final de la 1.0 (044:RF-10). Reúne las medidas de cada bloque, con la huella de su conjunto sellado, en `docs/EVALUACION_FINAL_1.0.json`, aplica Holm por bloque y separa los negativos. Se niega (código 1) si la rev no es el HEAD, si el árbol tiene cambios o si una huella no cuadra (044:RF-11). `--comprobar` relee el informe escrito. Sin GPU ni DIgSILENT. |
 | `preguntas_entregables.py` | Spec 076, sin GPU ni DIgSILENT. `verificar` comprueba fuentes, cifras, nombres y reparto del conjunto `docs/asistente/preguntas_entregables.jsonl`; `exportar` deja la hoja de revisión en `output/`; `importar HOJA` marca solo lo marcado (s o n) y rechaza la hoja entera ante una marca dudosa; `informe` reescribe el informe por entregable; `generar --semilla N --cuantas M [--para corpus|medida]` sortea preguntas de la web, iguales byte a byte con la misma semilla; `cobertura --semilla N` dice qué botones y casillas salen. Nada de esto es una orden confirmada del operador. |
@@ -1365,7 +1365,7 @@ Ambas dejan en el informe el motivo de cada serie apartada y la decisión de la 
 
 ```bash
 # Una red por alimentador, uno tras otro en la GPU (089:RF-89); retoma los ya entrenados
-python tools/entrenar_alimentadores_gpu.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta>   --suministros <libro> --salida <carpeta> --algoritmo nhits --alimentadores CA101,PE104
+python tools/entrenar_alimentadores_gpu.py --cabecera <carpeta> --equivalencia <libro> --clientes <carpeta>   --suministros <libro> --salida <carpeta> --algoritmo nhits --alimentadores CA191,PE194
 ```
 
 Termina con código 1 si algún alimentador falla (089:RF-90); no elige ni promociona modelos: eso lo hace la competición de arriba.

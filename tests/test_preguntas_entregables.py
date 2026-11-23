@@ -14,7 +14,7 @@ from collections import Counter, defaultdict
 
 import pytest
 
-from apoyo import cargar_herramienta
+from apoyo import anonimizar_codigos, cargar_herramienta
 
 PE = cargar_herramienta('preguntas_entregables.py')
 RAIZ = PE.RAIZ
@@ -39,7 +39,9 @@ RAIZ = PE.RAIZ
 #: línea 45 de la revisión fijada y en el árbol. Es del corpus: lo sellado no cambia.
 HUELLA_CONJUNTO = '41cbeb83947ee95414efc1ece68d78dbb890fce903b3670f5727dd95f43f88b1'
 HUELLA_SELLADO = '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
-HUELLA_HECHOS = 'cf9e05488d73c44b2c2a16f033edb41588779968ea419d9fe81e5f6c41b7b50d'
+#: 2026-11-22 (056:RF-8, LIMPIEZA-CODIGOS): el hecho de la entrada TXT nombraba a CYMDIST junto a los TXT, que no exporta
+#: CYMDIST, y el hecho dice «TXT». Lo sellado no cambia; cambia la huella de los hechos.
+HUELLA_HECHOS = '06ad054a80a4653a8ff90c8f4f1680079ff07150668297ad2ce3ada7b54e7738'
 
 #: sha256('076:' + texto normalizado)[:16] de nombres de clientes y obras que solo salen en los casos de prueba.
 NOMBRES_PRIVADOS = frozenset({'1d409437293f8e90', '3498bf03a218f2c3', '3e59bdab0a823374', '442eea8a24c9cc8b', 'a1a7c9ecc9d9117c',
@@ -167,7 +169,7 @@ def test_ningun_nombre_real(filas, hechos):
     assert not errores, errores[:20]
 
 
-@pytest.mark.parametrize('texto', ['El codigo AB123 es de otro', 'en la barra de 60 kV de PA217'])
+@pytest.mark.parametrize('texto', ['El codigo AB123 es de otro', 'en la barra de 60 kV de PA297'])
 def test_un_codigo_real_se_rechaza(texto):
     """076:RF-6 — el patrón de alimentador no necesita la lista."""
     assert PE.errores_de_nombres([_fila(pregunta=texto)], set(), PE.PATRONES_REALES, frozenset())
@@ -384,7 +386,9 @@ def test_no_entra_al_rag_ni_a_entrenar():
         if rel not in en_revision:
             continue
         fijado = subprocess.run(['git', 'show', f'{PE.REVISION}:{rel}'], cwd=RAIZ, capture_output=True, check=True).stdout
-        assert json.loads(fijado) == json.loads(ruta.read_text(encoding='utf-8')), rel
+        # LIMPIEZA-CODIGOS (2026-11-22): el repositorio público escribe los códigos de alimentador y de SET inventados; la
+        # revisión fijada trae los de antes. Se compara con la misma regla que los inventa: ninguna otra cosa cambia.
+        assert json.loads(anonimizar_codigos(fijado.decode('utf-8'))) == json.loads(ruta.read_text(encoding='utf-8')), rel
 
 
 def test_bancos_y_valle_queda_pendiente(filas):

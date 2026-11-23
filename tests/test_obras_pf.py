@@ -422,7 +422,7 @@ def test_conductor_terna_una_obra_guardada_sin_tipo_se_abre_igual():
 @pytest.mark.parametrize("semilla", SEMILLAS)
 def test_la_mitad_partida_por_una_carga_nueva_es_su_tramo_entero(semilla):
     """098:RF-38 — con las cargas nuevas apartadas al grabar, la mitad «(1)» que dejó una carga al partir un tramo no
-    existe: la obra la toma como el tramo entero, una vez. CA101 (2026-11-07): «SEC_1091_1081392(1) no es del
+    existe: la obra la toma como el tramo entero, una vez. CA191 (2026-11-07): «SEC_1091_1081392(1) no es del
     alimentador» y toda terna por ahí salía «no cumple» sin medirse."""
     rng = random.Random(semilla)
     kv = rng.choice([10.0, 22.9])

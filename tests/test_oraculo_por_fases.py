@@ -1,6 +1,6 @@
 """El oráculo calcula todo lo del modelo, y por fases (spec 082).
 
-Medido contra DIgSILENT el 2026-11-03: el flujo equilibrado y sin bancos daba 0,802 p.u. en TI01 de
+Medido contra DIgSILENT el 2026-11-03: el flujo equilibrado y sin bancos daba 0,802 p.u. en TI09 de
 una distribuidora real, donde DIgSILENT tiene 0,790, y 0,804 p.u. en C+æ02 de una distribuidora real, donde tiene 0,934,
 y a C+æ02 le quitaba así el 57 % de su demanda sin motivo.
 """
@@ -174,7 +174,7 @@ def test_cada_sed_conserva_su_transformador_y_su_demanda(tmp_path, fase):
 
 
 def test_una_convergencia_sin_tensiones_no_es_convergencia(tmp_path):
-    """082:RF-9 — ``runpp_3ph`` dice «convergió» con todo en nan: TI01 y C+æ02 con toda su demanda."""
+    """082:RF-9 — ``runpp_3ph`` dice «convergió» con todo en nan: TI09 y C+æ02 con toda su demanda."""
     modelo = _modelo(tmp_path)
     _en_fase(modelo)
     _escalar(modelo, 10_000.0)

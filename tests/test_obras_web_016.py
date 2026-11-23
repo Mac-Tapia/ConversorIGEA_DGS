@@ -30,7 +30,7 @@ def client(tmp_path, monkeypatch, guion_falso):
 
 def _espacio(client):
     wid = client.post('/api/workspaces').json()['id']
-    vincular_proyecto(client, wid, 'P', ['TA225', 'IN111'])
+    vincular_proyecto(client, wid, 'P', ['TA295', 'IN191'])
     return wid
 
 
@@ -40,27 +40,27 @@ def test_las_obras_nuevas_se_guardan_con_sus_campos(client):
     extremos), migración (nodo y tensión) y sección de toda la troncal con tipo de cable."""
     wid = _espacio(client)
     url = f'/api/workspaces/{wid}/obras'
-    enlace = {'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111', 'casos': [CON], 'tipo': TIPO,
+    enlace = {'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191', 'casos': [CON], 'tipo': TIPO,
               'minima_m': 5, 'destino': '-14.03, -75.77'}
-    migracion = {'clase': 'migracion', 'alimentador': 'IN111', 'casos': [CON], 'nodo': 'NODE_7',
+    migracion = {'clase': 'migracion', 'alimentador': 'IN191', 'casos': [CON], 'nodo': 'NODE_7',
                  'kv_destino': 22.9}
-    seccion = {'clase': 'seccion', 'alimentador': 'IN111', 'casos': [SIN, CON], 'toda_troncal': True,
+    seccion = {'clase': 'seccion', 'alimentador': 'IN191', 'casos': [SIN, CON], 'toda_troncal': True,
                'tipo': TIPO, 'tipo_cable': {'nombre': 'N2XSY_120', 'clase': 'TypLne'}}
     for obra in (enlace, migracion, seccion):
         r = client.post(url, json=obra)
         assert r.status_code == 201, r.text
     guardadas = client.get(url).json()
-    assert guardadas[0]['cede'] == 'IN111' and guardadas[0]['minima_m'] == 5
+    assert guardadas[0]['cede'] == 'IN191' and guardadas[0]['minima_m'] == 5
     assert guardadas[1]['nodo'] == 'NODE_7' and guardadas[2]['toda_troncal'] is True
     assert guardadas[2]['tipo_cable']['nombre'] == 'N2XSY_120'
 
 
 @pytest.mark.parametrize('obra, dice', [
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111', 'casos': [SIN, CON], 'tipo': TIPO},
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191', 'casos': [SIN, CON], 'tipo': TIPO},
      'solo en «Con proyecto»'),
-    ({'clase': 'migracion', 'alimentador': 'IN111', 'casos': [SIN, CON], 'nodo': 'N7', 'kv_destino': 22.9},
+    ({'clase': 'migracion', 'alimentador': 'IN191', 'casos': [SIN, CON], 'nodo': 'N7', 'kv_destino': 22.9},
      'solo en «Con proyecto»'),
-    ({'clase': 'terna', 'alimentador': 'IN111', 'casos': [SIN]}, 'pasa siempre'),
+    ({'clase': 'terna', 'alimentador': 'IN191', 'casos': [SIN]}, 'pasa siempre'),
 ])
 def test_la_api_rechaza_los_casos_que_no_valen(client, obra, dice):
     """016:RF-71, 016:RF-13 — la API no guarda un enlace o una migración fuera de «Con

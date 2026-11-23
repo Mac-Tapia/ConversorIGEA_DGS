@@ -42,7 +42,7 @@ lo que pasa al plan y en los avisos que muestra, que ya se pintan como lista.
 `objetos_de_variacion(v)` devuelve `(clase, nombre)` de los objetos de todas sus etapas
 (`IntSstage.GetContents('*')`), una vez por variación. Una variación es **del operador**
 si no es `Carga_…` y no es un ajuste «puro». Un ajuste puro es un `Ajuste_<alim>_…`
-cuyas etapas solo contienen `ElmLod` del alimentador. `_3` de CA101, con 168 `ElmLod` y 4
+cuyas etapas solo contienen `ElmLod` del alimentador. `_3` de CA191, con 168 `ElmLod` y 4
 `ElmTr2`, sale del operador. `clasificar()` añade el grupo `operador`. `anteriores` queda
 solo con los ajustes puros.
 
@@ -158,7 +158,7 @@ ajuste anterior no se compara nada (RF-13).
 - `tests/test_native_project_gate.py` o `test_powerfactory_binding.py`: una modificación
   manual da aviso y no bloquea (014:RF-17).
 - Número de alimentadores sorteado con `CSG_SCALE_SEED`, como en las pruebas actuales.
-- Prueba en DIgSILENT con CA101 (T9): el ajuste deja `_3` activa en «Sin proyecto» y
+- Prueba en DIgSILENT con CA191 (T9): el ajuste deja `_3` activa en «Sin proyecto» y
   «Con proyecto», y repetir una inserción no crea cargas duplicadas.
 
 ## Riesgos

@@ -13,12 +13,12 @@ async function cargar() {
   return import(`data:text/javascript;base64,${codigo}`);
 }
 
-// Como SE0001 de PA217 (2026-11-12): Y con un dígito de menos, propuesta la Y entera.
+// Como SE0001 de PA297 (2026-11-12): Y con un dígito de menos, propuesta la Y entera.
 const PROPUESTA = { campo: 'CoordY', texto: 'Y = 8 476 517', cambios: { CoordY: 8476517 }, nodo: '18943', distancia_m: 0 };
 const RECHAZO = {
-  sed: 'SE0001', hoja: 'formulario', alimentador: 'PA217', nodo: '18680', distancia_m: 7990000, radio_m: 8745,
-  tope_m: 8745, tope_del_perfil: false, fuente: 'red convertida de PA217', fuera: true,
-  mensaje: 'SE0001: el punto (X 374 207,8; Y 476 517) queda a 7 990 km de PA217; ¿quiso decir Y = 8 476 517?',
+  sed: 'SE0001', hoja: 'formulario', alimentador: 'PA297', nodo: '18680', distancia_m: 7990000, radio_m: 8745,
+  tope_m: 8745, tope_del_perfil: false, fuente: 'red convertida de PA297', fuera: true,
+  mensaje: 'SE0001: el punto (X 374 207,8; Y 476 517) queda a 7 990 km de PA297; ¿quiso decir Y = 8 476 517?',
   propuestas: [PROPUESTA],
 };
 
@@ -47,7 +47,7 @@ test('004:RF-72; 004:RF-78; 004:RF-80: tras simular o aplicar, el nodo, la líne
   assert.match(aDelNodo({ distancia_m: 12, nodo: '18943' }), /^a 12 m del nodo 18943$/);
   const texto = textoDeLaConexion({
     ubicacion: { ...RECHAZO, fuera: false, distancia_m: 12, nodo: '18943' }, longitud_linea_m: 40,
-    reemplaza: { variaciones: ['Carga_SE0001_PA217_20261112_154934'], cambios: ['su ubicación'] },
+    reemplaza: { variaciones: ['Carga_SE0001_PA297_20261112_154934'], cambios: ['su ubicación'] },
   });
   assert.match(texto, /a 12 m del nodo 18943/);
   assert.match(texto, /línea de conexión de 40 m/);

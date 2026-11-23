@@ -300,7 +300,7 @@ def test_todo_vuelve_a_su_estado_y_no_se_graba_nada(semilla):
 def test_restitucion_sin_avisos_por_el_escenario():
     """011:RF-119 — la comparación de la restitución se hace con el escenario apagado,
     como se tomó la foto: con él encendido, cada scale0 calibrado salía «distinto»
-    (311 avisos falsos en «Con proyecto» de IN111 + TA225, 2026-10-15)."""
+    (311 avisos falsos en «Con proyecto» de IN191 + TA295, 2026-10-15)."""
     app, _ = _red(random.Random(7), n=4, seccionadores=[2], escenario=True)
     app.ldf = _flujo(app, capacidad_kw=5.5 * P_SED_KW)
     caso = next(c for c in casos_pf.casos_del_proyecto(app).values() if c.loc_name == SIN)
@@ -594,8 +594,8 @@ def test_capacidad_sin_seccionador_viable_no_se_calcula():
 
 # --------------------------------------------------------------------------- spec 016
 def test_enlace_entre_tensiones_distintas_no_se_cierra():
-    """016:RF-62, 016:RF-63 — si las dos barras del enlace tienen distinta tensión (IN111 a
-    10 kV, TA225 a 22,9 kV), no se cierra ni se calcula por él, y se dicen las dos."""
+    """016:RF-62, 016:RF-63 — si las dos barras del enlace tienen distinta tensión (IN191 a
+    10 kV, TA295 a 22,9 kV), no se cierra ni se calcula por él, y se dicen las dos."""
     app, _n = _red(random.Random(5))
     fin_b = _por_indice(_alim(app, 'B').GetObjs('ElmTerm'))[-1]
     _sin_grabar(fin_b, uknom=22.9)

@@ -1,4 +1,4 @@
-"""Generador de exports CYMDIST sintéticos de las pruebas: vive en ``convertersmartgrid.dominio.benchmarks.sintetico``.
+"""Generador de TXT sintéticos de las pruebas: vive en ``convertersmartgrid.dominio.benchmarks.sintetico``.
 
 Se movió al núcleo en la spec 112 (T13, opción A), porque el benchmark publicable sale de ``ExportSpec`` y el código de
 ``src/`` no puede importar de ``tests/``. Aquí se reexporta por nombre —también lo privado que alguna prueba usa—, para

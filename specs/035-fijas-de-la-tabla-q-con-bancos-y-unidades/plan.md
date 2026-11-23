@@ -22,4 +22,4 @@ Decisiones:
 
 Pruebas: `tests/test_q_con_bancos.py` (cuadre de la Q con un flujo sintético lineal, sin margen y
 sin base), `tests/test_tabla_en_el_instante.py` (la tabla y el ajuste dan la misma P y Q) y
-`tests/test_unidades_pf.py` (con `fake_pf`); SM218 en DIgSILENT desde la web (T6).
+`tests/test_unidades_pf.py` (con `fake_pf`); SM298 en DIgSILENT desde la web (T6).

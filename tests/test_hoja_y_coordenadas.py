@@ -208,7 +208,7 @@ def test_formato_desconocido_se_rechaza(tmp_path):
 def test_la_grid_conserva_la_curva_con_el_tope_de_powerfactory():
     """010:RF-7 — con más puntos que el tope se guardan los extremos y los que dan la forma.
 
-    Tomar puntos a intervalos fijos (4 por mitad) cortaba las curvas: en IN111 + TA225
+    Tomar puntos a intervalos fijos (4 por mitad) cortaba las curvas: en IN191 + TA295
     la grid se separaba hasta 257 m del trazado que dibuja el mapa.
     """
     from convertersmartgrid.adaptadores.dgs import PUNTOS_POR_CONECTOR_PF, _puntos_que_dan_la_forma

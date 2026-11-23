@@ -14,7 +14,7 @@ Cómo lo resuelve. Empíricamente: crea cada orden de cálculo en un caso de est
 la ejecuta. Un módulo sin licencia falla con un error de licencia; uno licenciado
 devuelve un código de cálculo. Es la única prueba que no miente.
 
-    py -3.12 tools\\check_pf_license.py --project 20260921-034855_CSG_AL104
+    py -3.12 tools\\check_pf_license.py --project 20260921-034855_CSG_AL194
 
 Sin ``--project`` usa el proyecto activo. Conviene elegir un alimentador pequeño: algunas
 órdenes recorren toda la red.

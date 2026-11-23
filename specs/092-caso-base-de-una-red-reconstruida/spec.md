@@ -5,7 +5,7 @@ hecho, si tiene un antecedente, debe corregir; no puede obviar lo que dice; ve a
 
 ## Contexto y objetivo
 
-Al recalibrar AL209 y PA217 de `20261103-013907_CSG_SISTEMA_PISCO` desde la web, la verificación del «Caso base»
+Al recalibrar AL299 y PA297 de `20261103-013907_CSG_SISTEMA_PISCO` desde la web, la verificación del «Caso base»
 falló dos veces con «SOURCE_RUN_MISMATCH: SISTEMA_PISCO sale de una reconstrucción y la red no está cargada en esta
 sesión de la web. Pulse «Cargar / listar alimentadores»», también después de pulsarlo. La causa es un círculo:
 

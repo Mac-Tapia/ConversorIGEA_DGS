@@ -7,7 +7,7 @@ para Empresa A»).
 El informe modelo de Empresa A tiene un libro par (`informeModeloperdidas.xlsx`): su hoja `Informe` arma las
 tablas con las hojas de resultados y da el precio de compra. El informe solo leía de él dos hojas: se usó un precio
 de 0,1443 S/./kWh sin fuente y el libro dice 0,2307. El libro trae además datos escritos a mano de EMAPICA, que no
-deben llegar al libro de otro cliente, como la solicitud de Minera Santa María llegó al informe de INKA (063:RF-48).
+deben llegar al libro de otro cliente, como la solicitud de Minera Cliente S llegó al informe de CLIENTE K (063:RF-48).
 
 ## Requisitos
 

@@ -51,7 +51,7 @@ def test_capacidad_por_unidades_en_paralelo(tmp_path):
     assert eq['transformadores']['TR_A'].kv_baja == 0.38
     assert eq['transformadores']['TR_A'].grupo == ('D', 'YN', 5)
     assert abs(eq['lineas']['SEC_1'].ka - 0.426) < 1e-12
-    # Al aire con InomAir definido manda InomAir; a 0, ``sline`` (CA101: InomAir=0).
+    # Al aire con InomAir definido manda InomAir; a 0, ``sline`` (CA191: InomAir=0).
     assert abs(eq['lineas']['SEC_2'].ka - 0.2) < 1e-12
 
 

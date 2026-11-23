@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import importlib.util
 import os
+import re
 import sys
 from contextlib import contextmanager
 import time
@@ -173,6 +174,63 @@ def esperar_trabajo(client, job: dict, timeout: float = SIN_AVANCE_S, *, tope: f
             raise AssertionError(f'el trabajo {nombre} avanzaba pero no terminó en {max(tope, timeout)} s: '
                                  f'«{state["status"]}», {state.get("progress")!r}')
         time.sleep(pausa)
+
+
+#: Códigos de alimentador del perfil (letras de la SET y tres cifras) y SET por número o por siglas.
+_CODIGO_ALIMENTADOR = re.compile(r'(?<![A-Za-z0-9])([A-Z]{2,5})(\d)\d(\d)(?![A-Za-z0-9])')
+_SET_NUMERO = re.compile(r'(?<![A-Za-z0-9])SET (\d\d)(?!\d)')
+_SET_SIGLAS = re.compile(r'(?<![A-Za-z0-9])SET [A-Z]([A-Z]+)(?![A-Za-z0-9])')
+
+
+def anonimizar_codigos(texto: str) -> str:
+    """Los códigos de un perfil real como los inventados de las pruebas, con la misma regla y sin nombrarlos.
+
+    LIMPIEZA-CODIGOS (2026-11-22): el repositorio es público y sus pruebas no escriben los códigos reales de
+    alimentador ni de SET; el perfil de la distribuidora de prueba (E1 de ``test_sin_nombres_reales``) sí los trae,
+    porque es su tabla. Las pruebas que comprueban esa tabla la leen a través de esta regla: la segunda cifra del
+    alimentador pasa a 9 (las siglas y el nivel de tensión de la primera cifra se conservan), la SET por número
+    suma 40 y la SET por siglas cambia su primera letra por Q. Ningún código del perfil tiene un 9 en la segunda
+    cifra ni una SET por encima de la 59, así que la regla no confunde dos alimentadores ni dos SET.
+    """
+    texto = _CODIGO_ALIMENTADOR.sub(lambda m: m.group(1) + m.group(2) + '9' + m.group(3), texto)
+    texto = _SET_NUMERO.sub(lambda m: f'SET {int(m.group(1)) + 40}', texto)
+    return _SET_SIGLAS.sub(lambda m: 'SET Q' + m.group(1), texto)
+
+
+#: Lista local de términos que el repositorio público no escribe (la misma del checklist de integración), fuera de git.
+VARIABLE_TERMINOS = 'CSG_TERMINOS_PROHIBIDOS'
+
+
+def codigo_real(inventado: str) -> str:
+    """El código real del que ``inventado`` es la versión de las pruebas (la regla de :func:`anonimizar_codigos`).
+
+    Las pruebas con datos reales (``CSG_RED``, ``CSG_DEMANDA_DIR``…) necesitan el alimentador real, y el repositorio
+    público solo escribe su versión inventada. El real sale de la lista local de ``CSG_TERMINOS_PROHIBIDOS``: el único
+    código con las mismas siglas y las mismas cifras salvo la segunda. Sin la lista, la prueba se omite como las que
+    no tienen sus datos, y la suite no se da por buena.
+    """
+    import json
+
+    import pytest
+
+    ruta = os.environ.get(VARIABLE_TERMINOS, '').strip()
+    if not ruta or not Path(ruta).is_file():
+        pytest.skip(f'Defina {VARIABLE_TERMINOS} con la lista local de términos: da el código real de {inventado}')
+    m = re.fullmatch(r'([A-Za-z]+)(\d)9(\d*)', inventado)
+    assert m, f'{inventado} no es un código inventado de las pruebas (segunda cifra 9)'
+    patron = re.compile(re.escape(m.group(1)) + m.group(2) + r'\d' + m.group(3), re.I)
+    lista = json.loads(Path(ruta).read_text(encoding='utf-8')).get('codigo de alimentador o SET', [])
+    reales = [c for c in lista if patron.fullmatch(c) and c[len(m.group(1)) + 1] != '9']
+    assert len(reales) == 1, f'{inventado}: {len(reales)} códigos reales posibles en la lista local'
+    return reales[0].lower() if inventado.islower() else reales[0]
+
+
+def perfiles_anonimizados(destino: Path) -> Path:
+    """Copia de ``config/perfiles`` con sus códigos pasados por :func:`anonimizar_codigos`; devuelve la carpeta."""
+    destino.mkdir(parents=True, exist_ok=True)
+    for origen in (Path(__file__).resolve().parents[1] / 'config' / 'perfiles').glob('*.json'):
+        (destino / origen.name).write_text(anonimizar_codigos(origen.read_text(encoding='utf-8')), encoding='utf-8')
+    return destino
 
 
 def contrato_fisico() -> dict:

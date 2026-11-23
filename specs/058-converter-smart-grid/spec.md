@@ -7,7 +7,7 @@ de una empresa». Nombres técnicos elegidos por el usuario: `convertersmartgrid
 
 ## Contexto y objetivo
 
-El proyecto se llamaba «Conversor IGEA-DGS» porque nació para los TXT de IGEA/CYMDIST. Hoy
+El proyecto se llamaba «Conversor IGEA-DGS» porque nació para los TXT de IGEA. Hoy
 convierte TXT, MDB y VNR-GIS de cualquier distribuidora (principio 13), e IGEA es el producto
 de otra empresa: su nombre aparecía en la carpeta principal (`ConversorIGEA_DGS`), el paquete
 Python (`igea_dgs`), los comandos (`igea-dgs`, `igea-dgs-web`), 52 variables de entorno `IGEA_*`,

@@ -1,7 +1,7 @@
 """Un libro mensual que repite otro mes, día a día (105:RF-13, RF-14; y para la spec 104).
 
 ``0426clientesImportantes.xlsb`` trae para abril los mismos valores que marzo en el mismo día y la misma hora: los cuatro
-clientes de AL209 con los dos meses coinciden en el 100 % de los registros. Leído como medición, abril parecía un mes
+clientes de AL299 con los dos meses coinciden en el 100 % de los registros. Leído como medición, abril parecía un mes
 igual a marzo y falseaba el crecimiento. Aquí no se abre ningún libro: solo se comparan series ``(t, P, Q)``, y así lo
 usan la evolución de los clientes fijos y el reconocimiento de libros nuevos.
 """

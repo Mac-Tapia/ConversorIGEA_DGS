@@ -95,7 +95,7 @@ integrador ya había visto los mensajes reservados; por eso se declara también 
   resuelve el modelo local. De la charla reservada (RF-17 a RF-19) cuenta la que se colaría a ejecutarse sola (como mucho
   el 2 %, con al menos 100 mensajes medidos), no la que no reconoce como `ninguna` y queda bajo el umbral. La puerta de
   todas las órdenes queda en la decisión para comparar.
-- RF-36: EL SISTEMA resolverá en el plan las listas de alimentadores sin las palabras de unión («CA101 a CHN102»), la ruta
+- RF-36: EL SISTEMA resolverá en el plan las listas de alimentadores sin las palabras de unión («CA191 a CHN192»), la ruta
   que existe dentro de un trozo con palabras de más, y el texto de `pregunta` y `clasificar_informe` como el mensaje entero;
   `buscar_internet` sigue con su trozo, para no sacar a la red las palabras de la orden (086:RF-24).
 - RF-37: EL SISTEMA elegirá el umbral de ejecución con el límite inferior de Wilson (95 %) del acierto en calibración, no

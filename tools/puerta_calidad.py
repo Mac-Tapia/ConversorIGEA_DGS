@@ -60,7 +60,7 @@ GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tes
 VARIABLES = ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT', 'CSG_MDB', 'CSG_EQUIPMENT_MDB', 'CSG_DEMANDA_DIR',
              'CSG_VNR_BAK', 'CSG_SOLICITUD_PDF', 'CSG_SOLICITUD_DIR', 'CSG_EVIDENCIA_NATIVA', 'CSG_MCP_PYTHON',
              'CSG_PF_PYTHON_39', 'CSG_ASISTENTE_REAL', 'CSG_CATALOGO_PROYECTO',
-             'CSG_SICODI', 'CSG_INTERRUPCIONES')
+             'CSG_SICODI', 'CSG_INTERRUPCIONES', 'CSG_TERMINOS_PROHIBIDOS')
 
 #: 106:RF-13: lo que cambia lo que ven todas las pruebas: con uno de estos, la puerta del commit corre la suite entera.
 DE_TODA_LA_SUITE = ('tests/conftest.py', 'pyproject.toml')

@@ -1,7 +1,7 @@
 # Spec 056 — Nombres y mensajes según la fuente: cada fuente con sus propias palabras
 
 Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-11-03) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al convertir
-NJA202 (W12882) de Empresa B desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
+NJA292 (W19882) de Empresa B desde su VNR-GIS: «¿por qué aparece IGEA y CYMDIST? Esto no
 debería aparecer, la otra empresa no usa esos software; si es universal, nada debería aparecer
 como o con esos».
 
@@ -9,7 +9,7 @@ como o con esos».
 
 La fuente VNR-GIS (spec 023) se traduce por dentro a tablas con la forma de CYMDIST, y los
 textos se escribieron para los TXT. Una conversión de Empresa B salió el 2026-11-01 con
-el proyecto `20261101-063543_IGEA_W12882`, la cabecera del DGS «CYMDIST to DIgSILENT DGS
+el proyecto `20261101-063543_IGEA_W19882`, la cabecera del DGS «CYMDIST to DIgSILENT DGS
 converter … IGEA», avisos como «0 conservaron Length del TXT», «CYMDIST B1/B0», «Full IGEA line
 geometry» o «el RED export no trae REGULATOR SETTING (solo catálogo BD_Equipo)», y la web
 titulada «Conversor IGEA/CYMDIST → DGS». Contradice el principio 13 y hace creer al operador
@@ -21,26 +21,37 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 ## Requisitos funcionales (EARS)
 
 - RF-1: EL SISTEMA nombrará cada proyecto que importe en DIgSILENT con la fuente de la que
-  viene (TXT, MDB o VNR-GIS) y sin «IGEA» ni «CYMDIST» si no es un TXT de CYMDIST.
+  viene (TXT, MDB o VNR-GIS) y sin «IGEA» ni «CYMDIST».
 - RF-2: EL SISTEMA seguirá reconociendo como suyos los proyectos ya importados con el nombre
   anterior (028:RF-7).
 - RF-3: EL SISTEMA escribirá en la cabecera del DGS la fuente de la que viene, sin «CYMDIST» ni
-  «IGEA» si no es un TXT de CYMDIST.
+  «IGEA».
 - RF-4: EL SISTEMA nombrará en cada aviso e informe los ficheros, tablas o campos de la fuente
   que se cargó, nunca los de otra; lo que esa fuente no puede traer no se avisa con los nombres
   de otra.
-- RF-5: EL SISTEMA solo nombrará CYMDIST en la opción de entrada de los TXT y de la .mdb; el
+- RF-5: EL SISTEMA solo nombrará CYMDIST en la opción de entrada de la .mdb; el
   título de la web es el de la spec 058.
 - RF-6: EL SISTEMA tendrá una prueba que falle si una conversión de MDB o de VNR-GIS deja
   «IGEA», «CYMDIST», «TXT», «BD_Equipo» o «RED export» en sus salidas o en el nombre del
   proyecto.
 - RF-7: EL SISTEMA nombrará cada alimentador con el código operativo que da la fuente —en
-  VNR-GIS, `EtiquetaSalida` de la salida MT (NJA202, no W12882)— en la lista, el DGS, el proyecto
+  VNR-GIS, `EtiquetaSalida` de la salida MT (NJA292, no W19882)— en la lista, el DGS, el proyecto
   de DIgSILENT y la calibración; sin etiqueta, o con una repetida, conserva el código interno y
   se anota. El código interno queda en los metadatos para rastrear la salida.
 - RF-8: EL SISTEMA rotulará en la web la entrada de texto como «TXT» y sus mensajes al operador dirán «los tres TXT
-  (RED, CARGA y BD_Equipo)», sin el nombre del programa que los exporta. (Orden del usuario del 17-11: «no debe decir
+  (RED, CARGA y BD_Equipo)», sin nombrar ningún programa. (Orden del usuario del 17-11: «no debe decir
   TXT de CYMDIST, solo que diga TXT».)
+- Aclaración de RF-8 (2026-11-22, orden del usuario por el coordinador, tarjeta LIMPIEZA-CODIGOS): los TXT (RED, CARGA
+  y BD_Equipo) no los exporta CYMDIST. Ningún texto versionado —código, mensajes, ayuda de la línea de órdenes, guías,
+  manuales, specs y skills— dirá ni dará a entender que vienen de CYMDIST («los TXT que exporta CYMDIST», «TXT de
+  CYMDIST», «CYMDIST TXT», «export CYMDIST» por los TXT): se dicen «los TXT» o «los ficheros TXT (RED, CARGA y
+  BD_Equipo)». CYMDIST se sigue nombrando donde lo es: la base Access (.mdb), su estudio (.zxst/.xst), la exportación
+  de VNR-GIS a su formato (`vnr-etl --format cymdist`, `exporters`, `cymdist_bridge`) y el nombre interno del dataset
+  común (`CymdistDataset`), que no es un texto para el operador. Esta spec y las pruebas que citan los textos de antes
+  quedan como explicación.
+- Aclaración de RF-3 (2026-11-22, por la aclaración de RF-8): la cabecera del DGS de los TXT dice «TXT to DIgSILENT
+  DGS converter». Un DGS escrito antes con «CYMDIST» se sigue leyendo como TXT al nombrar su proyecto (RF-1), y la
+  línea base de la 001 iguala esa línea al comparar, así que no hay que regenerarla: el resto del DGS no cambia.
 
 ## Fuera de alcance
 
@@ -56,4 +67,4 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
 ## Criterios de finalización
 
 - `grep -rnoE "056:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-7.
-- NJA202 convertido e importado por la web sin esas palabras en sus salidas ni en su proyecto.
+- NJA292 convertido e importado por la web sin esas palabras en sus salidas ni en su proyecto.

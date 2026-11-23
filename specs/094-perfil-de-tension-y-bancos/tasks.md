@@ -25,12 +25,12 @@ Lee: `specs/094-perfil-de-tension-y-bancos/spec.md` y `plan.md`.
 - [x] T10. [DIgSILENT] Sonda en un proyecto de prueba de la sesión: crear con `GrpPage.GetOrInsertPlot(…, 'VisPath', 1)`
       el perfil de un alimentador y leer qué atributo lo liga a su `ElmFeeder`. (RF-15)
       Hecho cuando: el atributo y su valor quedan anotados en esta tarea, y el proyecto de prueba, sin la página.
-      Hecho el 2026-11-06 en `20261106-065905_CSG_TXT_PRUEBA_007` («Sin proyecto», TM105): en modo motor
+      Hecho el 2026-11-06 en `20261106-065905_CSG_TXT_PRUEBA_007` («Sin proyecto», TM195): en modo motor
       `GetGraphicsBoard()` da None; el escritorio es el `SetDesktop` «Desktop» del caso. `SetVipage.GetOrInsertPlot(…,
       'VisPath', 1)` da None y en un `GrpPage` falla («method call failed»); `CreateObject('VisPath', nombre)` en una
-      `SetVipage` sí lo crea. Se liga con `feeder = [ElmFeeder]` (lista vacía al crear; leído de vuelta, TM105.ElmFeeder);
+      `SetVipage` sí lo crea. Se liga con `feeder = [ElmFeeder]` (lista vacía al crear; leído de vuelta, TM195.ElmFeeder);
       `iopt_x` es 0 (distancia). Las páginas de la sonda se borraron; el proyecto quedó con su única página PRUEBA_007.
-- [x] T5. [DIgSILENT] AL209 recalibrado desde la web, con su perfil y los bancos propuestos desde él. (Todos)
+- [x] T5. [DIgSILENT] AL299 recalibrado desde la web, con su perfil y los bancos propuestos desde él. (Todos)
       Hecho cuando: la recalibración guarda el perfil, la web lo dibuja en el navegador real con su límite y «Con proyecto»
       aplica los bancos del perfil, confirmados en DIgSILENT.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

@@ -10,10 +10,10 @@ cada uno debe ser el correcto; nada debe ser por defecto, debe ser según el arc
 
 El espacio nuevo nacía con `input_mode = 'txt'` (`DEFAULT_OPTIONS`). El 2026-11-01 la spec 058
 cambió la clave con la que el navegador recuerda su espacio; la web no encontró el de Empresa B
-(`aee74107…`, VNR-GIS), creó uno vacío y lo mostró como «Tres TXT de CYMDIST», como si la
+(`aee74107…`, VNR-GIS), creó uno vacío y lo mostró como «Tres TXT», como si la
 fuente fuera esa. Dos fallos: perder el espacio (058:RF-6) y suponer una fuente que nadie cargó.
 
-El conversor tiene tres fuentes: los TXT de CYMDIST, la base Access (.mdb) y el paquete VNR-GIS.
+El conversor tiene tres fuentes: los TXT (RED, CARGA y BD_Equipo), la base Access (.mdb) y el paquete VNR-GIS.
 La fuente la dice el fichero que se carga, reconocido por su contenido; sin nada cargado no hay
 fuente; y el navegador vuelve al espacio con el que trabajaba.
 
@@ -23,7 +23,7 @@ fuente; y el navegador vuelve al espacio con el que trabajaba.
   nulo), y su lista de pendientes pedirá la fuente sin suponer una.
 - RF-2: CUANDO se abre un espacio guardado, EL SISTEMA tomará como fuente la del único grupo
   (TXT, MDB o VNR-GIS) que tenga entradas; sin entradas, el espacio queda sin fuente.
-- RF-3: CUANDO se carga un fichero en una de las tres entradas (TXT de CYMDIST, base Access o
+- RF-3: CUANDO se carga un fichero en una de las tres entradas (TXT, base Access o
   VNR-GIS), EL SISTEMA comprobará por su contenido que sea de esa entrada —TXT por sus tablas,
   Access por su cabecera, VNR-GIS por su formato— y la fuente del espacio pasará a ser esa.
 - Aclaración de RF-3 (2026-11-13, auditoría c7): la comprobación se hace sobre lo subido en su staging, antes de tocar

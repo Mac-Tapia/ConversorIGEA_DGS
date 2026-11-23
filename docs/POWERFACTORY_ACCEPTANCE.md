@@ -24,8 +24,8 @@ set PYTHONPATH=C:\Program Files\DIgSILENT\PowerFactory 2024\Python\3.12
 set PATH=C:\Program Files\DIgSILENT\PowerFactory 2024;%PATH%
 
 python tools\powerfactory_acceptance.py ^
-  --import-dgs output\gui\AL104.dgs ^
-  --manifest output\gui\AL104_geography.json ^
+  --import-dgs output\gui\AL194.dgs ^
+  --manifest output\gui\AL194_geography.json ^
   --require-diagram ^
   --run-load-flow ^
   --fix-until-converge ^
@@ -129,17 +129,17 @@ In the web UI, select converted feeder(s) and press **«Cargar en DIgSILENT + fl
 | Capacitor banks (`ElmShnt`) | Only if RED has placement | Current `referencia` RED has **no** `CAPACITOR SETTING` (BD_Equipo catalog alone is not enough) |
 | Voltage regulators (`ElmVoltreg`) | Only if RED has placement | Current RED has **no** `REGULATOR SETTING` |
 
-The gate **expects capacitors=0 and regulators=0** for typical CYMDIST exports and reports that clearly in warnings. When those SETTINGS appear in a future TXT, the converter must map them before PF can load them.
+The gate **expects capacitors=0 and regulators=0** for typical TXT files and reports that clearly in warnings. When those SETTINGS appear in a future TXT, the converter must map them before PF can load them.
 
 ## Manual procedure (without `--import-dgs`)
 
-1. Import `IN111.dgs` with **File → Import → DGS** in PowerFactory.
+1. Import `IN191.dgs` with **File → Import → DGS** in PowerFactory.
 2. Activate the project/network named like the feeder.
 3. Activate Study Case base + Operation Scenario (or let `--ensure-scenario` create one).
 4. Run:
 
 ```bat
-python tools\powerfactory_acceptance.py --manifest IN111_geography.json --require-diagram --run-load-flow --export-wmf IN111_rendered.wmf
+python tools\powerfactory_acceptance.py --manifest IN191_geography.json --require-diagram --run-load-flow --export-wmf IN191_rendered.wmf
 ```
 
 ## Report fields

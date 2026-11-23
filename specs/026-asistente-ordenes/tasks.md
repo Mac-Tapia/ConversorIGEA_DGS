@@ -30,7 +30,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       plan con la misma validación de la web: «carga la fuente» sin entradas se ofrecía para
       confirmar y fallaba después en la ruta.
       Corregido el 2026-11-14 (prueba del auditor con órdenes reales, F1): el vocabulario de alimentadores era el
-      NetworkID de la fuente y «convierte el PA217» decía que faltaban alimentadores. Ahora es el código del
+      NetworkID de la fuente y «convierte el PA297» decía que faltaban alimentadores. Ahora es el código del
       alimentador, como en la tabla de la web, y una orden con el NetworkID resuelve al mismo
       (`services.asistente_vocabulario`, `plan._alimentadores`). Evidencia: `pytest -q tests/test_asistente_vocabulario.py`,
       con las dos disposiciones del TXT, cuatro convenciones de NetworkID y filas de .mdb y VNR-GIS, sorteadas.
@@ -60,7 +60,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (RF-29 a RF-32)
       Hecho cuando: `pytest -q tests/test_asistente_internet.py` en verde.
       Hecho el 2026-10-24: probado contra GitHub y arXiv reales (8 repositorios y 5 artículos);
-      «busca en github caída de tensión en IN111» se bloquea sin salir de la máquina.
+      «busca en github caída de tensión en IN191» se bloquea sin salir de la máquina.
 - [x] T12. [DIgSILENT] Aceptación: una orden real de cada tarea de RF-11 desde la consola, en DIgSILENT;
       validación RF por RF; suite completa con las siete variables y ninguna omitida.
       (Todos)
@@ -68,7 +68,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       En curso el 2026-10-24: los 32 RF citados por pruebas en verde; en la web real, consultas
       (estado, proyectos, PIDE, episodios, preguntas con cita, clasificación, búsqueda y bloqueo),
       evaluación del gemelo lanzada sola, reentrenar la PINN confirmado y planes de las órdenes que
-      escriben (sistema Pisco con 2026-07, verificar el «Caso base» de IN111–TA225). Falta
+      escriben (sistema Pisco con 2026-07, verificar el «Caso base» de IN191–TA295). Falta
       confirmar en DIgSILENT las tareas que lo usan (sistema completo, cargas, obras, estudios,
       transferencia, PIDE e informes): el 2026-10-24 otra sesión tenía DIgSILENT ocupado y el espacio
       no tenía entradas.

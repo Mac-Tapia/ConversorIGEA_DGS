@@ -139,8 +139,8 @@ def test_si_el_flujo_falla_la_carga_tambien_vuelve():
 def test_carga_o_caso_que_no_existen_lo_dicen():
     """017:RF-70 — sin la carga o el caso, el informe dice por qué y no toca nada."""
     app = _App()
-    informe, codigo = guion.calcular(app, {'carga': 'LCA101', 'delta_kw': 1.0})
-    assert codigo == 2 and 'LCA101' in informe['error'] and app.flujos == 0
+    informe, codigo = guion.calcular(app, {'carga': 'LCA191', 'delta_kw': 1.0})
+    assert codigo == 2 and 'LCA191' in informe['error'] and app.flujos == 0
     informe, codigo = guion.calcular(app, {'carga': 'LElCarmen10', 'caso': '2040_D'})
     assert codigo == 2 and '2040_D' in informe['error']
 

@@ -134,12 +134,12 @@ def test_extension_is_created_once_and_is_idempotent():
 
 
 def test_resolution_supports_shunt_name_and_terminal():
-    record = _assignment('ElmShnt', 'BC_450', 'CA101', 'N1')
+    record = _assignment('ElmShnt', 'BC_450', 'CA191', 'N1')
     bank = _RuntimeObject('ElmShnt', 'BC_450', 'N1')
 
     plan = resolve_feeder_assignments([record], [bank])
 
-    assert plan[0].record.feeder == 'CA101'
+    assert plan[0].record.feeder == 'CA191'
 
 
 def test_extension_transaction_closes_even_when_api_raises():
@@ -235,17 +235,17 @@ def test_apply_assignment_rolls_back_if_a_write_fails():
 
 
 def test_metadatos_sin_red_se_resuelven_sin_ella():
-    """Metadatos de antes de que la identidad llevara la red (CA101 del 13/10 a las 12:18):
-    sin ``grid`` en el registro, la carga dentro de una SED de la red «CA101» se resuelve
+    """Metadatos de antes de que la identidad llevara la red (CA191 del 13/10 a las 12:18):
+    sin ``grid`` en el registro, la carga dentro de una SED de la red «CA191» se resuelve
     igual; con dos candidatas, sigue siendo ambigua."""
-    red = _RuntimeObject('ElmNet', 'CA101')
+    red = _RuntimeObject('ElmNet', 'CA191')
     sed = _RuntimeObject('ElmSubstat', 'SE21194', substation=red)
     carga = _RuntimeObject('ElmLod', 'SE21194', 'SE21194_BT', sed)
-    record = _assignment('ElmLod', 'SE21194', 'CA101', 'SE21194_BT', 'SE21194')
+    record = _assignment('ElmLod', 'SE21194', 'CA191', 'SE21194_BT', 'SE21194')
     plan = resolve_feeder_assignments([record], [carga])
-    assert [item.record.feeder for item in plan] == ['CA101']
+    assert [item.record.feeder for item in plan] == ['CA191']
 
-    otra_red = _RuntimeObject('ElmNet', 'PE104')
+    otra_red = _RuntimeObject('ElmNet', 'PE194')
     otra_sed = _RuntimeObject('ElmSubstat', 'SE21194', substation=otra_red)
     gemela = _RuntimeObject('ElmLod', 'SE21194', 'SE21194_BT', otra_sed)
     with pytest.raises(PowerFactoryMetadataError, match='ambiguos'):

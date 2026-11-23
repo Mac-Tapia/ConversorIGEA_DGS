@@ -169,8 +169,8 @@ def test_estudio_con_la_web_caida_a_media_corrida(client, monkeypatch):  # noqa:
     assert any('no terminó' in h for h in res['huecos']), res['huecos']
 
 
-def _si112(ws, monkeypatch, con, cargas=None):
-    """SI112 (2026-11-04): con la obra la carga queda en norma y un ramal sigue a 0,9449 p.u., límite 0,95."""
+def _si192(ws, monkeypatch, con, cargas=None):
+    """SI192 (2026-11-04): con la obra la carga queda en norma y un ramal sigue a 0,9449 p.u., límite 0,95."""
     sin = {'CAB': 1.0, 'RAMAL': 0.9452}
     monkeypatch.setattr(services, '_tolerancia_pu_del_perfil', lambda: 0.005)
     _correr(ws, monkeypatch, barras_de={'sin': sin, 'con': con, 'cargas': cargas or {**con, 'B_NUEVA': 0.93}})
@@ -192,7 +192,7 @@ def test_factibilidad_por_la_web_lista_el_deficit_previo(client, monkeypatch):  
     _wid, ws = _espacio(client)
     _carga_aplicada(ws)
     ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
-    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.963})
+    _si192(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.963})
 
     res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
 
@@ -210,7 +210,7 @@ def test_factibilidad_por_la_web_con_la_barra_de_la_carga_baja_no_pasa(client, m
     _wid, ws = _espacio(client)
     _carga_aplicada(ws)
     ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
-    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.94})
+    _si192(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449, 'B_NUEVA': 0.94})
 
     res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
 
@@ -223,7 +223,7 @@ def test_factibilidad_por_la_web_sin_barras_bajas_dice_factible_a_secas(client, 
     _wid, ws = _espacio(client)
     _carga_aplicada(ws)
     ws.obras_aplicadas = [{'project': 'PRY', 'variacion': 'V_OBRA', 'obra': OBRA}]
-    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.96, 'B_NUEVA': 0.97}, {'CAB': 1.0, 'RAMAL': 0.93, 'B_NUEVA': 0.93})
+    _si192(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.96, 'B_NUEVA': 0.97}, {'CAB': 1.0, 'RAMAL': 0.93, 'B_NUEVA': 0.93})
 
     res = services.informe_factibilidad(ws, None, FACTIBILIDAD)
 
@@ -235,7 +235,7 @@ def test_estudio_por_la_web_lista_el_deficit_previo(client, monkeypatch):  # noq
     """086:RF-49 — el informe de estudio, con lo que guardan sus flujos."""
     _wid, ws = _espacio(client)
     ws.obras = [OBRA]
-    _si112(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449})
+    _si192(ws, monkeypatch, {'CAB': 1.0, 'RAMAL': 0.9449})
     res = services.informe_estudio(ws, None, _formulario())
     assert any('Déficit previo, fuera de esta obra: RAMAL' in t for t in res['textos_bajo_limite'])
 
@@ -417,21 +417,21 @@ def test_pdf_con_un_apostrofo_en_la_ruta(tmp_path):
 def test_la_carga_sola_trae_su_set_y_la_tension_de_su_barra(monkeypatch):
     """017:RF-91 — la solicitud se propone con la SET de la estructura y la tensión nominal de la barra de
     la carga en el flujo guardado («Con proyecto» primero; si no está, la de la cabecera). Sin estructura ni
-    flujo, ``None``: se pide. CA101 (2026-11-13) volvía a pedir SET y tensión ya conocidas."""
+    flujo, ``None``: se pide. CA191 (2026-11-13) volvía a pedir SET y tensión ya conocidas."""
     from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, SetElectrica
 
-    estructura = Estructura(zonales=['Z'], sets={'SET 21': SetElectrica('SET 21', 'El Carmen', 'Z')},
-                            alimentadores={'CA101': AlimentadorEstructura('CA101', 'SET 21')})
+    estructura = Estructura(zonales=['Z'], sets={'SET 61': SetElectrica('SET 61', 'El Carmen', 'Z')},
+                            alimentadores={'CA191': AlimentadorEstructura('CA191', 'SET 61')})
     monkeypatch.setattr(services, 'estructura_del_espacio', lambda _ws: estructura)
-    flujos = {'sin': {'geo': {'CA101': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0]]}}},
-              'con': {'geo': {'CA101': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0],
+    flujos = {'sin': {'geo': {'CA191': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0]]}}},
+              'con': {'geo': {'CA191': {'cabecera': 'CAB', 'barras': [['CAB', 0, 0, 1.0, 10.0],
                                                                       ['N1', 0, 0, 0.95, 22.9]]}}}}
-    kv = {'CA101': services._kv_de_barras(flujos, 'CA101'), 'XX1': {}}
-    cargas = [{'alimentador': 'CA101', 'barra': 'N1'}, {'alimentador': 'CA101', 'barra': 'OTRA'},
+    kv = {'CA191': services._kv_de_barras(flujos, 'CA191'), 'XX1': {}}
+    cargas = [{'alimentador': 'CA191', 'barra': 'N1'}, {'alimentador': 'CA191', 'barra': 'OTRA'},
               {'alimentador': 'XX1', 'barra': 'B'}]
     services._set_y_tension_de_cargas(None, cargas, kv)
     assert [(c['set_nombre'], c['tension_kv']) for c in cargas] == [
-        ('SET 21 El Carmen', 22.9), ('SET 21 El Carmen', 10.0), (None, None)]
+        ('SET 61 El Carmen', 22.9), ('SET 61 El Carmen', 10.0), (None, None)]
 
 
 def test_el_avance_del_proyecto_sale_del_disco(client, monkeypatch):  # noqa: F811

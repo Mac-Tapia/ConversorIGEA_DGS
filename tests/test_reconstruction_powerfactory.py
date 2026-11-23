@@ -102,7 +102,7 @@ def test_reconstruction_report_hash_and_sidecar_are_verified(tmp_path):
 
     payload = {
         'source_run_id': 'run-1',
-        'selection': ['IN111'],
+        'selection': ['IN191'],
         'decisions': [{'level': 'catalog_match'}, {'level': 'engineering_assumption'}],
         'counts': {'catalog_match': 1, 'engineering_assumption': 1},
     }

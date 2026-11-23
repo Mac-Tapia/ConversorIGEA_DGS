@@ -79,7 +79,7 @@ export interface EstadoPasos {
 
 /**
  * 072:RF-33: lo de la sesión o lo guardado en disco, de los alimentadores marcados. Con solo la sesión, tras
- * reiniciar la web, CA101_CHN102 (2026-11-13) ya calibrado y con su carga nueva salía con todo «pendiente».
+ * reiniciar la web, CA191_CHN192 (2026-11-13) ya calibrado y con su carga nueva salía con todo «pendiente».
  */
 export function estadoConDisco(e: EstadoPasos, avance: AvanceDisco | null, order: string[]): EstadoPasos {
   if (!avance) return e;

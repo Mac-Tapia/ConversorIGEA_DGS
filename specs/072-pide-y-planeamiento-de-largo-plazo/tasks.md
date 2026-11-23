@@ -46,7 +46,7 @@ ensayo PowerFactory ni revisión visual del DOCX (renderer no disponible).
 - [x] T6 Obras acumuladas por año. (RF-12)
       Hecho cuando: en DIgSILENT, sobre un proyecto de prueba, cada año conserva las obras de los anteriores.
       La copia de «Con proyecto» traía todas las obras en todos los años; ahora cada año activa las suyas y las anteriores.
-      Medido el 2026-11-02 en DIgSILENT, sobre una copia de L14243 borrada al terminar, con dos variaciones de prueba que acortan un
+      Medido el 2026-11-02 en DIgSILENT, sobre una copia de L19243 borrada al terminar, con dos variaciones de prueba que acortan un
       tramo. Releído cada caso al final, con flujo convergido: año 00 sin obras, 04 con la A y 08 con las dos, y los largos coinciden.
       Pérdidas sin y con obras: 662,80 y 660,13 kW en el 04; 853,75 y 850,12 kW en el 08. «Con proyecto» original no cambió. No se
       probó con obras reales de la spec 011 ni por la web, que se prueba con el estudio completo (T11).

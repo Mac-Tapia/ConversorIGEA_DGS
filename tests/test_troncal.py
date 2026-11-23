@@ -10,6 +10,8 @@ import random
 
 import pytest
 
+from apoyo import codigo_real
+
 from convertersmartgrid.dominio.troncal import (Barra, Tramo, TroncalError, _metros, aguas_abajo, conexion_en,
                               cortar_trazado, extremos_del_enlace, partir, punto_en_troncal,
                               punto_mas_cercano, red_de, troncal)
@@ -152,12 +154,12 @@ def test_nodo_de_otro_alimentador():
         aguas_abajo(red, 'C', 'Z9')
 
 
-def test_troncal_de_in111_con_los_txt_reales(txt_dataset):
-    """016:RF-1 — IN111 del TXT de referencia: 71 tramos y 13,58 km. Tiene tres anillos
+def test_troncal_de_in191_con_los_txt_reales(txt_dataset):
+    """016:RF-1 — IN191 del TXT de referencia: 71 tramos y 13,58 km. Tiene tres anillos
     cerrados; cada barra cuelga del lado por el que llega antes en metros."""
     from convertersmartgrid.dominio.model import build_feeder_model
 
-    m = build_feeder_model(txt_dataset, txt_dataset.resolve_feeder('IN111'), strict=False,
+    m = build_feeder_model(txt_dataset, txt_dataset.resolve_feeder(codigo_real('IN191')), strict=False,
                            include_geography=False)
     nodos = {n for ln in m.lines for n in (ln.from_node, ln.to_node)}
     red = red_de([Barra(n) for n in nodos],
@@ -355,15 +357,15 @@ def test_el_origen_solo_en_los_candidatos():
         extremos_del_enlace(sin, ['T'], cede, ['X'])
 
 
-def test_enlace_ta225_in111_con_los_txt_reales(txt_dataset, perfil_real):
-    """016:RF-27, 016:RF-28 — de la troncal de TA225 a la de IN111 con los trazados GPS
+def test_enlace_ta295_in191_con_los_txt_reales(txt_dataset, perfil_real):
+    """016:RF-27, 016:RF-28 — de la troncal de TA295 a la de IN191 con los trazados GPS
     del TXT: los dos extremos en sus troncales, más cerca que sus barras más próximas."""
     from convertersmartgrid.adaptadores.geography import build_geography
     from convertersmartgrid.dominio.model import build_feeder_model
 
     redes, troncales = {}, {}
-    for f in ('TA225', 'IN111'):
-        m = build_feeder_model(txt_dataset, txt_dataset.resolve_feeder(f), strict=False,
+    for f in ('TA295', 'IN191'):
+        m = build_feeder_model(txt_dataset, txt_dataset.resolve_feeder(codigo_real(f)), strict=False,
                                include_geography=True)
         g = build_geography(txt_dataset, m, source_crs=perfil_real.crs_origen)
         nodos = {n for ln in m.lines for n in (ln.from_node, ln.to_node)}
@@ -375,14 +377,14 @@ def test_enlace_ta225_in111_con_los_txt_reales(txt_dataset, perfil_real):
                   for ln in m.lines]
         redes[f] = red_de(barras, tramos)
         troncales[f] = troncal(redes[f], m.source_node).tramos
-    salida, llegada = extremos_del_enlace(redes['TA225'], troncales['TA225'],
-                                          redes['IN111'], troncales['IN111'], 5.0)
-    assert salida.tramo in troncales['TA225'] and llegada.tramo in troncales['IN111']
+    salida, llegada = extremos_del_enlace(redes['TA295'], troncales['TA295'],
+                                          redes['IN191'], troncales['IN191'], 5.0)
+    assert salida.tramo in troncales['TA295'] and llegada.tramo in troncales['IN191']
     d = math.hypot(*_metros(salida.gps, llegada.gps))
 
     def gps_troncal(f):
         por = redes[f].por_nombre()
         return [redes[f].barras[x].gps for n in troncales[f] for x in (por[n].desde, por[n].hasta)
                 if redes[f].barras[x].gps]
-    barras = min(math.hypot(*_metros(a, b)) for a in gps_troncal('TA225') for b in gps_troncal('IN111'))
+    barras = min(math.hypot(*_metros(a, b)) for a in gps_troncal('TA295') for b in gps_troncal('IN191'))
     assert 0 < d <= barras + 1e-6

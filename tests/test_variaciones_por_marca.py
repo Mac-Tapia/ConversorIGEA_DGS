@@ -1,6 +1,6 @@
 """086:RF-87, 086:RF-88 — las variaciones y los casos del conversor se reconocen por su marca, no por el nombre del proyecto.
 
-Copia PRUEBA064_184942 de PA217 (2026-11-12): la calibración creó ``Fichas_PRUEBA064_184942`` junto a la
+Copia PRUEBA064_184942 de PA297 (2026-11-12): la calibración creó ``Fichas_PRUEBA064_184942`` junto a la
 ``Fichas_<original>`` que traía la copia, y «Cargas nuevas» se quedó con la fuente a 1,025 p.u. tras recalibrar a 1,0278.
 """
 from __future__ import annotations
@@ -41,9 +41,9 @@ def _del_conversor(casos, prefijo, nombre):
 def test_la_variacion_de_fichas_de_la_copia_se_reutiliza(guion, casos):
     """086:RF-87 — en la copia se graba en la ``Fichas_`` del conversor que trae, por su marca; sin ninguna, la propia."""
     pre = guion.PREFIJO_FICHAS
-    marcada = _del_conversor(casos, pre, f'{pre}PA217')
-    assert guion.nombre_de_la_propia(_app([marcada, 'Obra_X']), pre, 'PRUEBA064_184942') == f'{pre}PA217'
-    assert guion.nombre_de_la_propia(_app([_del_conversor(casos, pre, f'{pre}PA217(1)')]), pre, 'P') == f'{pre}PA217'
+    marcada = _del_conversor(casos, pre, f'{pre}PA297')
+    assert guion.nombre_de_la_propia(_app([marcada, 'Obra_X']), pre, 'PRUEBA064_184942') == f'{pre}PA297'
+    assert guion.nombre_de_la_propia(_app([_del_conversor(casos, pre, f'{pre}PA297(1)')]), pre, 'P') == f'{pre}PA297'
     # La del proyecto, si ya existe, gana a la de la copia.
     assert guion.nombre_de_la_propia(_app([marcada, f'{pre}PRUEBA064']), pre, 'PRUEBA064') == f'{pre}PRUEBA064'
     assert guion.nombre_de_la_propia(_app(['Obra_X']), pre, 'PRUEBA064') == f'{pre}PRUEBA064'
@@ -52,15 +52,15 @@ def test_la_variacion_de_fichas_de_la_copia_se_reutiliza(guion, casos):
 def test_la_de_antes_de_la_marca_se_reconoce_por_su_etapa(guion):
     """086:RF-87 — una del conversor creada antes de la marca lleva la etapa ``Etapa_fichas`` que él crea."""
     pre = guion.PREFIJO_FICHAS
-    antigua = _variacion(f'{pre}20261112-113130_CSG_TXT_PA217', etapa='Etapa_fichas')
-    assert guion.nombre_de_la_propia(_app([antigua]), pre, 'PRUEBA064') == f'{pre}20261112-113130_CSG_TXT_PA217'
+    antigua = _variacion(f'{pre}20261112-113130_CSG_TXT_PA297', etapa='Etapa_fichas')
+    assert guion.nombre_de_la_propia(_app([antigua]), pre, 'PRUEBA064') == f'{pre}20261112-113130_CSG_TXT_PA297'
 
 
 def test_la_del_usuario_con_el_mismo_prefijo_no_se_toca(guion):
     """086:RF-87 — ``Fichas_prueba`` hecha a mano no es del conversor: se avisa y no se graba dentro de ella."""
     pre = guion.PREFIJO_FICHAS
     avisos = []
-    assert guion.nombre_de_la_propia(_app([f'{pre}prueba']), pre, 'PA217', avisos) == f'{pre}PA217'
+    assert guion.nombre_de_la_propia(_app([f'{pre}prueba']), pre, 'PA297', avisos) == f'{pre}PA297'
     assert len(avisos) == 1 and f'{pre}prueba' in avisos[0] and 'no se toca' in avisos[0]
 
 
@@ -78,7 +78,7 @@ def test_dos_del_conversor_avisan_y_no_se_elige(guion, casos):
 def test_la_marca_se_pone_y_no_falla_si_no_se_acepta(guion, casos):
     """086:RF-87 — la variación del conversor queda marcada; si DIgSILENT rechaza ``desc``, se sigue sin error."""
     pre = guion.PREFIJO_FICHAS
-    v = _variacion(f'{pre}PA217')
+    v = _variacion(f'{pre}PA297')
     guion.marcar_variacion_del_conversor(v, pre)
     assert casos.rol_de(v) == f'variacion:{pre}'
 
@@ -95,9 +95,9 @@ def test_la_marca_se_pone_y_no_falla_si_no_se_acepta(guion, casos):
 def test_la_de_transformadores_tambien_va_por_su_marca(guion, casos):
     """086:RF-87 — ``SED_NTP_`` sigue la misma regla que ``Fichas_``, con su etapa ``Etapa_sed_ntp``."""
     pre = guion.PREFIJO_SED_NTP
-    assert guion.nombre_de_la_propia(_app([_del_conversor(casos, pre, f'{pre}PA217')]), pre, 'P') == f'{pre}PA217'
-    assert guion.nombre_de_la_propia(_app([_variacion(f'{pre}PA217', etapa='Etapa_sed_ntp')]), pre, 'P') == f'{pre}PA217'
-    assert guion.nombre_de_la_propia(_app([f'{pre}PA217']), pre, 'P') == f'{pre}P'
+    assert guion.nombre_de_la_propia(_app([_del_conversor(casos, pre, f'{pre}PA297')]), pre, 'P') == f'{pre}PA297'
+    assert guion.nombre_de_la_propia(_app([_variacion(f'{pre}PA297', etapa='Etapa_sed_ntp')]), pre, 'P') == f'{pre}PA297'
+    assert guion.nombre_de_la_propia(_app([f'{pre}PA297']), pre, 'P') == f'{pre}P'
 
 
 def test_el_caso_cargas_nuevas_se_halla_por_nombre_y_marca(casos):

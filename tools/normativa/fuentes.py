@@ -56,8 +56,10 @@ def comprobar_carpeta(carpeta: Path | str, patron: str = '*') -> list[Path]:
     return salida
 
 
-# El usuario de la máquina se arma por partes para que el propio patrón no sea una ruta de la máquina.
-_USUARIO = 'Lenovo' + ' ' + 'Legion'
+# El usuario de la máquina en que corre (también en las rutas de DIgSILENT, «<usuario>.IntUser», que no llevan
+# «Users/»): se lee del perfil y no se escribe, porque el nombre del equipo de desarrollo es un término vedado del
+# código entregado (086:RF-33; la lista local de la suite lo halló aquí el 22-11).
+_USUARIO = re.escape(Path.home().name)
 _RUTA_ABSOLUTA = re.compile(r'(?<![^\W\d_])[A-Za-z]:[\\/]|(?<![A-Za-z0-9_.-])/d/|' + _USUARIO + r'|Users/')
 _CC = re.compile(r'[A-Za-z]:/csg/PM_IMPL/CC_APOYO/([^/\s)]+)(?:/[^\s)]*)?')
 _GEN = re.compile(r'[A-Za-z]:/csg/PM_IMPL/[^\s)]*/(generar_[a-z0-9_]+\.py)')

@@ -34,11 +34,11 @@ class WebFalsa:
         if metodo == 'GET' and ruta == '':
             return _Respuesta(200, {'pf_projects': {'SISTEMA_PISCO': 'P_PISCO'}})
         if metodo == 'GET' and ruta.startswith('/demanda/sistema'):
-            return _Respuesta(200, {'sistema': {'alimentadores': ['PI101', 'PI102']}})
+            return _Respuesta(200, {'sistema': {'alimentadores': ['PI191', 'PI192']}})
         if metodo == 'GET' and ruta.startswith('/demanda/ajuste/ultimo'):
             return _Respuesta(200, {'ajuste': {'id': 'disco:t1'}})
         if metodo == 'GET' and ruta == '/obras':
-            return _Respuesta(200, [{'id': 'o1', 'alimentador': 'PI101'}])
+            return _Respuesta(200, [{'id': 'o1', 'alimentador': 'PI191'}])
         if metodo == 'GET':
             return _Respuesta(200, {'ofrecidos': [{'clave': 'n1'}]})
         if ruta == '/pf/estudios/plan':
@@ -73,7 +73,7 @@ def test_cortado_a_mitad_y_retomado_sin_repetir(tmp_path):
     rutas = [rt for m, rt in web2.llamadas if m == 'POST']
     assert '/load' not in rutas and '/powerfactory/caso-base' not in rutas and '/pf/obras/aplicar' not in rutas
     assert '/pf/estudios/plan' in rutas and '/pide' in rutas
-    assert r['etapas']['informe']['estado'] == 'omitida' and r['datos']['alimentadores'] == ['PI101', 'PI102']
+    assert r['etapas']['informe']['estado'] == 'omitida' and r['datos']['alimentadores'] == ['PI191', 'PI192']
     assert [e.nombre for e in ETAPAS][-1] == 'informe'
 
 

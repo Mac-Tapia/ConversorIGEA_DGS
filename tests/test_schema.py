@@ -16,6 +16,6 @@ def test_packaged_schema_has_exact_core_headers_and_no_reference_dependency():
     assert schema.header('StaSwitch') == '$$StaSwitch;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);on_off(i);typ_id(p);aUsage(a)'
     raw = Path(schema.source_path).read_text(encoding='utf-8')
     lowered = raw.lower()
-    assert 'na205.dgs' not in lowered
+    assert 'na295.dgs' not in lowered
     assert '/mnt/data' not in lowered
-    assert 'node_2030_957807_na205' not in lowered
+    assert 'node_2030_957807_na295' not in lowered

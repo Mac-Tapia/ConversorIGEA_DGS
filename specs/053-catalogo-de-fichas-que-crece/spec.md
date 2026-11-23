@@ -13,10 +13,10 @@ la X, la B1 y la ampacidad de cada tipo de conductor por su código de norma, co
 del fabricante. Las fichas son universales: el mismo código vale para cualquier distribuidora.
 
 Hoy el catálogo se escribe de una vez a partir de los tipos que usaba la red de la que se sacó, y
-un código que no está en él queda sin parámetros. Al convertir NJA202 y R205 de Empresa B
+un código que no está en él queda sin parámetros. Al convertir NJA292 y R295 de Empresa B
 (2026-11-01), seis códigos no estaban (`AS03503G`, `AS05003G`, `AS07003G`, `CS03503G`,
 `AA24003G`, `N230003G`) y sus tramos salían con R = X = 0: el oráculo lo detectaba y el flujo de
-NJA202 solo convergía con la demanda al 11,3 %.
+NJA292 solo convergía con la demanda al 11,3 %.
 
 Esta spec hace que el catálogo crezca: cada código nuevo que aparezca en una conversión, de
 cualquier fuente y empresa, se añade con los parámetros que se puedan deducir de fichas que ya
@@ -63,4 +63,4 @@ ficha del fabricante.
 ## Criterios de finalización
 
 - `grep -rnoE "053:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-9.
-- NJA202 y R205 de Empresa B reconvertidos sin ningún tramo de impedancia nula.
+- NJA292 y R295 de Empresa B reconvertidos sin ningún tramo de impedancia nula.

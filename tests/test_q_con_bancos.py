@@ -58,7 +58,7 @@ def test_sin_bancos_la_q_sigue_informada():
 
 def test_medida_incoherente_por_encima_queda_la_q_real_con_el_fp_de_perfil():
     """035:RF-8, 035:RF-26, 035:RF-28, 035:RF-29, 035:RF-30 — si ni con las escaladas a FP 1 la cabecera
-    baja a la medida (NA203: le haría falta reactiva negativa), la medida no es coherente: no se
+    baja a la medida (NA293: le haría falta reactiva negativa), la medida no es coherente: no se
     cuadra la Q, las escaladas vuelven a su FP de perfil (nunca reactiva negativa) y la Q es la
     del flujo; el cuadre guarda el flujo a FP 1 que lo demostró. Las fijas, intactas."""
     objetivo = Objetivo(kw=1200.0, kvar=50.0, medidor='M')
@@ -210,9 +210,9 @@ def test_con_bancos_que_no_alcanzan_tambien_se_recomienda(guion):
 
     med = SimpleNamespace(converge=True, kvar=3553.1)
     objetivo = Objetivo(kw=10436.0, kvar=2903.0, medidor='M')
-    rev = guion.revision_de_bancos('SM218', med, objetivo, True, 'MEDIDA_INCOHERENTE_ALTA')
+    rev = guion.revision_de_bancos('SM298', med, objetivo, True, 'MEDIDA_INCOHERENTE_ALTA')
     assert rev['motivo'] == 'MEDIDA_INCOHERENTE' and rev['diferencia_kvar'] == pytest.approx(650.1)
-    assert guion.revision_de_bancos('SM218', med, objetivo, True, 'CUADRADA') is None
+    assert guion.revision_de_bancos('SM298', med, objetivo, True, 'CUADRADA') is None
 
 
 def test_la_recalibracion_se_numera_desde_la_primera_calibracion(tmp_path):

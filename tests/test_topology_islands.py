@@ -14,7 +14,7 @@ La política implementada distingue dos casos:
 quien acepta explícitamente un modelo con carga no alimentable.
 
 Medido en el export de referencia: 10 de 93 alimentadores tienen isla; 8 arrastran carga
-(20 cargas en total) y 2 están vacías (SL143, SM218).
+(20 cargas en total) y 2 están vacías (SL193, SM298).
 
 Spec 034: 034:RF-10.
 """

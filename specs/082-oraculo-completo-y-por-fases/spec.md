@@ -15,12 +15,12 @@ de cada empresa:
 
 | Alimentador | Oráculo equilibrado sin bancos | DIgSILENT desequilibrado | Efecto |
 | --- | --- | --- | --- |
-| TI01 de Empresa D | Vmin 0,802 p.u. | Vmin 0,790 p.u. | Se importó por debajo del umbral |
+| TI09 de Empresa D | Vmin 0,802 p.u. | Vmin 0,790 p.u. | Se importó por debajo del umbral |
 | C+æ02 de Empresa C, 3 bancos | Vmin 0,804 p.u. con 4,63 MW | Vmin 0,934 p.u. con 4,63 MW | Se le quitó el 57 % de su demanda sin motivo |
 
 El oráculo por fases, con los bancos, queda a +0,00 y −0,34 puntos de media de DIgSILENT, con un
 máximo de 2,5 y 1,3 puntos, frente a los 10 puntos de media de C+æ02 sin bancos. El flujo equilibrado de DIgSILENT deja sin calcular las SED
-monofásicas (TI01: 5,09 MW en cabecera para 6,13 MW de carga), y por eso no sirve de comparación en
+monofásicas (TI09: 5,09 MW en cabecera para 6,13 MW de carga), y por eso no sirve de comparación en
 DIgSILENT, solo aquí.
 
 La sesión que midió la entrega TXT (96 alimentadores, sin bancos) no halló pérdidas en lo que entra a
@@ -72,4 +72,4 @@ sin barra, y todos los bancos.
 
 - Un modelo sintético con un elemento de cada clase cuadra su recuento, en las dos disposiciones de export.
 - Un ramal monofásico da en su fase una caída mayor que el flujo equilibrado.
-- TI01 y C+æ02 reimportados y en Caso base, con su demanda ya corregida con este flujo.
+- TI09 y C+æ02 reimportados y en Caso base, con su demanda ya corregida con este flujo.

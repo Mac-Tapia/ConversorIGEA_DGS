@@ -37,7 +37,10 @@ def _gestor_con_carril_tapado(tmp_path, monkeypatch, tope: int):
     jobs = JobManager(lambda w, k, d: eventos.append((w, k, dict(d))), diario=tmp_path / 'diario')
     soltar = threading.Event()
     corriendo = jobs.submit('W', 'tapon', 'tapón', lambda _ctx: soltar.wait(ESPERA_S), lane='engine')
-    _esperar(lambda: corriendo.status != QUEUED)
+    # Se espera a su evento de arranque, no solo al estado: ``_run`` pone RUNNING, anota el diario y luego publica. Con
+    # el estado solo, ese evento podía llegar mientras se contaban los del rechazo (Actions 45059623150, 2026-11-22).
+    _esperar(lambda: any(k == 'job' and d.get('id') == corriendo.id and d.get('status') == 'running'
+                         for _w, k, d in list(eventos)))
     return jobs, eventos, soltar
 
 

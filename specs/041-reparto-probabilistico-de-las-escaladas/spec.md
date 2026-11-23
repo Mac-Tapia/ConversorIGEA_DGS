@@ -1,7 +1,7 @@
 # Spec 041 — Reparto probabilístico de las SED escaladas
 
 Estado: cumplida · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, al recalibrar
-NA203 («ahí debes aplicar la estocástica, incertidumbre y probabilidad en la escalabilidad»;
+NA293 («ahí debes aplicar la estocástica, incertidumbre y probabilidad en la escalabilidad»;
 «la probabilidad debe ser de acuerdo de la mayor potencia a menos de las escaladas»).
 Respuestas del usuario: lo incierto es la carga de cada SED escalada; en DIgSILENT se escribe el
 P50 y las bandas van en el informe.
@@ -68,6 +68,6 @@ fijas para estimar dispersión y pendiente.
 ## Criterios de finalización
 
 - `grep -rnoE "041:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-9.
-- NA203 recalibrado desde la web con el reparto probabilístico: el informe da P05/P50/P95 por SED
+- NA293 recalibrado desde la web con el reparto probabilístico: el informe da P05/P50/P95 por SED
   ordenadas por potencia y la probabilidad de sobrecarga, y la misma semilla repite los mismos
   números.

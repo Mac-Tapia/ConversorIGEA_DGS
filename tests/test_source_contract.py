@@ -14,10 +14,10 @@ import pytest
 def _dataset(*, orphan: bool = False):
     load_section = 'UNKNOWN' if orphan else 'S1'
     return SimpleNamespace(
-        feeders={'NET_CA101': ('S1',)},
-        sources={'NET_CA101': {'NetworkID': 'NET_CA101'}},
+        feeders={'NET_CA191': ('S1',)},
+        sources={'NET_CA191': {'NetworkID': 'NET_CA191'}},
         sections={'S1': {'SectionID': 'S1'}},
-        section_owner={'S1': 'NET_CA101'},
+        section_owner={'S1': 'NET_CA191'},
         customer_loads={(load_section, 'L1'): {'DeviceNumber': 'L1'}},
         load_placements={(load_section, 'L1'): {'DeviceNumber': 'L1'}},
     )

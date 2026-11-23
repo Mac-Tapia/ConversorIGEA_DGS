@@ -216,7 +216,7 @@ def test_el_balance_y_el_perfil_no_dejan_cambios():
 
 
 def test_las_etapas_atrasadas_se_aplican_antes_del_flujo():
-    """063:RF-5 — SM218 (2026-11-01): la etapa de los bancos quedó después de la hora de «Sin
+    """063:RF-5 — SM298 (2026-11-01): la etapa de los bancos quedó después de la hora de «Sin
     proyecto» y el flujo salía sin ellos. Antes del flujo se adelanta a una fecha libre antes
     del estudio, la hora del caso no cambia, y el informe lo dice."""
     import cargas_pf
@@ -240,7 +240,7 @@ def test_las_etapas_atrasadas_se_aplican_antes_del_flujo():
 
 
 def test_el_optimizador_restituye_la_hora_del_caso():
-    """011:RF-26 — SM218 (2026-11-01): el balance de fases dejó «Sin proyecto» un millón de
+    """011:RF-26 — SM298 (2026-11-01): el balance de fases dejó «Sin proyecto» un millón de
     segundos antes, y la etapa de los bancos EBC/ECB y la de los transformadores NTP dejaron
     de aplicarse. La hora del caso vuelve a la de antes aunque DIgSILENT la mueva."""
     app, feeders = _red()

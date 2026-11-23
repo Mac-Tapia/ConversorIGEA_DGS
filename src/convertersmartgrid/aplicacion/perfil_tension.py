@@ -2,7 +2,7 @@
 
 El perfil es la tensión de cada barra de media frente a su distancia eléctrica a la cabecera: la suma del largo de los
 tramos por el camino de la red, no la distancia en línea recta, porque dos barras cercanas por GPS pueden colgar de
-ramales distintos. AL209 (2026-11-06): de 0,9998 p.u. en la cabecera a 0,9498 p.u. a 20,85 km; la búsqueda del oráculo
+ramales distintos. AL299 (2026-11-06): de 0,9998 p.u. en la cabecera a 0,9498 p.u. a 20,85 km; la búsqueda del oráculo
 (087:RF-55) amontonaba los bancos en el extremo, en barras que eléctricamente son el mismo punto, y el usuario pidió
 ubicarlos «de acuerdo al perfil de tensión».
 
@@ -37,7 +37,7 @@ def arbol(grafo: Mapping[str, Any]) -> tuple[dict[str, float], dict[str, str | N
 
     El anterior sale del mismo Dijkstra y solo cambia cuando la distancia baja de verdad: con ramas de largo cero
     (acopladores, transformadores) dos nodos quedaban a la misma distancia, cada uno se tomaba por anterior del otro y
-    la calibración de AL209 (2026-11-06) quedó en un bucle sin fin.
+    la calibración de AL299 (2026-11-06) quedó en un bucle sin fin.
     """
     vecinos: dict[str, list[tuple[str, float]]] = {}
     for r in grafo.get('ramas') or []:
@@ -255,7 +255,7 @@ def comparar(antes: Mapping[str, float], despues: Mapping[str, float], *, limite
     """El perfil completo del alimentador antes y después de una propuesta de bancos (094:RF-13, RF-14).
 
     Todas las barras de media, no solo el camino a la más baja. Mejora si sube la mínima sin dejar más barras bajo el
-    límite ni por encima del máximo. AL209 (2026-11-06): el usuario pidió «ver todo el perfil de tensión del
+    límite ni por encima del máximo. AL299 (2026-11-06): el usuario pidió «ver todo el perfil de tensión del
     alimentador y ver también si propone todo el perfil para ver si mejora».
     """
     a = _resumen(antes, limite_min, limite_max, perdidas_antes)

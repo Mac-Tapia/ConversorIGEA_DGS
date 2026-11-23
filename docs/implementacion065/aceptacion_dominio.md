@@ -44,13 +44,13 @@ conserva las identidades por workspace. Estos inventarios no cierran tareas.
 
 | Caso | Workspace y ejecución fuente exacta | Proyecto y modalidad |
 | --- | --- | --- |
-| A, INKA/SM218 | `374e622963ae496e` / `20261029T163302-44904af5f1ed` | `20261029-163414_IGEA_SM218`, TXT |
-| B, NA203–NA205/COPARA | `5f11283a33c94ea5` / `20261029T120943-7979902c8ba6` | `20261029-121129_IGEA_NA203_NA205`, TXT |
-| C, CA101–PE104 | `5f11283a33c94ea5` / `20261019T091959-d48b94364672` | `20261019-092142_IGEA_CA101_PE104`, TXT |
-| D, PA217 | `5f11283a33c94ea5` / `20261029T075656-8d7c41066e13` | `20261029-075804_IGEA_PA217`, TXT |
-| E, TM105 | `5f11283a33c94ea5` / `20261025T222907-188f45cc53b5` | `20261025-222951_IGEA_TM105`, MDB |
-| F, SI213/PN107 | `5f11283a33c94ea5` / `20261016T092722-e8e14c73784b` | `20261016-093124_IGEA_SI213` / `20261016-095754_IGEA_PN107`, MDB |
-| G, Empresa B | `db9fa4d6c0ad4945` / `20261101T094918-9d614f5934f3` | `20261101-095744_CSG_NJA202` / `20261101-101524_CSG_0205`, VNR |
+| A, CLIENTE K/SM298 | `374e622963ae496e` / `20261029T163302-44904af5f1ed` | `20261029-163414_IGEA_SM298`, TXT |
+| B, NA293–NA295/BOREALIS | `5f11283a33c94ea5` / `20261029T120943-7979902c8ba6` | `20261029-121129_IGEA_NA293_NA295`, TXT |
+| C, CA191–PE194 | `5f11283a33c94ea5` / `20261019T091959-d48b94364672` | `20261019-092142_IGEA_CA191_PE194`, TXT |
+| D, PA297 | `5f11283a33c94ea5` / `20261029T075656-8d7c41066e13` | `20261029-075804_IGEA_PA297`, TXT |
+| E, TM195 | `5f11283a33c94ea5` / `20261025T222907-188f45cc53b5` | `20261025-222951_IGEA_TM195`, MDB |
+| F, SI293/PN197 | `5f11283a33c94ea5` / `20261016T092722-e8e14c73784b` | `20261016-093124_IGEA_SI293` / `20261016-095754_IGEA_PN197`, MDB |
+| G, Empresa B | `db9fa4d6c0ad4945` / `20261101T094918-9d614f5934f3` | `20261101-095744_CSG_NJA292` / `20261101-101524_CSG_0205`, VNR |
 
 A y B comparten huella TXT `c3df248bfe29a734a1c34139cc1259d9962a223ca574f45c4cf45c152198c708`,
 pero conservan identidades distintas. G usa huella
@@ -62,7 +62,7 @@ El run de A en 374e contiene 34 archivos, **33 782 606 bytes**, y `workspace.jso
 2 292 979 bytes: aproximadamente 34,4 MiB para copiar ambos. Sus tres fuentes
 fueron rehasheadas: RED_231026.txt 10 073 039 bytes; CARGA_231026.txt 1 383 321;
 260927_Equipo.txt 23 797. Los SHA coinciden con el manifiesto de 1393 bytes.
-`sm218_clon_preflight.json` conserva detalle. Los bindings del workspace están vacíos;
+`sm298_clon_preflight.json` conserva detalle. Los bindings del workspace están vacíos;
 el registro `output/web/vinculos_pf.json` es la autoridad compartida. Debe copiarse
 a la raíz web candidata aislada, manteniendo el ID y el manifiesto del run. No se
 adopta ni renombra un proyecto ajeno. No se escriben rutas ni metadatos en main.
@@ -73,24 +73,24 @@ y modificar únicamente las rutas runtime de la copia necesarias para su raíz.
 No se copia todo output ni se trae otra fuente para llenar una casilla.
 La copia autorizada se publicó en `implementacion065/candidato_http/datos/374e622963ae496e`
 y su registro aislado: 36 archivos, 69 139 179 bytes, con SHA antes/después/copia
-idénticos en todos. `clon_sm218_manifiesto.json` conserva la evidencia, sin hardlinks.
+idénticos en todos. `clon_sm298_manifiesto.json` conserva la evidencia, sin hardlinks.
 La ejecución real de `aceptar_dominio.py` contra la copia devolvió
 `LISTO_DIAGNOSTICO`, `aceptacion_electrica=false`, cero operaciones nativas y
-licencia no verificada (`sm218_preaceptacion_real.json`). El informe custodiado
+licencia no verificada (`sm298_preaceptacion_real.json`). El informe custodiado
 de calibración identifica la máxima de 2026-10-23 11:30, período 2026-10, medición
 de fuente común única ante dos troncales; no se eligió una rama parcial.
 
 ## Evidencia histórica reabierta y operaciones necesarias
 
 `evidencia_nativa_historica_reabierta.json` conserva rutas, SHA y tamaños de cuatro
-informes reabiertos. INKA tiene los tres estados guardados: Sin proyecto converge
+informes reabiertos. CLIENTE K tiene los tres estados guardados: Sin proyecto converge
 con 3 barras MT fuera de límite y cargabilidad 130,823%; Cargas nuevas converge con
 70 MT fuera y 161,801%; Con proyecto converge con MT dentro, 4 BT fuera y 95,295%.
 Dos barras sin resultado se declaran explícitamente. La actualización documental
 del día 2 dice que no volvió a ejecutar el modelo. No acredita el botón de 4.4 ni
 cumplimiento de toda la red. El PDF/documento queda conservado.
 
-COPARA tiene evidencia más reciente que el fallo de calibración del día 29:
+BOREALIS tiene evidencia más reciente que el fallo de calibración del día 29:
 `set_nueva_operacion_87ace2d82986.json`, 28 517 574 bytes, SHA
 `2a637163184e777597749b00a3e75957bfdc0d79fd60c6486284917565430fa6`,
 acción diagnóstico, aceptada, sin variaciones nuevas y sin errores de restauración.
@@ -100,7 +100,7 @@ Sin proyecto alcanza 0,901 p.u.; Cargas nuevas completo no converge. Su aceptaci
 histórica es específica de 063:T24 y esa configuración; no prueba óptimo global,
 causalidad de pérdidas ni cierre automático de 042/048/052.
 
-La aceptación histórica 064 sobre copia de SM218 confirma fotografía/readback y
+La aceptación histórica 064 sobre copia de SM298 confirma fotografía/readback y
 borrado de la copia. Reutilizarla exige ejecutar el candidato por el mismo arnés;
 no basta citar la evidencia anterior. Copiar o aplicar cambios queda reservado a
 la etapa autorizada y a la exclusión del motor compartida.
@@ -108,13 +108,13 @@ la etapa autorizada y a la exclusión del motor compartida.
 | Tarea abierta | Caso/fuente y período exigido | Operación/evidencia pendiente |
 | --- | --- | --- |
 | 005:T12 | dos DGS de una misma fuente declarada; sin período eléctrico | nombres repetidos, subcarpeta, inventario y confirmación del usuario |
-| 007:T11 | F/SI213; período de su ajuste | copia exclusiva, variación por carga, nodo cercano y base restaurada |
+| 007:T11 | F/SI293; período de su ajuste | copia exclusiva, variación por carga, nodo cercano y base restaurada |
 | 008:T7 | C, instante del ajuste | tres pasos web e inventario nativo final |
 | 011:T19 | C u otro par calibrado declarado | carga/obra por clase, tres casos y Sin proyecto intacto |
 | 012:T13 | dos alimentadores calibrados + libro empresarial propio | índices/ENS, reconectador, banco, capacidad y PV nativos |
-| 013:T7 | C/CA101–PE104, mismo instante explícito | transferencia, SED, descargable y readback |
-| 016:T18 | F/PN107, ajuste de referencia | carga con/sin cable según distancia y lectura final |
-| 017:T13 | CA101, fuente de CA101 13 por resolver | informe desde cero con bancos y aprobación documental usuario |
+| 013:T7 | C/CA191–PE194, mismo instante explícito | transferencia, SED, descargable y readback |
+| 016:T18 | F/PN197, ajuste de referencia | carga con/sin cable según distancia y lectura final |
+| 017:T13 | CA191, fuente de CA191 13 por resolver | informe desde cero con bancos y aprobación documental usuario |
 | 017:T14 | carga individual y su fuente; AD08 V4 | informe/punto de diseño y aprobación documental usuario |
 | 025:T21 | D+E separados, Con/Sin proyecto 2025 | obra elegida, variantes y conservación de Sin proyecto; no mezclar TXT/MDB |
 | 026:T12 | una fuente y tarea real por vez | cada herramienta nativa por consola web, siete variables y suite sin omisiones |
@@ -125,18 +125,18 @@ la etapa autorizada y a la exclusión del motor compartida.
 | 028:T6 | Nasca; diagnóstico actual de central | releer central real/barra antes de recalibrar; respetar CT existente |
 | 028:T11 | individual + par unido de fuente propia | convertir/calibrar/recalibrar/informe, no solo flujo |
 | 037:T4 | proyecto real con nuevas cargas | tres casos/año, escenarios, cargas y exclusiones releídos |
-| 039:T4 | B/NA203, 2026-09 coincidente | ambos criterios; fijas mes 7707,5 kW/3725,5 kvar y registros instantáneos |
-| 042:T6 | B/COPARA, período del plan | destinos/cargas, PIT/punto y 0,94–1,06; contrastar evidencia nueva con todos RF |
+| 039:T4 | B/NA293, 2026-09 coincidente | ambos criterios; fijas mes 7707,5 kW/3725,5 kvar y registros instantáneos |
+| 042:T6 | B/BOREALIS, período del plan | destinos/cargas, PIT/punto y 0,94–1,06; contrastar evidencia nueva con todos RF |
 | 044:T4 | alternativas declaradas de un caso sellado | tests nativos aún ausentes, reapertura y métricas completas |
 | 045:T4 | B u otra red capturada con cuatro roles | contrato físico/central/bancos, etiquetas y contraste por rol |
 | 048:T4 | B u otra propuesta con 044 aprobada | variaciones, costes, referencia intacta y reapertura |
 | 049:T4 | caso conocido con datos/curvas/licencia | ajustes/tiempos/fallas y readback; flujo no demuestra selectividad |
-| 051:T3 | G/NJA202 2024-11 y R205 2022-01 | identidad R205 frente a 0205 sin suponer alias; cabeceras <1%, R205 activa |
-| 052:T4 | B, período del plan | cronómetro <20 min y comparación oráculo/native; evidencia COPARA no prueba tiempo |
+| 051:T3 | G/NJA292 2024-11 y R295 2022-01 | identidad R295 frente a 0205 sin suponer alias; cabeceras <1%, R295 activa |
+| 052:T4 | B, período del plan | cronómetro <20 min y comparación oráculo/native; evidencia BOREALIS no prueba tiempo |
 | 055:T2 | G, estructura VNR Empresa B | sistemas/SET y conversión de un sistema por web |
-| 056:T3 | G/NJA202, VNR propio | importación y vocabulario según fuente |
+| 056:T3 | G/NJA292, VNR propio | importación y vocabulario según fuente |
 | 058:T7 | alimentador de fuente declarada | importación nueva con nombre CSG y readback |
-| 063:T7 | A/INKA, tres casos de su ajuste | botón 4.4, trabajo completo y comparación informe manual |
+| 063:T7 | A/CLIENTE K, tres casos de su ajuste | botón 4.4, trabajo completo y comparación informe manual |
 
 No se asigna una fuente o período desconocidos por semejanza de nombre. Las tareas
 que piden confirmación visual/documental del usuario permanecen explícitas aunque
@@ -144,12 +144,12 @@ se automatice su evidencia objetiva.
 
 Comando HTTP revisable para A, solo tras arrancar la API aislada y obtener el turno
 compartido: `POST http://127.0.0.1:18765/api/workspaces/374e622963ae496e/pf/obras/set-nueva/operacion`
-con cuerpo `{"project":"20261029-163414_IGEA_SM218","feeders":["SM218"],"accion":"diagnostico","verificar_flujos":false,"sincronizar_cargas":false,"conciliar_fases":false,"cambios":[],"salidas":[],"ajustes_flujo":{}}`.
+con cuerpo `{"project":"20261029-163414_IGEA_SM298","feeders":["SM298"],"accion":"diagnostico","verificar_flujos":false,"sincronizar_cargas":false,"conciliar_fases":false,"cambios":[],"salidas":[],"ajustes_flujo":{}}`.
 La ruta existente genera el contexto nativo y ejecuta por el arnés. Este diagnóstico
 genérico no exige crear una SET y restaura los casos en `finally`, también al éxito;
 debe comprobarse `restauracion_errores=[]`, los tres casos y el estado inicial/final.
 No acredita flujo ni aceptación. Para B se exige otro workspace aislado con su run
-exacto y el proyecto de B, conservando CT/COPARA. No se ejecutó el comando en fase 1.
+exacto y el proyecto de B, conservando CT/BOREALIS. No se ejecutó el comando en fase 1.
 
 El escaneo actual `escanear_alimentador_pf.py` activa Sin proyecto y ejecuta ComLdf,
 pero no restaura al éxito; 064 solo restituye globalmente ante error. Por ello su

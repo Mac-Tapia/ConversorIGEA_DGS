@@ -208,7 +208,7 @@ def cargar_cabeceras(ruta: Path, *, zona_horaria: str, codigos: tuple[str,...] =
     if not series:
         raise ValueError('; '.join(motivos.values()) if motivos else 'todas las series van en ambos sentidos; ninguna es de demanda')
     if not (hojas or codigos):
-        # 060:RF-5, Pisco (2026-11-08): CHI201 traía 17 días y arrastraba a los demás, con 298, bajo el mínimo de 30.
+        # 060:RF-5, Pisco (2026-11-08): CHI291 traía 17 días y arrastraba a los demás, con 298, bajo el mínimo de 30.
         cortas=[n for n in series if len(series[n])<MIN_PASOS_COMUNES]
         if len(cortas)<len(series):
             for n in cortas:

@@ -18,6 +18,7 @@ import pytest
 pytest.importorskip('python_calamine')
 openpyxl = pytest.importorskip('openpyxl')
 
+from apoyo import codigo_real  # noqa: E402
 from convertersmartgrid.aplicacion import demanda_medida as dm  # noqa: E402
 
 SEMILLA = int(os.environ.get('CSG_SCALE_SEED', random.randrange(1 << 30)))
@@ -195,7 +196,7 @@ def test_hoja_con_su_nombre_sin_kw_usa_sus_partes(tmp_path):
 
 
 def _canales(rng, base: str, n: int = 60) -> tuple[dict[str, list[list]], dict]:
-    """Medidor partido en canales como IN111 de Ica: kW, kVAR, kVA y una corriente, cada
+    """Medidor partido en canales como IN191 de Ica: kW, kVAR, kVA y una corriente, cada
     uno en su hoja ``<base>_V<n>`` y en su propio orden."""
     completo, esperado = _medicion(rng, n, {'kw': 'kW tot', 'kvar': 'kVAR tot', 'kva': 'kVA tot'})
     cab = completo[0]
@@ -237,7 +238,7 @@ def test_kvar_en_dos_hojas_hermanas_no_se_elige(tmp_path):
 
 def test_base_del_medidor_necesita_un_digito():
     """004:RF-44 — ``L-6613`` no tiene por base ``L``: juntaría medidores distintos."""
-    assert dm.base_del_medidor('IN111_V18') == 'IN111'
+    assert dm.base_del_medidor('IN191_V18') == 'IN191'
     assert dm.base_del_medidor('L-6613_PE') == 'L-6613'
     assert dm.base_del_medidor('L-6613') is None
     assert dm.base_del_medidor('M7') is None
@@ -1013,7 +1014,7 @@ def test_medidor_ct_es_central_termica(tmp_path):
     """022:RF-44 — un medidor de barra que empieza por CT es una central térmica aunque su
     rótulo solo diga «Barra» (usuario, 2026-10-27)."""
     filas = [['codigo alimentador', 'Medidor', 'Nivel Tension', 'SET'],
-             ['Barra', 'CT_PEDREG', 10, 'SET 25'], ['Barra', 'B-PE1T1', 10, 'SET 25']]
+             ['Barra', 'CT_PEDREG', 10, 'SET 65'], ['Barra', 'B-PE1T1', 10, 'SET 65']]
     _libro(tmp_path / 'm.xlsx', {'h': filas})
     por = {m.medidor: m.central for m in dm.leer_medidores_de_barra(tmp_path / 'm.xlsx')}
     assert por == {'CT_PEDREG': True, 'B-PE1T1': False}
@@ -1079,7 +1080,7 @@ def test_real_los_dos_formatos_de_clientes_cruzan():
 def _central(rng, n: int = 400, *, signo_llegada: int = 1, signo_salida: int = 1,
              raros: int = 0, parada_en: int | None = None, desfase: int = 0):
     """Cuatro curvas ``(fecha, kW, kVAR)`` de un alimentador con una central en serie en su
-    troncal, como NA205: aguas arriba entre la SET y la central, aguas abajo tras ella.
+    troncal, como NA295: aguas arriba entre la SET y la central, aguas abajo tras ella.
 
     Flujos que salen de la barra de la central, positivos: generación = salida + llegada.
     El medidor exporta la llegada o la salida con ``signo_*``; ``raros`` registros llevan
@@ -1189,16 +1190,17 @@ def test_central_solo_con_los_registros_comunes():
 
 
 @real
-def test_real_na205_con_su_central():
-    """021:RF-28, 021:RF-29, 021:RF-30, 021:RF-31, 021:RF-32, 021:RF-33, 021:RF-34 — NA205 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
+def test_real_na295_con_su_central():
+    """021:RF-28, 021:RF-29, 021:RF-30, 021:RF-31, 021:RF-32, 021:RF-33, 021:RF-34 — NA295 con la central de Nasca: CT_BH4 NA (generación), CTNA_BH2
     (llegada desde la SET) y CTNA_BH1 (salida a la carga). La máxima de demanda es la del
     2026-08-20 16:45, con la central generando, no la de cabecera con ella parada.
 
     Con el mes de la medición (2026-08), como la web (013:RF-11): sin él, la máxima salía de
     todos los libros y cambió el 2026-10-27, cuando entraron los de octubre de 2026."""
     cab = dm.Cabecera([_sub('2.')])
-    curvas = {m: cab.maxima(m).curva for m in ('NA205', 'CT_BH4 NA', 'CTNA_BH2', 'CTNA_BH1')}
-    r = dm.demanda_con_central(curvas['NA205'], curvas['CT_BH4 NA'], curvas['CTNA_BH2'],
+    alimentador = codigo_real('NA295')                 # LIMPIEZA-CODIGOS: el real, de la lista local
+    curvas = {m: cab.maxima(m).curva for m in (alimentador, 'CT_BH4 NA', 'CTNA_BH2', 'CTNA_BH1')}
+    r = dm.demanda_con_central(curvas[alimentador], curvas['CT_BH4 NA'], curvas['CTNA_BH2'],
                                curvas['CTNA_BH1'], periodo='2026-08')
     assert r.error is None, r
     assert (r.signo_llegada, r.signo_salida) == (1, 1)
@@ -1493,7 +1495,7 @@ def test_sesenta_kv_un_medidor_con_huecos_no_descarta_las_demas_fechas():
     f = [t0 + timedelta(hours=i) for i in range(5)]
     curva = lambda *kw: [(t, k, None) for t, k in zip(f, kw) if k is not None]
     r = dm.instante_de_barras_de_alta({'SET A': [curva(10, 90, 20, 30, 10)],
-                                       'SET CHN': [curva(None, None, None, 8, 8)]})
+                                       'SET QHN': [curva(None, None, None, 8, 8)]})
     assert r['fecha'] == f[1] and r['total_kw'] == pytest.approx(90.0)
 
 

@@ -4,6 +4,7 @@ from test_entrega_universal import _hallar_nombres, _nombres_de_config  # noqa: 
 
 from pathlib import Path
 import json
+import os
 
 
 CONTRATO = Path(__file__).parents[1] / 'config' / 'pide_universal_2017.json'
@@ -202,8 +203,11 @@ def test_cli_construye_fixture_y_permite_omitir_texto(tmp_path):
     assert (destino / 'fragments.jsonl').read_text(encoding='utf-8') == ''
 
 
-def test_dataset_real_pideelor_cubre_cada_archivo_y_articulo(tmp_path):
-    """Aceptación local: si existe PIDEELOR, su publicación no puede quedar parcial.
+def test_dataset_real_del_expediente_cubre_cada_archivo_y_articulo(tmp_path):
+    """Aceptación local: si hay un expediente PIDE real, su publicación no puede quedar parcial.
+
+    Su carpeta la da ``CSG_PIDE_EXPEDIENTE`` (fuera de git): el nombre del expediente es el de la empresa y el
+    repositorio público no lo escribe (LIMPIEZA-CODIGOS, 2026-11-22).
 
     Se construye aquí mismo y se compara con los ficheros de la fuente: leía un
     ``output/pide_dataset`` que solo existía si alguien lo había generado antes, y fijaba
@@ -212,11 +216,12 @@ def test_dataset_real_pideelor_cubre_cada_archivo_y_articulo(tmp_path):
     from convertersmartgrid.adaptadores.pide_dataset import construir_dataset
 
     repo = Path(__file__).parents[1]
-    fuente = repo / 'referencia' / 'PIDEELOR'
-    if not fuente.is_dir():
+    ruta = os.environ.get('CSG_PIDE_EXPEDIENTE', '').strip()
+    fuente = Path(ruta) if ruta else None
+    if fuente is None or not fuente.is_dir():
         return  # El corpus empresarial es privado y no forma parte del repositorio.
-    destino = tmp_path / 'PIDEELOR'
-    resumen = construir_dataset(fuente, destino, 'PIDEELOR', CONTRATO, sin_texto=True)
+    destino = tmp_path / fuente.name
+    resumen = construir_dataset(fuente, destino, fuente.name, CONTRATO, sin_texto=True)
     n = sum(1 for p in fuente.rglob('*') if p.is_file())
     assert resumen['files'] == n > 0
     assert resumen['articles'] == 20 and resumen['formats'] == 15
@@ -233,7 +238,7 @@ def test_dataset_real_pideelor_cubre_cada_archivo_y_articulo(tmp_path):
 
 def test_docx_que_python_docx_no_abre_se_lee_igual(tmp_path, monkeypatch):
     """027:RF-46, 027:RF-51 — un Word antiguo con «\» en sus rutas internas (P&C-059-2022 de
-    PIDEELOR) hacía fallar a python-docx: su texto se lee de word/document.xml y se avisa."""
+    PIDEEMPA) hacía fallar a python-docx: su texto se lee de word/document.xml y se avisa."""
     import docx
     from docx import Document
     from convertersmartgrid.adaptadores import pide_dataset as pd

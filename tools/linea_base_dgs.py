@@ -57,9 +57,9 @@ def _reglas():
 def _perfil_activo():
     """El perfil de la línea base también como perfil activo mientras se convierte.
 
-    Los nombres canónicos (022:RF-90, CN101 → CHN101) salen del perfil activo y no de las
-    reglas: la línea base de Access se hizo con el perfil local de la máquina (CHN101) y la
-    prueba, que no tiene perfil, daba CN101. Con este, las dos dan lo mismo en cualquier
+    Los nombres canónicos (022:RF-90, CN191 → CHN191) salen del perfil activo y no de las
+    reglas: la línea base de Access se hizo con el perfil local de la máquina (CHN191) y la
+    prueba, que no tiene perfil, daba CN191. Con este, las dos dan lo mismo en cualquier
     equipo.
     """
     from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
@@ -89,10 +89,22 @@ PARAMETROS = {
 }
 
 
-def _hashes_dgs(carpeta: Path) -> dict[str, str]:
-    from convertersmartgrid.dominio.util import sha256_file
+#: La línea de origen de la cabecera de los TXT: hasta el 2026-11-22 decía «CYMDIST» y desde entonces «TXT», porque los
+#: TXT no los exporta CYMDIST (aclaración de 056:RF-8). Se iguala a la de antes para que la línea base ya hecha siga
+#: valiendo: el resto del DGS tiene que ser idéntico byte a byte.
+ORIGEN_TXT_ACTUAL = b'* TXT to DIgSILENT DGS converter'
+ORIGEN_TXT_ANTERIOR = b'* CYMDIST to DIgSILENT DGS converter'
 
-    return {p.relative_to(carpeta).as_posix(): sha256_file(p)
+
+def huella_dgs(ruta: Path) -> str:
+    """SHA-256 del DGS con la línea de origen de los TXT igualada a la de la línea base."""
+    import hashlib
+
+    return hashlib.sha256(ruta.read_bytes().replace(ORIGEN_TXT_ACTUAL, ORIGEN_TXT_ANTERIOR, 1)).hexdigest()
+
+
+def _hashes_dgs(carpeta: Path) -> dict[str, str]:
+    return {p.relative_to(carpeta).as_posix(): huella_dgs(p)
             for p in sorted(carpeta.rglob('*.dgs'))}
 
 

@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Capturar, validar, clasificar y consultar episodios auditables de todo trabajo fuente–PowerFactory, incluido el caso dorado IN111–TA225, para formar el búfer local que alimentará los planes posteriores de generación de escenarios y entrenamiento PINN.
+**Goal:** Capturar, validar, clasificar y consultar episodios auditables de todo trabajo fuente–PowerFactory, incluido el caso dorado IN191–TA295, para formar el búfer local que alimentará los planes posteriores de generación de escenarios y entrenamiento PINN.
 
 **Architecture:** Un paquete puro `convertersmartgrid.digital_twin` define el contrato, la clasificación y un almacén inmutable direccionado por contenido; un exportador nativo relee PowerFactory en una sesión nueva y produce el estado eléctrico por elemento. La capa web registra cada resultado nativo sin convertir un fallo de captura en una mutación adicional: un episodio incompleto va a cuarentena y nunca al conjunto entrenable.
 
@@ -197,7 +197,7 @@ Require exact source identity from the signed context, native project/folder/cas
 
 - [ ] **Step 5: Test rejected attempts and rollback evidence**
 
-Assert a rolled-back action remains `rejected`, includes `rollback.restored=true`, and cannot be converted to `accepted` by setting only `converged=true`. Assert the 0.8683 p.u. IN111–TA225 sample is `converged_with_violations`.
+Assert a rolled-back action remains `rejected`, includes `rollback.restored=true`, and cannot be converted to `accepted` by setting only `converged=true`. Assert the 0.8683 p.u. IN191–TA295 sample is `converged_with_violations`.
 
 - [ ] **Step 6: Run focused regression**
 
@@ -356,17 +356,17 @@ git add tools/digital_twin_buffer.py src/convertersmartgrid/web/services.py src/
 git commit -m "feat: expose digital twin episode buffer"
 ```
 
-### Task 7: Caso dorado IN111–TA225 y aceptación nativa
+### Task 7: Caso dorado IN191–TA295 y aceptación nativa
 
 **Files:**
-- Create: `tests/fixtures/digital_twin/in111_ta225_topology_episode.json`
-- Create: `tests/test_digital_twin_in111_ta225.py`
-- Create: `tools/accept_digital_twin_in111_ta225.py`
+- Create: `tests/fixtures/digital_twin/in191_ta295_topology_episode.json`
+- Create: `tests/test_digital_twin_in191_ta295.py`
+- Create: `tools/accept_digital_twin_in191_ta295.py`
 - Modify: `README.md`
 
 **Interfaces:**
 - Consumes: Task 4 snapshot, Task 3 capture and Task 2 buffer.
-- Produces: sanitized topology fixture; native acceptance report `digital_twin_in111_ta225_acceptance.json`; no PowerFactory writes.
+- Produces: sanitized topology fixture; native acceptance report `digital_twin_in191_ta295_acceptance.json`; no PowerFactory writes.
 
 - [ ] **Step 1: Add the sanitized golden fixture and failing tests**
 
@@ -374,12 +374,12 @@ The fixture contains no coordinates or customer data, only stable synthetic IDs/
 
 - [ ] **Step 2: Run golden-case tests and verify failure**
 
-Run: `python -m pytest tests/test_digital_twin_in111_ta225.py -q`
+Run: `python -m pytest tests/test_digital_twin_in191_ta295.py -q`
 Expected: FAIL until the acceptance tool exists and the classifier preserves the violation.
 
 - [ ] **Step 3: Implement read-only native acceptance**
 
-The tool activates project `20261015-170359_CSG_IN111_TA225` in `sistemaeletricoELD`, case `Con proyecto`, and verifies the existing active variations without creating/deleting anything. Require 3091/source connectivity at 10 kV, 3092 transfer isolation at 22.9 kV, `SEC_1091_1055021(1)` in service, link endpoints preserved, GPS SHA-256 preserved and valid `ComLdf`.
+The tool activates project `20261015-170359_CSG_IN191_TA295` in `sistemaeletricoELD`, case `Con proyecto`, and verifies the existing active variations without creating/deleting anything. Require 3091/source connectivity at 10 kV, 3092 transfer isolation at 22.9 kV, `SEC_1091_1055021(1)` in service, link endpoints preserved, GPS SHA-256 preserved and valid `ComLdf`.
 
 - [ ] **Step 4: Register the real episode**
 
@@ -395,17 +395,17 @@ Add commands to validate/list the buffer and run this native acceptance. State e
 
 - [ ] **Step 7: Run focused and native verification**
 
-Run without license: `python -m pytest tests/test_digital_twin_in111_ta225.py -q`
+Run without license: `python -m pytest tests/test_digital_twin_in191_ta295.py -q`
 Expected: PASS.
 
-Run with PowerFactory: `python tools/accept_digital_twin_in111_ta225.py --project 20261015-170359_CSG_IN111_TA225 --folder sistemaeletricoELD --output-json <run>/salida/digital_twin_in111_ta225_acceptance.json`
+Run with PowerFactory: `python tools/accept_digital_twin_in191_ta295.py --project 20261015-170359_CSG_IN191_TA295 --folder sistemaeletricoELD --output-json <run>/salida/digital_twin_in191_ta295_acceptance.json`
 Expected: exit 0, snapshot persisted, episode class `converged_with_violations`, all topology/link checks true and `ComLdf` valid.
 
 - [ ] **Step 8: Optional commit checkpoint**
 
 ```bash
-git add tests/fixtures/digital_twin/in111_ta225_topology_episode.json tests/test_digital_twin_in111_ta225.py tools/accept_digital_twin_in111_ta225.py README.md
-git commit -m "test: capture IN111 TA225 twin episode"
+git add tests/fixtures/digital_twin/in191_ta295_topology_episode.json tests/test_digital_twin_in191_ta295.py tools/accept_digital_twin_in191_ta295.py README.md
+git commit -m "test: capture IN191 TA295 twin episode"
 ```
 
 ### Task 8: Cobertura, calidad y preparación del siguiente plan
@@ -420,7 +420,7 @@ git commit -m "test: capture IN111 TA225 twin episode"
 
 - [ ] **Step 1: Run the complete focused suite**
 
-Run: `python -m pytest tests/test_digital_twin_episode.py tests/test_digital_twin_buffer.py tests/test_digital_twin_capture.py tests/test_digital_twin_snapshot_pf.py tests/test_digital_twin_integration.py tests/test_digital_twin_web.py tests/test_digital_twin_buffer_cli.py tests/test_digital_twin_in111_ta225.py -q`
+Run: `python -m pytest tests/test_digital_twin_episode.py tests/test_digital_twin_buffer.py tests/test_digital_twin_capture.py tests/test_digital_twin_snapshot_pf.py tests/test_digital_twin_integration.py tests/test_digital_twin_web.py tests/test_digital_twin_buffer_cli.py tests/test_digital_twin_in191_ta295.py -q`
 Expected: PASS with no skipped test hiding a missing contract.
 
 - [ ] **Step 2: Run affected native-contract regressions**
@@ -430,7 +430,7 @@ Expected: PASS.
 
 - [ ] **Step 3: Run scoped Ruff**
 
-Run: `python -m ruff check src/convertersmartgrid/digital_twin src/convertersmartgrid/native_action.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/jobs.py src/convertersmartgrid/web/app.py tools/digital_twin_snapshot_pf.py tools/digital_twin_buffer.py tools/accept_digital_twin_in111_ta225.py tests/test_digital_twin_*.py`
+Run: `python -m ruff check src/convertersmartgrid/digital_twin src/convertersmartgrid/native_action.py src/convertersmartgrid/web/services.py src/convertersmartgrid/web/jobs.py src/convertersmartgrid/web/app.py tools/digital_twin_snapshot_pf.py tools/digital_twin_buffer.py tools/accept_digital_twin_in191_ta295.py tests/test_digital_twin_*.py`
 Expected: PASS. Report this exact scope; do not claim repository-wide Ruff.
 
 - [ ] **Step 4: Run formatting and diff checks**

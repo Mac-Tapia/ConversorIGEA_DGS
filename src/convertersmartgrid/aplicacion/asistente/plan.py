@@ -2,7 +2,7 @@
 
 Cada dato se contrasta con lo que existe: alimentadores de la fuente cargada, proyectos
 de DIgSILENT que la web conoce, sistemas de la estructura, ficheros del servidor. Un
-nombre con una errata se reconoce por parecido (``in11`` → IN111); uno que no existe no
+nombre con una errata se reconoce por parecido (``in11`` → IN191); uno que no existe no
 llega al plan, se dice. Si el modelo no marcó un dato pero el texto nombra uno que
 existe, se toma de ahí. Cada decisión queda en el razonamiento que ve el operador.
 """
@@ -179,8 +179,8 @@ def _nombrados(texto: str, opciones: Sequence[str]) -> list[str]:
     return [o for _p, o in sorted(hallados)]
 
 
-#: 069:RF-36: las palabras que unen alimentadores no son alimentadores. «transfiere de CA101 a CHN102» daba «A»
-#: y «junta CA101 con PE104», «CON»: el plan dudaba «“A” no es un alimentador» en una orden correcta (2026-11-11).
+#: 069:RF-36: las palabras que unen alimentadores no son alimentadores. «transfiere de CA191 a CHN192» daba «A»
+#: y «junta CA191 con PE194», «CON»: el plan dudaba «“A” no es un alimentador» en una orden correcta (2026-11-11).
 UNIONES_DE_LISTA = frozenset({'a', 'al', 'con', 'de', 'del', 'entre', 'hasta', 'y', 'e'})
 #: 069:RF-36: el texto de estas tareas es el mensaje entero, como el de ``pregunta`` (069:RF-30): se resuelven en la
 #: máquina y un trozo recortado («factibilidad de suministro…» de «solicitud de factibilidad de suministro…») perdía
@@ -350,7 +350,7 @@ def _alimentadores(valores: list[str], texto: str, opciones: list[str], plan: Pl
         if opciones and (iguales := empatados(p, opciones)):
             plan.faltan.append(f"cuál alimentador: «{p}» se parece igual a {' y '.join(iguales)}; dígalo completo.")
             continue
-        # 026:RF-6: el NetworkID de la fuente («NET_2030_179_PA217») es el mismo alimentador que su código corto.
+        # 026:RF-6: el NetworkID de la fuente («NET_2030_179_PA297») es el mismo alimentador que su código corto.
         o = (parecido(p, opciones) or parecido(feeder_short_name(p), opciones)) if opciones else p.upper()
         if o is None:
             plan.dudas.append(f'«{p}» no es un alimentador de la fuente cargada: no entra.')

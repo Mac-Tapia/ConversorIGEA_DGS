@@ -1,6 +1,6 @@
 """Spec 017, RF-128 a RF-135: alternativas de obras en el informe de estudio.
 
-El usuario, 2026-10-16, sobre el informe de CA101: primero la alternativa de solo los
+El usuario, 2026-10-16, sobre el informe de CA191: primero la alternativa de solo los
 bancos, después el cambio de sección con el tramo desde–hasta y su plano, y los bancos
 existentes con el nodo donde están.
 """
@@ -41,11 +41,11 @@ def test_una_alternativa_por_etapa_sumada_a_las_anteriores():
 
 
 def test_la_consigna_no_es_alternativa_propia():
-    """017:RF-129 — la consigna va con la alternativa siguiente (CA101), o con la última."""
-    ca101 = alternativas_de_obras([_aplicada('C1', 'condensador'), _aplicada('C2', 'condensador'),
+    """017:RF-129 — la consigna va con la alternativa siguiente (CA191), o con la última."""
+    ca191 = alternativas_de_obras([_aplicada('C1', 'condensador'), _aplicada('C2', 'condensador'),
                                    _aplicada('K', 'consigna'), _aplicada('S', 'seccion')])
-    assert [a['clave'] for a in ca101] == ['bancos_nuevos', 'conductor']
-    assert ca101[0]['variaciones'] == ['C1', 'C2'] and 'K' in ca101[1]['variaciones']
+    assert [a['clave'] for a in ca191] == ['bancos_nuevos', 'conductor']
+    assert ca191[0]['variaciones'] == ['C1', 'C2'] and 'K' in ca191[1]['variaciones']
     solo_bancos = alternativas_de_obras([_aplicada('C1', 'condensador'), _aplicada('K', 'consigna')])
     assert solo_bancos == [{'clave': 'bancos_nuevos', 'variaciones': ['C1', 'K']}]
     assert alternativas_de_obras([]) == []
@@ -172,7 +172,7 @@ def test_trechos_desde_hasta_de_la_cabecera_a_la_cola():
 
 
 def test_un_acople_no_corta_el_trecho():
-    """017:RF-132 — un seccionador entre dos tramos (CA101: 10 trechos falsos) los deja
+    """017:RF-132 — un seccionador entre dos tramos (CA191: 10 trechos falsos) los deja
     en un solo trecho, y el punto se nombra por su barra propia, no por «Terminal»."""
     tramos = [['L1', [[-14.0, -75.7], [-14.001, -75.7]], 50.0, 'CAB', 'N1', 'AA35', 0.1],
               ['L2', [[-14.0011, -75.7], [-14.002, -75.7]], 50.0, 'N1b', 'Terminal', 'AA35', 0.1],

@@ -34,7 +34,7 @@ Decisiones:
   doble circuito de 240 que el usuario no admite; se quitan esas variantes en vez de rehacerlas.
 
 Pruebas: `tests/test_set_nueva.py` con redes y cargas sorteadas (`CSG_SCALE_SEED`); el libro de
-módulos sintético con `openpyxl`; la obra con el doble `tests/fake_pf.py`; NA203 + NA205 en
+módulos sintético con `openpyxl`; la obra con el doble `tests/fake_pf.py`; NA293 + NA295 en
 DIgSILENT desde la web.
 
 ### Aclaración universal U02 — 2026-11-08

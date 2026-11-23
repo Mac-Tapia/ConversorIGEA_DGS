@@ -28,4 +28,4 @@ factor en `oraculo.py`.
 
 Pruebas: `tests/test_oraculo_corrige.py`, con exports sintéticos sorteados en las dos
 disposiciones; la demanda de relleno se fuerza en el modelo. Determinismo: dos corridas dan el
-mismo informe y el mismo DGS. Datos reales: NJA202 por la web (T4).
+mismo informe y el mismo DGS. Datos reales: NJA292 por la web (T4).

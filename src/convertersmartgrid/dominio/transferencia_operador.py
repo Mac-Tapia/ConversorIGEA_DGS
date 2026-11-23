@@ -1,10 +1,10 @@
 """Transferencias de carga que el operador hizo a mano en DIgSILENT (spec 098).
 
-CA101 y CHN102 (2026-11-07, ``20261105-124711_CSG_TXT_CA101_CHN102``): el operador pasó parte de CA101 a CHN102 con dos
-tramos nuevos y dejó abierto el punto que la unía a CA101; con ella pasaron tres bancos de 300 kvar. Las SED conservan su
-``p:alimentador=CA101`` de la fuente, pero las alimenta CHN102. La recalibración de julio, con medidas de antes de la
-transferencia, terminó con «pérdidas activas negativas en CA101 (-1 271,2 kW)»: contaba en CA101 unas cargas cuya
-potencia entraba por la cabecera de CHN102.
+CA191 y CHN192 (2026-11-07, ``20261105-124711_CSG_TXT_CA191_CHN192``): el operador pasó parte de CA191 a CHN192 con dos
+tramos nuevos y dejó abierto el punto que la unía a CA191; con ella pasaron tres bancos de 300 kvar. Las SED conservan su
+``p:alimentador=CA191`` de la fuente, pero las alimenta CHN192. La recalibración de julio, con medidas de antes de la
+transferencia, terminó con «pérdidas activas negativas en CA191 (-1 271,2 kW)»: contaba en CA191 unas cargas cuya
+potencia entraba por la cabecera de CHN192.
 
 La decisión del usuario (2026-11-07): para calibrar y recalibrar se desactiva la transferencia y se calibra con sus
 alimentadores completos, como cuando se midió, y al terminar se deja exactamente como estaba. Aquí está la parte pura:
@@ -100,7 +100,7 @@ class Zona:
 def transferidas(cargas: Iterable[CargaRed], alimentadores: Iterable[str]) -> list[CargaRed]:
     """098:RF-1: las cargas con la etiqueta de un alimentador del proyecto que alimenta otro del mismo proyecto.
 
-    Sin etiqueta, o alimentada por ninguno (aislada o fuera del ``ElmFeeder``, como la segunda troncal de CA101 el
+    Sin etiqueta, o alimentada por ninguno (aislada o fuera del ``ElmFeeder``, como la segunda troncal de CA191 el
     2026-10-15, 063:RF-39), no es una transferencia.
     """
     del_proyecto = set(alimentadores)
@@ -168,7 +168,7 @@ def zonas_transferidas(cargas: Sequence[CargaRed], ramas: Sequence[Rama], topolo
         if f not in fuentes:                  # sin cabecera conocida: todo lo que alimenta
             fuentes[f] = {comp.raiz(t) for t in barras if t not in fuera}
     # También lo que tiene SED propias del alimentador que no pasaron a otro: la segunda troncal de un medidor con dos
-    # salidas queda fuera del ``ElmFeeder`` (CA101, 2026-10-15, 063:RF-39) y sigue siendo suya.
+    # salidas queda fuera del ``ElmFeeder`` (CA191, 2026-10-15, 063:RF-39) y sigue siendo suya.
     for c in cargas:
         if c.etiqueta in barras_f and c.alimentador in (c.etiqueta, None) and c.terminal not in fuera:
             fuentes.setdefault(c.etiqueta, set()).add(comp.raiz(c.terminal))
@@ -338,7 +338,7 @@ def red_del_dgs(lineas: Iterable[str], fuente: RedFuente | None = None) -> RedFu
     """098:RF-16: la red del DGS aceptado, con las barras de cada rama por sus cubículos (``StaCubic``).
 
     Cada tabla se lee por su cabecera. El DGS del conversor no trae las maniobras abiertas (se quitan al convertir: 90
-    en el de CA101 y CHN102), así que dos barras que el DGS no une no se unían en la fuente.
+    en el de CA191 y CHN192), así que dos barras que el DGS no une no se unían en la fuente.
     """
     fuente = fuente or RedFuente()
     nombres: dict[str, tuple[str, str]] = {}
@@ -385,10 +385,10 @@ def frente_a_la_fuente(ramas: Sequence[Rama], fuente: RedFuente) -> tuple[list[R
     - La rama del DGS con las mismas barras es de la fuente; cerrada salvo que el DGS la deje abierta.
     - Una partición (``SplitLine`` o una barra insertada): la rama del DGS con otras barras y la cadena de ramas y barras
       nuevas que vuelve a unir sus barras originales equivalen a la rama de la fuente, cerrada. Si en la cadena hay algo
-      abierto, es el punto que abrió el operador: SEC_1091_1082269 de CA101 (2026-11-07) quedó partida en dos con un
+      abierto, es el punto que abrió el operador: SEC_1091_1082269 de CA191 (2026-11-07) quedó partida en dos con un
       acoplador nuevo abierto en medio.
     - Lo demás que no está en el DGS no es de la fuente: un acoplador nuevo cerrado entre dos barras del DGS que el DGS
-      no une es un enlace del operador («Breaker/Switch(1)», por donde CHN102 alimentaba la zona).
+      no une es un enlace del operador («Breaker/Switch(1)», por donde CHN192 alimentaba la zona).
     Devuelve las ramas reclasificadas y un resumen con las particiones y lo nuevo.
     """
     por_barra: dict[str, list[Rama]] = {}

@@ -1,14 +1,14 @@
 # Spec 013 — Mes de análisis y transferencia entre dos alimentadores
 
-Estado: cumplida (2026-11-08: T7 retirada por orden del usuario, que la da por hecha; el caso pasó a CA101 + CHN102) (2026-10-29: T5, T6 y T8 cerradas; falta la prueba en DIgSILENT, T7) · antes aprobada (2026-10-29, revisión 033: las decisiones se cerraron el 2026-10-13 y RF-1 a RF-6, RF-8, RF-11 y RF-12 ya estaban implementados) · era borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
+Estado: cumplida (2026-11-08: T7 retirada por orden del usuario, que la da por hecha; el caso pasó a CA191 + CHN192) (2026-10-29: T5, T6 y T8 cerradas; falta la prueba en DIgSILENT, T7) · antes aprobada (2026-10-29, revisión 033: las decisiones se cerraron el 2026-10-13 y RF-1 a RF-6, RF-8, RF-11 y RF-12 ya estaban implementados) · era borrador · Fecha: 2026-10-13 · Origen: revisión de «2.3 Clientes importantes» del 2026-10-13
 
 ## Contexto y objetivo
 
 El cruce de clientes importantes (spec 004, RF-34 a RF-37 y RF-43) lee **un solo** libro de
 clientes, el que sube el operador, y la máxima de cabecera (RF-27) se busca en **todos** los
 registros del libro de medición, que trae el año entero. Nada comprueba que los dos sean del
-mismo mes. Caso real del 2026-10-13: CA101 da su máxima el 16/04/2026 y PE104 el
-12/01/2026. Con el libro de clientes de abril, PE104 recibe los clientes de abril sobre una
+mismo mes. Caso real del 2026-10-13: CA191 da su máxima el 16/04/2026 y PE194 el
+12/01/2026. Con el libro de clientes de abril, PE194 recibe los clientes de abril sobre una
 máxima de enero. La empresa deja un libro por mes (`0126clientesImportantes.xlsb` …
 `0726clientesImportantes.xlsx`, y uno más cada mes), y el operador tenía que saber cuál
 subir.
@@ -207,7 +207,7 @@ Aclaraciones de la revisión 033 (2026-10-29): lo que el código hace distinto
 
 Cada RF citado por al menos una prueba (`grep -rnoE "013:RF-[0-9]+" tests | sort -u`); la
 suite en verde con los datos reales y la carpeta de clientes; y RF-22 a RF-29 probados en
-DIgSILENT con CA101 y PE104. La aceptación nativa incluirá el fichero descargable, la
+DIgSILENT con CA191 y PE194. La aceptación nativa incluirá el fichero descargable, la
 relectura de sus resultados y evidencia de que ambos alimentadores se simularon en el mismo
 instante.
 

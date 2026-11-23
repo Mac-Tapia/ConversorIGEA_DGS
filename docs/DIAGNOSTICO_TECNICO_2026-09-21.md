@@ -26,7 +26,7 @@ Clasificación recomendada hoy: **apto para generación, inspección y premodela
 - `ruff` no pudo ejecutarse porque no está instalado ni declarado en `requirements-dev.txt`.
 - Una ejecución completa de `pytest -q` fue interrumpida tras más de 90 s sin progreso visible después de dos casos. La búsqueda de fixtures incluye la ruta UNC `\\mnt\data`, que puede introducir latencia de red en Windows.
 - `compileall` no reportó errores.
-- El artefacto existente `output/production_all/PRODUCTION_READINESS.json` declara 93/93 conversiones estáticas y 92/93 aceptaciones PowerFactory, con IC103 sin convergencia. Esta es evidencia histórica del 2026-09-21, no una nueva ejecución durante esta auditoría.
+- El artefacto existente `output/production_all/PRODUCTION_READINESS.json` declara 93/93 conversiones estáticas y 92/93 aceptaciones PowerFactory, con IC193 sin convergencia. Esta es evidencia histórica del 2026-09-21, no una nueva ejecución durante esta auditoría.
 
 ## Hallazgos priorizados
 
@@ -41,7 +41,7 @@ Clasificación recomendada hoy: **apto para generación, inspección y premodela
 | A-03 | Alta | `model.py` | Las SED se detectan por sufijo regex de identificadores y cada carga coincidente crea una SED/transformador. | Falsos positivos, duplicación de transformadores y asociación semántica no demostrada. |
 | A-04 | Alta | `batch.py` | La escritura no es transaccional. Se sobrescribe el DGS final antes de validar; ante excepción se elimina todo lo listado en `written`, incluso si reemplazó un artefacto previo exitoso. | Pérdida de un resultado bueno y exposición de salidas parciales/fallidas. |
 | A-05 | Alta | `validate.py` | La referencia del validador es el mismo `FeederModel`; no existe comparación independiente de P/Q, impedancias por tramo, estados, fases y resultados CYMDIST↔PowerFactory. | Riesgo de validación circular: productor y oráculo comparten los mismos supuestos/errores. |
-| A-06 | Alta | aceptación PF | 92/93 casos históricos pasan; IC103 diverge incluso tras ocho correcciones que incluyen desconectar cargas flotantes y escalarlas. | No hay aceptación completa; además, “hacer converger” cambiando el caso no equivale a validar el caso original. |
+| A-06 | Alta | aceptación PF | 92/93 casos históricos pasan; IC193 diverge incluso tras ocho correcciones que incluyen desconectar cargas flotantes y escalarlas. | No hay aceptación completa; además, “hacer converger” cambiando el caso no equivale a validar el caso original. |
 | A-07 | Alta | `dataset.py` | Nodos, fuentes, headnodes y cargas duplicadas se sobrescriben en diccionarios; filas con columnas extra se truncan; UTF-8 inválido se reemplaza. | Pérdida silenciosa de registros y baja trazabilidad de calidad de datos. |
 | M-01 | Media | `model.py` | La conectividad ignora el estado de interruptores al buscar islas: todas las líneas se consideran conectadas. | Falsos “conectado” en topologías normalmente abiertas. |
 | M-02 | Media | `inventory.py` | Cuenta “issues” por categoría, no número de filas afectadas; faltan rangos físicos, duplicados, NaN, unidades, fase y consistencia energética. | El resumen puede minimizar un problema masivo dentro de una sola categoría. |
@@ -93,7 +93,7 @@ Vacíos: verificar que el CRS fuente tenga unidades lineales compatibles o trans
 ### `dgs.py` — serialización y representación PowerFactory
 
 Fortaleza: FID determinista, referencias explícitas, perfil versionado y capa gráfica reproducible.  
-Vacíos: preservar fases, modelos de carga, parámetros de secuencia y shunt con unidades verificadas; importar transformadores reales; fuente de cortocircuito; frecuencia configurable; BT configurable; equipos reguladores/capacitores cuando existan placements. Constantes `NA205_*` y supuestos eléctricos impiden la universalidad declarada.
+Vacíos: preservar fases, modelos de carga, parámetros de secuencia y shunt con unidades verificadas; importar transformadores reales; fuente de cortocircuito; frecuencia configurable; BT configurable; equipos reguladores/capacitores cuando existan placements. Constantes `NA295_*` y supuestos eléctricos impiden la universalidad declarada.
 
 ### `validate.py` — verificación estática
 
@@ -147,7 +147,7 @@ El resumen histórico reporta:
 - 96 alimentadores solicitados: 93 convertidos y 3 stubs omitidos.
 - 93/93 validaciones estáticas sin error.
 - 93/93 importados/evaluados por la puerta PowerFactory.
-- 92/93 con convergencia; IC103 no converge.
+- 92/93 con convergencia; IC193 no converge.
 
 Esto demuestra compatibilidad operacional importante, pero no prueba equivalencia física. Además, varias correcciones de convergencia cambian el problema (poner cargas fuera de servicio o escalarlas). Deben reportarse dos métricas separadas:
 
@@ -167,7 +167,7 @@ Esto demuestra compatibilidad operacional importante, pero no prueba equivalenci
 
 ### P1 — validación científica
 
-1. Crear un conjunto dorado de 5–10 alimentadores con export CYMDIST y modelo PowerFactory revisado por ingeniero.
+1. Crear un conjunto dorado de 5–10 alimentadores con sus TXT y modelo PowerFactory revisado por ingeniero.
 2. Comparar por elemento: fases, estado, longitud, R/X/B, ampacidad, P/Q, tensión, transformador y conectividad.
 3. Comparar resultados: tensión por barra, corriente por tramo, pérdidas P/Q y cargabilidad; definir tolerancias antes de observar resultados.
 4. Ejecutar análisis de sensibilidad de supuestos y cuantificación de incertidumbre.

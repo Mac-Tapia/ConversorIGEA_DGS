@@ -1,10 +1,10 @@
 # Spec 015 — «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas
 
-Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-73 a RF-75) · antes cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA101 del 2026-10-14
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-73 a RF-75) · antes cumplida (reabierta y cerrada el 2026-11-19 con MEJ3-CALIB por orden del usuario; su corrida en DIgSILENT va en 086 T105) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: revisión de la aceptación de CA191 del 2026-10-14
 
 ## Contexto y objetivo
 
-La aceptación de CA101 del 2026-10-13 adoptó el proyecto existente sin comprobar la red:
+La aceptación de CA191 del 2026-10-13 adoptó el proyecto existente sin comprobar la red:
 0 de 0 barras con GPS comparado, 0 de 0 líneas con conectividad comprobada, sin diagrama,
 y el flujo de carga sin converger. El vínculo quedó como
 `IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA`, y fue el ajuste a la máxima en
@@ -63,7 +63,7 @@ Verificación del «Caso base»
 - RF-4: EL SISTEMA comprobará que cada línea y cada carga están conectadas a sus barras.
 - RF-5: EL SISTEMA comprobará que el diagrama geográfico existe. (2026-10-15: la curva de
   cada línea en el unifilar frente al mapa se avisa y no bloquea; un diagrama que falla dice
-  por qué. Caso CA101: 296 curvas del unifilar de un DGS anterior, con el GPS perfecto.)
+  por qué. Caso CA191: 296 curvas del unifilar de un DGS anterior, con el GPS perfecto.)
 - RF-6: EL SISTEMA comprobará que cada transformador, línea y banco de condensadores tiene
   definida su capacidad: potencia nominal, corriente nominal y potencia por paso.
 - RF-7: EL SISTEMA comparará la capacidad de cada transformador, línea y banco de
@@ -177,7 +177,7 @@ Fijas y escaladas con el factor de escala de DIgSILENT
   potencia instalada (kVA de sus transformadores) por el factor de potencia de RF-54, y
   cambiará solo su factor de escala (``scale0``), el mismo en todas, hasta cuadrar la
   cabecera con la máxima. (Cambiado el 2026-10-15: antes conservaba la P y la Q del
-  archivo original; en CA101, 98 de las 160 escaladas, con 11 057 kVA instalados, tenían
+  archivo original; en CA191, 98 de las 160 escaladas, con 11 057 kVA instalados, tenían
   demanda cero en el archivo y los 6 MW caían en 62 SED con 3132 kVA.)
 - RF-45: SI una SED escalada no tiene potencia instalada conocida, ni en DIgSILENT ni en el
   archivo original, ENTONCES EL SISTEMA la dejará en cero y la listará en un aviso.
@@ -263,19 +263,19 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   SISTEMA dejará grabado en «Sin proyecto» el reparto que cuadró, con cada SED no fija con su
   parte y los ajustes del flujo con que convergió, sin volver a la demanda del archivo, y dirá
   que no es válida y por qué. Antes se revertía y las SED escaladas quedaban en cero, que es lo
-  que trae el archivo (SL144 + SM117, 2026-10-28; usuario: «en cualquier alimentador todas las
+  que trae el archivo (SL194 + SM197, 2026-10-28; usuario: «en cualquier alimentador todas las
   SED no fijas se deben escalar y distribuir sus cargas, no debe haber ninguna SED con carga
   cero»).
 - RF-70: SI el proyecto no tiene ninguna conversión vinculada, ENTONCES EL SISTEMA lo calibrará con los datos del
   propio proyecto de DIgSILENT, sin exigir un «Caso base» verificado contra un DGS, y lo dirá en sus avisos. (Regla
   del usuario, 2026-11-13: se calibra cualquier proyecto que esté en DIgSILENT, convertido o no por el conversor.)
-- RF-71: (regla del usuario del 2026-11-06, AL209, y orden del 19-11; amplía RF-68) CUANDO valida la calibración, EL
+- RF-71: (regla del usuario del 2026-11-06, AL299, y orden del 19-11; amplía RF-68) CUANDO valida la calibración, EL
   SISTEMA contará por alimentador las escaladas con potencia instalada que consumen menos de 1 kW
   (`ESCALADA_CASI_CERO_KW`, antes 10 W) y comprobará el factor común de las escaladas; SI alguna queda bajo 1 kW o el
   factor es menor que 0,05 (`FACTOR_ESCALADAS_ANORMAL`), ENTONCES EL SISTEMA lo dirá en un aviso con las SED, el factor y
   la suma de las fijas frente a la cabecera, y con el factor por debajo de 0,05 no dará la calibración por válida
   (`ESCALADAS_CASI_CERO`; RF-69 deja grabado el reparto). Una SED pequeña bajo 1 kW con el factor normal se avisa sin
-  invalidar. AL209 con las fijas del máximo de cada mes daba un factor de 0,0097 y 39 SED bajo 1 kW como válida.
+  invalidar. AL299 con las fijas del máximo de cada mes daba un factor de 0,0097 y 39 SED bajo 1 kW como válida.
 - RF-72: (regla del usuario del 2026-10-15 y orden del 19-11; amplía RF-66) CUANDO calibra un alimentador con central en
   su tramo, solo o en el proyecto, EL SISTEMA pondrá también sus bancos existentes a su máxima capacidad antes de medir,
   fuera de la etapa de la central, y dirá en el informe los que cambió.
@@ -326,7 +326,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 
 ## Casos límite
 
-- Proyecto existente adoptado sin manifiesto de geografía (CA101 del 2026-10-13): no se
+- Proyecto existente adoptado sin manifiesto de geografía (CA191 del 2026-10-13): no se
   puede verificar el GPS y no queda verificado (RF-1, RF-10).
 - Transformador con su tipo cambiado a mano en el «Caso base»: aviso, no bloqueo (RF-11).
 - Fuente sin coordenadas en parte de la red (RF-12).
@@ -335,7 +335,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 - Un tipo de transformador compartido por SED de 220 V y de 380 V: se corrigen solo las
   que lo necesitan (RF-36).
 - El «Caso base» converge pero la calibración no (RF-24).
-- CA101 (2026-10-14): su «Caso base» no convergía con las cargas del archivo. Al importar
+- CA191 (2026-10-14): su «Caso base» no convergía con las cargas del archivo. Al importar
   se reduce la demanda hasta que converja (RF-38); al verificar el proyecto ya importado no
   se corre el flujo (RF-39), y «Sin proyecto» calibra con su propio escenario.
 - Lote con un alimentador sin verificar (RF-15).
@@ -348,7 +348,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   (RF-27, RF-30).
 - El operador abre un interruptor en «Sin proyecto»: queda en su escenario y el «Caso
   base» no cambia.
-- Proyectos de antes de esta spec (CA101, `Ajuste_CA101_20261013_203247_3` con cuatro
+- Proyectos de antes de esta spec (CA191, `Ajuste_CA191_20261013_203247_3` con cuatro
   transformadores): sus variaciones no se tocan (014:RF-3); si alguna está activa en el
   «Caso base», se avisa (RF-31).
 - Proyecto con el vínculo `IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA` de antes de esta
@@ -367,7 +367,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "015:RF-[0-9]+" tests`).
 - Suite en verde con los datos reales (variables `CSG_*`).
-- Prueba en DIgSILENT con CA101: la verificación del «Caso base» lista lo que falla;
+- Prueba en DIgSILENT con CA191: la verificación del «Caso base» lista lo que falla;
   corregido en DIgSILENT, pasa; la calibración en «Sin proyecto» solo cambia cargas.
 
 ## Dudas resueltas
@@ -413,27 +413,27 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 13. La validación es física, en DIgSILENT: las fijas tienen que estar cargadas en sus SED
     y, con las escaladas, sumar a la cabecera de «Sin proyecto» con lo que consumen en el
     flujo, no con lo escrito (usuario, 2026-10-15; RF-47 a RF-52). Motivo, medido en
-    DIgSILENT con CA101 ese día: con la adaptación automática del modelo (`iopt_lev`) que
+    DIgSILENT con CA191 ese día: con la adaptación automática del modelo (`iopt_lev`) que
     dejó RF-46, cada carga consumía lo escrito por u²; las 9 fijas escribían 3677 kW y
     consumían 2686 kW (SE20701, 1582 kW escritos, 984 kW a 0,788 pu), y la validación decía
     «válido» porque solo releía lo escrito. Sin ese ajuste, «Sin proyecto» no converge.
 14. Factor de potencia: las fijas, el de su EA y ERI de la tabla cruzada; las escaladas,
     0,98 (usuario, 2026-10-15, que corrigió un primer «todas a 0,98»; RF-53 a RF-58). El
     0,98 va en el perfil de empresa (P13), no en el código. Medido ese día en una copia de
-    CA101 con cargas PQ: tal cual no converge; con todas a 0,98 converge a 6002 kW
+    CA191 con cargas PQ: tal cual no converge; con todas a 0,98 converge a 6002 kW
     (+0,04 %), aún con 0,73 pu en SE20701.
 15. Las escaladas se reparten según la potencia instalada de cada SED (usuario, 2026-10-15;
     RF-44, RF-45), no según su demanda del archivo, que dejaba sin carga 98 de las 160
-    escaladas de CA101. En la misma copia, por kVA y con 0,98 convergía a 6029 kW con
+    escaladas de CA191. En la misma copia, por kVA y con 0,98 convergía a 6029 kW con
     menos pérdidas (770 kW frente a 827) y mejor tensión mínima (0,749 frente a 0,733 pu).
 16. Los bancos del proyecto que se analiza ya están instalados y valen tal cual; no se
     extrae nada de otro alimentador ni de otro proyecto (usuario, 2026-10-15; RF-60,
-    RF-61). En CA101 son tres de 300 kvar en 10 kV, dos en la barra «Terminal» (que parte
+    RF-61). En CA191 son tres de 300 kvar en 10 kV, dos en la barra «Terminal» (que parte
     el tramo SEC_1091_1082263) y uno en «Terminal(1)». El cliente que pide más que su
-    transformador se avisa (RF-59): en CA101, SE20859 (496 %) y SE21082 (201 %).
+    transformador se avisa (RF-59): en CA191, SE20859 (496 %) y SE21082 (201 %).
 17. Los clientes fijos con factor de potencia por debajo de 0,98 se suponen compensados por
     sus propios bancos hasta 0,98, y el informe lo dice (usuario, 2026-10-15; RF-62 a
-    RF-64). Medido ese día en una copia de CA101: con las fijas en su EA/ERI la cabecera da
+    RF-64). Medido ese día en una copia de CA191: con las fijas en su EA/ERI la cabecera da
     3036 kvar frente a 302 medidos; con las nueve a 0,98, 1537 kvar; para llegar a 302 harían
     falta 0,994 capacitivo. El 0,98 va en el perfil de empresa (P13).
 

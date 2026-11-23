@@ -136,18 +136,18 @@ def test_sin_unidad_se_pide(tmp_path):
 def test_lo_escrito_lo_lee_la_calibracion(tmp_path):
     """051:RF-6, 051:RF-10 — un libro por año con una hoja por código y el de medidores, que el
     lector de la calibración lee sin cambios; el nombre en DIgSILENT y el código de la medición
-    pueden ser distintos (R205 se mide como R5)."""
+    pueden ser distintos (R295 se mide como R5)."""
     rng = random.Random(SEMILLA)
-    codigos = ['NJ202', 'JA102']
+    codigos = ['NJ292', 'JA102']
     esperado = _perfil(tmp_path / 'perfil.xlsx', rng, codigos)
     lectura = ca.leer_ancho([tmp_path / 'perfil.xlsx'], codigos)
     salida = tmp_path / 'espacio'
-    escritos = ca.escribir(lectura, salida, {'ALIM_A': 'NJ202', 'ALIM_B': 'JA102'})
+    escritos = ca.escribir(lectura, salida, {'ALIM_A': 'NJ292', 'ALIM_B': 'JA102'})
     assert {p.name for p in escritos} >= {'cabecera_2024.xlsx', 'medidores.xlsx'}
     medidores = dm.leer_medidores(salida / 'medidores.xlsx')
-    assert {(m.alimentador, m.medidor) for m in medidores} == {('ALIM_A', 'NJ202'), ('ALIM_B', 'JA102')}
+    assert {(m.alimentador, m.medidor) for m in medidores} == {('ALIM_A', 'NJ292'), ('ALIM_B', 'JA102')}
     assert (salida / '2024' / 'cabecera_2024.xlsx').is_file(), 'una subcarpeta por año (025:RF-1)'
-    (r,) = dm.maximas([salida / '2024' / 'cabecera_2024.xlsx'], [('ALIM_A', 'NJ202')], periodo='2024')
+    (r,) = dm.maximas([salida / '2024' / 'cabecera_2024.xlsx'], [('ALIM_A', 'NJ292')], periodo='2024')
     assert r.error is None
     # 004:RF-112: la máxima es la mayor media de una hora seguida (4 registros de 15 min) del año.
     serie = [v[0] for _t, v in sorted((t, v) for t, v in esperado[codigos[0]].items() if t.year == 2024)]
@@ -187,11 +187,11 @@ def test_fp_del_usuario_para_una_medicion_sin_reactiva(tmp_path):
     _maximas(tmp_path / 'max.xlsx', rng, ['R5'])
     lectura = ca.leer_maximas_mensuales([tmp_path / 'max.xlsx'], ['R5'])
     salida = tmp_path / 'espacio'
-    ca.escribir(lectura, salida, {'L14243': 'R5'}, {'R5': 0.98})
+    ca.escribir(lectura, salida, {'L19243': 'R5'}, {'R5': 0.98})
     anio, kw = max(((t.year, v[0]) for t, v in lectura.series['R5'].items()), key=lambda x: x[1])
-    (r,) = dm.maximas([salida / str(anio) / f'cabecera_{anio}.xlsx'], [('L14243', 'R5')], periodo=str(anio))
+    (r,) = dm.maximas([salida / str(anio) / f'cabecera_{anio}.xlsx'], [('L19243', 'R5')], periodo=str(anio))
     assert r.error is None and r.kw == pytest.approx(kw), SEMILLA
     objetivo = objetivo_de(r.to_dict())
     assert objetivo.kvar == pytest.approx(kw * math.tan(math.acos(0.98)), rel=1e-6)
     with pytest.raises(dm.DemandaError, match='entre 0 y 1'):
-        ca.escribir(lectura, tmp_path / 'otro', {'L14243': 'R5'}, {'R5': 1.2})
+        ca.escribir(lectura, tmp_path / 'otro', {'L19243': 'R5'}, {'R5': 1.2})

@@ -26,8 +26,8 @@
   Hecho cuando: prueba de cada uno con y sin dato en el perfil; el dimensionado se ve en el informe.
   Evidencia (2026-11-06): 042:RF-70 y RF-71 en `tests/test_escalera_optima.py` (con y sin factor, y con perfil parcial); la potencia y la corriente elegidas van en el nombre de la variante que lleva el informe.
 - [x] T38 Obra para el déficit previo, con su costo aparte, con o sin obra para la carga. La implementa la sesión de la 042 en su rama. (RF-52)
-  Hecho cuando: «ya cumple» no se queda sin obra si hay una barra previa baja; prueba con doble y medida en DIgSILENT sobre SI112; el informe separa los dos costos.
-  Evidencia (2026-11-06): 042:RF-64 y RF-65 con dobles (`tests/test_informe_factibilidad_un_paso.py`, `tests/test_valle.py`); la medida sobre SI112 es la 042 T44 [DIgSILENT].
+  Hecho cuando: «ya cumple» no se queda sin obra si hay una barra previa baja; prueba con doble y medida en DIgSILENT sobre SI192; el informe separa los dos costos.
+  Evidencia (2026-11-06): 042:RF-64 y RF-65 con dobles (`tests/test_informe_factibilidad_un_paso.py`, `tests/test_valle.py`); la medida sobre SI192 es la 042 T44 [DIgSILENT].
 
 ## F1 Datos que no se pierden (`v1/datos`)
 
@@ -216,18 +216,18 @@
 
 Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de prueba nuevos. `D=<DATOS>/<COPIA_ANTERIOR>`.
 
-- T24. Retirada el 2026-11-08 por orden del usuario, sin hacer: R1 con CA101 + PE104 ya se hizo; sus tareas siguen cada una por su cuenta. Era: [DIgSILENT] R1, CA101 + CHN102, TXT (el usuario la cambió de CA101 + PE104 el 2026-11-08), sobre el proyecto `20261105-124711_CSG_TXT_CA101_CHN102`, sin reconvertir: `--red CA101 CHN102 --grupo CA101_CHN102 --demanda-dir $D --periodo 2026-07`, luego en el navegador calibración, cargas, obras, transferencia e informes. (RF-45)
-- [x] T25 [DIgSILENT] R2, SI213 y PN107, MDB, uno por vez, con cargas por el navegador. (RF-45)
+- T24. Retirada el 2026-11-08 por orden del usuario, sin hacer: R1 con CA191 + PE194 ya se hizo; sus tareas siguen cada una por su cuenta. Era: [DIgSILENT] R1, CA191 + CHN192, TXT (el usuario la cambió de CA191 + PE194 el 2026-11-08), sobre el proyecto `20261105-124711_CSG_TXT_CA191_CHN192`, sin reconvertir: `--red CA191 CHN192 --grupo CA191_CHN192 --demanda-dir $D --periodo 2026-07`, luego en el navegador calibración, cargas, obras, transferencia e informes. (RF-45)
+- [x] T25 [DIgSILENT] R2, SI293 y PN197, MDB, uno por vez, con cargas por el navegador. (RF-45)
   Cierra: 007 T11, 016 T18, 028 T11, 081 T20. Hecho cuando: variación por carga, barra más cercana, base activa al terminar.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T26 [DIgSILENT] R3, Pisco y una SET, TXT: `--zonal Pisco --demanda-dir $D --periodo 2026-07 --reconvertir`, luego `--set <SET>`. (RF-45)
   Cierra: 028 T15, 083 T3, 081 T10 a T13, 078 T6, 027 T22 (borrador). Hecho cuando: instante en 60 kV, LT y centrales; huella igual antes y después; estado veraz; los alimentadores sin medidor, con su motivo.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T27 [DIgSILENT] R4, NA203 + NA205, TXT, proyecto nuevo, con los dos criterios de fijas, cargas y obras. (RF-45)
-  Cierra: 039 T4, 042 T6, 052 T4, 084 T8, 017 T14, 073 T8, 073 T10. Hecho cuando: NA203 con «máximo del mes» da 7 707,5 kW y 3 725,5 kvar (039); SET en 0,94–1,06 pu y fuera del trazado; oráculo frente a DIgSILENT; valle.
+- [x] T27 [DIgSILENT] R4, NA293 + NA295, TXT, proyecto nuevo, con los dos criterios de fijas, cargas y obras. (RF-45)
+  Cierra: 039 T4, 042 T6, 052 T4, 084 T8, 017 T14, 073 T8, 073 T10. Hecho cuando: NA293 con «máximo del mes» da 7 707,5 kW y 3 725,5 kvar (039); SET en 0,94–1,06 pu y fuera del trazado; oráculo frente a DIgSILENT; valle.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T28 [DIgSILENT] R5, NJA202 y R205, VNR-GIS de Empresa B. (RF-45, RF-46)
-  Cierra: 051 T3, 055 T2, 056 T3, 005 T12, 081 T16. Hecho cuando: cabecera dentro del 1 %; sistemas y SET; vocabulario y carpeta de la empresa. R205 frente a 0205 sin suponer alias.
+- [x] T28 [DIgSILENT] R5, NJA292 y R295, VNR-GIS de Empresa B. (RF-45, RF-46)
+  Cierra: 051 T3, 055 T2, 056 T3, 005 T12, 081 T16. Hecho cuando: cabecera dentro del 1 %; sistemas y SET; vocabulario y carpeta de la empresa. R295 frente a 0205 sin suponer alias.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T29 Navegador: 067 T8, 077 T7, 073 T10, y escritorio con pantalla estrecha. (RF-45)
   Hecho cuando: todo se ve funcionar en el navegador real, en claro y oscuro.
@@ -236,7 +236,7 @@ Cada corrida: `tools/sistema_web.py` y el navegador, en serie, con proyectos de 
   Cierra: 070 T9, 070 T10, 067 T9, 026 T12, 078 T7. Hecho cuando: los informes salen de las órdenes, con confirmación.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 
-No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T14 y T29 a T31, 028 T6, 044 T4, 045 T4, 048 T4, 049 T4, 070 T11, 075 T6, 079 T7, 081 T14. 065 T12 pasa a ser el conjunto R1 a R5.
+No hacen falta para la 1.0: 025 T21 (PA297 vetado; reformular según D6), 027 T14 y T29 a T31, 028 T6, 044 T4, 045 T4, 048 T4, 049 T4, 070 T11, 075 T6, 079 T7, 081 T14. 065 T12 pasa a ser el conjunto R1 a R5.
 
 ## F7 Aceptación y v1.0
 
@@ -295,7 +295,7 @@ No hacen falta para la 1.0: 025 T21 (PA217 vetado; reformular según D6), 027 T1
       marca y no por el prefijo (una del operador no se toca; con varias se avisa), y la consigna de la fuente
       llega también a «Cargas nuevas». (RF-87, RF-88)
       Hecho cuando: `tests/test_variaciones_por_marca.py` (086:RF-87, RF-88) y `tests/test_ajuste_proyecto_guion.py`
-      (086:RF-88) en verde; la corrida en DIgSILENT sobre una copia de PA217 va en la T32.
+      (086:RF-88) en verde; la corrida en DIgSILENT sobre una copia de PA297 va en la T32.
 - [x] T70 Los manuales y las notas de la publicación en «documentos/» del candidato y en `{app}\documentos`, y el menú Inicio
       abre el manual de instalación; `instalar_candidato.py` los prepara al lado y solo los publica cuando cambia el puntero,
       y si falla deja los anteriores. (RF-89, RF-90, RF-91, RF-97)

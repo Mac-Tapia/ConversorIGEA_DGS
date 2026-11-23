@@ -41,12 +41,12 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      de cabecera, enlaces abiertos. `validar_unida(model)` calcula el flujo una vez y da el
      veredicto por SET y zonal (la isla de cada barra de SET).
    - Si no converge, cada isla sola, y la barra de mayor desajuste de la isla que falla
-     (lo que se hizo a mano en NA205 el 2026-10-17).
+     (lo que se hizo a mano en NA295 el 2026-10-17).
 
 5. **Escritor DGS** — `src/convertersmartgrid/adaptadores/dgs.py` y el esquema `schemas/pf21_dgs_1_8_4.json`.
    (RF-8, RF-9, RF-11, RF-12, RF-14 a RF-18b, RF-27)
    - Un `ElmNet` por zonal; cada elemento con el `fold_id` de la red de su alimentador; las
-     barras de SET dentro de su `ElmSubstat` («SET 21 El Carmen»).
+     barras de SET dentro de su `ElmSubstat` («SET 61 El Carmen»).
    - Interruptor de cabecera como `ElmCoup` cerrado; `ElmFeeder.obj_id` en su cubículo del
      lado del alimentador (RF-14).
    - `ElmZone` por sistema eléctrico, con su sector y norma en la descripción, y `cpZone`
@@ -95,7 +95,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      la dimensiona con el recuadro de los gráficos de cada diagrama.
    - Corregido el 2026-10-24 (T16), tras la sonda de T14: DIgSILENT dimensiona la hoja
      desde (0, 0) hasta el mayor de los gráficos, no con su recuadro. Con el marco del
-     zonal, la SET 51 se quedó en A4 y la 55 y la 56 con hojas de alto negativo; Pisco, con
+     zonal, la SET 91 se quedó en A4 y la 55 y la 56 con hojas de alto negativo; Pisco, con
      una sola red, tenía un cuarto del dibujo fuera de la suya. El escritor junta los
      gráficos de cada diagrama y los desplaza para que el más bajo y el más a la izquierda
      queden en el margen (`dgs._al_origen_de_cada_diagrama`); escala, trazado y GPS no
@@ -128,7 +128,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      con el dataset leído. Lo que todos ven es ya la estructura completada, así que `asignar`,
      `estructurar`, el DGS y el oráculo no cambian.
    - Descartado: un umbral en metros para unir un alimentador a la SET más cercana. Sin CRS
-     las unidades no se saben (constitución 13), y la cabecera de CN101 está a 6,5 km de la
+     las unidades no se saben (constitución 13), y la cabecera de CN191 está a 6,5 km de la
      de El Carmen pero es otra SET: la distancia no distingue SET; las siglas sí.
 
 ## Pruebas
@@ -139,7 +139,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
 - Oráculo: red unida que converge, y una isla que no, nombrando SET y barra.
 - Guion: `fake_pf` con dos alimentadores en la misma barra de SET, medida de cada uno.
 - Datos reales: TXT, MDB y VNR con la estructura de Empresa A.
-- DIgSILENT: la entrega importada como un proyecto; flujo; NA203 + NA205 en SET 51.
+- DIgSILENT: la entrega importada como un proyecto; flujo; NA293 + NA295 en SET 91.
 
 ## Riesgos
 

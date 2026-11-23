@@ -203,7 +203,7 @@ def test_enlace_parte_un_tramo_llega_a_una_barra_y_queda_abierto(semilla):
 
 def test_el_enlace_queda_dibujado():
     """016:RF-89 — el enlace, la mitad del tramo que parte y su nodo quedan dibujados en el
-    diagrama, con los extremos del enlace en el símbolo de sus barras (IN111 + TA225,
+    diagrama, con los extremos del enlace en el símbolo de sus barras (IN191 + TA295,
     2026-10-16: el enlace estaba en «Con proyecto» y no se veía)."""
     app, alims = _dos_alimentadores(61)
     # El diagrama del doble no sigue al GPS entre alimentadores (Y crece hacia el sur); el
@@ -483,7 +483,7 @@ def test_con_proyecto_se_crea_despues_de_las_obras_de_sin_proyecto():
 
 class _Nuevo:
     """Como la API de PF 2024: cada acceso a un objeto devuelve un envoltorio de Python nuevo,
-    así que ``id()`` e ``is`` no reconocen el mismo objeto (copia de IN111_TA225, 2026-10-15)."""
+    así que ``id()`` e ``is`` no reconocen el mismo objeto (copia de IN191_TA295, 2026-10-15)."""
 
     def __init__(self, o):
         object.__setattr__(self, '_o', o)

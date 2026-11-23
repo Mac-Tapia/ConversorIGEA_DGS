@@ -16,7 +16,7 @@ def identidad_nativa(clase: str, nombre_completo: str, raiz: str = '') -> str:
 
     La API devuelve un envoltorio nuevo en cada acceso, así que ni ``id()`` ni el nombre
     corto sirven: dos SED de alimentadores distintos se llaman igual y, con ``id()``, los
-    extremos de las líneas de IN111 no se reconocían (copia de IN111_TA225, 2026-10-15).
+    extremos de las líneas de IN191 no se reconocían (copia de IN191_TA295, 2026-10-15).
     """
     ruta = nombre_completo
     if raiz and ruta.startswith(raiz):

@@ -1,7 +1,7 @@
 # Spec 057 — El «Caso base» llega convergido: el oráculo corrige antes de importar
 
 Estado: cumplida (2026-11-01) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, tras importar
-NJA202 (W12882) de Empresa B: «se supone que el oráculo detecta y, si no converge,
+NJA292 (W19882) de Empresa B: «se supone que el oráculo detecta y, si no converge,
 corrige, y a DIgSILENT va convergido; eso es su trabajo».
 
 ## Contexto y objetivo
@@ -15,7 +15,7 @@ Esta spec no crea un mecanismo nuevo: cambia el momento y la forma de dos que ya
 - La reconstrucción auditable (001:RF-17 a RF-22, 034:RF-22) ya guarda de cada cambio el valor
   original, el nuevo y su evidencia, sin tocar los originales.
 
-Con NJA202 las dos primeras fallaron. El oráculo dijo «NO CONVERGE» y la importación siguió, y
+Con NJA292 las dos primeras fallaron. El oráculo dijo «NO CONVERGE» y la importación siguió, y
 DIgSILENT bajó la demanda del 90 % al 10 % sin converger. Causa, medida en la copia EMPB25_V2:
 `Sed.MaxDemTotal` vale 39,00 kW en las 8 729 SED, con `PotInstalada` de 5 a 2 000 kVA, así que
 470 SED de 5 kVA quedan al 780 %. Bajar por igual no arregla una SED que lleva ocho veces su
@@ -56,4 +56,4 @@ recomendados desde los mismos flujos de siempre».
 ## Criterios de finalización
 
 - `grep -rnoE "057:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-6.
-- NJA202 importado por la web con el flujo del «Caso base» convergido en DIgSILENT a la primera.
+- NJA292 importado por la web con el flujo del «Caso base» convergido en DIgSILENT a la primera.

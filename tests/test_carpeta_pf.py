@@ -120,21 +120,21 @@ def test_doble_importa_en_la_raiz_del_usuario():
     from fake_pf import App
 
     app = App()
-    assert _importar(app, 'SI213') == 0
-    assert [p.loc_name for p in app.usuario.GetContents('*.IntPrj')] == ['SI213']
-    assert _importar(app, 'SI213') == 1          # no crea dos con el mismo nombre
+    assert _importar(app, 'SI293') == 0
+    assert [p.loc_name for p in app.usuario.GetContents('*.IntPrj')] == ['SI293']
+    assert _importar(app, 'SI293') == 1          # no crea dos con el mismo nombre
 
 
 def test_doble_mueve_borra_y_activa():
     from fake_pf import App
 
     app = App()
-    _importar(app, 'SI213')
+    _importar(app, 'SI293')
     prj = app.importados[0]
     carpeta = app.usuario.CreateObject('IntFolder', 'Carpeta')
     assert carpeta.Move(prj) == 0
     assert prj.GetParent() is carpeta and app.usuario.GetContents('*.IntPrj') == []
-    assert app.ActivateProject('SI213') == 1     # por nombre solo mira la raíz
+    assert app.ActivateProject('SI293') == 1     # por nombre solo mira la raíz
     assert prj.Activate() == 0 and app.GetActiveProject() is prj
     app.fallar_mover = True
     assert app.usuario.Move(prj) == 1 and prj.GetParent() is carpeta
@@ -211,11 +211,11 @@ def test_nombre_libre_con_sufijos():
     """005:RF-7 — si el nombre está ocupado en la carpeta, el primero libre de _2, _3…"""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    assert nombre_libre(carpeta, 'SI213') == 'SI213'
-    _proyecto(app, carpeta, 'SI213')
-    assert nombre_libre(carpeta, 'SI213') == 'SI213_2'
-    _proyecto(app, carpeta, 'si213_2')                 # DIgSILENT no distingue mayúsculas
-    assert nombre_libre(carpeta, 'SI213') == 'SI213_3'
+    assert nombre_libre(carpeta, 'SI293') == 'SI293'
+    _proyecto(app, carpeta, 'SI293')
+    assert nombre_libre(carpeta, 'SI293') == 'SI293_2'
+    _proyecto(app, carpeta, 'si293_2')                 # DIgSILENT no distingue mayúsculas
+    assert nombre_libre(carpeta, 'SI293') == 'SI293_3'
     _proyecto(app, app.usuario, 'OTRO')                # la raíz no cuenta (RF-20)
     assert nombre_libre(carpeta, 'OTRO') == 'OTRO'
 
@@ -266,13 +266,13 @@ def test_mismo_nombre_en_dos_subcarpetas():
     """005:RF-16 — dos proyectos con el mismo nombre en subcarpetas distintas son dos rutas."""
     app = _app()
     raiz = app.usuario.CreateObject('IntFolder', 'Red')
-    a = _proyecto(app, raiz.CreateObject('IntFolder', 'Junio'), 'SI213')
-    b = _proyecto(app, raiz.CreateObject('IntFolder', 'Julio'), 'SI213')
-    assert [r for r, _ in proyectos_de(raiz)] == ['Julio/SI213', 'Junio/SI213']
-    assert proyecto_por_ruta(raiz, 'Junio/SI213') is a
-    assert proyecto_por_ruta(raiz, 'Julio/SI213') is b
-    assert proyecto_por_ruta(raiz, 'SI213') is None
-    assert proyecto_por_ruta(raiz, 'Agosto/SI213') is None
+    a = _proyecto(app, raiz.CreateObject('IntFolder', 'Junio'), 'SI293')
+    b = _proyecto(app, raiz.CreateObject('IntFolder', 'Julio'), 'SI293')
+    assert [r for r, _ in proyectos_de(raiz)] == ['Julio/SI293', 'Junio/SI293']
+    assert proyecto_por_ruta(raiz, 'Junio/SI293') is a
+    assert proyecto_por_ruta(raiz, 'Julio/SI293') is b
+    assert proyecto_por_ruta(raiz, 'SI293') is None
+    assert proyecto_por_ruta(raiz, 'Agosto/SI293') is None
 
 
 # --------------------------------------------------------------------------- alimentadores
@@ -344,7 +344,7 @@ def _mod_aceptacion():
 
 @pytest.fixture
 def dgs(tmp_path):
-    ruta = tmp_path / 'SI213.dgs'
+    ruta = tmp_path / 'SI293.dgs'
     ruta.write_text('DGS', encoding='ascii')
     return ruta
 
@@ -356,12 +356,12 @@ def _proyectos_en(objeto):
 def test_importa_dentro_de_la_carpeta(dgs):
     """005:RF-6 — el proyecto importado queda en la carpeta, no en la raíz, y activo."""
     app = _app()
-    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
     carpeta = buscar_carpeta(app.usuario, 'Red')
     assert info['ok'] and info['errors'] == []
-    assert _proyectos_en(carpeta) == ['SI213'] and _proyectos_en(app.usuario) == []
-    assert app.GetActiveProject() is proyecto_por_ruta(carpeta, 'SI213')
-    assert (info['project_name'], info['project_folder'], info['project_path']) == ('SI213', 'Red', 'SI213')
+    assert _proyectos_en(carpeta) == ['SI293'] and _proyectos_en(app.usuario) == []
+    assert app.GetActiveProject() is proyecto_por_ruta(carpeta, 'SI293')
+    assert (info['project_name'], info['project_folder'], info['project_path']) == ('SI293', 'Red', 'SI293')
 
 
 def test_crea_la_carpeta_antes_de_importar(dgs):
@@ -377,23 +377,23 @@ def test_nombre_ocupado_en_la_carpeta(dgs):
     """005:RF-7 — con el nombre ocupado se importa con el primero libre y se avisa."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    _proyecto(app, carpeta, 'SI213')
+    _proyecto(app, carpeta, 'SI293')
     mod = _mod_aceptacion()
-    info = mod.import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
-    assert info['ok'] and info['project_name'] == 'SI213_2'
-    assert any('SI213_2' in aviso for aviso in info['warnings'])
-    info = mod.import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
-    assert info['project_name'] == 'SI213_3'
-    assert _proyectos_en(carpeta) == ['SI213', 'SI213_2', 'SI213_3']
+    info = mod.import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
+    assert info['ok'] and info['project_name'] == 'SI293_2'
+    assert any('SI293_2' in aviso for aviso in info['warnings'])
+    info = mod.import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
+    assert info['project_name'] == 'SI293_3'
+    assert _proyectos_en(carpeta) == ['SI293', 'SI293_2', 'SI293_3']
 
 
 def test_no_toca_los_proyectos_existentes(dgs):
     """005:RF-8 — importar no borra, sobrescribe ni mueve un proyecto que ya existía."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    previos = [_proyecto(app, carpeta, 'SI213'), _proyecto(app, app.usuario, 'SI213')]
+    previos = [_proyecto(app, carpeta, 'SI293'), _proyecto(app, app.usuario, 'SI293')]
     padres = [p.GetParent() for p in previos]
-    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
     assert [p.GetParent() for p in previos] == padres
     assert not any(p in app.borrados for p in previos)
     assert all(obj not in previos for obj, _destino in app.movidos)
@@ -403,7 +403,7 @@ def test_los_anteriores_se_quedan_en_la_raiz(dgs):
     """005:RF-20 — los proyectos de la raíz, importados antes, siguen en la raíz."""
     app = _app()
     _proyecto(app, app.usuario, 'Antiguo')
-    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
     assert _proyectos_en(app.usuario) == ['Antiguo']
 
 
@@ -412,7 +412,7 @@ def test_si_no_se_puede_mover_no_queda_en_la_raiz(dgs):
     app = _app()
     _proyecto(app, app.usuario, 'Antiguo')
     app.fallar_mover = True
-    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213', carpeta='Red')
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI293', carpeta='Red')
     assert not info['ok'] and any("'Red'" in e for e in info['errors'])
     assert _proyectos_en(app.usuario) == ['Antiguo']
     assert _proyectos_en(buscar_carpeta(app.usuario, 'Red')) == []
@@ -424,9 +424,9 @@ def test_carpeta_del_perfil_por_defecto(dgs, tmp_path, monkeypatch):
 
     monkeypatch.setattr(cpf, 'ruta_perfil', lambda: _perfil(tmp_path, {CLAVE_PERFIL: 'Empresa'}))
     app = _app()
-    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI213')
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='SI293')
     assert info['ok'] and info['project_folder'] == 'Empresa'
-    assert _proyectos_en(buscar_carpeta(app.usuario, 'Empresa')) == ['SI213']
+    assert _proyectos_en(buscar_carpeta(app.usuario, 'Empresa')) == ['SI293']
 
 
 def test_carpeta_invalida_no_abre_nada(dgs):
@@ -485,9 +485,9 @@ def test_activar_proyecto_de_la_carpeta():
     """005:RF-16 — se activa el proyecto de la ruta, aunque en la raíz haya otro con su nombre."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    _proyecto(app, app.usuario, 'SI213')
-    nuevo = _proyecto(app, carpeta.CreateObject('IntFolder', 'Oct'), 'SI213')
-    assert activar_proyecto(app, 'Oct/SI213', 'Red') is nuevo
+    _proyecto(app, app.usuario, 'SI293')
+    nuevo = _proyecto(app, carpeta.CreateObject('IntFolder', 'Oct'), 'SI293')
+    assert activar_proyecto(app, 'Oct/SI293', 'Red') is nuevo
     assert app.GetActiveProject() is nuevo
 
 
@@ -518,15 +518,15 @@ def test_leer_solo_la_carpeta():
     """005:RF-11 — se listan los proyectos de la carpeta y subcarpetas, con sus alimentadores."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    _proyecto(app, carpeta, 'SI213', alimentadores=('SI213',))
-    _proyecto(app, carpeta.CreateObject('IntFolder', '2026-10'), 'PE104', alimentadores=('B', 'A'))
+    _proyecto(app, carpeta, 'SI293', alimentadores=('SI293',))
+    _proyecto(app, carpeta.CreateObject('IntFolder', '2026-10'), 'PE194', alimentadores=('B', 'A'))
     _intocable(_proyecto(app, app.usuario, 'Ajeno'))           # la raíz ni se abre
     _intocable(app.usuario.CreateObject('IntFolder', 'Otra'))
     datos = _mod_proyectos().leer(app, 'Red')
     assert datos['folder'] == 'Red' and datos['exists'] is True and datos['aviso'] is None
     assert [(p['name'], p['path'], p['feeders']) for p in datos['projects']] == [
-        ('PE104', '2026-10/PE104', ['A', 'B']),
-        ('SI213', 'SI213', ['SI213']),
+        ('PE194', '2026-10/PE194', ['A', 'B']),
+        ('SI293', 'SI293', ['SI293']),
     ]
     assert all(p['native_inventory_sha256'] for p in datos['projects'])
     assert all(p['native_reread_at'] for p in datos['projects'])
@@ -571,7 +571,7 @@ def test_leer_proyecto_activo_con_otro_wrapper(monkeypatch):
     """005:RF-23 — la identidad nativa no es la identidad del wrapper Python."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    prj = _proyecto(app, carpeta, 'SI213')
+    prj = _proyecto(app, carpeta, 'SI293')
     prj.Activate()
 
     class Wrapper:
@@ -592,7 +592,7 @@ def test_leer_exige_relectura_de_proyecto_activado(monkeypatch, retorno):
     """005:RF-23 — ni el cero sustituye comprobar la ruta activa."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    prj = _proyecto(app, carpeta, 'SI213')
+    prj = _proyecto(app, carpeta, 'SI293')
     monkeypatch.setattr(prj, 'Activate', lambda: retorno)
     mod = _mod_proyectos()
     inventarios = []
@@ -607,7 +607,7 @@ def test_leer_retorno_uno_con_identidad_confirmada(monkeypatch):
     """005:RF-23 — retorno 1 solo se acepta con identidad activa confirmada."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    prj = _proyecto(app, carpeta, 'SI213')
+    prj = _proyecto(app, carpeta, 'SI293')
 
     def activar():
         app.activo = prj
@@ -624,7 +624,7 @@ def test_leer_no_oculta_restitucion_fallida(monkeypatch):
     """005:RF-23 — la lectura falla si no puede restituir el proyecto previo."""
     app = _app()
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    _proyecto(app, carpeta, 'SI213')
+    _proyecto(app, carpeta, 'SI293')
     previo = _proyecto(app, app.usuario, 'Anterior')
     previo.Activate()
     monkeypatch.setattr(previo, 'Activate', lambda: 0)
@@ -647,7 +647,7 @@ def test_leer_no_cambia_nada():
     mod.leer(app, 'Red')
     assert _sin_cambios(app) and buscar_carpeta(app.usuario, 'Red') is None
     carpeta = app.usuario.CreateObject('IntFolder', 'Red')
-    _proyecto(app, carpeta, 'SI213')
+    _proyecto(app, carpeta, 'SI293')
     _proyecto(app, carpeta, 'Manual', con_datos_de_red=False)
     for lista in (app.creados, app.escrituras):
         lista.clear()
@@ -700,7 +700,7 @@ def web(tmp_path, monkeypatch):
         if '--output-json' in orden and orden[1].endswith('pf_proyectos.py'):
             Path(orden[orden.index('--output-json') + 1]).write_text(json.dumps(
                 {'folder': 'x', 'exists': True, 'aviso': None,
-                 'projects': [{'name': 'SI213', 'path': 'Oct/SI213', 'feeders': ['SI213']}]}),
+                 'projects': [{'name': 'SI293', 'path': 'Oct/SI293', 'feeders': ['SI293']}]}),
                 encoding='utf-8')
         return 0
 
@@ -720,7 +720,7 @@ def test_web_lee_la_carpeta_del_perfil(web):
     web.perfil.write_text(json.dumps({CLAVE_PERFIL: 'Empresa'}), encoding='utf-8')
     datos = web.services.pf_projects(web.ws, web.ctx)
     assert _valor(web.ordenes[0], '--carpeta') == 'Empresa'
-    assert datos['projects'][0]['path'] == 'Oct/SI213'
+    assert datos['projects'][0]['path'] == 'Oct/SI293'
 
 
 def test_web_sin_perfil_usa_el_nombre_por_defecto(web):
@@ -885,7 +885,7 @@ def test_leer_proyectos_reintenta_si_digsilent_no_conecta_a_la_primera(web):
 
     web.ctx.run_process = primero_colgado
     datos = web.services.pf_projects(web.ws, web.ctx)
-    assert len(intentos) == 2 and datos['projects'][0]['path'] == 'Oct/SI213'
+    assert len(intentos) == 2 and datos['projects'][0]['path'] == 'Oct/SI293'
     assert any('Se reintenta una vez' in linea for linea in web.logs)
 
 
@@ -1146,7 +1146,7 @@ def test_al_importar_se_eliminan_las_versiones_anteriores():
     carpeta = asegurar_carpeta(app.usuario, 'Red')
     nuevo = '20261103-013907_CSG_SISTEMA_PISCO'
     viejos = ['20261102-234719_CSG_SISTEMA_PISCO', '20261103-000709_CSG_SISTEMA_PISCO']
-    quedan = ['20261103-142640_CSG_TXT_NA101', 'RESPALDO_SM218', '20261104-000000_CSG_SISTEMA_PISCO']
+    quedan = ['20261103-142640_CSG_TXT_NA191', 'RESPALDO_SM298', '20261104-000000_CSG_SISTEMA_PISCO']
     for n in (nuevo, *viejos, *quedan):
         _proyecto(app, carpeta, n)
     assert versiones_anteriores([nuevo, *viejos, *quedan], nuevo) == viejos

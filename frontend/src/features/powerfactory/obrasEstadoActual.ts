@@ -26,7 +26,7 @@ export interface CargaAplicadaEnDisco { sed: string; alimentador: string; sola: 
 
 /**
  * 086:RF-77: lo que dice el bloque de obras. Tras reiniciar la web el informe de cargas nuevas ya no está en la sesión y el
- * bloque decía «Sin cargas nuevas» con SECA001 aplicada en CA101 (2026-11-13): el operador no encontraba dónde proponer las
+ * bloque decía «Sin cargas nuevas» con SECA001 aplicada en CA191 (2026-11-13): el operador no encontraba dónde proponer las
  * obras de la escalera. El servidor ya las evalúa con las cargas aplicadas en disco; aquí se dice y se nombran.
  */
 export function textosObras(cargas: CargaAplicadaEnDisco[], feeders: string[]): {

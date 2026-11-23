@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """Proceso que mantiene DIgSILENT abierto y atiende órdenes de guiones (spec 019, RF-7 a RF-9).
 
-Cada guion de DIgSILENT conectaba y activaba el proyecto desde cero: en CA101
+Cada guion de DIgSILENT conectaba y activaba el proyecto desde cero: en CA191
 (2026-10-15) unos 5 minutos por ejecución, también para una lectura de un segundo. Este
 proceso toma el turno del motor (``pf_arnes``), conecta una vez y atiende las órdenes que
 deja ``tools/pf_cliente.py`` en la cola: ejecuta el ``main`` del guion pedido dentro de

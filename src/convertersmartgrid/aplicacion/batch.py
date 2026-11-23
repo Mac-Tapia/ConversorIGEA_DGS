@@ -742,7 +742,7 @@ def convert_group(
     try:
         # Dentro del try: un nombre que no existe también deja manifiesto.
         # Solo los alimentadores pedidos. Añadir los que comparten un nodo a la misma
-        # tensión arrastraba en cadena la zona entera por sus enlaces: IN111 + TA225
+        # tensión arrastraba en cadena la zona entera por sus enlaces: IN191 + TA295
         # (2026-10-14) dio un DGS de 15 alimentadores y 1515 cargas. Cada alimentador ya
         # se convierte completo por sí solo; un nodo compartido con uno no elegido queda
         # como extremo, igual que en su DGS individual.

@@ -105,7 +105,7 @@ def test_una_carga_nueva_que_la_web_no_tiene_tambien_se_lee(cargas_pf, guion):
 
 
 def test_la_carga_con_el_nombre_repetido_de_digsilent_se_encuentra(cargas_pf, guion):
-    """017:RF-124 — CA101, 2026-11-13: DIgSILENT llamó «SECA0001(1)» a la carga porque su SED ya tiene una barra
+    """017:RF-124 — CA191, 2026-11-13: DIgSILENT llamó «SECA0001(1)» a la carga porque su SED ya tiene una barra
     «SECA0001»; se encuentra por su SED, y la variación que la web no tiene da la SED, no el «(n)»."""
     app, creada = _aplicada(cargas_pf)
     con = next(c for c in app.carpetas['study'].GetContents('*.IntCase') if c.loc_name == 'Con proyecto')

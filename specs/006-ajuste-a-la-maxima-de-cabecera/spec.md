@@ -167,7 +167,7 @@ Ejecución e informe
 - RF-23: EL SISTEMA ofrecerá el ajuste en la sección «Demanda medida», con el proyecto de
   DIgSILENT elegido en la misma pestaña y el alimentador de la máxima buscada.
 
-Escenario de operación (cambio del 2026-10-12). SI213 cuadró a 1.621,8 kW y 796,8 kVAR
+Escenario de operación (cambio del 2026-10-12). SI293 cuadró a 1.621,8 kW y 796,8 kVAR
 (objetivo 1.624 y 800), pero «Verificar la convergencia» midió 229,2 kW y 53,1 kVAR en
 la cabecera: la potencia de una carga es dato de operación y, con el «Operation
 Scenario» activo, manda la que guarda el escenario, que seguía siendo la de antes del

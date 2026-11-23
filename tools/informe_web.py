@@ -6,7 +6,7 @@ API, espera el trabajo y descarga el Word: el operador repite un informe —por 
 volver a correr los estudios de 4.2— sin escribir de nuevo el formulario. Va por la web, no
 por su cuenta, porque el informe se arma con lo que el espacio guardó al ejecutar los casos.
 
-    python tools/informe_web.py --espacio 5f11283a33c94ea5 --plan informe_estudio_SM218_x.plan.json
+    python tools/informe_web.py --espacio 5f11283a33c94ea5 --plan informe_estudio_SM298_x.plan.json
 """
 from __future__ import annotations
 

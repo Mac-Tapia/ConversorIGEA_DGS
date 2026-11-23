@@ -29,7 +29,7 @@
 
 - Una misma frase o familia de paráfrasis repetida entre train y validation/test debe bloquear el dataset; Task 1 lo prueba con «reentrena la pinn».
 - Cien alimentadores sin confirmaciones deben producir plata con ranura conservada, pero cero oro humano; Task 2 lo prueba con una lista controlada.
-- Una consulta con identificador exacto debe conservar el resultado BM25 aunque el embedding prefiera un fragmento semántico incorrecto; Task 3 lo prueba con `CA101`/`CA104`.
+- Una consulta con identificador exacto debe conservar el resultado BM25 aunque el embedding prefiera un fragmento semántico incorrecto; Task 3 lo prueba con `CA191`/`CA194`.
 - Un adaptador con JSON mejor pero más campos inventados o una omisión de confirmación nunca se promueve; Task 4 lo prueba contra la base.
 - Un fallo, OOM o proceso muerto durante promoción deja el puntero anterior reabrible; Task 5 lo prueba con procesos reales pequeños y escritura interrumpida.
 - Una configuración evolutiva que mejora el promedio pero produce una isla, lazo prohibido o menor tasa de factibilidad debe rechazarse; Task 8 lo prueba por familia y multisemilla.
@@ -131,7 +131,7 @@
 
 - [ ] **Step 1: Escribir pruebas de RRF, negativos difíciles, abstención y manifiesto**
 
-  Usar fragmentos reales mínimos: `CA101` correcto, `CA104` negativo difícil, versión obsoleta y consulta sin respuesta. Exigir Recall@1/5/10, MRR@10, nDCG@10, cita exacta, hashes de corpus/modelo/segmentación y reapertura idéntica.
+  Usar fragmentos reales mínimos: `CA191` correcto, `CA194` negativo difícil, versión obsoleta y consulta sin respuesta. Exigir Recall@1/5/10, MRR@10, nDCG@10, cita exacta, hashes de corpus/modelo/segmentación y reapertura idéntica.
 
 - [ ] **Step 2: Ejecutar RED**
 

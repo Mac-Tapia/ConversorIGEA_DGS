@@ -35,18 +35,18 @@ test('063:RF-19 avisa solo del alimentador de los PDF que no es el de la carga',
 
 test('063:RF-49 el cliente de otra carga se detecta y el código no afirma nada', async () => {
   const { clienteAjeno } = await cargar();
-  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", 'Minera Santa María S.A.C.'), true);
-  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", 'Incas Berries S.A.C.'), false);
-  assert.equal(clienteAjeno('SN1', 'Minera Santa María S.A.C.'), false);
-  assert.equal(clienteAjeno("AMPC INKA'S BERRIES S.A.C.", ''), false);
+  assert.equal(clienteAjeno("AMPC KANTU'S BERRIES S.A.C.", 'Minera Ficticia del Sur S.A.C.'), true);
+  assert.equal(clienteAjeno("AMPC KANTU'S BERRIES S.A.C.", 'Kantus Berries S.A.C.'), false);
+  assert.equal(clienteAjeno('SN1', 'Minera Ficticia del Sur S.A.C.'), false);
+  assert.equal(clienteAjeno("AMPC KANTU'S BERRIES S.A.C.", ''), false);
 });
 
 test('063:RF-48 elegir otra carga o ninguna no hereda; la primera elección conserva lo leído', async () => {
   const { esOtraCarga } = await cargar();
-  assert.equal(esOtraCarga('SM218|A', 'SM218|B'), true);
-  assert.equal(esOtraCarga('SM218|A', ''), true);
-  assert.equal(esOtraCarga('', 'SM218|A'), false, '017:RF-136: la carta llega antes que la carga');
-  assert.equal(esOtraCarga('SM218|A', 'SM218|A'), false);
+  assert.equal(esOtraCarga('SM298|A', 'SM298|B'), true);
+  assert.equal(esOtraCarga('SM298|A', ''), true);
+  assert.equal(esOtraCarga('', 'SM298|A'), false, '017:RF-136: la carta llega antes que la carga');
+  assert.equal(esOtraCarga('SM298|A', 'SM298|A'), false);
 });
 
 test('063:RF-51 la carta sustituye la potencia propuesta por la carga, no la escrita', async () => {
@@ -70,7 +70,7 @@ test('017:RF-91 la carga elegida rellena cliente, ubicación, SET, tensión y UT
   const sol = { cliente: '', ubicacion: '', potencia_kw: '', set_nombre: 'SET escrita', tension_kv: '',
     fecha_solicitud: '' };
   const punto = { pcc_mva: '', utm_x: '', utm_y: '' };
-  const carga = { kw: 1206, cliente: 'TierraLarga', utm_x: 388631, utm_y: 8503377, set_nombre: 'SET 21 El Carmen',
+  const carga = { kw: 1206, cliente: 'TierraLarga', utm_x: 388631, utm_y: 8503377, set_nombre: 'SET 61 El Carmen',
     tension_kv: 10 };
   const r = propuestaDeCarga(sol, punto, carga);
   assert.equal(r.cambia, true);

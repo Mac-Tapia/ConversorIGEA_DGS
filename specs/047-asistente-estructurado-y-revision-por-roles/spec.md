@@ -208,6 +208,21 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
   por modo las que no cuadran.
 - RF-78: CUANDO una contradicción cite varias fuentes («e1 e2», «e1, e2»), EL SISTEMA buscará sus valores en todas;
   una que no esté en el paquete la hace no fundada. El encargo lo dice para las cuentas.
+- RF-79: SI el código comprobó un campo de la propuesta con la evidencia y cuadra (RF-77), ENTONCES EL SISTEMA
+  descartará, con su motivo, las contradicciones del LLM sobre ese campo. MEJ24e, 2026-11-22: con el 047f, el modelo
+  comparaba el coste total con cada partida («18900» frente a «16.400») y bloqueaba una propuesta sana.
+- RF-80: SI una incertidumbre es solo el nombre de un campo de la propuesta cuyo valor está en la acción, ENTONCES EL
+  SISTEMA la descartará con su motivo, porque la acción fija ese valor (RF-46); si el valor solo está en una
+  evidencia, se mantiene. Con algo descartado, la decisión sale de las listas que quedan (RF-50).
+- RF-81: SI un dictamen no es válido y el revisor respondió (por ejemplo, «bloqueada» sin hallazgo), ENTONCES EL
+  SISTEMA se lo pedirá de nuevo en la ronda siguiente, que le muestra el motivo, sin convertirlo en ninguna decisión.
+  Con el 047f, un rol de riesgo bloqueó un caso sano sin decir qué estaba mal y no hubo otra ronda.
+- RF-82: CUANDO se pida el dictamen de riesgo (o del rol único), EL SISTEMA le dirá que también es un riesgo que la
+  evidencia prohíba o limite la forma de hacer la acción (procedimiento de seguridad, trabajo en caliente, maniobra no
+  permitida), y que cada riesgo que señala la evidencia va en incertidumbres con el ID y la frase de la evidencia.
+- RF-83: SI una contradicción enfrenta un valor de la acción que no es solo una cifra con su unidad (y, como mucho, dos
+  palabras), ENTONCES EL SISTEMA la descartará como texto de la acción (RF-56): con el 047f, la frase de la acción
+  «… para cambiar 2 aisladores» se leía como la cifra 2 frente a los «22,9 kV» de la evidencia.
 
 ## Requisitos no funcionales
 

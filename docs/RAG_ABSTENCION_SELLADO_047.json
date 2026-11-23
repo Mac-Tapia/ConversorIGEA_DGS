@@ -43,7 +43,7 @@
     {"pregunta": "¿qué módulo lee los libros y hace el plan de cargas en un proyecto existente?", "fichero": "src/convertersmartgrid/cargas_pf.py", "ancla": "src/convertersmartgrid/cargas_pf.py:", "tipo": "modulo"},
     {"pregunta": "¿qué ocurre con las pruebas que necesitan TXT reales si no hay datos?", "fichero": "docs/MANUAL_COMANDOS.md", "ancla": "docs/MANUAL_COMANDOS.md · 2.1 Pruebas rápidas", "tipo": "documento"},
     {"pregunta": "¿qué advertencia hay sobre fix-until-converge?", "fichero": "docs/MANUAL_COMANDOS.md", "ancla": "docs/MANUAL_COMANDOS.md · 5.5 Advertencia", "tipo": "documento"},
-    {"pregunta": "¿por qué TM105 no converge con sus cargas nuevas?", "fichero": "tools/casos_pf.py", "ancla": "tools/casos_pf.py · cargas_que_no_convergen_juntas:", "tipo": "codigo", "codigo": "TM105"},
+    {"pregunta": "¿por qué TM195 no converge con sus cargas nuevas?", "fichero": "tools/casos_pf.py", "ancla": "tools/casos_pf.py · cargas_que_no_convergen_juntas:", "tipo": "codigo", "codigo": "TM195"},
 
     {"pregunta": "¿cuánto cuesta un poste de concreto de trece metros?", "sin_respuesta": true, "tipo": "dominio"},
     {"pregunta": "¿cuál fue la temperatura del aceite en el último ensayo del transformador?", "sin_respuesta": true, "tipo": "dominio"},

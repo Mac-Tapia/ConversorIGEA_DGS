@@ -1,6 +1,6 @@
 # Spec 008 — Pestaña «Cargas en DIgSILENT» en tres pasos
 
-Estado: cumplida (reabierta el 2026-11-20 por el diagnóstico de «no converge» tras una calibración no válida: RF-30 y RF-31, T10) · cumplida (2026-11-08: T7 confirmada por el usuario en DIgSILENT con PRUEBA_007; revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI213, 2026-10-10
+Estado: cumplida (reabierta el 2026-11-20 por el diagnóstico de «no converge» tras una calibración no válida: RF-30 y RF-31, T10) · cumplida (2026-11-08: T7 confirmada por el usuario en DIgSILENT con PRUEBA_007; revisión 033 del 2026-10-29) · aprobada (2026-10-10) · Fecha: 2026-10-10 · Origen: uso real con SI293, 2026-10-10
 
 ## Contexto y objetivo
 
@@ -18,7 +18,7 @@ El operador trabaja sobre un proyecto que ya está en DIgSILENT, en este orden (
 La pestaña de hoy no sigue ese orden: tiene el paso 2 «Qué aplicar» antes de los
 alimentadores, la calibración al final y solo para un alimentador, y la pestaña no se
 ve hasta cargar entradas en el espacio, aunque no las use (spec 004, RF-1). Además, el
-2026-10-10 «Ajustar SI213 a la máxima» terminó con «el guion terminó con el código 1 sin
+2026-10-10 «Ajustar SI293 a la máxima» terminó con «el guion terminó con el código 1 sin
 dejar informe»: un error inesperado del guion se perdía en el Registro.
 
 ## Usuarios / actores

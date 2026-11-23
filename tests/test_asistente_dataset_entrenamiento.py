@@ -82,7 +82,7 @@ def _episode(*, accepted=True):
         'episode_id': 'e' * 64,
         'clase': 'accepted' if accepted else 'quarantine',
         'fuente': {'source_run_id': 'run-native', 'sha256': 'a' * 64},
-        'nativo': {'project': 'P1', 'feeders': ['CA101'], 'pf_version': '2024',
+        'nativo': {'project': 'P1', 'feeders': ['CA191'], 'pf_version': '2024',
                    'reopen_verified': accepted},
         'accion': {'tipo': 'flujo'},
         'topologia': {'sets': ['CHINCHA']},
@@ -96,13 +96,13 @@ def test_confirmed_order_is_human_gold_and_private_path_is_removed():
     from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
 
     record = normalizar_orden({
-        'texto': r'convierte CA101 desde D:\empresa\fuente.txt',
-        'tarea': 'convertir', 'datos': [['alimentadores', 'CA101']],
+        'texto': r'convierte CA191 desde D:\empresa\fuente.txt',
+        'tarea': 'convertir', 'datos': [['alimentadores', 'CA191']],
         'origen': 'confirmado', 'fecha': '2026-10-25T10:00:00-05:00',
     })
 
     assert record.quality == 'gold_human'
-    assert record.alimentadores == ('CA101',)
+    assert record.alimentadores == ('CA191',)
     assert record.verification == 'operator_confirmed'
     assert 'D:\\empresa' not in json.dumps(record.as_dict())
     assert len(record.record_id) == 64 and len(record.group_id) == 64
@@ -111,20 +111,20 @@ def test_confirmed_order_is_human_gold_and_private_path_is_removed():
 def test_orden_historica_con_posiciones_se_traduce_sin_cambiar_la_etiqueta():
     """043:RF-3: almacen usa [inicio,fin,tipo], no [tipo,valor]."""
     from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
-    texto='convierte CA101 con catálogo'
-    inicio=texto.index('CA101')
+    texto='convierte CA191 con catálogo'
+    inicio=texto.index('CA191')
     r=normalizar_orden({'texto':texto,'tarea':'convertir','origen':'confirmado',
                        'datos':[[inicio,inicio+5,'alimentadores']]})
     assert r.quality=='gold_human'
-    assert r.datos == (('alimentadores','CA101'),)
-    assert r.alimentadores==('CA101',)
+    assert r.datos == (('alimentadores','CA191'),)
+    assert r.alimentadores==('CA191',)
 
 
 def test_anotaciones_invalidas_no_desaparecen_como_ordenes_sin_entidades():
     """043:RF-3: no convertir un dato perdido en una etiqueta de ausencia."""
     from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import normalizar_orden
-    base={'texto':'convierte CA101','tarea':'convertir','origen':'confirmado'}
-    for datos in ([[0,999,'alimentadores']],[['desconocido','CA101']],
+    base={'texto':'convierte CA191','tarea':'convertir','origen':'confirmado'}
+    for datos in ([[0,999,'alimentadores']],[['desconocido','CA191']],
                   [['alimentadores','OTRA']],[[3]],[[True,8,'alimentadores']]):
         r=normalizar_orden({**base,'datos':datos})
         assert r.quality=='quarantine' and r.motivo
@@ -199,14 +199,14 @@ def test_conversion_event_is_context_and_never_gold(tmp_path):
 
     result = registrar_evento_conversion(
         outbox=tmp_path, source_run_id='run-1', source_mode='txt',
-        source_fingerprint='f' * 64, todos_alimentadores=['CA101', 'CA104'],
-        manifest={'feeders': [{'network_id': 'CA101', 'status': 'ok'}]})
+        source_fingerprint='f' * 64, todos_alimentadores=['CA191', 'CA194'],
+        manifest={'feeders': [{'network_id': 'CA191', 'status': 'ok'}]})
     payload = json.loads((tmp_path / f"{result['event_id']}.json").read_text())
     records = normalizar_evento_conversion(payload)
 
     assert result['ok'] and len(records) == 2
     assert {r.quality for r in records} == {'context'}
-    assert {r.alimentadores[0] for r in records} == {'CA101', 'CA104'}
+    assert {r.alimentadores[0] for r in records} == {'CA191', 'CA194'}
 
 
 def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
@@ -214,13 +214,13 @@ def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
         construir_dataset, importar_historial_web)
 
     web = tmp_path / 'web'
-    for index, feeder in enumerate(('CA101', 'CA104')):
+    for index, feeder in enumerate(('CA191', 'CA194')):
         run = web / f'w{index}' / 'runs' / f'r{index}'
         (run / 'salida').mkdir(parents=True)
         (run / 'source_manifest.json').write_text(json.dumps({
             'mode': 'txt', 'fingerprint': 'a' * 64}), encoding='utf-8')
         (run / 'salida' / 'dataset_inventory.json').write_text(json.dumps({
-            'feeders': [{'network_id': 'CA101'}, {'network_id': 'CA104'}]}), encoding='utf-8')
+            'feeders': [{'network_id': 'CA191'}, {'network_id': 'CA194'}]}), encoding='utf-8')
         (run / 'salida' / 'batch_manifest.json').write_text(json.dumps({
             'feeders': [{'network_id': feeder, 'status': 'ok'}]}), encoding='utf-8')
 
@@ -230,7 +230,7 @@ def test_web_history_merges_same_source_without_contradicting_reload(tmp_path):
 
     assert report['sources'] == 1 and report['runs'] == 2
     assert {r.alimentadores[0]: r.resultado['convertido'] for r in built.registros} == {
-        'CA101': True, 'CA104': True}
+        'CA191': True, 'CA194': True}
 
 
 def test_normative_unknown_license_is_quarantined(tmp_path):
@@ -274,7 +274,7 @@ def test_identidad_explicita_prevalece_sobre_nombre_de_red(tmp_path):
 
 
 def test_episodios_de_un_alimentador_no_se_reparten_entre_particiones():
-    """043:RF-4 — SM218, NA203, AL105 y CA101 caían en varias particiones (2026-11-02): se evaluaba
+    """043:RF-4 — SM298, NA293, AL195 y CA191 caían en varias particiones (2026-11-02): se evaluaba
     con redes ya vistas al entrenar, y la auditoría no lo veía. Van juntos, y la auditoría lo vigila."""
     from dataclasses import replace
 
@@ -286,13 +286,13 @@ def test_episodios_de_un_alimentador_no_se_reparten_entre_particiones():
         fila = _episode()
         fila['episode_id'] = f'{i:064d}'
         fila['fuente']['source_run_id'] = f'run-{i}'
-        fila['nativo']['feeders'] = ['SM218'] if i % 2 else ['SM218', f'OTRO{i}']
+        fila['nativo']['feeders'] = ['SM298'] if i % 2 else ['SM298', f'OTRO{i}']
         fila['accion']['tipo'] = f'tarea{i}'
         registros.append(normalizar_episodio(fila))
     partes = particionar_dataset(registros)
-    assert sorted(len(v) for v in partes.values()) == [0, 0, 40], 'todos comparten SM218'
+    assert sorted(len(v) for v in partes.values()) == [0, 0, 40], 'todos comparten SM298'
     assert auditar_contaminacion(partes)['valid'] is True
     # Un reparto que los separa no se publica.
     a, b = registros[0], replace(registros[1], record_id='x')
     informe = auditar_contaminacion({'train': (a,), 'test': (b,)})
-    assert informe['valid'] is False and 'SM218' in informe['feeder_leaks']
+    assert informe['valid'] is False and 'SM298' in informe['feeder_leaks']

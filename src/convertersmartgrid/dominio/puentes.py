@@ -3,7 +3,7 @@
 Qué son. En la base de CYMDIST cada seccionador, cada interruptor y cada carga cuelga
 de un **tramo**: el dispositivo no puede existir sin una sección que lo sostenga. Para
 eso la base crea tramos diminutos con tipo ``DEFAULT``. Medido en 260924.mdb sobre
-CA101, PE104, NA203 y NA205:
+CA191, PE194, NA293 y NA295:
 
 * 1.221 aéreos ``DEFAULT``, mediana **2 m**, 2 km en total frente a 294 km de red real.
   1.188 llevan exactamente un seccionador o un interruptor; 33 no llevan nada.
@@ -21,7 +21,7 @@ Qué se hace con cada uno, sin perder ningún elemento de la base:
   barra a la que solo llega otra línea, el equipo pasa a esa línea, en su cubículo de
   ese lado (``StaSwitch``), y las dos barras del puente se funden (spec 021). Es como
   PowerFactory modela una maniobra en el extremo de una línea: el cable queda corrido.
-  En NA203 + NA205 (260924.mdb) una derivación con tres fusibles daba cuatro barras en
+  En NA293 + NA295 (260924.mdb) una derivación con tres fusibles daba cuatro barras en
   menos de 1 m (EQ_1080_320414/15/16).
 * **Con seccionador o interruptor sin línea al lado** → un
   :class:`~convertersmartgrid.dominio.model.Coupler` (``ElmCoup``) entre sus dos barras, con el estado

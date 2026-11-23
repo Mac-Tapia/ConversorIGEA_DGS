@@ -195,8 +195,8 @@ def test_powerfactory_importa_dgs_aunque_pandapower_avise_isla(tmp_path, monkeyp
     monkeypatch.setattr(services, 'pandapower_preflight', lambda *_args: {
         'disponible': True,
         'import_continued': True,
-        'avisos': ['PE104: 2 barras sin alimentar. Se continúa con el import DGS completo.'],
-        'feeders': [{'feeder': 'PE104', 'barras_sin_alimentar': 2}],
+        'avisos': ['PE194: 2 barras sin alimentar. Se continúa con el import DGS completo.'],
+        'feeders': [{'feeder': 'PE194', 'barras_sin_alimentar': 2}],
     })
     logs: list[str] = []
     commands: list[list[str]] = []

@@ -1,6 +1,6 @@
 # Spec 024 — PINN como oráculo y gemelo digital de la red calibrada
 
-Estado: cumplida (revisión 033 del 2026-10-29) · aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN111–TA225; T10, T12 a T14 hechas el 2026-10-22; del 2026-10-24, RF-64 a RF-74 (física mallada, algoritmos genéticos y evolutivos, evaluación del aprendizaje; T15 a T17) y T11 cerrada con la PINN de IN111–TA225 promovida · Fecha: 2026-10-21
+Estado: cumplida (revisión 033 del 2026-10-29) · aprobada el 2026-10-21, con el cambio del mismo día (RF-39 a RF-53: aprendizaje autónomo, propuestas e implementación propias, diagnóstico y plan por etapas); primera entrega (búfer de episodios, T1 a T9) implementada el 2026-10-22 y probada en DIgSILENT con IN191–TA295; T10, T12 a T14 hechas el 2026-10-22; del 2026-10-24, RF-64 a RF-74 (física mallada, algoritmos genéticos y evolutivos, evaluación del aprendizaje; T15 a T17) y T11 cerrada con la PINN de IN191–TA295 promovida · Fecha: 2026-10-21
 
 ## Contexto y objetivo
 
@@ -12,9 +12,9 @@ auditables, aprenda la relación entre topología, inyecciones y estado eléctri
 la validación nativa.
 
 El caso inicial dorado de topología —no de aceptación operativa— es el proyecto
-`20261015-170359_CSG_IN111_TA225`: el corredor manual del
+`20261015-170359_CSG_IN191_TA295`: el corredor manual del
 enlace se conserva, el nodo 3092 y sus ramales quedan en 22,9 kV, el nodo 3091 y la red hacia
-IN111 permanecen en 10 kV, y la frontera se corrige cerrando `SEC_1091_1055021(1)`. Después de
+IN191 permanecen en 10 kV, y la frontera se corrige cerrando `SEC_1091_1055021(1)`. Después de
 guardar y reabrir PowerFactory, el flujo converge; 3091 queda en 0,9522 p.u., 3092 en 0,9604 p.u.
 y la mínima global es 0,8683 p.u. en `SE41154_BT`. Esta última condición debe aprenderse como
 violación o alerta, no como solución operativamente aceptada solo porque el flujo converge.
@@ -326,7 +326,7 @@ cumple con margen de sobra pierde frente a otra más barata que también cumple.
   agrupa la familia) es un diccionario; si el informe del guion trae en `escenario` el nombre del
   escenario de operación de DIgSILENT (los estudios de 4.2, 011:RF-49), el episodio lo guarda en
   `accion.escenario_operacion` y no lo trata como variante. Antes `dict('Con proyecto')` fallaba y
-  todos los episodios de los estudios de PE102 iban a cuarentena.
+  todos los episodios de los estudios de PE192 iban a cuarentena.
 - RF-13: EL SISTEMA entrenará únicamente con una consulta inmutable del búfer y publicará esa
   consulta junto con la versión del modelo.
 - RF-14: EL SISTEMA podrá usar `rejected` y `converged_with_violations` para clasificación,
@@ -434,7 +434,7 @@ y selección, propuesta.
 Usuario, 2026-10-24: «completa la implementación de Digital twin, algoritmos genéticos,
 algoritmos evolutivos avanzados y PINN, entrénalo y debemos hacer las pruebas para ver si
 aprendió». La PINN no pasaba las puertas porque su física era un barrido radial que descartaba
-los lazos de la red (IN111–TA225 tiene 3): se apartaba 0,019 p.u. de DIgSILENT, más que la
+los lazos de la red (IN191–TA295 tiene 3): se apartaba 0,019 p.u. de DIgSILENT, más que la
 puerta. Con un flujo por matriz de admitancias se aparta 0,0032 p.u.
 
 - RF-64: EL SISTEMA calculará la física de la base del oráculo y de los optimizadores con un
@@ -465,12 +465,12 @@ puerta. Con un flujo por matriz de admitancias se aparta 0,0032 p.u.
 - RF-74: EL SISTEMA dirá, por episodio y por partición, cuánto se apartan de DIgSILENT el modelo
   promovido y la física sola, para comprobar si el oráculo aprendió.
 
-### Caso dorado IN111–TA225
+### Caso dorado IN191–TA295
 
-- RF-24: EL SISTEMA incluirá un episodio dorado donde 3091 pertenece a la componente IN111 de
-  10 kV y 3092 a la componente transferida TA225 de 22,9 kV; 3091 y 3092 no tendrán continuidad
-  eléctrica entre sí, y la componente transferida se alimentará por el enlace existente a TA225.
-- RF-25: EL SISTEMA verificará que `Enlace_TA225_IN111` conserva extremos, servicio y huella del
+- RF-24: EL SISTEMA incluirá un episodio dorado donde 3091 pertenece a la componente IN191 de
+  10 kV y 3092 a la componente transferida TA295 de 22,9 kV; 3091 y 3092 no tendrán continuidad
+  eléctrica entre sí, y la componente transferida se alimentará por el enlace existente a TA295.
+- RF-25: EL SISTEMA verificará que `Enlace_TA295_IN191` conserva extremos, servicio y huella del
   trazado manual; cambiar su conexión para ajustarlo al nodo 3092 será un fallo.
 - RF-26: EL SISTEMA conservará como etiqueta la subtensión de 0,8683 p.u. observada tras la
   reapertura y exigirá que el oráculo la detecte; la convergencia no podrá ocultarla.
@@ -494,7 +494,7 @@ puerta. Con un flujo por matriz de admitancias se aparta 0,0032 p.u.
 ## Orden de entrega
 
 1. Contrato, validador y búfer de episodios.
-2. Captura automática desde flujos ya aceptados y caso dorado IN111–TA225.
+2. Captura automática desde flujos ya aceptados y caso dorado IN191–TA295.
 3. Generador de escenarios y matriz PowerFactory con límites de tiempo y cancelación.
 4. Oráculo de flujo estático con incertidumbre y rechazo fuera de distribución.
 5. Gemelo temporal con curvas reales.
@@ -519,7 +519,7 @@ tiempo real de la red en operación; promover un modelo sin pasar las puertas (R
 - El esquema del episodio valida casos de uno y varios alimentadores, enlaces y transferencias.
 - La captura reconstruye la cadena fuente–PowerFactory y distingue comando, escritura,
   reapertura, convergencia, límites y aceptación.
-- El caso IN111–TA225 se captura y se reproduce sin cambiar el trazado manual.
+- El caso IN191–TA295 se captura y se reproduce sin cambiar el trazado manual.
 - Existe una matriz con múltiples escenarios nativos; no se acepta entrenamiento con el único
   episodio de hoy.
 - El modelo supera umbrales definidos antes de evaluar el conjunto de prueba y rechaza topologías
@@ -539,7 +539,7 @@ tiempo real de la red en operación; promover un modelo sin pasar las puertas (R
   unitarios por alternativa), comprobados contra el texto vigente de R033-2026-OS-CD.
 - Nuevo alimentador y nueva SET: hoy ninguna spec los construye; quedan para una spec propia.
 - Formato binario final de matrices y política de retención/copia de seguridad del búfer.
-- Sistemas dorados adicionales a IN111–TA225 y orden de incorporación.
+- Sistemas dorados adicionales a IN191–TA295 y orden de incorporación.
 
 ## Sustento científico verificado
 

@@ -363,7 +363,7 @@ def _lista(valor: Any) -> tuple[str, ...]:
 def _validar_consigna(comunes: dict[str, Any], datos: Mapping[str, Any]) -> Obra:
     """Consigna de la red externa de la cabecera, en p.u., dentro del perfil (019:RF-12).
 
-    En CA101 (2026-10-15), con el conductor y los bancos nuevos SE20701 seguía en 0,942 pu y
+    En CA191 (2026-10-15), con el conductor y los bancos nuevos SE20701 seguía en 0,942 pu y
     la cabecera a 1,05 pu (la máxima del perfil) lo llevó a 1,007; se hizo con un guion
     suelto porque no había clase de obra.
     """
@@ -606,7 +606,7 @@ def mismos_datos(a: Mapping[str, Any], b: Mapping[str, Any]) -> bool:
     """Dos tipos son el mismo si tienen los mismos datos.
 
     Los números se comparan con tolerancia relativa de 1e-6: DIgSILENT guarda algunos en
-    simple precisión. IN111 + TA225 (2026-10-15): ``uline`` de un TypLne escrito a 22.9 se
+    simple precisión. IN191 + TA295 (2026-10-15): ``uline`` de un TypLne escrito a 22.9 se
     leía 22.899999618…, y con 1e-9 la migración tomaba por distintos los tipos de 22,9 kV
     ya importados, hacía copias «_2» y rechazaba la suya propia.
     """
@@ -692,7 +692,7 @@ class _Plan:
         if nombre not in self.estado.tipo_tramo:
             # La obra se lee y se graba con las cargas nuevas apartadas (DIgSILENT no graba con tres o más etapas
             # activas); el camino de la escalera se calcula con ellas, y la que se conectó partiendo un tramo dejó
-            # su mitad «(1)». Apartada la carga, esa mitad es el tramo entero. CA101 (2026-11-07): toda terna o
+            # su mitad «(1)». Apartada la carga, esa mitad es el tramo entero. CA191 (2026-11-07): toda terna o
             # sección por «SEC_1091_1081392(1)» fallaba con «no es del alimentador» y salía «no cumple».
             entero = MITAD_PARTIDA.sub('', nombre)
             if entero != nombre and entero in self.estado.tipo_tramo:
@@ -852,7 +852,7 @@ def _toda_la_troncal(p: _Plan, tipo: str) -> None:
     """Todos los tramos de la troncal del camino más largo a la sección pedida (016:RF-6 a RF-9).
 
     Los aéreos, al tipo pedido, sean del material y la sección que sean (usuario,
-    2026-10-14: «toda la troncal pasa a 120 mm²», también el cobre de 25 mm² de IN111).
+    2026-10-14: «toda la troncal pasa a 120 mm²», también el cobre de 25 mm² de IN191).
     Los de cable, al tipo de cable si se da; si no, se quedan y se listan.
     """
     o, red = p.obra, p.red
@@ -914,7 +914,7 @@ def _seccion(p: _Plan) -> None:
 def _conductor_de_terna(p: _Plan, tramo: str) -> str:
     """El tipo con que quedan los dos circuitos del tramo, o ``''`` si la terna es de su mismo tipo (042:RF-98 a RF-100).
 
-    Usuario (2026-11-07), tras PE102: «la nueva terna debe ser en 120 mm², ambas ternas; solo una terna debe ser
+    Usuario (2026-11-07), tras PE192: «la nueva terna debe ser en 120 mm², ambas ternas; solo una terna debe ser
     240 mm²». El conductor más delgado que el de la obra pasa a él; el de igual o más corriente añade la terna de
     su tipo, y se dice. Es la regla de ``escalera_optima.obra_terna``, aquí con los tipos leídos de DIgSILENT.
     """
@@ -1133,7 +1133,7 @@ def _migracion(p: _Plan) -> None:
     origen, destino = estado.kv, o.kv_destino
     dentro = set(parte.barras)
     # 087:RF-32, RF-33: a un vecino de la misma tensión la parte solo cambia de alimentador, por el enlace que llega a
-    # ella: ni barras ni tipos cambian. Sin ese enlace no hay traslado que hacer. CHI201 a SC215 (Pisco, 2026-11-04):
+    # ella: ni barras ni tipos cambian. Sin ese enlace no hay traslado que hacer. CHI291 a SC215 (Pisco, 2026-11-04):
     # el enlace de 0,25 km no se probaba porque aquí se rechazaba toda migración a la misma tensión.
     misma = math.isclose(origen, destino)
     if misma and (p.destinos.get(o.alimentador) or '') not in dentro:

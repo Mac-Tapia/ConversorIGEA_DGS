@@ -25,7 +25,7 @@
 
 ## Review Focus
 
-- Una Grid conjunta `NA203_NA205` debe conservar `NA203` o `NA205` por carga, no copiar el nombre de la Grid; se prueba en Tasks 1–3.
+- Una Grid conjunta `NA293_NA295` debe conservar `NA293` o `NA295` por carga, no copiar el nombre de la Grid; se prueba en Tasks 1–3.
 - Una carga sin camino o con propietarios incompatibles debe aparecer como `DESCONECTADO` o `AMBIGUO`, nunca recibir un valor por defecto; se prueba en Task 2.
 - Consultas sobre decenas de miles de cargas deben estar paginadas y ordenadas de forma determinista; se prueba en Tasks 2–4.
 - Reiniciar el servidor no debe validar como vigente un inventario de entradas que cambiaron; se prueba en Tasks 2 y 5.
@@ -40,7 +40,7 @@
 - Preserve: `docs/superpowers/specs/2026-09-27-integracion-web-y-retiro-gui-design.md`
 - Test: `tests/test_hoja_y_coordenadas.py`
 - Test: `tests/test_feeder_metadata.py`
-- Test: `tests/test_na203_na205_acceptance.py`
+- Test: `tests/test_na293_na295_acceptance.py`
 - Test: `tests/test_group_parallel_export.py`
 - Test: `tests/test_web_api.py`
 
@@ -60,7 +60,7 @@ Expected: all twelve commits apply; resolve documentation conflicts by preservin
 
 - [ ] **Step 3: Run focused regression tests**
 
-Run: `python -m pytest tests/test_hoja_y_coordenadas.py tests/test_feeder_metadata.py tests/test_powerfactory_feeder_metadata.py tests/test_group_parallel_export.py tests/test_na203_na205_acceptance.py tests/test_web_api.py -q`
+Run: `python -m pytest tests/test_hoja_y_coordenadas.py tests/test_feeder_metadata.py tests/test_powerfactory_feeder_metadata.py tests/test_group_parallel_export.py tests/test_na293_na295_acceptance.py tests/test_web_api.py -q`
 
 Expected: PASS; fixture-dependent tests may SKIP only with their documented missing-input reason.
 
@@ -97,7 +97,7 @@ Add tests:
 - `test_inventory_exposes_load_and_transformer_electrical_fields`
 - `test_inventory_accepts_arbitrary_feeder_codes`
 
-Assert `Name=SE50033`, `Grid=NA203_NA205`, and `Alimentador` equal to the owning feeder, never `NA203_NA205`.
+Assert `Name=SE50033`, `Grid=NA293_NA295`, and `Alimentador` equal to the owning feeder, never `NA293_NA295`.
 
 - [ ] **Step 2: Run the tests and verify RED**
 
@@ -450,7 +450,7 @@ git commit -m "refactor: retirar interfaz tkinter antigua"
 
 **Interfaces:**
 - Consumes: all prior tasks, reference inputs discoverable under the repository reference folder, and optional PowerFactory 2024.
-- Produces: machine-readable and human-readable evidence for NA203, NA205, PE104 and CA101.
+- Produces: machine-readable and human-readable evidence for NA293, NA295, PE194 and CA191.
 
 - [ ] **Step 1: Write failing fixture-discovery and report-contract tests**
 
@@ -474,7 +474,7 @@ Define CLI options `--reference-root`, `--output`, `--feeders` and `--powerfacto
 
 - [ ] **Step 4: Run automated reference validation**
 
-Run: `python tools/verify_reference_feeders.py --reference-root referencia --output output/validation --feeders NA203 NA205 PE104 CA101`
+Run: `python tools/verify_reference_feeders.py --reference-root referencia --output output/validation --feeders NA293 NA295 PE194 CA191`
 
 Expected: each available feeder is validated; missing inputs are named explicitly and do not masquerade as PASS.
 

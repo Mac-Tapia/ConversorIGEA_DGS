@@ -109,7 +109,7 @@ class CymdistDataset:
         direct = {network.lower(): network for network in self.feeders}
         if normalized in direct:
             return direct[normalized]
-        # Last-token short name (works for NET_…_IN111, ALIM-12, Feeder.A1, …)
+        # Last-token short name (works for NET_…_IN191, ALIM-12, Feeder.A1, …)
         short_matches = [
             network for network in self.feeders
             if feeder_short_name(network).lower() == normalized

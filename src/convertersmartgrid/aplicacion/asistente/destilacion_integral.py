@@ -493,7 +493,7 @@ def medir_selectiva(modelo, registros: Sequence[dict], umbral: float) -> dict:
 
     Cubre lo que da con confianza ≥ ``umbral`` y no es «ninguna». ``acierto_tarea``, sobre lo cubierto;
     ``plan_igual``, entre lo cubierto con la tarea bien, el plan de sus datos igual al de las etiquetas, con el mismo
-    vocabulario. El F1 por trozo exacto contaba como error «CA101 a CHN102» frente a «CA101» y «CHN102», o
+    vocabulario. El F1 por trozo exacto contaba como error «CA191 a CHN192» frente a «CA191» y «CHN192», o
     «variante sur» frente a «Variante Sur», que el plan resuelve igual (2026-11-11).
     """
     from .interprete import Interpretacion

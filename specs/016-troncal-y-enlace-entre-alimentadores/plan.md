@@ -21,7 +21,7 @@ DIgSILENT en `tools/`.
 - `troncal(red, cabecera) -> Troncal`: el camino más largo. Primero un recorrido desde
   la cabecera sobre los tramos cerrados (RF-4): el árbol de los caminos más cortos en
   metros (Dijkstra), con el nombre del tramo como desempate. La red de distribución es
-  radial, pero IN111 trae tres anillos cerrados: un recorrido en anchura contaba saltos y
+  radial, pero IN191 trae tres anillos cerrados: un recorrido en anchura contaba saltos y
   colgaba barras del lado largo del anillo (T3). El tramo que cierra un anillo se avisa
   en `mallas` y no bloquea. Después, la barra más lejana en metros y su camino. Desempate
   (RF-5): a igual longitud, la tupla de nombres de tramo menor. Coste
@@ -37,14 +37,14 @@ DIgSILENT en `tools/`.
 - `partir(longitud, fraccion) -> (l1, l2)`, con `l1 + l2 == longitud` (RF-18).
 - `extremos_del_enlace(recibe, cede, candidatos) -> (Conexion, Conexion)`: RF-27 y luego
   RF-28. Se compara segmento con segmento y se descarta por caja envolvente el par que no
-  puede mejorar. Se hace una vez por obra y con dos troncales: con TA225 e IN111 reales
+  puede mejorar. Se hace una vez por obra y con dos troncales: con TA295 e IN191 reales
   tarda 0,02 s (T4), así que se descartó la rejilla de celdas que preveía este plan.
 - `cortar_trazado(trazado, fraccion)`: el trazado de cada mitad, porque `SplitLine` deja
   el entero en las dos (T1). `conexion_en(red, tramo, punto, minima_m)`: la conexión en un
   tramo dado, que usa la obra cuando el operador indica el punto (RF-31).
 
 Alternativa descartada: calcular la troncal con `ComBbone`, que ya usan el N-1 y la
-transferencia. No da troncal sin enlace (el caso de IN111), y RF-10 la deja para esos dos
+transferencia. No da troncal sin enlace (el caso de IN191), y RF-10 la deja para esos dos
 usos.
 
 ### 2. `src/convertersmartgrid/aplicacion/obras_pf.py` — RF-6 a RF-9, RF-11 a RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39, RF-41, RF-51 a RF-53, RF-57, RF-59, RF-61, RF-65, RF-66
@@ -137,7 +137,7 @@ de `tools/cargas_pf.py` en el mismo cambio (spec 009).
 
 `Application.SplitLine(línea, porcentaje, interruptorLado0, interruptorLado1, gráfico)`
 (`PythonReference_en.pdf`, cap. 3, «Application methods») devuelve la barra nueva, o 0 si
-falla. Sonda en DIgSILENT sobre una copia de `20261014-220929_CSG_IN111_TA225`, con
+falla. Sonda en DIgSILENT sobre una copia de `20261014-220929_CSG_IN191_TA295`, con
 «Con proyecto» activo y la variación grabando; la copia se borró al terminar. Se partió
 `SEC_1091_1058935` (319 m, N205003D_10kV) al 40 %:
 
@@ -174,10 +174,10 @@ todo en la variación.
 - `tests/test_obras_pf_web.py`, `tests/test_cargas_pf_web.py` y
   `tests/test_obras_estudios_front.py`: los campos nuevos.
 - `tests/test_transferencia_pf.py`: RF-63.
-- Datos reales: con las tres `CSG_*`, la troncal de IN111 en el modelo del TXT mide
+- Datos reales: con las tres `CSG_*`, la troncal de IN191 en el modelo del TXT mide
   13,58 km y tiene 71 tramos (tres anillos cerrados). Es una comprobación de `troncal.py` con una red real; el
   guion lee la de DIgSILENT.
-- DIgSILENT (T12): sobre el proyecto de IN111 y TA225 ya importado, nunca sobre SED
+- DIgSILENT (T12): sobre el proyecto de IN191 y TA295 ya importado, nunca sobre SED
   inventadas.
 
 Cada prueba cita `016:RF-n`.

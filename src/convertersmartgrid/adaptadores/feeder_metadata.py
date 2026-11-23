@@ -30,8 +30,8 @@ class FeederAssignment:
 
 
 def _loc_name(value: str) -> str:
-    # 022:RF-90: el mismo nombre que escribe el DGS. CA101 + CHN102 (2026-11-05): el DGS tenía la barra
-    # NODE_2030_1192595_CHN102, aquí se buscaba la del TXT, ..._CN102, y no se asignaba ningún alimentador.
+    # 022:RF-90: el mismo nombre que escribe el DGS. CA191 + CHN192 (2026-11-05): el DGS tenía la barra
+    # NODE_2030_1192595_CHN192, aquí se buscaba la del TXT, ..._CN192, y no se asignaba ningún alimentador.
     texto = str(value or '').replace(';', ',').replace('\r', ' ').replace('\n', ' ').strip()
     return nombre_canonico(texto)[:40]
 

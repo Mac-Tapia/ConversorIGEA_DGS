@@ -4,14 +4,14 @@ Estado: cumplida (2026-11-15: T6 con el verde integrado de RF-8) · Fecha: 2026-
 usuario el 2026-10-10, después de implementarse (lo pidió de forma explícita).
 
 ## Contexto y objetivo
-Al importar la red unida NA203 + NA205 en PowerFactory, las barras quedan en su punto GPS
+Al importar la red unida NA293 + NA295 en PowerFactory, las barras quedan en su punto GPS
 original (desvío máximo 0,008 mm), pero las líneas no traen trazado GPS propio: el DGS
 escribe `GPScoords` vacío. Los puntos intermedios del origen solo se usan para el
 diagrama y para la longitud. Una vista geográfica de PowerFactory dibuja entonces cada
 línea como una recta entre sus dos barras, sin las curvas del recorrido real. El usuario
 pidió que las líneas sigan su recorrido real.
 
-Un experimento del 2026-10-10 (AL106, 172 líneas) comprobó el formato: con la tabla
+Un experimento del 2026-10-10 (AL196, 172 líneas) comprobó el formato: con la tabla
 normalizada `Matrix` de DGS 7.0, PowerFactory 2024 importa cada trazado como una matriz
 de n puntos × 2 columnas (latitud, longitud) idéntica punto a punto al origen, y no
 cambia la longitud de ninguna línea.
@@ -54,7 +54,7 @@ PowerFactory; la prueba de aceptación en PowerFactory.
 - Línea sin puntos intermedios: trazado de dos puntos.
 - Tramos puente fundidos: el trazado de la línea que queda empieza y acaba en las barras
   que existen en el DGS, no en las fundidas.
-- Barra de cabecera partida en una red unida (`…@NA203`, `…@NA205`): cada línea usa la
+- Barra de cabecera partida en una red unida (`…@NA293`, `…@NA295`): cada línea usa la
   copia de su alimentador.
 - Excel y TSV: la tabla de trazados sale como una hoja o un fichero más.
 
@@ -71,7 +71,7 @@ código de esta spec y RF-14 lo anota como segunda excepción.
 
 ## Criterios de finalización
 Cada RF citado por al menos una prueba (`grep -rnoE "010:RF-[0-9]+" tests`), suite en
-verde con los datos reales y la red unida NA203 + NA205 importada en PowerFactory con
+verde con los datos reales y la red unida NA293 + NA295 importada en PowerFactory con
 todas sus líneas con el trazado del manifiesto.
 
 ## Dudas abiertas

@@ -44,12 +44,12 @@ def test_solo_en_esta_maquina():
 def test_interpreta_con_las_tareas_como_herramientas():
     """026:RF-3 — la orden va al modelo local con la lista de tareas; la respuesta JSON se
     convierte en tarea, datos y confianza, sin datos que la tarea no tiene."""
-    contenido = {'tarea': 'pide', 'datos': {'proyecto': 'CA101 13', 'alimentadores': ['CA101']},
+    contenido = {'tarea': 'pide', 'datos': {'proyecto': 'CA191 13', 'alimentadores': ['CA191']},
                  'confianza': 0.9, 'razon': 'pide el plan de inversiones'}
     abrir, pedidas = _servidor({'/api/chat': {'message': {'content': json.dumps(contenido)}}})
-    r = ClienteOllama(abrir=abrir).interpretar('haz el plan de inversiones de CA101 13')
+    r = ClienteOllama(abrir=abrir).interpretar('haz el plan de inversiones de CA191 13')
     assert r['tarea'] == 'pide' and r['confianza'] == 0.9 and r['modelo'].startswith('ollama:')
-    assert r['datos']['proyecto'][0]['valor'] == 'CA101 13' and 'inventado' not in r['datos']
+    assert r['datos']['proyecto'][0]['valor'] == 'CA191 13' and 'inventado' not in r['datos']
     cuerpo = pedidas[0][1]
     # 047:RF-1: la salida ahora queda acotada mediante JSON Schema.
     assert cuerpo['format']['type'] == 'object' and 'pide' in cuerpo['messages'][0]['content'] and pedidas[0][2] == 30.0

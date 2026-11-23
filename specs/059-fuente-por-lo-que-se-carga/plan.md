@@ -1,6 +1,6 @@
 # Plan — Spec 059
 
-1. `identify.py`: `fuente_de(path)` dice si un fichero es TXT de CYMDIST (y cuál), base Access
+1. `identify.py`: `fuente_de(path)` dice si un fichero es TXT (y cuál), base Access
    (cabecera «Standard Jet DB» / «Standard ACE DB») o paquete VNR-GIS (`validate_vnr_package_file`).
 2. `web/workspace.py`: `input_mode` nulo por defecto (RF-1); al cargar, la fuente sale de las
    entradas (RF-2); `missing_inputs` pide la fuente si no hay (RF-1).

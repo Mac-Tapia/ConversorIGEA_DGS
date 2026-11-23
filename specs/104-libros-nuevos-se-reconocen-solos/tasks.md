@@ -57,3 +57,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       RF-48: `tests/test_libros_nuevos.py::test_el_estado_no_se_da_por_guardado_si_windows_lo_niega_siempre` (línea 229).
       Hecho el 2026-11-15 (MARCAS-PISTA3; arreglo de ccceb4c8): rojo `D:/csg/PM_IMPL/104_REINTENTO/rojo_192946.log`
       (la F es el PermissionError que la prueba reproduce); verde: suite entera sobre el árbol de e182c823 con las 14 variables CSG_*: `D:/csg/INTEGRA_54/g107/integra_g12f13_82_183656.log` (línea 1202) «Puerta de calidad: 9582 pruebas, 0 fallidas, 0 omitidas.»
+- [x] T12. Al terminar la regeneración, el estado final se guarda antes de soltar el proceso propio, y el paso a
+      interrumpido se decide en el mismo guardado: ningún dataset «al día» queda sin sus libros incluidos. (RF-43, RF-45)
+      Hecho cuando: `pytest -q tests/test_libros_nuevos_web.py -k "terminar_bien or no_pisa"` falla sobre 98dbffc9 con
+      solo las pruebas y pasa con el arreglo, `tests/test_libros_nuevos_web.py` y `tests/test_libros_nuevos.py` siguen en
+      verde, y la e2e `frontend/test/e2e/f10_libros_nuevos.e2e.mjs` pasa cinco veces seguidas.
+      Hecha el 2026-11-22 (tarjeta E2E-F10): rojo `D:/csg/PM_IMPL/E2E_F10/rojo.log` (2 F por aserción, rojo=VALIDO),
+      verde `D:/csg/PM_IMPL/E2E_F10/verde.log` y e2e `D:/csg/PM_IMPL/E2E_F10/e2e_f10_x5.log`.
+

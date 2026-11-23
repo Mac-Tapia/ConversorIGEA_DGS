@@ -276,9 +276,15 @@ def test_102_rf23_la_puerta_pasa_todas_las_variables_que_las_pruebas_piden():
 
     nombradas = set()
     for prueba in (RAIZ / 'tests').rglob('*.py'):
-        for linea in prueba.read_text(encoding='utf-8').splitlines():
+        texto = prueba.read_text(encoding='utf-8')
+        # Una omisión puede nombrar la variable por su constante (``f'Defina {VARIABLE_TERMINOS} ...'`` de apoyo.py): la
+        # puerta del 23-11 omitió 42 pruebas porque CSG_TERMINOS_PROHIBIDOS no estaba en VARIABLES y esta prueba no la vio.
+        constantes = dict(re.findall(r"^([A-Z_][A-Z0-9_]*) *= *'(CSG_[A-Z0-9_]+)'", texto, re.M))
+        for linea in texto.splitlines():
             if 'skip' in linea:
                 nombradas.update(re.findall(r'\bCSG_[A-Z0-9_]+', linea))
+                nombradas.update(constantes[n] for n in re.findall(r'\{([A-Z_][A-Z0-9_]*)\}', linea) if n in constantes)
+    assert 'CSG_TERMINOS_PROHIBIDOS' in nombradas   # la que se nombra por su constante
     ejemplo = json.loads((RAIZ / 'config' / 'suite_completa.example.json').read_text(encoding='utf-8'))
     del_ejemplo = set(ejemplo['variables'])
     assert 'CSG_PF_PYTHON_39' in nombradas      # el caso que la motivó

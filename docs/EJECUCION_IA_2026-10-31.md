@@ -70,7 +70,7 @@ No hay `gold_native` admisible para el dataset del asistente en esta lectura.
 Los episodios sin evidencia suficiente conservan su cuarentena; no se reinterpretó
 su aceptación para aumentar el número de ejemplos.
 
-Se leyó la medición de NA203 con los lectores existentes de `demanda_medida.py`.
+Se leyó la medición de NA293 con los lectores existentes de `demanda_medida.py`.
 El libro es `0.2_SISTEMA Nasca.xls`, hoja `L-NA113`. La curva de septiembre de 2026
 contiene 2.880 filas pero solo 2.850 instantes distintos: los 30 instantes duplicados
 contienen valores de potencia diferentes. No se promediaron ni se eligió una fila

@@ -1,9 +1,9 @@
 """Spec 004, RF-72 a RF-80: la ubicación de una carga nueva se comprueba antes de conectarla.
 
-Caso real (PA217, 2026-11-12): SE0001 se escribió con Y = 476 517, un dígito de menos; su GPS quedó cerca del Polo Sur,
+Caso real (PA297, 2026-11-12): SE0001 se escribió con Y = 476 517, un dígito de menos; su GPS quedó cerca del Polo Sur,
 se conectó con una línea de miles de km, el flujo de «Cargas nuevas» no convergió y, al corregirla, se habría
 reutilizado la mal puesta. Las redes de estas pruebas son sintéticas y sorteadas; la fila real se comprobó aparte, en
-solo lectura, con la geografía de PA217 del espacio del usuario (sus cifras no van a git).
+solo lectura, con la geografía de PA297 del espacio del usuario (sus cifras no van a git).
 """
 from __future__ import annotations
 

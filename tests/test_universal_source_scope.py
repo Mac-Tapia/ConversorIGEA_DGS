@@ -123,4 +123,4 @@ def test_inputs_panel_contains_scope_selectors_without_test_company_defaults():
     assert 'Empresa de la fuente' in source
     assert 'Periodo de la fuente' in source
     assert not _hallar_nombres(_nombres_de_config(Path(__file__).resolve().parents[1]), source)
-    assert 'IN111' not in source
+    assert 'IN191' not in source

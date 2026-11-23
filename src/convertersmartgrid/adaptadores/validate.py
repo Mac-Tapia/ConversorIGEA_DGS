@@ -81,7 +81,7 @@ _CANONICAS: dict[str, str] = {}
 
 
 def _loc(value: str) -> str:
-    # 027:T23: el nombre que escribe el DGS, con la sigla canónica (NODE_…_CN101 → …_CHN101).
+    # 027:T23: el nombre que escribe el DGS, con la sigla canónica (NODE_…_CN191 → …_CHN191).
     texto = value.replace(';', ',').replace('\n', ' ').replace('\r', ' ')
     return (nombre_canonico(texto, _CANONICAS) if _CANONICAS else texto)[:40]
 
@@ -245,7 +245,7 @@ def validate_dgs(
         for r in rows:
             if r.get('fold_id', '') not in network_fids:
                 connection_errors.append(f'{cls} {r.get("FID")} references missing ElmNet {r.get("fold_id")}')
-    # Feeder buses under ElmNet; SED MT/BT buses under ElmSubstat (NA205 triangle interior).
+    # Feeder buses under ElmNet; SED MT/BT buses under ElmSubstat (NA295 triangle interior).
     # Spec 022: las barras de SET van dentro de la subestación de su SET.
     set_fids = {r.get('FID', '') for r in tables.get('ElmSubstat', {}).get('rows_dict', [])
                 if r.get('loc_name', '') in rotulos_set}
@@ -264,7 +264,7 @@ def validate_dgs(
         connection_errors.append(
             f'{len(red_coups)} ElmCoup under ElmNet, expected {n_red_coups} network switches')
 
-    # NA205: SED-backed loads fold under ElmSubstat; free loads stay under ElmNet.
+    # NA295: SED-backed loads fold under ElmSubstat; free loads stay under ElmNet.
     allowed_load_folds = network_fids | sed_fids
     for r in load_rows:
         fold = r.get('fold_id', '')
@@ -581,7 +581,7 @@ def validate_dgs(
             if r.get('pDataObj','') not in electrical_graphic_objects:
                 graphic_errors.append(f'IntGrf {r.get("FID")} references missing electrical object {r.get("pDataObj")}')
             graphics_by_object[r.get('pDataObj','')].append(r)
-        # One d_lin per drawn ElmLne (NA205). Underground style is ElmLne.inAir=0.
+        # One d_lin per drawn ElmLne (NA295). Underground style is ElmLne.inAir=0.
         expected_line_graphics = len(diagram_line_fids)
         expected_graphics = (
             len(visible_term_fids) + expected_line_graphics + len(free_load_fids)

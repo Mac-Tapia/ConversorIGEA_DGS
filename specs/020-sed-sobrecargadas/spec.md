@@ -10,13 +10,13 @@ Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario:
 
 ## Contexto y objetivo
 
-La calibración de PA217 (`20261016-094237_CSG_PA217`, 2026-10-16) no era válida y la web
+La calibración de PA297 (`20261016-094237_CSG_PA297`, 2026-10-16) no era válida y la web
 solo decía «las cargas no consumen en el flujo lo que tienen escrito». La causa estaba en
 el modelo, no en las cargas: la SED fija SE30940 recibía los 3818 kVA de su cliente sobre
 un transformador de 400 kVA (955 %), y SE30642, SE30480 y SE30424 también pedían más que
 su potencia. Con cargas PQ, «Sin proyecto» no convergía ni con las escaladas al 0,5 % de
 su kVA. Esas SED ya se listaban (015:RF-59), pero en un desplegable debajo del fallo y sin
-ninguna acción. Se arreglaron con un guion suelto, como en CA101 (015, T22 y T26): cada
+ninguna acción. Se arreglaron con un guion suelto, como en CA191 (015, T22 y T26): cada
 transformador a la menor potencia de la NTP 370.400 con la máxima ≤ 80 %, y por encima de
 630 kVA unidades de 630 kVA en paralelo. Tras ese cambio la calibración salió válida, a
 −0,34 % y sin ajustes del flujo. El objetivo es que la web avise de forma visible de las
@@ -148,7 +148,7 @@ potencia cambiada con sus respectivos códigos SED»)
 - RF-63: SI el perfil de la empresa no trae fichas de transformadores de SED, ENTONCES EL SISTEMA usará las del conversor
   (`config/fichas/transformadores_sed.json`, NTP 370.400-2013, Tablas 6 y 7), que se entregan con el programa, y dirá su
   origen; las del perfil, si las trae, mandan. Cambia la regla de 020:RF-29 («la norma va en el perfil»). Usuario
-  (2026-11-11): «las fichas deben ser parte del conversor, eso sí debe ir». Programa instalado sin perfil (2026-11-11): CA101
+  (2026-11-11): «las fichas deben ser parte del conversor, eso sí debe ir». Programa instalado sin perfil (2026-11-11): CA191
   no quedó válido porque SE20701 no se pudo cambiar por su ficha.
 - RF-64: (orden del usuario del 20-11) EL SISTEMA no propondrá transformador nuevo para una fija a revisar
   (015:RF-73), y la propuesta de una fija partirá de los kVA de la fuente de su grupo (015:RF-75): si ya la llevan, no se
@@ -165,12 +165,12 @@ potencia cambiada con sus respectivos códigos SED»)
 
 ## Casos límite
 
-- SED de PA217: 8 × 630 kVA (SE30940), 3 × 630 (SE30480), 2 × 630 (SE30642), 1 × 500
+- SED de PA297: 8 × 630 kVA (SE30940), 3 × 630 (SE30480), 2 × 630 (SE30642), 1 × 500
   (SE30424), Tabla 7 (22,9 kV) (RF-6, RF-7, RF-8).
 - SED con ya varias unidades en paralelo que sigue sobrecargada (RF-2, RF-23).
 - Dos SED de distinta tensión de baja o grupo que piden la misma potencia: tipos propios
   distintos (RF-19).
-- Tipo propio ya creado por un cambio anterior (PA217, CA101): se reutiliza o se avisa
+- Tipo propio ya creado por un cambio anterior (PA297, CA191): se reutiliza o se avisa
   (RF-21, RF-22).
 - El operador desmarca una SED con un cruce dudoso: no se cambia, y la calibración puede
   seguir sin salir válida (RF-18, RF-26).
@@ -213,12 +213,12 @@ potencia cambiada con sus respectivos códigos SED»)
 3. Confirmación: una casilla por SED y un botón (usuario, 2026-10-16; RF-13).
 4. Después: recalibra sola en el mismo trabajo (usuario, 2026-10-16; RF-25).
 5. Por encima de la mayor potencia de la tabla: unidades de esa potencia en paralelo
-   (usuario, 2026-10-16, en PA217: las fórmulas de la NTP no valen tan lejos, la de
+   (usuario, 2026-10-16, en PA297: las fórmulas de la NTP no valen tan lejos, la de
    pérdidas con carga decrece desde unos 1600 kVA; RF-7).
 6. Tras implementar, la calibración tiene que salir válida: si la sobrecarga era lo que
    impedía converger o validar, no tiene por qué fallar (usuario, 2026-10-16). Si falla,
    es un fallo con su diagnóstico, no un resultado aceptado, y los transformadores nuevos
-   se quedan (RF-26, RF-32). En PA217 salió válida a −0,34 % (015, T26).
+   se quedan (RF-26, RF-32). En PA297 salió válida a −0,34 % (015, T26).
 
 ## Dudas abiertas
 

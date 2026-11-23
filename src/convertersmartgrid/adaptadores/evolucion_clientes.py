@@ -259,7 +259,7 @@ def _cabecera(fuentes: FuentesEvolucion, alimentadores: Sequence[str], desde: st
         p = np.array([x[1] for x in d['curva']], dtype=float)
         sentido = sentido_de_serie(p)
         if sentido == 'ambos':
-            # 089:RF-20: NA205 (2026) va de +8 MW a −8 MW: con una central o una transferencia la cabecera no es la
+            # 089:RF-20: NA295 (2026) va de +8 MW a −8 MW: con una central o una transferencia la cabecera no es la
             # demanda, y la comparación con los fijos daba 20 754 registros «por encima».
             avisos.append({'tipo': 'cabecera', 'texto': f'{alimentador}: su cabecera mide en los dos sentidos (central, '
                                                        'generación o transferencia): sin participación ni comprobación '
@@ -274,7 +274,7 @@ def _cabecera(fuentes: FuentesEvolucion, alimentadores: Sequence[str], desde: st
         t, p = t[sel], p[sel]
         suma = fijas.get(alimentador)
         if suma is not None:
-            # Un mes copiado no es medición de los fijos: AL209, abril de 2026, daba 2 397 kW «de fijos» (los de marzo)
+            # Un mes copiado no es medición de los fijos: AL299, abril de 2026, daba 2 397 kW «de fijos» (los de marzo)
             # frente a 214 kW de cabecera medidos ese día.
             medido = ~np.isin(mes_de_registro(suma[0]).astype(str), list(copiados))
             sobre = fijos_sobre_cabecera(suma[0][medido], suma[1][medido], t, p, MARGEN_CABECERA)
@@ -462,7 +462,7 @@ def _fecha(texto: str | None):
 
 
 def escribir_libro(evolucion: Evolucion, destino: Path) -> Path:
-    """El libro de la evolución, como el de AL209 hecho a mano, con sus gráficos (105:RF-27)."""
+    """El libro de la evolución, como el de AL299 hecho a mano, con sus gráficos (105:RF-27)."""
     import pandas as pd
     from openpyxl.chart import LineChart, Reference
     from openpyxl.chart.series import SeriesLabel
@@ -536,7 +536,7 @@ def escribir_libro(evolucion: Evolucion, destino: Path) -> Path:
                 xl, sheet_name=nombre, index=False)
         notas.to_excel(xl, sheet_name='Notas', index=False)
         # Formato y gráficos sobre el libro que se está escribiendo: volver a abrirlo para darle formato costaba más que
-        # escribirlo (AL209 y NA205, 22 hojas de 29 185 registros: más de 5 minutos).
+        # escribirlo (AL299 y NA295, 22 hojas de 29 185 registros: más de 5 minutos).
         wb = xl.book
         for ws in wb.worksheets:
             ws.freeze_panes = 'B2'

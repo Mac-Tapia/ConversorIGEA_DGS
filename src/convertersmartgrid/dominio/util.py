@@ -181,8 +181,8 @@ def nombre_seguro(texto: str, *, maximo: int | None = None, defecto: str = 'GRUP
 PREFIJO_ESQUEMA_ANTERIOR = 'igea-dgs-'  # legado-058
 
 #: Lo que el sistema dejó dentro de los proyectos de DIgSILENT con el nombre anterior, que no se
-#: renombra (058:RF-9): nombre de hoy → el de antes. El 2026-11-01, la optimización de NA203 +
-#: NA205 no encontraba su «Con proyecto» ni la biblioteca de tipos de sus obras.
+#: renombra (058:RF-9): nombre de hoy → el de antes. El 2026-11-01, la optimización de NA293 +
+#: NA295 no encontraba su «Con proyecto» ni la biblioteca de tipos de sus obras.
 NOMBRES_ANTERIORES_PF = {
     'CSG_Biblioteca_tipos': 'IGEA_Biblioteca_tipos',  # legado-058
     'CSG_confiabilidad': 'IGEA_confiabilidad',  # legado-058

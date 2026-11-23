@@ -54,7 +54,7 @@
 - Sin foto anterior, la base es el índice publicado (RF-6). Descartado: dar por nuevos todos los libros, que verificaría
   veinte libros en el primer arranque.
 - Mes repetido: P y Q iguales en el mismo día del mes y hora, solo en los registros en que la P cambia (un medidor
-  congelado no es una copia: IN216 de Ica daba «igual» todos los meses), ≥ 95 % en más de la mitad de las series.
+  congelado no es una copia: IN296 de Ica daba «igual» todos los meses), ≥ 95 % en más de la mitad de las series.
   Descartado: comparar la energía del mes, que no distingue una copia de un mes parecido.
 - El dataset se regenera en un proceso propio, no en la cola: la cola rechaza con 409 lo que el operador pida en el mismo
   carril, y leer todos los libros tarda decenas de minutos.
@@ -67,3 +67,6 @@
 - `tests/test_libros_nuevos_web.py`: la web con `TestClient`, sin vigilancia periódica; reconocimiento, aviso, visto,
   libro repetido inactivo también al reindexar, motor ocupado, revisión al abrir sin esperar y dataset regenerado.
 - Comprobación real, solo lectura, con un espacio temporal fuera del repositorio: cifras en el informe de la tarea.
+- Carrera de la e2e F10 (2026-11-22, aclaraciones de RF-43 y RF-45): `_recoger_datasets` guarda el estado final antes de
+  quitar el proceso de `_procesos`, y `_interrumpir` solo cambia un dataset que sigue «regenerando» dentro del mismo
+  `_modificar`. Descartado: que la e2e espere a la lista y no al estado, porque el defecto lo ve también el operador.

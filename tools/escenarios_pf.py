@@ -39,7 +39,7 @@ def ejecutar(app, plan: dict, cancelado=lambda: False) -> tuple[dict, int]:
         return {**informe, 'error': f"no existe el proyecto {plan['project']!r}"}, 2
     feeders = list(plan.get('feeders') or [])
     nombre_copia = f"{original.loc_name}_gemelo_{int(time.time())}"
-    # DIgSILENT no copia el proyecto activo: AddCopy devolvía None (IN111–TA225, 2026-10-22).
+    # DIgSILENT no copia el proyecto activo: AddCopy devolvía None (IN191–TA295, 2026-10-22).
     original.Deactivate()
     copia = original.GetParent().AddCopy(original, nombre_copia)
     if copia is None:

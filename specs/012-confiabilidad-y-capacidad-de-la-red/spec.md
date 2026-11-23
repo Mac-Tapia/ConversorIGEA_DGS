@@ -260,7 +260,7 @@ Resultados y estado del proyecto
 
 Entradas cargadas desde la web (usuario, 2026-11-13: «haz disponibles todos» los estudios; «lo que
 falta se ingresará en TXT o en imagen (JPG o similares)» y «todo tiene que ser cargado desde la
-web»). Una sonda de ese día en CA101_CHN102 dio la red externa con los valores por defecto de
+web»). Una sonda de ese día en CA191_CHN192 dio la red externa con los valores por defecto de
 DIgSILENT (10 000 MVA, R/X 0,1), ninguna característica de tiempo en sus 204 cargas, ninguna tasa
 de falla y ningún espectro: ninguna fuente los trae y no se rellenan con valores típicos.
 

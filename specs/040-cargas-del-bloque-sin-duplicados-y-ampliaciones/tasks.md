@@ -24,7 +24,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-31: `nombre_de_carga` recorta la SED; `indice_de_cargas_nuevas` da a una
       variación sin alimentador en el nombre el de la SED existente más cercana a su carga, y
       `ejecutar` la renombra al reutilizarla; 252 pruebas de cargas, casos, obras y ajuste en verde.
-- [x] T4. [DIgSILENT] NA203 + NA205 cargado de nuevo desde la web. (Todos)
+- [x] T4. [DIgSILENT] NA293 + NA295 cargado de nuevo desde la web. (Todos)
       Hecho cuando: sin la segunda Fundo Luciana ni la segunda YANACA; Cesar Monge, HONGWEN y
       AGROPEX como ampliaciones de SE50324, SE50323 y SE50150; las variaciones que sobraban, eliminadas.
       Hecho el 2026-10-31 desde la web (libro v3, base disco:56e1cbdb77ac): 5 variaciones eliminadas

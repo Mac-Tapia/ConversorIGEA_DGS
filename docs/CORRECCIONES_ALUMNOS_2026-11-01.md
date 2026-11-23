@@ -11,7 +11,7 @@ Implementación local conforme a [spec060](../specs/060-correcciones-del-aprendi
 | Warm-start sin linaje verificable | Se exige genealogía acumulada de IDs y familias; si falta o contamina las reservas, se ajusta desde cero | Pruebas de intersección y del ajuste posterior |
 | Política mutable invalidaba el corpus LLM | Copia de política verificada dentro de la versión; origen conservado; cambios de la copia se rechazan | Corpus v5 real auditado; v4 conservado |
 | Medianoches desplazadas cinco horas | Se elige la columna con información horaria; las celdas `date` de esa columna se interpretan como medianoche | Pruebas con `Local Time`/`Timestamp` y regresión sobre libros reales |
-| Errores temporales sin localizador | Se conserva fila Excel en el lector compartido; diagnóstico con hoja/fila, validación de fechas y huecos sin imputar | Libro2025: L-TM105, fila4280 con potencia ausente |
+| Errores temporales sin localizador | Se conserva fila Excel en el lector compartido; diagnóstico con hoja/fila, validación de fechas y huecos sin imputar | Libro2025: L-TM195, fila4280 con potencia ausente |
 | Configuración GRU incompleta al guardar | Parámetros completos, optimizador, pasos, historial y validación junto a pesos y sondas | Ajuste CUDA de contrato y reapertura independiente de la instancia |
 | Registro común ocultaba modelos heredados | Consulta de metadatos heredados con versión y advertencia explícita; no los promueve ni carga Torch | Registro vacío/rechazado con heredado presente; archivos sin cambios |
 
@@ -55,7 +55,7 @@ de regresión; no se presenta como resultado satisfactorio.
 ## Candidato GRU ajustado con observaciones reales
 
 La selección explícita quedó fijada antes del ajuste en
-`alcance_enero_antes_del_ajuste.json`: hoja L-TM105, desde2025-01-01T00:15 hasta
+`alcance_enero_antes_del_ajuste.json`: hoja L-TM195, desde2025-01-01T00:15 hasta
 2025-02-01T00:00 exclusivo, zona America/Lima. Se conservaron2975 observaciones
 continuas sin imputación;32065 filas quedaron fuera por fecha, no por calidad o error
 del modelo. Esto no convierte en válido el libro anual completo.

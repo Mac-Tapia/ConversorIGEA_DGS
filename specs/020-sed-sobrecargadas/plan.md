@@ -30,7 +30,7 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
    y 7 de FONAFE 2017 (NTP 370.400-2013). La lectura y la validación (RF-29 a RF-31) van en
    `perfil_empresa.py`, al lado de `factor_potencia_cargas`.
 5. **Nombre del tipo propio:** `TR_<kVA>kVA_<norma corta>_<AT>-<BT V>V_<grupo>`, por ejemplo
-   `TR_630kVA_NTP370400_22.9-220V_DYN5`, el mismo que se usó en PA217 (015, T26), para
+   `TR_630kVA_NTP370400_22.9-220V_DYN5`, el mismo que se usó en PA297 (015, T26), para
    reutilizar los tipos ya creados (RF-21). La norma corta se lee del perfil (`codigo`).
 
 ## Partes
@@ -48,7 +48,7 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
 - `src/convertersmartgrid/aplicacion/trafos_sed.py`: `tabla_para(tablas, kv_primaria)` y
   `proponer(kva_carga, kv_primaria, tablas, umbral) -> dict` (potencia, unidades, ficha,
   tabla, carga prevista, o el motivo de que no haya propuesta).
-- Pruebas: `tests/test_trafos_sed.py`, con los cuatro casos de PA217 y potencias sorteadas.
+- Pruebas: `tests/test_trafos_sed.py`, con los cuatro casos de PA297 y potencias sorteadas.
   La propiedad que se comprueba: la carga prevista nunca supera el umbral y con una unidad
   menos, o con la potencia anterior de la tabla, sí lo superaría.
 
@@ -109,9 +109,9 @@ Spec: `specs/020-sed-sobrecargadas/spec.md` (aprobada el 2026-10-16).
 
 ## Estrategia de pruebas
 
-Sintéticas con `fake_pf` y potencias sorteadas: la regla de B no tiene números de PA217
+Sintéticas con `fake_pf` y potencias sorteadas: la regla de B no tiene números de PA297
 fijados salvo como caso con nombre. Nada toca el lector, así que no hacen falta las dos
-disposiciones de export. Prueba final en DIgSILENT desde la web con PA217: en el proyecto
-`20261016-094237_CSG_PA217` los transformadores ya están cambiados (015, T26). Para la
+disposiciones de export. Prueba final en DIgSILENT desde la web con PA297: en el proyecto
+`20261016-094237_CSG_PA297` los transformadores ya están cambiados (015, T26). Para la
 prueba de punta a punta hace falta un proyecto con SED fijas sobrecargadas, recién
-importado: PA217 importado otra vez desde la web.
+importado: PA297 importado otra vez desde la web.

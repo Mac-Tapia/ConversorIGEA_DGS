@@ -224,7 +224,7 @@ def test_metrados_de_un_alimentador_real():
 
 
 def test_subterraneo_usa_su_unica_estructura_y_default_no_es_codigo(tmp_path):
-    """072:RF-7, 072:RF-15 — caso de CA101: el cable no pide concreto; DEFAULT no da una tensión falsa."""
+    """072:RF-7, 072:RF-15 — caso de CA191: el cable no pide concreto; DEFAULT no da una tensión falsa."""
     ruta = tmp_path / 'c.zip'
     with zipfile.ZipFile(ruta, 'w') as z:
         z.writestr('Instalacion.txt', CAB + chr(10) + _fila('N205003', 'D', 'E', 'ST2', 40.0))

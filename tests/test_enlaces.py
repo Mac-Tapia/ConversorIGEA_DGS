@@ -87,7 +87,7 @@ def test_determinista():
 
 def _donante_y_receptor(y_receptor=50.0):
     """D: cabecera y cuatro SED de 100 kVA en línea; R: dos nodos, el último a ``y`` del
-    final de D (TM106 y TM104 en Chincha, 2026-10-18)."""
+    final de D (TM196 y TM194 en Chincha, 2026-10-18)."""
     from dataclasses import replace
 
     from convertersmartgrid.dominio.model import Load, Node, Sed
@@ -149,8 +149,8 @@ def test_sin_red_cerca_se_dice_y_queda_como_esta():
 
 
 def test_el_donante_con_medida_no_se_queda_sin_red():
-    """022:RF-58b — con casi toda la medida en el reconstruido (3 133 frente a 31 kW, TM106 y
-    TM104 en Chincha), el donante que mide algo conserva parte de su red: no se le pasa
+    """022:RF-58b — con casi toda la medida en el reconstruido (3 133 frente a 31 kW, TM196 y
+    TM194 en Chincha), el donante que mide algo conserva parte de su red: no se le pasa
     toda; solo sin medida se abre su cabecera entera."""
     red, _ = _donante_y_receptor()
     hechas, _ = en.reconstruir_por_medida(red, {'R': 3133.0}, {'D': 31.0})
@@ -164,7 +164,7 @@ def test_el_donante_con_medida_no_se_queda_sin_red():
 
 
 def test_la_cabecera_del_donante_se_parte_y_conserva_sus_ramas():
-    """022:RF-58b — la unión cuelga de una rama de la cabecera del donante (como TM104): el
+    """022:RF-58b — la unión cuelga de una rama de la cabecera del donante (como TM194): el
     donante conserva con su interruptor la rama más cercana a su parte y el reconstruido
     recibe las demás por la cabecera de siempre; la red sigue radial."""
     from convertersmartgrid.dominio.model import Line, Load, Node, Sed
@@ -199,8 +199,8 @@ def test_la_cabecera_del_donante_se_parte_y_conserva_sus_ramas():
 def test_el_donante_conserva_una_rama_junto_a_su_cabecera():
     """022:RF-58b — la cabecera tiene la rama de la unión y una rama grande; junto a ella
     (a menos de 100 m) sale una sub-rama: el donante conserva la sub-rama que le basta para
-    su medida y el reconstruido recibe el resto, también la rama grande (TM104 conserva la
-    de 1 015 kVA a 44 m y TM106 recibe 8 400 kVA)."""
+    su medida y el reconstruido recibe el resto, también la rama grande (TM194 conserva la
+    de 1 015 kVA a 44 m y TM196 recibe 8 400 kVA)."""
     from convertersmartgrid.dominio.model import Line, Load, Node, Sed
 
     red, _ = _donante_y_receptor()

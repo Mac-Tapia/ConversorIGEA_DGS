@@ -1,7 +1,7 @@
 """Spec 040: cargas del bloque sin duplicados, y ampliaciones de clientes existentes.
 
-``tools/cargas_pf.py`` contra el DIgSILENT simulado (``fake_pf``). El caso real fue NA203 +
-NA205 (2026-10-31): «Fundo Luciana» y «YANACA» dos veces cada una en el libro, y «Cesar Alberto
+``tools/cargas_pf.py`` contra el DIgSILENT simulado (``fake_pf``). El caso real fue NA293 +
+NA295 (2026-10-31): «Fundo Luciana» y «YANACA» dos veces cada una en el libro, y «Cesar Alberto
 Monge Marquez SE50324» creada como SED nueva a 3 m de SE50324.
 """
 from __future__ import annotations
@@ -25,7 +25,7 @@ def guion():
 
 def _app(n=4):
     app = fake_pf.proyecto(alimentadores=('F1', 'F2'), cargas_por_alim=n, bt=True, flujo=True)
-    # En DIgSILENT la barra de baja de cada SED tiene el GPS de su SED (NA203 + NA205: 188 de 188).
+    # En DIgSILENT la barra de baja de cada SED tiene el GPS de su SED (NA293 + NA295: 188 de 188).
     for sub in app.proyecto.GetContents('*.ElmSubstat', 1):
         f, i = sub.loc_name.split('_S')
         mt = next(b for b in app.proyecto.GetContents('*.ElmTerm', 1) if b.loc_name == f'{f}_B{i}')
@@ -182,12 +182,12 @@ def test_se_eliminan_la_duplicada_y_la_ampliacion_creada_como_sed(guion):
 
 def test_el_nombre_de_la_variacion_conserva_el_alimentador(guion):
     """040:RF-10 — con un nombre de carga largo se recorta la SED, no el alimentador ni el sello:
-    «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20» había perdido NA203 (2026-10-31)."""
+    «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20» había perdido NA293 (2026-10-31)."""
     app = _app()
-    nombre = guion.nombre_de_carga(app.carpetas['scheme'], 'SU Predio 3H MINING GROUP SAC', 'NA203',
+    nombre = guion.nombre_de_carga(app.carpetas['scheme'], 'SU Predio 3H MINING GROUP SAC', 'NA293',
                                    '20261031_120000', set())
     assert len(nombre) <= guion.MAX_NOMBRE
-    assert nombre.startswith('Carga_SU_Predio') and nombre.endswith('_NA203_20261031_120000')
+    assert nombre.startswith('Carga_SU_Predio') and nombre.endswith('_NA293_20261031_120000')
 
 
 def test_la_variacion_sin_alimentador_en_el_nombre_se_reconoce_y_se_renombra(guion):
@@ -216,7 +216,7 @@ def test_la_variacion_sin_alimentador_en_el_nombre_se_reconoce_y_se_renombra(gui
 
 def test_la_carga_recortada_por_su_sufijo_se_reconoce_por_su_nombre(guion):
     """040:RF-12 — DIgSILENT recorta el nombre para añadir «(2)» sin pasar de 40 caracteres
-    («Cesar_Alberto_Monge_Marquez_SE5032(2)», NA203, 2026-10-31): la fila se reconoce igual por
+    («Cesar_Alberto_Monge_Marquez_SE5032(2)», NA293, 2026-10-31): la fila se reconoce igual por
     su nombre, y si es una ampliación su variación vieja con SED se elimina."""
     app = _app()
     v = _variacion_con(app, 'Carga_Cesar_Alberto_Monge_Marquez_SE5032',

@@ -103,7 +103,7 @@ Con el manual (§45.2, §45.5.5), `datascheme.db` y `localisation/en-GB/data.db`
 ## Lo que confirmó DIgSILENT (2026-10-12)
 
 Sondas ejecutadas por el usuario en DIgSILENT 2024 (a su petición) sobre una copia de
-`NA203_NA205_224027`, borrada al terminar. Sustituyen a las suposiciones de arriba:
+`NA293_NA295_224027`, borrada al terminar. Sustituyen a las suposiciones de arriba:
 
 | Punto | Resultado real | Qué hace el código |
 | --- | --- | --- |
@@ -118,7 +118,7 @@ Sondas ejecutadas por el usuario en DIgSILENT 2024 (a su petición) sobre una co
 | `ComPvcurves` | `frLoads=1` + `pSel_Load` (`SetSelect`) escala solo esas cargas; restituye las demandas; el `ElmRes` principal queda vacío (subficheros por contingencia) y `FindCriticalBus` no da nada sobre él; la ventana de salida da «Initial scalable demand… X MW», «Total critical demand… Y MW» y la tabla con la barra crítica, con coma decimal | se lee el resumen de la ventana de salida (manual §40.2.3.1) |
 | `ComCapo` | `iopt_con=1` instala; dentro de una variación temporal, al desactivarla y borrarla no queda ningún banco; los nuevos tienen barra exacta (el informe de texto recorta el nombre); propone también en barras de baja de las SED; 24 s en un alimentador de 744 barras | variación temporal, `qcapn`, `ncapa`, `ushnm` de cada `ElmShnt` nuevo y `TotalLossCost()` |
 | Clientes (RF-70) | todas las cargas con `NrCust=1` (por defecto de PowerFactory) | aviso por alimentador |
-| Alimentador sin tensión (RF-71) | NA205 tenía su `ElmXnet` fuera de servicio: índices cero | se comprueba antes con el flujo |
+| Alimentador sin tensión (RF-71) | NA295 tenía su `ElmXnet` fuera de servicio: índices cero | se comprueba antes con el flujo |
 
 ## Diseño por partes
 

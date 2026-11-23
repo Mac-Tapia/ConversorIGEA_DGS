@@ -1,12 +1,12 @@
 # Spec 039 — Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web
 
 Estado: cumplida (2026-11-21: T11 cerrada con la corrida real en DIgSILENT de MEJ27-FIJAS; todas sus tareas cerradas) · antes implementada (reabierta el 2026-11-21 con MEJ27-FIJAS por orden del usuario: RF-24, RF-25) · antes cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS: RF-23) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras auditar a
-mano NA203 («implementa que exista opción para hacer análisis y estudios desde la web estas dos
+mano NA293 («implementa que exista opción para hacer análisis y estudios desde la web estas dos
 opciones … los valores máximos de fijos del mes y coincidente en la misma fecha»)
 
 ## Contexto y objetivo
 
-En la recalibración de NA203 (2026-10-31) la Q de cabecera no cuadraba. La auditoría a mano dio:
+En la recalibración de NA293 (2026-10-31) la Q de cabecera no cuadraba. La auditoría a mano dio:
 las 15 fijas suman 7 707,5 kW y 3 725,5 kvar, cada una la POT máxima de su hoja de 15 minutos (EA ×
 4) con el ERI × 4 de ese registro y ERC = 0; el registro de cabecera del 03/10 11:00 (9 889 kW,
 1 711 kvar) es coherente con su kVA; y en un mismo instante (26/09/2026 11:00) las fijas suman
@@ -121,7 +121,7 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
 - `grep -rnoE "039:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-25.
 - RF-24 y RF-25 en DIgSILENT (T11): la corrida A del bloque del 20-11 repetida sin la corrección manual da los cuatro
   alimentadores válidos con la corrección automática del FM.
-- CA101_CHN102 recalibrado desde la web con un cliente a su máxima: su P y su Q de máxima en el informe y la cabecera
+- CA191_CHN192 recalibrado desde la web con un cliente a su máxima: su P y su Q de máxima en el informe y la cabecera
   cuadrada.
-- NA203 desde la web: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar; «coincidente» con el periodo
+- NA293 desde la web: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar; «coincidente» con el periodo
   2026-09 da el registro de cada fija en el instante de su máxima de cabecera.

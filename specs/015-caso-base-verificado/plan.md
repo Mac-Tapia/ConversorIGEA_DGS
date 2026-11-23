@@ -11,7 +11,7 @@ Hoy la verificación del modelo físico está partida en dos sitios:
   `run_acceptance` ya compara el GPS de las barras con el manifiesto, el trazado de las
   líneas (`compare_line_gps`, spec 010), la conectividad de las líneas, el diagrama, los
   recuentos de equipos y los bancos (`reread_capacitors`). Con `--existing-project` y
-  sin manifiesto (CA101, 2026-10-13) solo corre el flujo, y `attach_project_binding`
+  sin manifiesto (CA191, 2026-10-13) solo corre el flujo, y `attach_project_binding`
   vincula el proyecto como `IDENTIDAD_VERIFICADA_PENDIENTE_CONVERGENCIA`. Ninguna de las
   dos vías compara la potencia de los transformadores ni la corriente de las líneas.
 - `src/convertersmartgrid/adaptadores/powerfactory_binding.py`. `promote_project_binding_after_calibration`
@@ -42,7 +42,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 | G. La base sin variación | `services.base_del_ajuste`: un alimentador está calibrado si su ajuste aplicado no tiene error, sin pedir variación; la última calibración por alimentador queda en el espacio y viaja en el plan, para el cambio manual de la 014 (RF-10) | RF-22, RF-26 |
 | H. Cargas nuevas | `tools/cargas_pf.py`: antes de insertar, `preparar_con` si falta «Con proyecto»; variaciones solo allí, una por carga | RF-28, RF-29 |
 | I. Aviso de red cambiada | El aviso `PROJECT_BINDING_NATIVE_MODIFIED` se compara contra la huella tomada al verificar el «Caso base»; una calibración no lo dispara | RF-19, RF-30 |
-| J. Demanda física (2026-10-15) | `tools/ajuste_cabecera_pf.py`, `validar_cargas_nativas`: además de lo escrito, compara con `m:Psum:bus1` / `m:Qsum:bus1` de cada carga tras el flujo (fijas P y Q; escaladas P por `scale0`), con la tensión `m:u` de su barra; añade `balance` y los ajustes `iopt_lev` / `iopt_pq` del `ComLdf` activo. Sin resultados de P tras un flujo convergente, la carga no está verificada. Descartado: seguir validando con lo escrito y medir pérdidas con lo consumido (así pasó CA101 con las fijas al 73 %) | RF-47 a RF-52 |
+| J. Demanda física (2026-10-15) | `tools/ajuste_cabecera_pf.py`, `validar_cargas_nativas`: además de lo escrito, compara con `m:Psum:bus1` / `m:Qsum:bus1` de cada carga tras el flujo (fijas P y Q; escaladas P por `scale0`), con la tensión `m:u` de su barra; añade `balance` y los ajustes `iopt_lev` / `iopt_pq` del `ComLdf` activo. Sin resultados de P tras un flujo convergente, la carga no está verificada. Descartado: seguir validando con lo escrito y medir pérdidas con lo consumido (así pasó CA191 con las fijas al 73 %) | RF-47 a RF-52 |
 
 ## Decisiones
 
@@ -66,7 +66,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 - La demanda que dejó la última calibración se guarda en el espacio de la web. Descartado:
   una marca en DIgSILENT, porque escribirla en la carga sería otro dato fuera del
   escenario.
-- **Resultado de T1 (2026-10-14, copia de `20261009-215203_CSG_CA101`, borrada;
+- **Resultado de T1 (2026-10-14, copia de `20261009-215203_CSG_CA191`, borrada;
   `output/spec015/T1_sonda_escenario.json`):** el escenario de operación guarda `plini`,
   `qlini`, `scale0` y `outserv` de la carga (41,8 kW en el base, 63,7 kW escritos en la
   copia, y el base siguió en 41,8 kW). `i_scale` **no**: escrito en la copia, cambió
@@ -113,7 +113,7 @@ incluye P/Q, así que calibrar no lo cambia) y su aviso `PROJECT_BINDING_NATIVE_
 ## Riesgos
 
 - `i_scale` fuera del escenario (T1): rompería RF-19; se para y se pregunta.
-- Proyectos ya calibrados con variaciones `Ajuste_…` (CA101): siguen funcionando, sus
+- Proyectos ya calibrados con variaciones `Ajuste_…` (CA191): siguen funcionando, sus
   variaciones no se tocan (014:RF-3) y la verificación las nombra si están activas en el
   «Caso base» (RF-31).
 - Los estudios de la 011 y la 012 que activaban «la base calibrada» por sus variaciones:

@@ -375,7 +375,7 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
 
     RF-77: el libro se pasa a la moneda de trabajo con ``escalera.escala_capex``. El de Empresa A
     está en miles de dólares y la escalera lo tomaba en dólares: la terna salía a 60,9 por
-    km y SI213 eligió terna y sección por las pérdidas (2026-10-24).
+    km y SI293 eligió terna y sección por las pérdidas (2026-10-24).
     """
     if any(v.get('costo_unitario') for v in capex.values()) and not p.escala_capex:
         raise EscaleraError('el perfil no dice en qué escala está el libro CAPEX respecto de la moneda '
@@ -398,7 +398,7 @@ def costos_de_alternativas(capex: Mapping[str, Mapping[str, Any]], p: Parametros
             else:
                 out[alt] = {'costo_unitario': referencia, 'unidad': _unidad_de(alt),
                             'origen': FUENTE_DE_REFERENCIA.get(alt) or 'referencia, por confirmar'}
-    # 098:RF-35: sin libro CAPEX, el cambio de nivel tenía costo de referencia y la sección y la terna ninguno: CHN102
+    # 098:RF-35: sin libro CAPEX, el cambio de nivel tenía costo de referencia y la sección y la terna ninguno: CHN192
     # (2026-11-07) eligió el paso a 22,9 kV (29,3 km y 50 SED, que no aguanta ni un año) porque era la única que
     # cumplía con costo, por delante de «1×300 kvar + sección 240 mm²» (15,77 km), que también cumplía. El km de red de
     # media del cambio de nivel es el tope de lo que cuesta cambiar el conductor o tender otra terna: se usa, por
@@ -453,7 +453,7 @@ def _nodos(tramos) -> list[dict[str, Any]]:
 def ubicacion(obra: Mapping[str, Any]) -> str:
     """Dónde va la obra en la red de media tensión, en una frase (063:RF-31).
 
-    SM218 (2026-11-01, usuario): «en el cambio de tramos de cable y la ubicación de bancos deben
+    SM298 (2026-11-01, usuario): «en el cambio de tramos de cable y la ubicación de bancos deben
     indicarse los nodos de inicio y el nodo de MT donde se ubica el banco y los tramos».
     """
     if obra.get('clase') == 'condensador':
@@ -662,7 +662,7 @@ def obra_terna(alim: str, tramos: Sequence[Mapping[str, Any]], ternas: Mapping[s
                de_terna: Mapping[str, Mapping[str, Any]] | None, avisos: list[str] | None = None) -> tuple[dict[str, Any], float]:
     """Una terna más en ``tramos``: la obra y los km de los tramos cuyo conductor cambia (042:RF-98 a RF-100, RF-103).
 
-    Usuario (2026-11-07), tras PE102: «la nueva terna debe ser en 120 mm², ambas ternas». Con el conductor del perfil,
+    Usuario (2026-11-07), tras PE192: «la nueva terna debe ser en 120 mm², ambas ternas». Con el conductor del perfil,
     el tramo más delgado pasa a él y la terna nueva es del mismo tipo; el que ya lleva igual o más corriente añade la
     terna de su tipo. ``ternas``: ``planificacion.ternas_subterraneas`` (084:RF-16). ``cambia_tipo`` es lo que el oráculo mide (RF-104); en DIgSILENT lo decide la simulación con los
     tipos leídos (``obras_pf._terna``), con la misma regla.
@@ -726,7 +726,7 @@ def _opciones_de_camino(kv, tramos, tipos) -> list[tuple[str, Any]]:
 
 
 def _por_varios_caminos(alim, kv, caminos, tipos, p: Parametros, de_terna, avisos) -> list[Variante]:
-    """098:RF-31: la mejor obra de línea de cada camino a la vez: CA101 (2026-11-07) tenía la cola de CH_23 y la rama
+    """098:RF-31: la mejor obra de línea de cada camino a la vez: CA191 (2026-11-07) tenía la cola de CH_23 y la rama
     de CH_10 y CH_18 fuera de límites, y ninguna variante juntaba la obra de las dos.
 
     Cada tramo queda una vez: el de la troncal común lleva el conductor mayor de los caminos que pasan por él (una
@@ -839,7 +839,7 @@ def _escalon_seccion(alim, kv, troncal, cargas, tipos, avisos) -> list[Variante]
                           f"{tramos[-1]['nombre']}; no hay escalón de sección allí.")
             continue
         # 063:RF-27: todas las aptas, de menor a mayor: se sube de sección en sección y se queda
-        # la menor que cumple (antes, las dos primeras; SM218 saltaba a AA 120 mm²).
+        # la menor que cumple (antes, las dos primeras; SM298 saltaba a AA 120 mm²).
         for tipo in aptos:
             ref = {'nombre': tipo['nombre'], 'clase': 'TypLne', 'origen': tipo.get('origen') or 'proyecto',
                    'proyecto': tipo.get('proyecto') or ''}
@@ -900,7 +900,7 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
     """La variante con el refuerzo de los tramos sobrecargados, de cualquier ramal (042:RF-43).
 
     042:RF-94: un tramo aéreo sin obra de la variante cambia primero de sección, a la menor normalizada que lo
-    deja bajo el límite; las ternas quedan para los cables y para lo que ninguna sección resuelve. PE102
+    deja bajo el límite; las ternas quedan para los cables y para lo que ninguna sección resuelve. PE192
     (2026-11-06): todo refuerzo era una terna y el usuario la cambió por la sección AA120 en SEC_1091_314817.
     """
     por_tipo: dict[str, tuple[Mapping[str, Any], list]] = {}
@@ -950,7 +950,7 @@ def _con_refuerzo(v: Variante, alim: str, sobrecargados, capacidades, p: Paramet
 def por_costo(variantes: Sequence[Mapping[str, Any]]) -> list[Mapping[str, Any]]:
     """042:RF-95: de menor a mayor ``costo_base``; las que no tienen costo, al final; entre iguales, el orden recibido.
 
-    PE102 (2026-11-06): en el orden de la escalera se midieron 34 variantes en DIgSILENT antes de reunir las 3
+    PE192 (2026-11-06): en el orden de la escalera se midieron 34 variantes en DIgSILENT antes de reunir las 3
     alternativas; medidas de la más barata a la más cara, las primeras que cumplen ya son las que se presentan.
     """
     # 098:RF-45: por escalón primero, y dentro de cada uno de la más barata a la más cara: ninguno se salta.
@@ -1058,7 +1058,7 @@ def variantes(alimentador: str, kv: float, troncal: Sequence[Mapping[str, Any]],
                     else:
                         combinadas.append(v)
     if caminos and largo_km >= p.linea_larga_km and banco_kvar:
-        # 042:RF-37: en línea larga, también donde más rinde el banco; SI112 no tenía ninguno, su carga parte un tramo.
+        # 042:RF-37: en línea larga, también donde más rinde el banco; SI192 no tenía ninguno, su carga parte un tramo.
         nodo = nodo_a_dos_tercios(max(caminos, key=_km))
         if nodo and nodo not in barras:
             en_nodo = [_bancos_en(alimentador, [nodo], banco_kvar, n) for n in range(1, int(modulos) + 1)]
@@ -1512,10 +1512,10 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                       'ninguna obra de corto plazo cumple hoy: se adelanta la inversión de largo plazo (098:RF-50)')
     factibles = de_corto or factibles
     if factibles:
-        # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM218 (2026-11-01) 128 m de
+        # 042:RF-56: la de menor costo anual. 063:RF-22 sigue en los bancos: en SM298 (2026-11-01) 128 m de
         # conductor salían más baratos, y el usuario pide los bancos si ya bastan.
         # 098:RF-37: la de corto plazo tiene que aguantar del año 0 al del periodo (4): entre las que se midieron, solo
-        # las que llegan. CA101 (2026-11-07): la terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7.
+        # las que llegan. CA191 (2026-11-07): la terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7.
         llegan = [t for t in factibles if (t.get('horizonte') or {}).get('definitiva')]
         medidas = [t for t in factibles if t.get('horizonte')]
         aviso_periodo = None
@@ -1530,7 +1530,7 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                                + (f": {'; '.join(h.get('motivos') or [])[:200]}" if h.get('motivos') else '')
                                if h else 'sin medir si llega al año del periodo')
         mejor = min(base, key=lambda t: (grupo_economico(t.get('escalones')), t['costo']['costo_anual'], t['nombre']))
-        # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL209
+        # 094:RF-18: los bancos ubicados según el perfil mandan si cumplen, aunque otra cueste menos. AL299
         # (2026-11-06): entre 2 bancos (lo más barato para 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), el usuario
         # eligió los del perfil; la más barata queda como alternativa.
         del_perfil = [t for t in base if str(t['nombre']).startswith(PREFIJO_PERFIL)]
@@ -1552,12 +1552,12 @@ def elegir(evaluadas: Sequence[Mapping[str, Any]], p: Parametros) -> dict[str, A
                 'alternativas': alternativas(tabla, mejor['nombre'], p)}
     # 063:RF-33: si alguna cumple con la máxima en DIgSILENT y tiene costo, se elige la primera por
     # el orden de prioridad aunque los sorteos no la confirmen, y se avisa para revisarlos; no se
-    # pasa a otras obras ni a la SET nueva. SM218 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
+    # pasa a otras obras ni a la SET nueva. SM298 (2026-11-01): banco 450 kvar + AA 120 mm² cumplía
     # con la máxima y los sorteos daban 94,5 % por un defecto de la evaluación, y el flujo saltaba
     # a la SET nueva.
     # 073:RF-18: aquí no entra lo que no cumple en valle.
-    # 087:RF-49: solo con los sorteos cerca del criterio, como el 94,5 % de SM218. Pisco (2026-11-04): la sección de
-    # CHI201 cumplía con la máxima del instante coincidente y solo en el 60 % de los sorteos, porque su demanda propia
+    # 087:RF-49: solo con los sorteos cerca del criterio, como el 94,5 % de SM298. Pisco (2026-11-04): la sección de
+    # CHI291 cumplía con la máxima del instante coincidente y solo en el 60 % de los sorteos, porque su demanda propia
     # llega a 2,9 veces ese punto; la regla la daba por solución y no se probaba nada más. Usuario: «acotar la regla».
     con_maxima = [t for t in tabla if t.get('maxima') and t.get('valle') is not False
                   and (t.get('costo') or {}).get('costo_anual') is not None

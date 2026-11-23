@@ -25,4 +25,4 @@
 
 - `tests/test_transformadores_automaticos.py`: la selección con informes sintéticos (RF-1, RF-4, RF-6, RF-12), y el
   bucle con `_correr_guion_ajuste` sustituido (RF-2, RF-3, RF-5, RF-8 a RF-11, RF-13).
-- En DIgSILENT, la calibración de CA101 + CHN102 desde la web.
+- En DIgSILENT, la calibración de CA191 + CHN192 desde la web.

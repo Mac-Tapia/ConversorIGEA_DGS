@@ -43,7 +43,7 @@
     {"pregunta": "¿qué hago si sale ModuleNotFoundError de convertersmartgrid?", "fichero": "docs/MANUAL_COMANDOS.md", "ancla": "docs/MANUAL_COMANDOS.md · 7. Problemas frecuentes:", "tipo": "documento"},
     {"pregunta": "¿por qué cada estudio corre en su propio proceso?", "fichero": "docs/MANUAL_COMANDOS.md", "ancla": "docs/MANUAL_COMANDOS.md · Cada estudio en su propio proceso:", "tipo": "documento"},
     {"pregunta": "¿qué diferencia hay entre entrar con TXT y con base Access?", "fichero": "docs/MANUAL_COMANDOS.md", "ancla": "docs/MANUAL_COMANDOS.md · 3.bis Las dos alternativas de entrada:", "tipo": "documento"},
-    {"pregunta": "¿qué pasó con PE102 al implementar los transformadores de las fijas?", "fichero": "specs/022-red-unida-por-zonal-y-set/spec.md", "ancla": "022-red-unida-por-zonal-y-set RF-62:", "tipo": "codigo", "codigo": "PE102"},
+    {"pregunta": "¿qué pasó con PE192 al implementar los transformadores de las fijas?", "fichero": "specs/022-red-unida-por-zonal-y-set/spec.md", "ancla": "022-red-unida-por-zonal-y-set RF-62:", "tipo": "codigo", "codigo": "PE192"},
 
     {"pregunta": "¿cuál es el precio de la licencia anual de PowerFactory?", "sin_respuesta": true, "tipo": "dominio"},
     {"pregunta": "¿qué protocolo usan los relés de la subestación para hablar con el centro de control?", "sin_respuesta": true, "tipo": "dominio"},

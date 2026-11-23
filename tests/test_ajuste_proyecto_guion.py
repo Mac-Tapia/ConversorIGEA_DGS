@@ -1,8 +1,8 @@
 """Spec 021, RF-54 a RF-60: el ajuste de los alimentadores de un proyecto a la vez, en
 ``fake_pf``.
 
-DIgSILENT no se ejecuta en la suite (P11). El usuario, el 2026-10-17, al ir a aplicar NA203
-y después NA205: «la calibración se debe hacer por proyecto en DIgSILENT; si es un
+DIgSILENT no se ejecuta en la suite (P11). El usuario, el 2026-10-17, al ir a aplicar NA293
+y después NA295: «la calibración se debe hacer por proyecto en DIgSILENT; si es un
 alimentador se hace de ese y dos o más se hacen de todas según el proyecto, no de forma
 independiente».
 """
@@ -116,7 +116,7 @@ def test_proyectos_distintos_no_se_mezclan(guion):
 
 def test_aviso_fisico_con_el_historial_del_proyecto(guion):
     """021:RF-55 — el historial del proyecto lleva un factor por alimentador; el aviso de
-    015:RF-51 toma el de su alimentador (NA203 + NA205, 2026-10-17: ``TypeError``)."""
+    015:RF-51 toma el de su alimentador (NA293 + NA295, 2026-10-17: ``TypeError``)."""
     historial = [{'a': {'F1': 0.8, 'F2': 0.5}, 'converge': False},
                  {'a': {'F1': 0.4, 'F2': 0.7}, 'converge': False},
                  {'a': {'F1': 0.6, 'F2': 0.6}, 'converge': True}]
@@ -160,8 +160,8 @@ def test_consigna_de_la_fuente_en_los_dos_casos(guion):
 
 
 def test_consigna_de_la_fuente_tambien_en_el_caso_base(guion):
-    """063:RF-29, 086:RF-88 — SM218 (2026-11-01): la fuente a 1,02 p.u. en «Caso base», «Sin proyecto» y «Con
-    proyecto»; las dos llamadas de la calibración pasan el «Caso base» y, desde PA217 (2026-11-12), también
+    """063:RF-29, 086:RF-88 — SM298 (2026-11-01): la fuente a 1,02 p.u. en «Caso base», «Sin proyecto» y «Con
+    proyecto»; las dos llamadas de la calibración pasan el «Caso base» y, desde PA297 (2026-11-12), también
     «Cargas nuevas», que ya no hereda la consigna hasta la siguiente inserción."""
     import inspect
     from types import SimpleNamespace
@@ -175,7 +175,7 @@ def test_consigna_de_la_fuente_tambien_en_el_caso_base(guion):
             pass
 
     roles = ('sin', 'con', 'base')
-    xnet = {r: SimpleNamespace(loc_name='External Grid SM218', usetp=1.0) for r in roles}
+    xnet = {r: SimpleNamespace(loc_name='External Grid SM298', usetp=1.0) for r in roles}
     app = SimpleNamespace(activo=None)
     app.GetCalcRelevantObjects = lambda _f: [xnet[app.activo.rol]]
     app.GetActiveScenario = lambda: Esc()
@@ -246,7 +246,7 @@ def test_los_bancos_que_faltan_con_la_variacion_del_operador_grabando(guion):
 
 def test_la_segunda_pasada_no_toma_lo_que_escribio_la_primera_por_cambio_manual(guion):
     """014:RF-10, 021:RF-64 — con dos pasadas, los cambios a mano son los que vio la primera:
-    lo que ella escribe sin guardar no es un cambio del operador. En SM218 (2026-10-28) la
+    lo que ella escribe sin guardar no es un cambio del operador. En SM298 (2026-10-28) la
     segunda tomaba 257 escaladas y las 15 fijas por cambiadas a mano."""
     app = _app(escenario=True)
     plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
@@ -269,7 +269,7 @@ def test_la_segunda_pasada_no_toma_lo_que_escribio_la_primera_por_cambio_manual(
 
 def test_una_segunda_calibracion_no_repite_los_bancos(guion):
     """028:RF-14 — con los bancos de la calibración ya puestos, la siguiente no pone más y lo
-    dice (Nasca, 2026-10-28: 8 bancos acumulados en NA205)."""
+    dice (Nasca, 2026-10-28: 8 bancos acumulados en NA295)."""
     app = _app(escenario=True)
     plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
             'bancos_kvar_por_tension': {'10': 2.0}}
@@ -298,7 +298,7 @@ def test_barras_de_los_bancos_en_la_troncal(guion):
 
 def test_con_central_tambien_avisa_la_fija_sobre_su_transformador(guion):
     """020:RF-1, 015:RF-59 — un alimentador con central también avisa de la fija que pide más
-    que su transformador, con su propuesta: en NA205 (2026-10-17) SE50293 pedía 1 392 kW en
+    que su transformador, con su propuesta: en NA295 (2026-10-17) SE50293 pedía 1 392 kW en
     125 kVA, el flujo no convergía y no se decía."""
     from test_ajuste_cabecera_guion import _fichas_plan, _sobrecargada
 
@@ -325,12 +325,12 @@ def test_cabecera_en_el_interruptor_de_una_barra_de_set(guion):
         def GetContents(self, _f):
             return self.hijos
 
-    barra = O(clase='ElmTerm', loc_name='B_SET51_22p9kV', hijos=[])
-    cab_a = O(clase='ElmCoup', loc_name='CAB_NA203', outserv=0,
+    barra = O(clase='ElmTerm', loc_name='B_SET91_22p9kV', hijos=[])
+    cab_a = O(clase='ElmCoup', loc_name='CAB_NA293', outserv=0,
               **{'m:Psum:bus1': 9.19, 'm:Qsum:bus1': 1.75})
-    cab_b = O(clase='ElmCoup', loc_name='CAB_NA205', outserv=0,
+    cab_b = O(clase='ElmCoup', loc_name='CAB_NA295', outserv=0,
               **{'m:Psum:bus1': -1.57, 'm:Qsum:bus1': 3.1})
-    xnet = O(clase='ElmXnet', loc_name='External Grid SET 51', outserv=0,
+    xnet = O(clase='ElmXnet', loc_name='External Grid SET 91', outserv=0,
              **{'m:Psum:bus1': -7.62, 'm:Qsum:bus1': -4.85})
     cubs = [O(clase='StaCubic', loc_name=f'Cub1_{o.loc_name}', obj_id=o, obj_bus=0, padre=barra)
             for o in (cab_a, cab_b, xnet)]
@@ -370,7 +370,7 @@ def test_barra_de_set_central_y_medidor(guion):
 
 def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
     """021:RF-64 — los bancos que faltan solo se calculan con el alimentador en su objetivo
-    de kW tras la primera pasada (NA205 del TXT, 2026-10-18: sin cuadrar puso 10)."""
+    de kW tras la primera pasada (NA295 del TXT, 2026-10-18: sin cuadrar puso 10)."""
     plan = {'tolerancia': 0.01}
     assert guion._cuadro_en_kw({'desvio': {'kw': 0.004}}, plan)
     assert not guion._cuadro_en_kw({'desvio': {'kw': 0.2}}, plan)
@@ -386,7 +386,7 @@ def test_sin_cuadrar_en_kw_no_se_ponen_bancos(guion):
 def test_con_remedios_los_bancos_salen_de_la_q_escrita(guion, monkeypatch, con_q):
     """021:RF-70 — si la primera pasada necesitó remedios del flujo, el kVAR de la red no
     vale (Chincha, 2026-10-18: 36 bancos sin converger): los bancos salen de la Q escrita de
-    las cargas frente a la medida (CA101: 13 kVAR medidos y ningún banco en la base); sin Q
+    las cargas frente a la medida (CA191: 13 kVAR medidos y ningún banco en la base); sin Q
     escrita, no se calculan y se dice."""
     app = _app(escenario=True)
     plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'completar_bancos': True,
@@ -434,7 +434,7 @@ def test_fichas_de_todo_el_proyecto_en_una_variacion(guion):
 
 
 def test_bancos_que_faltan_con_la_variacion_de_las_fichas(guion):
-    """032:RF-8 — CA101 desde cero (2026-10-28): con ``Fichas_<proyecto>`` activa, poner los
+    """032:RF-8 — CA191 desde cero (2026-10-28): con ``Fichas_<proyecto>`` activa, poner los
     bancos que faltan se negaba (««Sin proyecto» tiene variaciones activas») y fallaba la
     calibración entera. Ahora se aparta como la de una central: los bancos van a la red, no a
     la etapa de las fichas, y la variación sigue activa en «Sin proyecto»."""

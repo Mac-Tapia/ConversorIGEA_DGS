@@ -19,7 +19,7 @@ Lo que la evidencia de esta auditoría añade son tres conclusiones nuevas y acc
 
 2. **Existe un defecto silencioso alcanzable desde un menú de la GUI.** Si el operador elige `EPSG:4326` como CRS de origen —una opción ofrecida en el desplegable— todas las longitudes salen **110.575 veces más pequeñas** y el conversor reporta `ok`, `errors_total = 0`. El validador no puede detectarlo porque compara el DGS contra el mismo modelo que lo generó. Es el hallazgo más grave del informe.
 
-3. **La georreferenciación no es realmente opcional.** Con `--no-geography`, basta **un** nodo sin `CoordX/CoordY` para que el alimentador falle. Esto incumple la regla de dominio nº 5 del propio skill de backend y excluye a cualquier cliente cuyo export CYMDIST no traiga GIS.
+3. **La georreferenciación no es realmente opcional.** Con `--no-geography`, basta **un** nodo sin `CoordX/CoordY` para que el alimentador falle. Esto incumple la regla de dominio nº 5 del propio skill de backend y excluye a cualquier cliente cuyos TXT no traigan GIS.
 
 **Clasificación:** producto interno maduro, **no comercializable todavía**. Los bloqueos para venta no son de funcionalidad eléctrica —esos están documentados en el diagnóstico del 21-09— sino de **escalabilidad, empaquetado, trazabilidad y licenciamiento**. Son de coste notablemente menor que la validación física y deberían ejecutarse primero.
 
@@ -34,7 +34,7 @@ Lo que la evidencia de esta auditoría añade son tres conclusiones nuevas y acc
 | Lote completo, 96 alimentadores (`test_all_mode…`) | **106,29 s → 35,02 s** con los parches |
 | Lectura del dataset (RED 10,0 MB + CARGA 1,4 MB + BD_Equipo 23 KB) | 0,44 s |
 | Volumen real del export de referencia | 38.681 nodos · 38.657 secciones · 96 alimentadores (3 *stubs*) · 7.287 cargas · 37.283 nodos intermedios · 15.196 seccionalizadores |
-| Conversión del alimentador mayor (SM218, 2.024 tramos) | 17,26 s → **0,80 s** con los parches; DGS 1,53 MB; `errors_total = 0` en ambos casos |
+| Conversión del alimentador mayor (SM298, 2.024 tramos) | 17,26 s → **0,80 s** con los parches; DGS 1,53 MB; `errors_total = 0` en ambos casos |
 | Entorno | Python **3.14.4**, pyproj 3.8.0, Windows 11 |
 | `ruff` / `mypy` / `pyright` | **no instalados ni configurados**; no existe `.github/` (sin CI) |
 
@@ -43,7 +43,7 @@ Reproducción de defectos:
 | Experimento | Resultado |
 | --- | --- |
 | Convertir con `source_crs='EPSG:4326'` sobre coordenadas en grados | longitud total 127 m → **0,001145 m** (factor **110.575×**); manifiesto `ok`, `errors_total = 0` |
-| `include_geography=False` con un nodo sin `CoordX/CoordY` | **falla**: `SI114: prueba de conexión MT/SED falló … sin CoordX/CoordY georreferenciadas` |
+| `include_geography=False` con un nodo sin `CoordX/CoordY` | **falla**: `SI194: prueba de conexión MT/SED falló … sin CoordX/CoordY georreferenciadas` |
 | Sustitución de longitud TXT por georreferencia, export completo | razón geo/TXT = **1,000 en los 38.657 tramos** (p1 = p50 = p99 = 1,000); 4.185,7 km por ambos métodos |
 
 ---
@@ -54,7 +54,7 @@ Reproducción de defectos:
 
 | # | Regla | Estado | Evidencia |
 | --- | --- | --- | --- |
-| 1 | Sin DGS de referencia en runtime | **Cumple** | `NA205.dgs` no se parsea en producción; `runtime_reference_dependency: false` en el manifiesto. Pero ~20 constantes `NA205_*` en `dgs.py` codifican la *calibración* de esa red (§3.3) |
+| 1 | Sin DGS de referencia en runtime | **Cumple** | `NA295.dgs` no se parsea en producción; `runtime_reference_dependency: false` en el manifiesto. Pero ~20 constantes `NA295_*` en `dgs.py` codifican la *calibración* de esa red (§3.3) |
 | 2 | Modo estricto por defecto; no inventar `DEFAULT` | **No cumple** | `_resolve_type` (`model.py:264`) siempre degrada a auto-mapeo por distancia de edición y luego a `DEFAULT`, **incluso en modo estricto**. El propio CLI lo documenta: «line types always auto-resolve» |
 | 3 | Independencia por alimentador: un fallo no invalida otros | **Cumple parcialmente** | El bucle sí aísla fallos y el borrado de artefactos ya se limita a los de ese intento (`batch.py:194`). Pero `_selection` (`batch.py:56`) lanza `ValueError` por colisión de nombres cortos **antes** del bucle: un solo choque aborta el lote completo y no se convierte nada |
 | 4 | Determinismo | **Cumple** | FID secuenciales sobre claves ordenadas; sin `set` en iteraciones de escritura, sin `hash()` ni tiempo en la salida |
@@ -80,7 +80,7 @@ El README promete «universal por diseño». El motor lo cumple en nombres y con
 | Constante | Valor fijo | Consecuencia comercial |
 | --- | --- | --- |
 | `frnom` | `60` (en `ElmNet`, `TypLne`, `TypTr2`) | Ningún mercado de 50 Hz (Europa, Chile, Argentina, Bolivia, Paraguay, Uruguay) puede usar la salida sin editarla en PowerFactory |
-| `NA205_SED_LV_KV` | `0.22` | La BT peruana. 0,4 / 0,38 / 0,23 kV no son configurables |
+| `NA295_SED_LV_KV` | `0.22` | La BT peruana. 0,4 / 0,38 / 0,23 kV no son configurables |
 | `uktr`, `uk0tr` | `4.0` | Impedancia de cortocircuito inventada, no de catálogo |
 | `pcutr`, `pfe` | `strn·10`, `strn·1.5` | Pérdidas sintetizadas por fórmula sin respaldo |
 | `tr2cn_h='D'`, `tr2cn_l='YN'`, `nt2ag=5` | Dyn5 | Grupo de conexión asumido para todo transformador |
@@ -88,7 +88,7 @@ El README promete «universal por diseño». El motor lo cumple en nombres y con
 | `it2p1/it2p2/it2p3` | `0/1/2` | Cada `StaCubic` conecta las 3 fases **ignorando `line.phase`**, que sí está en el modelo |
 | `bline`, `bline0` | `0` | `B1/B0` se leen del catálogo y se descartan al escribir: sin susceptancia capacitiva |
 | `ElmXnet.snss/rntxn/z2tz1` | vacíos | Sin potencia ni impedancia de cortocircuito en la fuente: cortocircuito no defendible |
-| `NA205_DIAGRAM_UNITS_PER_METER` | `2.08` | Escala de diagrama calibrada a la latitud de Ica (−14,9°) |
+| `NA295_DIAGRAM_UNITS_PER_METER` | `2.08` | Escala de diagrama calibrada a la latitud de Ica (−14,9°) |
 
 Nada de esto es un error de código: es una decisión de alcance que quedó sin parametrizar. Pero **cada fila de esta tabla es un cliente que no puede comprar el producto**.
 
@@ -136,7 +136,7 @@ El *threading* está implementado exactamente como el skill lo pide, y eso es lo
 
 ### 5.1 Dónde se va el tiempo
 
-Conversión del alimentador mayor (SM218, 2.024 tramos), etapa por etapa:
+Conversión del alimentador mayor (SM298, 2.024 tramos), etapa por etapa:
 
 | Etapa | Tiempo | % |
 | --- | --- | --- |
@@ -174,10 +174,10 @@ El coste medido se ajusta a **t ≈ 4,8 × 10⁻⁶ · N²** segundos (N = tramo
 
 | Alimentador | Tramos | Total | µs/tramo² |
 | --- | --- | --- | --- |
-| SM218 | 2.024 | 16,92 s | 4,13 |
-| CA101 | 1.261 | 8,61 s | 5,41 |
-| PN107 | 565 | 1,56 s | 4,88 |
-| SL141 | 364 | 0,70 s | 5,32 |
+| SM298 | 2.024 | 16,92 s | 4,13 |
+| CA191 | 1.261 | 8,61 s | 5,41 |
+| PN197 | 565 | 1,56 s | 4,88 |
+| SL191 | 364 | 0,70 s | 5,32 |
 
 Proyección para un cliente con alimentadores urbanos grandes:
 
@@ -198,9 +198,9 @@ Dos cambios localizados, aplicados y medidos en copia aislada:
 
 | Medición | Antes | Después | Mejora |
 | --- | --- | --- | --- |
-| SM218: `write_dgs` | 2,337 s | 0,131 s | 17,8× |
-| SM218: `validate_dgs` | 14,926 s | 0,665 s | 22,4× |
-| **SM218: total** | **17,26 s** | **0,80 s** | **21,6×** |
+| SM298: `write_dgs` | 2,337 s | 0,131 s | 17,8× |
+| SM298: `validate_dgs` | 14,926 s | 0,665 s | 22,4× |
+| **SM298: total** | **17,26 s** | **0,80 s** | **21,6×** |
 | Lote de 96 alimentadores | 106,29 s | 35,02 s | 3,0× |
 | Suite completa | 132,05 s | 55,03 s | 2,4× |
 | `errors_total` / resultado de la suite | 0 / 84 passed | 0 / 84 passed | **idéntico** |
@@ -249,7 +249,7 @@ Separado por naturaleza del bloqueo. Ninguno de estos puntos es de física eléc
 | --- | --- | --- |
 | K-12 | **Inyección HTML/JS en la vista previa.** Los `popup` se construyen interpolando `node_id`, `section_id` y `type_code` sin escapar (`preview.py:174`, `207`) y se renderizan con `lyr.bindPopup(html)`, que interpreta HTML. Además el GeoJSON se incrusta en un `<script>` mediante `json.dumps` sin neutralizar `</script>` (`preview.py:285`) | `preview.py` |
 | K-13 | **CDN sin `integrity`/SRI y sin modo *offline*.** `preview.py:293-294` carga Leaflet desde `unpkg.com` sin SRI | Las redes de utilities suelen estar aisladas: la vista previa simplemente no carga. Y sin SRI, un CDN comprometido ejecuta código en la máquina del operador |
-| K-14 | **Datos de la distribuidora sin `.gitignore`.** `referencia/audit_ternas_{backbone,classified,ug}.json` (56 KB) contienen identificadores reales de la red — `IN110`, `SEC_2010_1146990_SE42147`, `NODE_…_SE42147` — y están **sin versionar pero tampoco ignorados**: `.gitignore` solo cubre `referencia/RED_*.txt`, `CARGA_*.txt` y `BD_Equipo*.txt`. Con `tools/_publish_to_github.py` en el repo, un `git add -A` los publica | `.gitignore`, `referencia/` |
+| K-14 | **Datos de la distribuidora sin `.gitignore`.** `referencia/audit_ternas_{backbone,classified,ug}.json` (56 KB) contienen identificadores reales de la red — `IN190`, `SEC_2010_1146990_SE42147`, `NODE_…_SE42147` — y están **sin versionar pero tampoco ignorados**: `.gitignore` solo cubre `referencia/RED_*.txt`, `CARGA_*.txt` y `BD_Equipo*.txt`. Con `tools/_publish_to_github.py` en el repo, un `git add -A` los publica | `.gitignore`, `referencia/` |
 | K-15 | **Sin protección frente a fórmulas en export CSV/TSV/XLSX.** Un identificador que empiece por `=`, `+`, `-` o `@` se ejecuta al abrir en Excel | `export_tables.py` |
 
 ### 6.4 Robustez de entrada
@@ -301,7 +301,7 @@ Ordenado por relación valor/coste, no por severidad. Las estimaciones son de es
 2. Calcular `diagram_line_sections(model)` **una vez** por conversión y propagarlo, en lugar de recomputarlo en `visible_pointterm_nodes` y `diagram_line_rail_counts`.
 3. `validate.py:512`: `_line_by_loc = {_loc(ln.section_id): ln for ln in model.lines}` antes del bucle.
 
-*Aceptación:* `test_all_mode…` por debajo de 40 s; SM218 por debajo de 1 s; `84 passed` sin cambios; añadir un test de regresión de rendimiento con umbral (p. ej. el alimentador mayor en < 3 s) para que el O(N²) no vuelva.
+*Aceptación:* `test_all_mode…` por debajo de 40 s; SM298 por debajo de 1 s; `84 passed` sin cambios; añadir un test de regresión de rendimiento con umbral (p. ej. el alimentador mayor en < 3 s) para que el O(N²) no vuelva.
 
 **P0.2 · Cerrar C-01 (CRS)** · ~1-2 días
 

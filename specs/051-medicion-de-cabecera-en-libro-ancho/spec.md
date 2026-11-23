@@ -10,9 +10,9 @@ para ver que el conversor es universal y funcional»).
 La calibración (specs 006, 025 y 035) lee la medición de cabecera como la entrega Empresa A:
 un libro de medidores que dice el medidor de cada alimentador, y libros con una hoja por medidor
 con fecha, kW y kVAR. Empresa B la entrega de otra forma, en los perfiles de carga del
-PIDE 2026 (`PIDEELOR/…/PROYECCION DE DEMANDA/<sede>/INFORMACION BASE/PERFILES`): un libro por
+PIDE 2026 (`PIDEEMPA/…/PROYECCION DE DEMANDA/<sede>/INFORMACION BASE/PERFILES`): un libro por
 mes, una hoja por sistema y magnitud («BJSI_ACTIVA», «BJSI_REACTIVA»), la fecha y la hora en dos
-columnas, cada 15 minutos, y **una columna por alimentador** con su código (`NJA202`, `JAE102`…).
+columnas, cada 15 minutos, y **una columna por alimentador** con su código (`NJA292`, `JAE192`…).
 Sobre algunas columnas de reactiva, una fila dice «CAPACITIVA».
 
 Esta spec lee ese libro ancho, de cualquier empresa, y lo deja en el formato que la calibración
@@ -43,13 +43,13 @@ medidores. Así la misma calibración sirve para las dos formas de entrega.
   tomará de cada código pedido la máxima de cada mes como un registro del día 1 a las 00:00 en
   kW, sin reactiva, y anotará que no trae hora ni reactiva: no se supone ningún factor de
   potencia. La unidad (MW o kW) se toma de la tabla o la da quien la usa. (Usuario, 2026-11-01:
-  «en las mediciones, R205 debería estar como salida R5».)
+  «en las mediciones, R295 debería estar como salida R5».)
 - RF-11: CUANDO quien la usa dé el factor de potencia de un código cuya medición no trae
   reactiva, EL SISTEMA lo escribirá en la columna FP de sus registros sin reactiva, y la
   calibración sacará de él la Q (usuario, 2026-11-01: «la calibración Q de R5 debe ser la real
   que sale de un factor de potencia de 0,98»); la reactiva medida, si la hay, manda.
 - RF-10: EL SISTEMA aceptará que el código de la medición y el nombre del alimentador en
-  DIgSILENT sean distintos (R5 mide el R205 de la copia VNR-GIS): el libro de medidores los une.
+  DIgSILENT sean distintos (R5 mide el R295 de la copia VNR-GIS): el libro de medidores los une.
 
 ## Relación con otras specs
 
@@ -65,5 +65,5 @@ medidores. Así la misma calibración sirve para las dos formas de entrega.
 ## Criterios de finalización
 
 - `grep -rnoE "051:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-11.
-- NJA202 de Empresa B (2024) leído de sus doce perfiles, y R205 con las máximas de R5,
+- NJA292 de Empresa B (2024) leído de sus doce perfiles, y R295 con las máximas de R5,
   escritos y calibrados por la web, cada uno solo.

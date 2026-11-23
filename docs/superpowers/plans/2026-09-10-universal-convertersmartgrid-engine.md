@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-- Runtime must not read, bundle, or require `NA205.dgs` or any other reference DGS.
+- Runtime must not read, bundle, or require `NA295.dgs` or any other reference DGS.
 - The three TXT exports are the source of network/electrical data.
 - Strict mode is the default.
 - Aliases are external configuration, never hard-coded in source.
@@ -46,7 +46,7 @@
 **Files:** Replace `src/convertersmartgrid/model.py`; Test `tests/test_model_v2.py`.
 **Interfaces:** `build_feeder_model(dataset, selector, aliases=None, strict=True) -> FeederModel`.
 
-- [ ] Write failing tests for IN111 counts, source voltage, load Location=1 -> ToNode, section device Location=S -> From cubicle intent, and unresolved line type failure on a known affected feeder.
+- [ ] Write failing tests for IN191 counts, source voltage, load Location=1 -> ToNode, section device Location=S -> From cubicle intent, and unresolved line type failure on a known affected feeder.
 - [ ] Run and confirm failure.
 - [ ] Implement typed model objects and strict alias handling from a supplied dict.
 - [ ] Re-run and confirm pass.
@@ -66,7 +66,7 @@
 **Files:** Replace `src/convertersmartgrid/validate.py`; Test `tests/test_validate_v2.py`.
 **Interfaces:** `validate_dgs(model, path, schema_profile=...) -> dict`.
 
-- [ ] Write failing tests for duplicate FID, dangling typ_id, wrong cubicle count, wrong switch parent, length mismatch and clean IN111.
+- [ ] Write failing tests for duplicate FID, dangling typ_id, wrong cubicle count, wrong switch parent, length mismatch and clean IN191.
 - [ ] Run and confirm failure.
 - [ ] Implement schema and referential validation.
 - [ ] Re-run and confirm pass.
@@ -83,10 +83,10 @@
 
 ### Task 7: Whole-dataset audit and packaging
 
-**Files:** Update `README.md`; create `config/line_type_aliases.example.json`; generated `output/audit_all.json` and `output/IN111.dgs`.
+**Files:** Update `README.md`; create `config/line_type_aliases.example.json`; generated `output/audit_all.json` and `output/IN191.dgs`.
 
 - [ ] Run the full strict audit for every feeder in the loaded TXT and record success/failure per feeder without silent topology guesses.
-- [ ] Generate IN111 in strict mode and validate it.
+- [ ] Generate IN191 in strict mode and validate it.
 - [ ] Run the complete pytest suite.
-- [ ] Scan production source for `NA205.dgs`, `/mnt/data/NA205`, or `reference_dgs` runtime dependency; require zero hits.
+- [ ] Scan production source for `NA295.dgs`, `/mnt/data/NA295`, or `reference_dgs` runtime dependency; require zero hits.
 - [ ] Package source, schemas, tests, docs, example config and generated audit into a ZIP.

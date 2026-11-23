@@ -19,10 +19,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       deriva.
 - [x] T7. Pestaña, tablero, buscador y tarjeta de archivo en la web. (RF-21 a RF-26, RF-29, RF-39)
       Hecho cuando: `npm run lint`, `npx tsc --noEmit -p .`, `npm test` y `npm run build` en verde en `frontend/`.
-- [x] T8. Comprobación real y navegador: AL209 de enero a octubre de 2026 da las cifras del libro hecho a mano, otro
+- [x] T8. Comprobación real y navegador: AL299 de enero a octubre de 2026 da las cifras del libro hecho a mano, otro
       alimentador con clientes fijos funciona y la pestaña se recorre en la web propia. (RF-1 a RF-39)
       Hecho cuando: el informe de la entrega trae las cifras y el recorrido, sin datos de la distribuidora en git.
-      Hecho el 2026-11-12: AL209 sin ninguna diferencia frente al libro hecho a mano (404 231 celdas), NA205 y CA101
+      Hecho el 2026-11-12: AL299 sin ninguna diferencia frente al libro hecho a mano (404 231 celdas), NA295 y CA191
       calculados, y la pestaña recorrida en la web propia del puerto 8790 (cifras en el informe de la entrega).
 - [x] T9. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "105:RF-[0-9]+" tests frontend/test | sort -u` lista los 39 RF.

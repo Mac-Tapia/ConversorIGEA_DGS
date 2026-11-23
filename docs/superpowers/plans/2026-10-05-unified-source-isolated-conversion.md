@@ -232,14 +232,14 @@
   Run: `pytest tests/test_three_source_acceptance.py -q`
   Expected: FAIL because the acceptance runner does not exist.
 - [ ] **Step 3: Implement runner and runbook**
-  Use separate workspaces/runs for MDB, TXT and VNR. Never copy values between sources. Select IN111 where present and preserve every artifact under a timestamped audit directory.
+  Use separate workspaces/runs for MDB, TXT and VNR. Never copy values between sources. Select IN191 where present and preserve every artifact under a timestamped audit directory.
 - [ ] **Step 4: Run full automated verification**
   Run: `pytest --basetemp=.pytest_tmp -q`
   Expected: zero failures; report pass/skip totals.
   Run: `npm run build` in `frontend`
   Expected: exit 0.
 - [ ] **Step 5: Run real acceptance**
-  Execute MDB and TXT against their current originals, then VNR against the official/manual package if available. Run IN111 through PowerFactory only after same-run preflight; capture reread and `ComLdf`. A missing VNR package must be reported as blocked, never substituted with synthetic evidence.
+  Execute MDB and TXT against their current originals, then VNR against the official/manual package if available. Run IN191 through PowerFactory only after same-run preflight; capture reread and `ComLdf`. A missing VNR package must be reported as blocked, never substituted with synthetic evidence.
 - [ ] **Step 6: Reconcile evidence against the spec**
   Confirm every requirement in Sections 2-10 has a test or real artifact and list any remaining environmental blocker.
 - [ ] **Step 7: Commit**

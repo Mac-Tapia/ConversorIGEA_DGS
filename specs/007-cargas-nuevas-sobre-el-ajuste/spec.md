@@ -1,6 +1,6 @@
 # Spec 007 — Cargas nuevas sobre el alimentador ajustado, una variación por carga
 
-Estado: cumplida (2026-11-06, T11 en DIgSILENT) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI213, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
+Estado: cumplida (2026-11-06, T11 en DIgSILENT) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-09), implementada el 2026-10-10 con el cambio RF-36 y RF-37; falta la prueba en DIgSILENT (T11) · Fecha: 2026-10-09 · Origen: uso real con SI293, 2026-10-09 (ajuste de la spec 006 aplicado y libro de cargas nuevas con coordenadas subido)
 
 ## Contexto y objetivo
 
@@ -146,7 +146,7 @@ el que el operador elige.
   ENTONCES EL SISTEMA no la creará, la dará como no creada con su alimentador y dirá una
   vez cuántas del libro son de alimentadores no marcados. (Cambio del 2026-10-13: antes
   se conectaba al activo; el libro de planificación trae las cargas de todos los
-  alimentadores y con SI213 marcado se crearon 28, 27 de otros, una a 216 km.)
+  alimentadores y con SI293 marcado se crearon 28, 27 de otros, una a 216 km.)
 - RF-30: EL SISTEMA mostrará en el plan, por carga, el punto del libro, y en la
   simulación la barra elegida y su distancia en metros al punto.
   **Cambiado por 016:RF-49 (2026-10-15):** la simulación dice además el tramo, si se parte y la distancia al punto de conexión.
@@ -177,15 +177,15 @@ Cambio del 2026-10-13: deshacer una aplicación
   transformador del proyecto; con `--simular`, solo lo listará.
 - RF-39: SI ninguna línea llega a la barra elegida y la fila no da un tipo de línea del
   proyecto, ENTONCES EL SISTEMA tomará para la línea de enlace el tipo más usado de las
-  líneas del alimentador a la tensión de la barra y lo dirá en el informe. (SI213,
+  líneas del alimentador a la tensión de la barra y lo dirá en el informe. (SI293,
   2026-10-13: la barra más cercana era el nodo de una SED, solo con su seccionador.)
 - RF-40: CUANDO no hay en la sesión ningún ajuste aplicado del proyecto (p. ej. tras
   reiniciar la web, o en otro espacio que usó la fuente del vínculo, 018:RF-10), EL SISTEMA
   tomará como base el último ajuste aplicado guardado en disco, con los informes por
-  alimentador de esa aplicación. (CA101, 2026-10-15: la calibración seguía en «Sin
+  alimentador de esa aplicación. (CA191, 2026-10-15: la calibración seguía en «Sin
   proyecto» y la web pedía volver a calibrar para estudiar.)
 - RF-41: EL SISTEMA calculará las pérdidas de cada alimentador con lo que consumen sus cargas en el flujo y no con la potencia
-  escrita. En PRUEBA_007 (2026-11-05), TM105 daba −4 573 kW en «Sin proyecto»: sus escaladas consumen la escrita por su
+  escrita. En PRUEBA_007 (2026-11-05), TM195 daba −4 573 kW en «Sin proyecto»: sus escaladas consumen la escrita por su
   factor de escala.
 
 ## Casos límite
@@ -216,7 +216,7 @@ Cambio del 2026-10-13: deshacer una aplicación
 - `grep -rnoE "007:RF-[0-9]+" tests | sort -u` lista todos los RF.
 - Suite completa en verde, también las pruebas de las specs 004 y 006.
 - `npx tsc --noEmit -p .` (en `frontend/`) y `npm run build` correctos.
-- Prueba real en DIgSILENT con SI213, a cargo del usuario.
+- Prueba real en DIgSILENT con SI293, a cargo del usuario.
 
 ## Dudas resueltas (2026-10-09)
 

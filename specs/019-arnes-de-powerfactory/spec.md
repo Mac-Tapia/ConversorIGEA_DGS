@@ -6,7 +6,7 @@ Estado: cumplida (RF-26: T11 y T12 comprobadas el 2026-11-01; se conserva la evi
 
 Los guiones de DIgSILENT (`tools/*_pf.py`, 13 conectan con `GetApplicationExt`) repiten
 cada uno la conexión, la activación del proyecto y la restitución del caso, y solo la web
-los pone en fila (carril `powerfactory` de `web/jobs.py`). El 2026-10-15, con CA101, se
+los pone en fila (carril `powerfactory` de `web/jobs.py`). El 2026-10-15, con CA191, se
 vieron los fallos que esto produce:
 
 - Dos procesos a la vez: una sesión lanzaba guiones mientras otra tenía DIgSILENT, y los
@@ -16,7 +16,7 @@ vieron los fallos que esto produce:
 - Procesos colgados: sondas cortadas dejaban el intérprete con 4 GB abierto y había que
   cerrarlo a mano.
 - Cada obra nueva exige tocar el núcleo de `obras_pf`: la consigna de tensión de la
-  cabecera, necesaria en CA101, no existía como obra y se hizo con un guion suelto.
+  cabecera, necesaria en CA191, no existía como obra y se hizo con un guion suelto.
 
 El objetivo es un arnés único, robusto y modular para hablar con DIgSILENT: un solo dueño
 del motor a la vez en toda la máquina, una conexión y una activación comunes, procesos que
@@ -77,7 +77,7 @@ Conexión y activación comunes
   buscará en la instalación de DIgSILENT antes de decir que no está (2026-10-18: cada sonda
   pedía el ``PYTHONPATH`` a mano).
 - RF-17: SI una orden de la cola es de un cliente que ya no vive, ENTONCES EL SISTEMA la
-  descartará sin ejecutarla y lo dirá (2026-10-19: tras importar CA101_PE104, el servidor
+  descartará sin ejecutarla y lo dirá (2026-10-19: tras importar CA191_PE194, el servidor
   hizo la lectura de proyectos de un cliente ya cortado y la del operador agotó sus 180 s
   esperando detrás).
 - RF-18: SI «Leer proyectos» no recibe la primera línea en el tiempo de arranque, ENTONCES
@@ -122,7 +122,7 @@ Obras enchufables
 
 - RF-26: EN cada orden, EL SISTEMA cargará de nuevo el guion y los módulos de `tools/` que él
   importa, para que un cambio en cualquiera valga desde la orden siguiente sin reiniciar el
-  proceso (2026-11-01: la calibración de NJA202 siguió con el `escribir_carga` anterior de
+  proceso (2026-11-01: la calibración de NJA292 siguió con el `escribir_carga` anterior de
   `cargas_pf`).
 - RF-27: EL SISTEMA atenderá cada orden con el código de quien la pidió: el turno dice de qué carpeta es el servidor y la
   orden de cuál viene. SI el servidor vivo es de otra carpeta, ENTONCES el cliente esperará a que acabe lo que tiene, le
@@ -161,7 +161,7 @@ Obras enchufables
 - Cada RF citado por al menos una prueba (`grep -rnoE "019:RF-[0-9]+" tests`) y suite en
   verde.
 - Prueba en DIgSILENT real: dos acciones a la vez esperan su turno; tres acciones seguidas
-  con una sola activación; la obra de consigna de cabecera en CA101.
+  con una sola activación; la obra de consigna de cabecera en CA191.
 
 ## Dudas resueltas
 

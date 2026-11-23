@@ -6,7 +6,7 @@
   ficheros. Es la función que el reconocimiento de libros nuevos (spec 104, rama `trabajo/libros-nuevos`) puede usar
   para 104:RF-15: allí no existía todavía, y se acordó que quedara en el dominio.
 - `dominio/evolucion_mensual.py` (RF-5 a RF-11, RF-37): indicadores por mes de una serie y crecimiento, variación,
-  tendencia y mes de mayor valor. Las fórmulas son las del libro de AL209 hecho a mano.
+  tendencia y mes de mayor valor. Las fórmulas son las del libro de AL299 hecho a mano.
 - `dominio/conciliacion_clientes.py` (RF-34 a RF-38): `clave_cliente`, `cadenas_de_renumeracion`, `veredicto`,
   `posibles_renumeraciones` y `fijos_sobre_cabecera`.
 - `evolucion_clientes.py` (RF-1 a RF-16, RF-27, RF-34 a RF-38): lee con `leer_suministros`, `libros_con_mes` y
@@ -29,7 +29,7 @@
 - El buscador del tablero es TypeScript propio (Levenshtein con transposición, sin tildes): la búsqueda es sobre los
   clientes del resultado, en el navegador, y no hace falta `rapidfuzz` ni otra dependencia en el lock.
 - Mes copiado: P y Q iguales en el mismo día y hora en ≥ 95 % de las parejas, en más de la mitad de las series con los
-  dos meses (la regla de 104:RF-15). El guion de referencia pedía la mitad o más y solo la P: con AL209 dan lo mismo.
+  dos meses (la regla de 104:RF-15). El guion de referencia pedía la mitad o más y solo la P: con AL299 dan lo mismo.
 - El total del alimentador suma las máximas de cada cliente, como el libro de referencia; la máxima coincidente de la
   suma va aparte.
 - Un cliente del resumen de un libro que no está en suministros entra en el alimentador que dice el libro, con su
@@ -43,5 +43,5 @@
   cliente que entra a mitad, mes incompleto, tendencia con un mes faltante, cabecera, libro, archivo, conciliación).
 - `tests/test_evolucion_fijas_web.py`: API, trabajo, resultado, curva, archivo y su fallo.
 - `frontend/test/evolucionFijas.test.mjs`: lógica y render del tablero (`npm test`).
-- Comprobación real, solo lectura y fuera de git: AL209 de enero a octubre de 2026 frente al libro hecho a mano, y otro
+- Comprobación real, solo lectura y fuera de git: AL299 de enero a octubre de 2026 frente al libro hecho a mano, y otro
   alimentador; la web recorrida en el navegador.

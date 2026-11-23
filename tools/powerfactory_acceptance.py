@@ -183,7 +183,7 @@ def attach_project_binding(
     verificarlo desde la web después de corregirlo en DIgSILENT (RF-14). Qué se puede
     hacer con él lo decide ese estado: sin «Caso base» verificado no se calibra (RF-13).
     Antes, un proyecto existente quedaba «pendiente de convergencia» y el ajuste lo daba
-    por bueno al cuadrar (CA101, 2026-10-13); ahora solo lo verifica la aceptación (RF-22).
+    por bueno al cuadrar (CA191, 2026-10-13); ahora solo lo verifica la aceptación (RF-22).
     La huella del inventario es la de este momento: lo que cambie después se avisa (RF-30).
     """
     if not import_info or not import_info.get('ok'):
@@ -584,7 +584,8 @@ def import_dgs_file(
 
 
 #: Sigla de la fuente en el nombre del proyecto (056:RF-1), por lo que dice la cabecera del DGS (056:RF-3).
-SIGLA_POR_ORIGEN = {'CYMDIST': 'TXT', 'Access (.mdb)': 'MDB', 'VNR-GIS': 'VNR'}
+#: «CYMDIST» es la cabecera de los DGS de TXT escritos antes del 2026-11-22: se siguen leyendo como TXT.
+SIGLA_POR_ORIGEN = {'TXT': 'TXT', 'CYMDIST': 'TXT', 'Access (.mdb)': 'MDB', 'VNR-GIS': 'VNR'}
 
 
 def fuente_del_dgs(dgs_path: Path) -> str | None:
@@ -718,7 +719,7 @@ def _find_dgs_export_definitions(app: Any) -> Any | None:
 
     Solo el primer nivel del usuario, que es donde ApiExample deja esa carpeta. La
     búsqueda recursiva recorría todos los proyectos importados con sus carpetas: con la
-    base de PowerFactory llena, la importación de AL107 (3 tramos) sin georreferenciación
+    base de PowerFactory llena, la importación de AL197 (3 tramos) sin georreferenciación
     pasaba de 8 minutos aquí, después de que el flujo ya hubiera convergido.
     """
     try:
@@ -2290,7 +2291,7 @@ def _feeders_of(net: Any) -> list[Any]:
 
     PowerFactory guarda los ElmFeeder del DGS en la carpeta «Feeders» de los datos de
     red, no dentro de la grid: contarlos dentro de ``net`` daba 0 en todos los
-    alimentadores (red unida NA203_NA205: 0 contados, 2 en el proyecto). Se buscan en la
+    alimentadores (red unida NA293_NA295: 0 contados, 2 en el proyecto). Se buscan en la
     carpeta de datos de red y se quedan los que arrancan en un cubículo de esta grid.
     """
     propios = list(_contents(net, '*.ElmFeeder'))
@@ -2315,7 +2316,7 @@ def _feeders_of(net: Any) -> list[Any]:
 
 #: Separación admitida entre la curva de una línea en la grid y la del mapa geográfico.
 #: PowerFactory guarda como mucho 20 puntos por conector: un trazado más largo se dibuja
-#: en la grid con los 39 vértices que mejor lo siguen, a 1,3 m del GPS en IN111 + TA225.
+#: en la grid con los 39 vértices que mejor lo siguen, a 1,3 m del GPS en IN191 + TA295.
 TOLERANCIA_CURVA_M = 2.0
 
 
@@ -2677,7 +2678,7 @@ def resumen_caso_base(report: dict[str, Any], equipos: dict[str, list],
                       'original: no se compara su GPS.')
     if variaciones:
         avisos.append('Variaciones activas en el «Caso base»: ' + ', '.join(variaciones))
-    # Lo que el archivo no trae se avisa con su nombre (015:RF-11): CA101, 2026-10-15, tenía
+    # Lo que el archivo no trae se avisa con su nombre (015:RF-11): CA191, 2026-10-15, tenía
     # dos tramos partidos y tres condensadores dibujados a mano en el «Caso base» que solo
     # aparecían en los errores internos, sin llegar al operador.
     nuevos = [f"{x['clase']} {x['nombre']}" for x in equipos.get('no_en_archivo') or []]
@@ -2709,7 +2710,7 @@ def converger_caso_base(app: Any, *, minimo: float = 0.1, paso: float = 0.1,
                         refinos: int = 4) -> dict[str, Any]:
     """Reduce por igual la demanda del «Caso base» hasta el mayor factor que converge (015:RF-38).
 
-    CA101 (2026-10-14) no convergía con las cargas del archivo: ComLdf daba divergencia por
+    CA191 (2026-10-14) no convergía con las cargas del archivo: ComLdf daba divergencia por
     exceso de carga. El usuario no quiere que eso bloquee: se baja la demanda de todas las
     cargas en servicio por el mismo factor, de 10 en 10 %, y se afina por bisección entre el
     último que no convergió y el primero que sí; queda el mayor que converge, grabado en el
@@ -3157,7 +3158,7 @@ def run_acceptance(
             pass
     diagram_pass = diagram is not None
     # Motivo de cada fallo del diagrama, para que el «Caso base» no salga ✗ sin causa
-    # (CA101, 2026-10-15: «diagrama» fallaba con la lista de fallos vacía).
+    # (CA191, 2026-10-15: «diagrama» fallaba con la lista de fallos vacía).
     diagram_fallos: list[str] = [] if diagram is not None else ['la grid no tiene diagrama']
     if require_diagram and diagram is None:
         errors.append('ElmNet.pDiagram is empty/unresolved; required geographic/single-line diagram was not materialised')
@@ -3207,7 +3208,7 @@ def run_acceptance(
             warnings.append(f'No se pudo comparar la grid con el mapa geográfico: {exc}')
         # Se avisa, no bloquea (015:RF-5 pide que el diagrama exista): la curva del
         # unifilar no entra en el cálculo, y el GPS y el trazado del mapa ya se comprueban
-        # aparte. CA101, importado el 2026-10-14 con el escritor que recortaba las curvas,
+        # aparte. CA191, importado el 2026-10-14 con el escritor que recortaba las curvas,
         # quedaba sin calibrar por 296 curvas del unifilar con el mapa perfecto.
         if curvas.get('distintas'):
             warnings.append(
@@ -3593,7 +3594,7 @@ def main(argv=None) -> int:
     if manifest_path is not None and not manifest_path.is_file():
         print(f'ERROR: manifest not found: {manifest_path}', file=sys.stderr)
         return 1
-    # 015:RF-1: un proyecto existente se verifica entero como «Caso base». CA101
+    # 015:RF-1: un proyecto existente se verifica entero como «Caso base». CA191
     # (2026-10-13) se adoptó sin manifiesto y quedó con 0 de 0 barras comparadas.
     if args.existing_project and manifest_path is None:
         print('ERROR: --existing-project requiere --manifest: sin la geografía del archivo '

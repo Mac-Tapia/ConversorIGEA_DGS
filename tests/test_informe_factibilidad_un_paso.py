@@ -424,7 +424,7 @@ def test_banco_en_la_barra_existente_de_la_troncal():
 
 @pytest.mark.parametrize('encima', [True, False])
 def test_umbral_de_carga_nueva_lleva_a_set_nueva(monkeypatch, encima):
-    """063:RF-34 — NA203 + NA205 (2026-11-01): con cargas nuevas que suman más que el umbral del
+    """063:RF-34 — NA293 + NA295 (2026-11-01): con cargas nuevas que suman más que el umbral del
     perfil (10 MW en una distribuidora real) la solución es una SET nueva directa; por debajo, la escalera."""
     from convertersmartgrid.presentacion.web import services
 
@@ -555,7 +555,7 @@ def test_la_escalera_va_por_alimentador(monkeypatch, tmp_path):
 
 
 def test_la_escalera_repone_antes_las_cargas_apartadas(monkeypatch, tmp_path):
-    """042:RF-32 — Pisco: tras una caída, 6 de 14 cargas seguían apartadas y AL209 se medía sin ellas."""
+    """042:RF-32 — Pisco: tras una caída, 6 de 14 cargas seguían apartadas y AL299 se medía sin ellas."""
     from convertersmartgrid.presentacion.web import services
 
     orden = []

@@ -9,6 +9,7 @@ from types import SimpleNamespace
 import openpyxl
 import pytest
 
+from apoyo import codigo_real
 from convertersmartgrid.adaptadores.informe_docx import exportar_pdf
 from convertersmartgrid.adaptadores.libros_informe import ColumnasPerdidas, LibroError, leer_libro_perdidas
 
@@ -101,13 +102,13 @@ def test_sin_pdf_se_dice_el_motivo_y_el_word_sigue(tmp_path, fallo):
 
 @pytest.mark.skipif(not os.environ.get('CSG_DEMANDA_DIR'), reason='CSG_DEMANDA_DIR no definida')
 def test_libro_real_de_la_empresa():
-    """063:RF-41, 066:RF-3 — el libro real con el perfil de la empresa: SM218 → SE2044 → 0,30 % y 0,55 %, las columnas
+    """063:RF-41, 066:RF-3 — el libro real con el perfil de la empresa: SM298 → SE2044 → 0,30 % y 0,55 %, las columnas
     que el informe modelo usa para SE0044 (1,2 % y 0,79 %); 2,75 % y 1,69 % eran otra columna."""
     import json
 
     ruta = Path(os.environ['CSG_DEMANDA_DIR']) / 'informeModeloperdidas.xlsx'
     perfil = json.loads((Path(__file__).resolve().parents[1] / 'config/perfiles/electro_dunas.json').read_text(encoding='utf-8'))
-    d = leer_libro_perdidas(ruta, 'SM218', ColumnasPerdidas.de_perfil(perfil))
+    d = leer_libro_perdidas(ruta, codigo_real('SM298'), ColumnasPerdidas.de_perfil(perfil))
     assert d.codigo_sistema == 'SE2044' and d.sistema_electrico == 'SANTA MARGARITA'
     assert (d.reconocido_kwh_pct, d.reconocido_kw_pct) == (0.3, 0.55)
     assert d.precio_compra == 0.2307
@@ -132,7 +133,7 @@ def test_el_perfil_local_no_pierde_el_libro_del_heredado(tmp_path):
 
 
 def test_word_que_cae_al_cerrarse_no_pierde_el_pdf(tmp_path):
-    """063:RF-50 — T7 en SM218: Word guardó el PDF y falló en ``Quit``; el informe decía que no había PDF."""
+    """063:RF-50 — T7 en SM298: Word guardó el PDF y falló en ``Quit``; el informe decía que no había PDF."""
     docx = tmp_path / 'informe.docx'
     docx.write_bytes(b'x')
 

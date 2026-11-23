@@ -27,7 +27,7 @@ class _Ctx:
 
 
 def _cargas(rng, n):
-    return [{'sed': f'C{i}', 'alimentador': rng.choice(['NA203', 'NA205']), 'kw': rng.uniform(100, 2500),
+    return [{'sed': f'C{i}', 'alimentador': rng.choice(['NA293', 'NA295']), 'kw': rng.uniform(100, 2500),
              'kvar': 0.0, 'barra': f'B{i}', 'variacion': f'Carga_C{i}_X'} for i in range(n)]
 
 
@@ -48,14 +48,14 @@ def test_escalera_carga_a_carga_aplica_las_que_caben(monkeypatch):
         memos.append(_kw.get('memo'))
         suma = sum(c['kw'] for c in cargas if c['variacion'] in cargas_activas)
         ok = suma <= limite
-        return {'alimentadores': [{'alimentador': 'NA203', 'elegida': 'v' if ok else None}]}
+        return {'alimentadores': [{'alimentador': 'NA293', 'elegida': 'v' if ok else None}]}
 
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: cargas)
     monkeypatch.setattr(services, 'obras_escalera', escalera)
     # La búsqueda en DIgSILENT es la de respaldo cuando el oráculo no puede (052:RF-8).
     monkeypatch.setattr(services, '_optimizar_con_oraculo',
                         lambda *a, **k: (_ for _ in ()).throw(services._SinOraculo('prueba de la 042')))
-    r = services.optimizar_con_proyecto(None, _Ctx(), 'P', ['NA203', 'NA205'])
+    r = services.optimizar_con_proyecto(None, _Ctx(), 'P', ['NA293', 'NA295'])
 
     orden = sorted(cargas, key=lambda c: (-c['kw'], c['sed']))
     k, suma = 0, 0.0
@@ -75,7 +75,7 @@ def test_sin_cargas_aplicadas_se_dice(monkeypatch):
     """042:RF-1 — sin cargas nuevas aplicadas en los alimentadores marcados no hay nada que optimizar."""
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: [])
     with pytest.raises(services.UserError, match='cargas nuevas'):
-        services.optimizar_con_proyecto(None, _Ctx(), 'P', ['NA203'])
+        services.optimizar_con_proyecto(None, _Ctx(), 'P', ['NA293'])
 
 
 # =========================================================================== RF-5 a RF-13
@@ -191,16 +191,16 @@ def test_sin_dato_de_la_set_nueva_se_conserva_la_escalera(monkeypatch):
     monkeypatch.setattr(services, 'optimizar_con_proyecto', lambda *a, **k: {'caben': 3, 'a_set_nueva': [{'sed': 'N'}]})
     # 063:RF-34: la optimización suma las cargas aplicadas para el umbral de la SET nueva. 086:RF-76: con ninguna
     # aplicada el trabajo corrige el estado actual y no optimiza cargas; el doble devolvía [] y a la vez esperaba que la
-    # optimización hallara 3 que caben, un mundo que no puede darse. Una carga aplicada en NA203 lo hace coherente.
+    # optimización hallara 3 que caben, un mundo que no puede darse. Una carga aplicada en NA293 lo hace coherente.
     monkeypatch.setattr(services, '_cargas_nuevas_aplicadas',
-                        lambda ws, project: [{'sed': 'N', 'alimentador': 'NA203', 'kw': 100.0, 'variacion': 'Carga_N'}])
+                        lambda ws, project: [{'sed': 'N', 'alimentador': 'NA293', 'kw': 100.0, 'variacion': 'Carga_N'}])
 
     def falta(*_a, **_k):
-        raise services.UserError('sin tasa de crecimiento de la spec 029 para NA203 (042:RF-8).')
+        raise services.UserError('sin tasa de crecimiento de la spec 029 para NA293 (042:RF-8).')
 
     monkeypatch.setattr(services, 'set_nueva_proponer', falta)
-    r = services.con_proyecto_optimizar(None, _Ctx(), 'P', ['NA203'])
-    assert r['escalera_por_cargas']['caben'] == 3 and 'NA203' in r['set_nueva']['avisos'][0]
+    r = services.con_proyecto_optimizar(None, _Ctx(), 'P', ['NA293'])
+    assert r['escalera_por_cargas']['caben'] == 3 and 'NA293' in r['set_nueva']['avisos'][0]
 
 
 def test_cargas_aplicadas_de_todas_las_ejecuciones(tmp_path):
@@ -215,25 +215,25 @@ def test_cargas_aplicadas_de_todas_las_ejecuciones(tmp_path):
     vieja, nueva = raiz / 'runs' / 'a' / 'salida', raiz / 'runs' / 'b' / 'salida'
     for d in (vieja, nueva, raiz / 'planes'):
         d.mkdir(parents=True)
-    carga = lambda sed, var: {'sed': sed, 'alimentador': 'NA203', 'barra': 'B', 'variacion': var}  # noqa: E731
+    carga = lambda sed, var: {'sed': sed, 'alimentador': 'NA293', 'barra': 'B', 'variacion': var}  # noqa: E731
     (vieja / 'cargas_pf_aplicacion_t1.json').write_text(json.dumps({'project': 'P', 'cargas': [
         carga('UNO', 'Carga_UNO_LARGA_SIN_ALIM'), carga('DOS', 'Carga_DOS_X'), carga('TRES', 'Carga_TRES_X')]}))
     (nueva / 'cargas_pf_aplicacion_t2.json').write_text(json.dumps({
-        'project': 'P', 'cargas': [carga('CUATRO', 'Carga_CUATRO_NA203_2')],
-        'reutilizadas': [{'sed': 'UNO', 'alimentador': 'NA203', 'variacion': 'Carga_UNO_NA203_2'}],
+        'project': 'P', 'cargas': [carga('CUATRO', 'Carga_CUATRO_NA293_2')],
+        'reutilizadas': [{'sed': 'UNO', 'alimentador': 'NA293', 'variacion': 'Carga_UNO_NA293_2'}],
         'eliminadas': [{'variacion': 'Carga_DOS_X', 'eliminada': True}],
         'duplicadas': [{'sed': 'TRES', 'duplicada_de': 'UNO'}]}))
     os.utime(vieja / 'cargas_pf_aplicacion_t1.json', (1, 1))
     ws = SimpleNamespace(root=raiz, out_dir=nueva, plans_dir=raiz / 'planes')
     cargas = {c['sed']: c['variacion'] for c in services._cargas_nuevas_aplicadas(ws, 'P')}
-    assert cargas == {'UNO': 'Carga_UNO_NA203_2', 'CUATRO': 'Carga_CUATRO_NA203_2'}
+    assert cargas == {'UNO': 'Carga_UNO_NA293_2', 'CUATRO': 'Carga_CUATRO_NA293_2'}
 
 
 def test_si_caben_basta_una_obra_y_las_lecturas_comunes_van_una_vez(tmp_path, monkeypatch):
     """042:RF-2 — para saber si caben, la evaluación pide «basta_una» al guion y para en el primer
     alimentador sin obra (F2 no se mide); la curva, el CAPEX y los tipos se leen una vez en todo el
-    trabajo aunque la escalera se llame varias veces (NA203 + NA205, 2026-11-01: cada prueba
-    releía los tipos en 2 min 14 s y medía NA205 tras fallar NA203, unos 40 min más)."""
+    trabajo aunque la escalera se llame varias veces (NA293 + NA295, 2026-11-01: cada prueba
+    releía los tipos en 2 min 14 s y medía NA295 tras fallar NA293, unos 40 min más)."""
     from test_casos_por_anio import ANIO, _escalera_falsa
 
     def evaluar(nombre):

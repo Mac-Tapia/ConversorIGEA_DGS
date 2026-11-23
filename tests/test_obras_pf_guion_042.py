@@ -169,7 +169,7 @@ def test_datos_de_la_red_para_la_set_nueva():
 def test_set_nueva_halla_la_barra_de_media_de_una_carga_apartada():
     """042:RF-6 — las cargas que pasan a la SET nueva son las que la escalera apartó y no están
     activas en «Con proyecto»: su barra de media sale de la barra que dio la escalera. Por su
-    nombre, en NA203 + NA205 (2026-10-31) 29 de 32 quedaban fuera de la SET nueva."""
+    nombre, en NA293 + NA295 (2026-10-31) 29 de 32 quedaban fuera de la SET nueva."""
     app, alims = _calibrada(random.Random(17), n_min=2, cargas_min=3)
     informe, codigo = guion.datos_set_nueva(app, _plan(alims, barras={'F1': ['F1_S2_BT']}))
     assert codigo == 0, informe
@@ -178,7 +178,7 @@ def test_set_nueva_halla_la_barra_de_media_de_una_carga_apartada():
 
 def test_la_escalera_mide_la_barra_de_media_de_una_ampliacion():
     """042:RF-2 — una ampliación (040:RF-4) cuelga de la barra de baja de su SED; la escalera la
-    mide en la de media (025:RF-50). Con la de baja, en NA203 + NA205 (2026-10-31) todas las
+    mide en la de media (025:RF-50). Con la de baja, en NA293 + NA295 (2026-10-31) todas las
     variantes salían «la carga nueva en SE50150_BT queda a ? p.u.»."""
     app, alims = _calibrada(random.Random(13), n_min=2, cargas_min=3)
     plan = _plan(alims, barras={'F1': ['F1_S2_BT']}, tension_min_pu=0.94)

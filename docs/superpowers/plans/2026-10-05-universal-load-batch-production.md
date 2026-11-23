@@ -18,7 +18,7 @@
 - Los valores actuales y propuestos viven en columnas diferentes.
 - El plan se verifica contra proyecto, alimentadores, archivos y hashes antes de escribir.
 - Cada alimentador se relee y ejecuta `ComLdf`; un fallo revierte solo su mutación.
-- Empresa A/IN111 se usa como prueba real disponible, no como dependencia.
+- Empresa A/IN191 se usa como prueba real disponible, no como dependencia.
 - Los cambios locales preexistentes del módulo se auditan y se incorporan por hunks; no se absorben ediciones ajenas.
 
 ## Review Focus
@@ -235,7 +235,7 @@ Expected: exit 0.
 
 - [ ] **Step 5: Run real controlled acceptance**
 
-Use the current real project containing IN111 only as an example. Prepare one safe update, verify plan, apply in an isolated scenario, reread P/Q/FP/phases, execute `ComLdf`, and verify rollback with a deliberately failing second dry-run or disposable scenario.
+Use the current real project containing IN191 only as an example. Prepare one safe update, verify plan, apply in an isolated scenario, reread P/Q/FP/phases, execute `ComLdf`, and verify rollback with a deliberately failing second dry-run or disposable scenario.
 
 - [ ] **Step 6: Commit**
 

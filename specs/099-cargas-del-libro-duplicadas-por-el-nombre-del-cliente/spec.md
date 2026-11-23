@@ -1,12 +1,12 @@
 # Spec 099 — Cargas del libro duplicadas por el nombre del cliente
 
-Estado: cumplida (2026-11-08: T3 en DIgSILENT con CA101 + CHN102) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, estudio de CA101 + CHN102: «considera uno solo de
+Estado: cumplida (2026-11-08: T3 en DIgSILENT con CA191 + CHN192) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, estudio de CA191 + CHN192: «considera uno solo de
 Tierra Larga, la CH_23; la otra es duplicado; los duplicados no deben considerarse» y «debe hacer la comparativa con el
 nombre del cliente».
 
 ## Contexto y objetivo
 
-El libro de planificación `NuevosclientesMayoresv3.xlsx` trae dos filas de Tierra Larga en CA101: CH_20,
+El libro de planificación `NuevosclientesMayoresv3.xlsx` trae dos filas de Tierra Larga en CA191: CH_20,
 «SU-1770KW-Tierra Larga - Distrito el Camen- Provincia de chincha» (1 770 kW), y CH_23, «SU-1390KW-TierraLarga-Chincha»
 (1 390 kW), del mismo expediente y a 2,6 km una de otra. 040:RF-1 solo une dos filas del mismo alimentador a 1 m o menos,
 así que se creaban las dos y el alimentador recibía 3 160 kW de un solo cliente. El objetivo es reconocer el mismo cliente
@@ -53,5 +53,5 @@ Operador que aplica las cargas nuevas en bloque desde la web («Cargas en DIgSIL
 
 ## Criterios de aceptación
 
-- En el libro real, solo CH_20 → CH_23 (CA101), NA_28 → NA_36 (NA203) y NA_19 → NA_35 (NA205); YANACA no sale.
+- En el libro real, solo CH_20 → CH_23 (CA191), NA_28 → NA_36 (NA293) y NA_19 → NA_35 (NA295); YANACA no sale.
 - `grep -rnoE "099:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.

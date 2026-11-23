@@ -332,7 +332,7 @@ function InformeAjuste({ inf, report, cancelado, token }: {
   // Spec 015, RF-49, RF-69: la validación física no pasó; el reparto queda grabado sin validar
   // (las de antes de la RF-69 se revertían).
   const revertida = inf.status === 'FALLO_VALIDACION_NATIVA' || inf.calibracion_revertida;
-  // 091:RF-25: una recalibración cuya Q no cuadró no es «cuadrado»: TM102, 115 kvar frente a −426 medidos.
+  // 091:RF-25: una recalibración cuya Q no cuadró no es «cuadrado»: TM192, 115 kvar frente a −426 medidos.
   const conQ = inf.tipo_ajuste?.cuadra === 'P_Y_Q';
   const qCuadrada = inf.cuadrado_q ?? inf.cuadre_q?.estado === 'CUADRADA';
   const validacion = inf.validacion_posterior_nativa;
@@ -656,7 +656,7 @@ const instalada = (x: SedSobrecargada) => {
 /**
  * Spec 020, RF-3 a RF-14: las SED fijas por encima del 100 % de su potencia instalada, al
  * principio del resultado, con la propuesta de transformadores nuevos por SED (todas
- * marcadas) y el botón que los implementa en «Sin proyecto» y vuelve a calibrar. En PA217
+ * marcadas) y el botón que los implementa en «Sin proyecto» y vuelve a calibrar. En PA297
  * (2026-10-16) SE30940 pedía 3818 kVA sobre 400 kVA y solo se veía en un desplegable.
  */
 /**

@@ -7,10 +7,10 @@ mismo día: los informes y libros que genera la web se conservan como dataset en
 
 ## Contexto y objetivo
 
-Para AL209 se armó a mano un libro Excel que une enero a octubre de 2026 con la P (kW) y la Q (kVAR) de 15 minutos de
+Para AL299 se armó a mano un libro Excel que une enero a octubre de 2026 con la P (kW) y la Q (kVAR) de 15 minutos de
 cada cliente fijo del alimentador y su evolución mensual (guion de la sesión, resultado en
-`D:/csg/informes/AL209_clientes_fijos_2026-01_a_2026-10.xlsx`, fuera de git). Al hacerlo apareció un defecto de los
-datos: `0426clientesImportantes.xlsb` repite los valores de marzo, día a día, en los cuatro clientes de AL209 que tienen
+`D:/csg/informes/AL299_clientes_fijos_2026-01_a_2026-10.xlsx`, fuera de git). Al hacerlo apareció un defecto de los
+datos: `0426clientesImportantes.xlsb` repite los valores de marzo, día a día, en los cuatro clientes de AL299 que tienen
 los dos meses; sin detectarlo, abril parecía un mes medido igual a marzo y falseaba el crecimiento. El objetivo es que
 cualquier alimentador, de cualquier empresa, tenga ese libro y un tablero desde la web, con los libros que el operador
 ya asignó en «2.1 · Libros de medición», y que el libro quede archivado como dataset fuera del espacio.
@@ -152,6 +152,6 @@ archivar los demás informes (estudio, factibilidad, PIDE): pueden usar `archiva
 
 ## Criterios de finalización
 
-Cada RF citado por al menos una prueba (`grep "105:RF-"`), pruebas de gobierno y frontend en verde, AL209 de enero a
+Cada RF citado por al menos una prueba (`grep "105:RF-"`), pruebas de gobierno y frontend en verde, AL299 de enero a
 octubre de 2026 con las mismas cifras que el libro hecho a mano y otro alimentador con clientes fijos probado, y la
 pestaña recorrida en el navegador real.

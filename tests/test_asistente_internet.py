@@ -42,7 +42,7 @@ def test_busca_en_github_y_arxiv(tmp_path, monkeypatch):
     """026:RF-29 / 026:RF-31 — busca con términos técnicos y registra cada consulta."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     abrir, enviadas = _red()
-    r = Buscador(['IN111'], abrir=abrir).buscar('flujo de carga en python', 'buscar alternativas')
+    r = Buscador(['IN191'], abrir=abrir).buscar('flujo de carga en python', 'buscar alternativas')
     assert r['bloqueada'] is None and r['github'][0]['licencia'] == 'BSD-3-Clause'
     assert r['arxiv'][0]['titulo'] == 'Physics-informed GNN' and len(enviadas) == 2
     registro = almacen.leer('internet')
@@ -55,9 +55,9 @@ def test_bloquea_identificadores_y_rutas(tmp_path, monkeypatch):
     código con su forma no sale de la máquina y queda registrada sin su texto."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
     abrir, enviadas = _red()
-    b = Buscador(['IN111', '20261015-170359_CSG_IN111_TA225', 'Pisco'], abrir=abrir)
-    for consulta in ('caída de tensión en in111', 'red de pisco', 'leer D:\\BaseDatos\\red.mdb',
-                     'calibración del alimentador XZ205', 'informe de 20261015-170359_CSG_IN111_TA225'):
+    b = Buscador(['IN191', '20261015-170359_CSG_IN191_TA295', 'Pisco'], abrir=abrir)
+    for consulta in ('caída de tensión en in191', 'red de pisco', 'leer D:\\BaseDatos\\red.mdb',
+                     'calibración del alimentador XZ205', 'informe de 20261015-170359_CSG_IN191_TA295'):
         assert b.buscar(consulta)['bloqueada'], consulta
     assert enviadas == []
     assert all(f['consulta'] == '[retenida]' and f['bloqueada'] for f in almacen.leer('internet'))

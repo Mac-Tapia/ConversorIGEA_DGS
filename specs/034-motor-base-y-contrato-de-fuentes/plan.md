@@ -17,7 +17,7 @@ de su módulo (033:RF-18) y `CODIGO_FUENTE.md` cambia «base» por «034» (033:
 | RF-7 | `catalog.py`, `catalog_data.py`, `catalog_resolution.py` | `test_catalog.py`, `test_type_resolution.py` |
 | RF-8 | `catalog_merge.py` | `test_catalog_merge.py` |
 | RF-9 | `model.py` | `test_model_v2.py`, `test_load_data_extraction.py` |
-| RF-10 | `model.py`, `batch.py` | `test_topology_islands.py`, `test_feeder_sl143.py` |
+| RF-10 | `model.py`, `batch.py` | `test_topology_islands.py`, `test_feeder_sl193.py` |
 | RF-11 | `coordenadas.py`, geografía del modelo | `test_geography_optional.py`, `test_geography_v21.py`, `test_geo_batch_v21.py`, `test_mt_connectivity_lengths.py` |
 | RF-12 | modelo universal y escritor del DGS | `test_capacitor_canonical.py`, `test_dgs_capacitors.py`, `test_access.py`, `test_vnr_cymdist_bridge.py` |
 | RF-13 | `schema.py`, `schemas/pf21_dgs_1_8_4.json`, validación | `test_schema.py`, `test_validate_v2.py` |
@@ -25,7 +25,7 @@ de su módulo (033:RF-18) y `CODIGO_FUENTE.md` cambia «base» por «034» (033:
 | RF-15 | `batch.py` | `test_batch_robustness.py` |
 | RF-16 | todo el motor | `test_flexibility_and_scale.py`, `test_performance_budget.py` |
 | RF-17 | `combine.py` | `test_combine.py` |
-| RF-18 | todo el motor | `test_feeder_pa217.py`, `test_feeder_sl143.py` |
+| RF-18 | todo el motor | `test_feeder_pa297.py`, `test_feeder_sl193.py` |
 | RF-19 | contrato de fuentes | `test_source_contract.py`, `test_source_contract_front.py`, `test_universal_source_scope.py` |
 | RF-20 | ejecuciones fuente y adaptadores | `test_source_runs.py`, `test_source_adapters.py`, `test_readiness.py`, `test_web_source_ui_contract.py`, `test_web_runtime_dependencies.py` |
 | RF-21 | `powerfactory_metadata.py`, vínculo del proyecto | `test_powerfactory_source_run.py`, `test_feeder_metadata.py`, `test_powerfactory_feeder_metadata.py`, `test_powerfactory_binding_front.py` |

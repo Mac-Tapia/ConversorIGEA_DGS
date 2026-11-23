@@ -1,6 +1,6 @@
 """Catálogo de parámetros eléctricos: tabla de entrada y auditoría del modelo.
 
-El problema que resuelve. El catálogo de equipos que viene en el TXT de CYMDIST es lo
+El problema que resuelve. El catálogo de equipos que viene en el TXT es lo
 único que fija la impedancia de cada tramo, y nadie lo revisa contra la ficha del
 conductor que de verdad está colgado. Cuando una fila está mal —y las hay— el error se
 propaga en silencio a todos los tramos de ese tipo, en todos los alimentadores, y sale
@@ -337,7 +337,7 @@ def _perdidas_fabricadas_w(kva: float) -> tuple[float, float]:
     """Lo que el escritor DGS pone hoy: pcutr = 1 % de Sn y pfe = 0,15 % de Sn.
 
     Son dos fórmulas, no dos medidas. Están calibradas contra una única muestra
-    (NA205) y se aplican por igual a toda potencia, que es justo lo que se audita.
+    (NA295) y se aplican por igual a toda potencia, que es justo lo que se audita.
     """
     return (
         max(kva / 1000.0 * 10.0, 0.1) * 1000.0,

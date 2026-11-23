@@ -599,7 +599,7 @@ def test_fichas_del_catalogo_del_proyecto(tmp_path):
 
 def test_una_isla_se_une_a_la_red_y_se_anota():
     """023:RF-10 — una parte cuya cadena de padres no llega a la cabecera (T4 y T5 son padre
-    uno del otro, como SM117) se une a la red por su par de nodos más cercano y se anota."""
+    uno del otro, como SM197) se une a la red por su par de nodos más cercano y se anota."""
     tablas = _tablas()
     tablas['mtTramo'] += [
         {'CodTramoMT': 'T4', 'CodSalidaMT': 'F1', 'CodTramoMTPadre': 'T5', 'CodNorma': 'AA05003'},

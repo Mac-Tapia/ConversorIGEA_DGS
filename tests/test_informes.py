@@ -340,7 +340,7 @@ def test_encabezado_del_operador():
     """017:RF-22 — fecha, asunto, destinatario y antecedentes son los del operador."""
     e = Encabezado(date(2026, 8, 14), 'ASUNTO X', 'PROYECTOS Y OBRAS', 'Antecedente', lugar='Ica')
     assert e.fecha_texto == 'Ica, 14 de agosto de 2026'
-    assert asunto_propuesto('estudio', ['CA101', 'PE104']).endswith('CA101, PE104')
+    assert asunto_propuesto('estudio', ['CA191', 'PE194']).endswith('CA191, PE194')
     assert 'CLIENTE' in asunto_propuesto('factibilidad', ['AL01'], 'CLIENTE')
 
 
@@ -393,7 +393,7 @@ def test_caso_desde_la_medida_de_los_estudios():
     caso = Caso.desde_medida('Sin proyecto', MEDIDA, LIMITES)
     assert caso.fuente == Potencia(2791.0, 999.0) and caso.perdidas == Potencia(40.1, 55.0)
     assert caso.tension_min == {TRIFASICA: Extremo(0.93, 'N1')} and caso.nodos_fuera == 1
-    # La del conductor sale de los tramos; el transformador va aparte (CA101, TR_SE20701 al 518 %).
+    # La del conductor sale de los tramos; el transformador va aparte (CA191, TR_SE20701 al 518 %).
     assert caso.cargabilidad_max == Extremo(104.0, 'L1') and caso.tramos_sobre == 1
     assert caso.trafo_max == Extremo(120.0, 'T1')
 
@@ -439,18 +439,18 @@ def test_descripcion_de_la_terna_y_del_enlace():
     conductor y sus dos extremos, como se aplicó."""
     from convertersmartgrid.adaptadores.informes import describir_obra, obra_para_informe
 
-    terna = obra_para_informe({'clase': 'terna', 'alimentador': 'TA225',
+    terna = obra_para_informe({'clase': 'terna', 'alimentador': 'TA295',
                                'tramos': ['SEC_1', 'SEC_2']})
     assert 'SEC_1' in describir_obra(terna) and 'SEC_2' in describir_obra(terna)
     assert 'terna' in describir_obra(terna)
     enlace = obra_para_informe({
-        'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111',
+        'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191',
         'tipo': {'nombre': 'AA12003D_22_9kV'},
         'enlace': {'largo_m': 3625.6, 'origen': {'barra_final': '15232'},
-                   'destino': {'barra_final': 'ENLACE_C_IN111'},
+                   'destino': {'barra_final': 'ENLACE_C_IN191'},
                    'trazado': {'por_via': True, 'servicio': 'osrm'}}})
     texto = describir_obra(enlace)
-    for parte in ('3,63 km', 'AA12003D_22_9kV', '15232', 'ENLACE_C_IN111', 'TA225', 'IN111', 'vía'):
+    for parte in ('3,63 km', 'AA12003D_22_9kV', '15232', 'ENLACE_C_IN191', 'TA295', 'IN191', 'vía'):
         assert parte in texto, (parte, texto)
 
 

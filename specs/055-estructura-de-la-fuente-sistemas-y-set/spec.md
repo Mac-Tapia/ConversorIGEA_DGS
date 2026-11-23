@@ -35,7 +35,7 @@ nada.
 - RF-5: Todos los alimentadores cargados aparecerán en la web y serán convertibles, tengan o no
   estructura.
 
-Perfil de otra empresa (añadido el 2026-11-01: NJA202 de Empresa B se importó en la
+Perfil de otra empresa (añadido el 2026-11-01: NJA292 de Empresa B se importó en la
 carpeta «sistemaeletricoELD» de Empresa A, porque el perfil local hereda del suyo)
 
 - RF-6: SI la fuente es de una empresa distinta de la del perfil de empresa, ENTONCES EL

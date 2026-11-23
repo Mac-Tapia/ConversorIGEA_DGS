@@ -1,6 +1,6 @@
 """Spec 021, RF-71 a RF-85: la tensión medida en la cabecera, en la tabla de la máxima y en la fuente.
 
-El usuario, el 2026-11-12, con la tabla «2.2 · Máxima de cabecera» de PA217 (L-PA235, 9 537,88 kW el
+El usuario, el 2026-11-12, con la tabla «2.2 · Máxima de cabecera» de PA297 (L-PA235, 9 537,88 kW el
 2026-03-03 10:00): «quiero que en esta tabla se extraiga la tensión del mismo instante de la columna
 VLL avg mean y esa tensión se suba a la fuente en pu en DIgSILENT». Libros sintéticos sorteados: ningún
 libro de una empresa; DIgSILENT no se ejecuta (P11), el guion se prueba con dobles.
@@ -190,9 +190,9 @@ MEDIDA = {'origen': 'medida', 'kv': 23.53627, 'pu': 23.53627 / 22.9, 'nominal_kv
 def test_la_fuente_toma_la_de_su_barra_de_set_si_la_mide():
     """021:RF-85 — por SET o por sistema, la de la barra de media de su SET; sin ella (o en la de alta),
     la de su cabecera; con error, ninguna."""
-    fila = {'alimentador': 'pa217', 'medidor': 'L-PA235', 'fecha': '2026-03-03 10:00:00', 'tension_kv': 23.536,
+    fila = {'alimentador': 'pa297', 'medidor': 'L-PA235', 'fecha': '2026-03-03 10:00:00', 'tension_kv': 23.536,
             'tension_pu': 1.0278, 'tension_nominal_kv': 22.9, 'tension_columna': 'Vll avg mean'}
-    barra = {'clave': 'PA 22,9 kV', 'alta': False, 'kv': 22.9, 'alimentadores': ['PA217'], 'fecha': '2026-03-03 10:00:00',
+    barra = {'clave': 'PA 22,9 kV', 'alta': False, 'kv': 22.9, 'alimentadores': ['PA297'], 'fecha': '2026-03-03 10:00:00',
              'tension_kv': 23.2, 'tension_pu': 23.2 / 22.9, 'tension_medidores': ['B-PA2T2'], 'tension_columna': 'x'}
     alta = {**barra, 'alta': True, 'tension_kv': 61.0}
     assert dm.tension_medida_de_la_fuente(fila, [alta, barra])['kv'] == 23.2
@@ -227,7 +227,7 @@ def test_origen_de_la_tension():
 def test_excel_con_la_tension_al_final(tmp_path):
     """021:RF-77 — el Excel «Descargar máxima y clientes» lleva «V (kV)» y «V (pu)», al final para que
     las columnas de siempre no cambien de letra."""
-    fila = {'alimentador': 'PA217', 'medidor': 'L-PA235', 'kw': 9537.88, 'tension_kv': 23.536, 'tension_pu': 1.0278}
+    fila = {'alimentador': 'PA297', 'medidor': 'L-PA235', 'kw': 9537.88, 'tension_kv': 23.536, 'tension_pu': 1.0278}
     ruta = dm.escribir_excel(tmp_path / 'x.xlsx', cabecera=[fila])
     hoja = openpyxl.load_workbook(ruta)['Cabecera']
     titulos = [c.value for c in hoja[1]]
@@ -354,16 +354,16 @@ def test_cada_fuente_con_la_suya(guion):
     """021:RF-81 — dos alimentadores con fuentes distintas, cada una con la suya; una fuente de dos con
     medidas distintas, su promedio y se dice; una que no es de ninguno queda como está."""
     b1, b2, b3 = _Barra(loc_name='B1', uknom=22.9), _Barra(loc_name='B2', uknom=10.0), _Barra(loc_name='B3', uknom=10.0)
-    tensiones = {'PA217': MEDIDA, 'PA131': {**MEDIDA, 'kv': 10.2, 'nominal_kv': 10.0, 'pu': 1.02},
+    tensiones = {'PA297': MEDIDA, 'PA131': {**MEDIDA, 'kv': 10.2, 'nominal_kv': 10.0, 'pu': 1.02},
                  'PA132': {**MEDIDA, 'kv': 10.4, 'nominal_kv': 10.0, 'pu': 1.04}}
-    consigna = guion.consigna_por_fuente(tensiones, {'PA217': 'B1', 'PA131': 'B2', 'PA132': 'B2'})
+    consigna = guion.consigna_por_fuente(tensiones, {'PA297': 'B1', 'PA131': 'B2', 'PA132': 'B2'})
     assert consigna(_xnet('X1', b1))[0] == 1.0278
     pu, origen = consigna(_xnet('X2', b2))
     assert pu == 1.03 and 'PA131: medida a las' in origen and 'PA132' in origen
     assert consigna(_xnet('X3', b3)) == (None, None)
     assert any('promedio' in a for a in consigna.avisos) and any('X3' in a for a in consigna.avisos)
     # Un solo valor para todos (el del operador, RF-61): también la fuente que no casa.
-    todas = guion.consigna_por_fuente({'PA217': {'origen': 'operador', 'pu': 1.05}}, {'PA217': None})
+    todas = guion.consigna_por_fuente({'PA297': {'origen': 'operador', 'pu': 1.05}}, {'PA297': None})
     assert todas(_xnet('X3', b3))[0] == 1.05
 
 
@@ -383,11 +383,11 @@ def test_escribe_la_consigna_y_su_origen_en_la_tabla_de_cambios(guion):
     app = SimpleNamespace(activo=None)
     app.GetCalcRelevantObjects = lambda _f: redes[app.activo.rol]
     app.GetActiveScenario = lambda: Esc()
-    consigna = guion.consigna_por_fuente({'PA217': MEDIDA}, {'PA217': 'B1'})
+    consigna = guion.consigna_por_fuente({'PA297': MEDIDA}, {'PA297': 'B1'})
     cambios = guion.fijar_consigna_de_la_fuente(app, consigna, [Caso(rol='sin'), Caso(rol='con')])
     assert [x.usetp for x in redes['sin']] == [1.0278, 1.0] == [x.usetp for x in redes['con']]
     [cambio] = cambios
-    assert cambio['fuente'] == 'X1' and cambio['origen'].startswith('PA217: medida a las 2026-03-03 10:00:00')
+    assert cambio['fuente'] == 'X1' and cambio['origen'].startswith('PA297: medida a las 2026-03-03 10:00:00')
     [fila] = guion.cambios_en_la_red({'consigna_fuente': cambios})
     assert fila['nuevo']['potencia'] == 1.0278 and 'medida a las' in fila['motivo']
     fuente = inspect.getsource(guion)

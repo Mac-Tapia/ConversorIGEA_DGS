@@ -29,7 +29,7 @@ Un corte de la conexión con la web mientras trabaja no la corta: se reintenta.
 
     python tools/sistema_web.py --espacio 47a003aac1f84cc6 --zonal Pisco \\
         --demanda-dir referencia --periodo 2025
-    python tools/sistema_web.py --espacio 5f11283a33c94ea5 --red IN111 TA225 \\
+    python tools/sistema_web.py --espacio 5f11283a33c94ea5 --red IN191 TA295 \\
         --demanda-dir referencia --periodo 2026-07 --reconvertir
 
 Códigos de salida: 0 calibrado y válido, 1 calibrado con fallos, 2 no se pudo llegar.
@@ -55,7 +55,7 @@ if str(Path(__file__).resolve().parent) not in sys.path:  # ``_plural``, tambié
 from _plural import cuenta  # noqa: E402
 
 # 086:RF-9: un trabajo que cortó un reinicio de la web queda «interrumpido»; sin él aquí, el cliente lo esperaba para siempre
-# (PE102 de prueba, 2026-11-07: «Esperando Optimizar Con proyecto» de un Pisco ya cortado).
+# (PE192 de prueba, 2026-11-07: «Esperando Optimizar Con proyecto» de un Pisco ya cortado).
 TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
 NECESARIOS = ('medidores', 'cabecera')
@@ -291,8 +291,8 @@ class NoSeImporta(Exception):
 def _comprobar_que_no_borra(web: Web, grupo: str) -> None:
     """005:RF-24: sin vínculo ni ``--reconvertir``, para si la importación borraría otro proyecto del grupo (005:RF-22).
 
-    Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, convertía e importaba ``PA217`` sin preguntar, y la
-    005:RF-22 habría borrado ``20261112-113130_CSG_TXT_PA217``, el que el usuario ya había trabajado. La lista se
+    Copia de PA297 (2026-11-13): un espacio nuevo, sin vínculo, convertía e importaba ``PA297`` sin preguntar, y la
+    005:RF-22 habría borrado ``20261112-113130_CSG_TXT_PA297``, el que el usuario ya había trabajado. La lista se
     lee de DIgSILENT con «Leer proyectos», no de la guardada: un espacio nuevo puede no tenerla, o tenerla vieja.
     """
     from convertersmartgrid.adaptadores.carpeta_pf import proyectos_que_borraria
@@ -462,7 +462,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # ``solo``: una parte del sistema, con el resto en los mismos flujos y la demanda del
     # archivo, para aislar qué alimentador impide converger (Chincha, 2026-10-18).
     # 028:RF-41: la máxima se busca con todos los medidores del sistema, y solo el plan se limita a los elegidos.
-    # Pisco (2026-11-05): con solo los de AL209 y PA217 el instante salió el 10-abr 12:00, el registro de maniobra
+    # Pisco (2026-11-05): con solo los de AL299 y PA297 el instante salió el 10-abr 12:00, el registro de maniobra
     # que 028:RF-39 descarta con todos, y no el del sistema (23-ene 12:15).
     elegidos = {a.upper() for a in solo or []}
     # 039:RF-7, RF-8: los marcados con «máximo del mes»; los demás, el criterio general.
@@ -480,10 +480,10 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         print('Ningún alimentador del sistema tiene medidor: no hay qué calibrar.')
         return 2
     # 022:RF-88: dónde está cada central del libro, con la propuesta del perfil, como la ve
-    # el operador en la web (la de Nasca en el tramo de NA205; CT_PEDREG en su barra).
+    # el operador en la web (la de Nasca en el tramo de NA295; CT_PEDREG en su barra).
     centrales = web.get('/demanda/centrales').get('centrales') or []
-    # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA205), con sus
-    # tres medidores y su barra, del perfil: sin ella NA205 se calibraba con su cabecera, que
+    # 021:RF-25, RF-33: la central de un alimentador del sistema (la de Nasca en NA295), con sus
+    # tres medidores y su barra, del perfil: sin ella NA295 se calibraba con su cabecera, que
     # es la demanda menos la generación (usuario, 2026-10-28).
     from convertersmartgrid.aplicacion.escaneo import nodo_de_central
     from convertersmartgrid.dominio.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
@@ -557,7 +557,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
               + (f" ({', '.join(b['alimentadores'])})" if b.get('alimentadores') else ''), flush=True)
     for aviso in res.get('avisos', []):
         print(f'  aviso: {aviso}', flush=True)
-    # Los de una central («Central NA205», 022:RF-88) solo traen su curva al mismo instante:
+    # Los de una central («Central NA295», 022:RF-88) solo traen su curva al mismo instante:
     # no son cabeceras de alimentador y el plan los rechazaba (PROJECT_BINDING_FEEDER_MISMATCH,
     # Nasca, 2026-10-27), como ya los deja fuera la web al elegir los del ajuste.
     medidores = [x['medidor'] for x in res.get('resultados', [])
@@ -589,7 +589,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         # Con un año entero no hay un mes que cruzar aquí: el plan cruza cada alimentador
         # con el libro del mes de su máxima (025:RF-10). Como el front (035:RF-1), con la
         # máxima de cada alimentador: así usa el libro de su mes o el anterior (035:RF-17).
-        # Solo con el periodo, SM218 (2026-10-29) paraba: no hay libro de clientes de 2026-10.
+        # Solo con el periodo, SM298 (2026-10-29) paraba: no hay libro de clientes de 2026-10.
         del_sistema = {a.upper() for a in sistema['alimentadores']}
         maximas = {x['alimentador']: {k: x.get(k) for k in ('fecha', 'kw', 'kvar', 'fp')}
                    for x in res.get('resultados', [])
@@ -691,7 +691,7 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
         print(f'«Con proyecto» de {proyecto}: se lanza para {", ".join(feeders)}', flush=True)
         trabajo = web.post('/pf/obras/con-proyecto', json={
             'project': proyecto, 'feeders': feeders,
-            # 087:RF-54: a la obra integral sin repetir la escalera ya hecha (usuario, 2026-11-04, CHI201).
+            # 087:RF-54: a la obra integral sin repetir la escalera ya hecha (usuario, 2026-11-04, CHI291).
             **({'directo_set_nueva': True} if obra_integral else {'escalera_primero': True}),
             **({'tipo_cambio': tipo_cambio} if tipo_cambio else {}), **({'capex': capex} if capex else {}),
             **({'rehacer_obras': True} if rehacer_obras else {})})
@@ -825,7 +825,7 @@ def main(argv=None) -> int:
                     set_electrica=args.set_electrica)
         if rc or not args.con_proyecto:
             return rc
-        # CA101 + CHN102 (098 T6, 2026-11-08): con --con-proyecto y sin --proyecto calibraba y terminaba sin
+        # CA191 + CHN192 (098 T6, 2026-11-08): con --con-proyecto y sin --proyecto calibraba y terminaba sin
         # «Con proyecto», aunque la ayuda dice «tras calibrar». Sigue con el proyecto recién calibrado (042:RF-31).
         grupo = nombre_del_grupo(args.zonal, red=args.red, grupo=args.grupo, set_electrica=args.set_electrica)
         proyecto = (web.get('').get('pf_projects') or {}).get(grupo)

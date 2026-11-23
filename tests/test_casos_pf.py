@@ -51,7 +51,7 @@ def _escenario_red(rng, *, escenario=False, cargas=True, anteriores=False):
 def test_con_proyecto_nuevo_ve_las_etapas_de_sin_proyecto(monkeypatch):
     """014:RF-18 — la copia «Con proyecto» recién creada adelanta las etapas que su hora no vería.
 
-    En DIgSILENT (CA101 + PE104, 2026-11-07) «Con proyecto» quedó un segundo antes de las etapas de fichas y de
+    En DIgSILENT (CA191 + PE194, 2026-11-07) «Con proyecto» quedó un segundo antes de las etapas de fichas y de
     SED NTP: «activas» pero sin aplicar, 687 barras sin tensión y la obra inactiva (044 y 048, T4). Subir la
     hora no se mantiene (081:RF-78): se llama a ``etapas_al_dia`` con la copia activa, y se deja activo el caso
     que lo estaba.
@@ -475,7 +475,7 @@ def _carga_y_trafo(app, feeder):
 
 def test_operador_por_lo_que_graba_no_por_el_nombre():
     """014:RF-3, 014:RF-15, 014:RF-20 — un ``Ajuste_…`` que también grabó un ElmTr2 es del
-    operador, como ``_3`` de CA101; uno que solo cambió cargas es un ajuste anterior."""
+    operador, como ``_3`` de CA191; uno que solo cambió cargas es un ajuste anterior."""
     app = fake_pf.proyecto(alimentadores=('AL1',), cargas_por_alim=2)
     carga, trafo = _carga_y_trafo(app, 'AL1')
     tipo = app.carpetas['equip'].CreateObject('TypTr2', 'TR_250kVA')
@@ -578,7 +578,7 @@ class _App:
 
 
 def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
-    """014:RF-31, 014:RF-32, 014:RF-33, 014:RF-34 — PN107 (2026-10-16): un banco creado a
+    """014:RF-31, 014:RF-32, 014:RF-33, 014:RF-34 — PN197 (2026-10-16): un banco creado a
     mano en «Sin proyecto» no estaba en «Con proyecto». Se activan las variaciones del
     operador; un dato de operación que solo cambió «Sin proyecto» se copia al escenario de
     «Con proyecto»; uno que cambió también «Con proyecto» (una obra) se deja y se avisa; lo
@@ -614,12 +614,12 @@ def test_lo_hecho_a_mano_en_sin_proyecto_pasa_a_con_proyecto(monkeypatch):
 
 
 def test_la_consigna_de_la_fuente_pasa_a_con_proyecto(monkeypatch):
-    """014:RF-32 — SM218 (2026-11-01): la recalibración dejó la fuente de «Sin proyecto» a 1,02 p.u.
+    """014:RF-32 — SM298 (2026-11-01): la recalibración dejó la fuente de «Sin proyecto» a 1,02 p.u.
     y «Con proyecto» seguía a 1,00; la escalera medía las obras dos puntos más abajo y ninguna
     cumplía. La consigna de la red externa es un dato de operación y pasa como los demás."""
     assert 'usetp' in casos_pf.OPERACION['ElmXnet']
     app = _App()
-    fuente = _Obj('External Grid SM218')
+    fuente = _Obj('External Grid SM298')
     R = 'P/Red/'
     fotos = {'base': {R + 'XN': (fuente, {'usetp': 1.0})}, 'sin': {R + 'XN': (fuente, {'usetp': 1.02})},
              'con': {R + 'XN': (fuente, {'usetp': 1.0})}}
@@ -627,7 +627,7 @@ def test_la_consigna_de_la_fuente_pasa_a_con_proyecto(monkeypatch):
     monkeypatch.setattr(casos_pf, 'operador_a_con_proyecto', lambda a, c: [])
     out = casos_pf.sin_a_con_proyecto(app, app.casos)
     assert fuente.escrito == {'usetp': 1.02}
-    assert out['copiados'] == [{'objeto': 'External Grid SM218', 'dato': 'usetp', 'antes': 1.0, 'ahora': 1.02}]
+    assert out['copiados'] == [{'objeto': 'External Grid SM298', 'dato': 'usetp', 'antes': 1.0, 'ahora': 1.02}]
 
 
 
@@ -680,7 +680,7 @@ def _faltan_una_vez(monkeypatch, faltan):
 
 
 def test_con_proyecto_sin_obras_se_renueva_desde_la_recalibracion(monkeypatch):
-    """037:RF-8 — SM218 (2026-11-01): «Con proyecto» sin obras al que le faltan los bancos de la
+    """037:RF-8 — SM298 (2026-11-01): «Con proyecto» sin obras al que le faltan los bancos de la
     recalibración se renueva como copia de «Sin proyecto»; el anterior queda renombrado, sin
     la marca, y la carga nueva sigue activa en el nuevo."""
     app, plan, v = _escenario_red(random.Random(81), escenario=True)
@@ -754,7 +754,7 @@ def test_cada_caso_deja_el_grafico_de_perfil_de_sus_alimentadores(semilla):
 
 def test_la_transferencia_deshecha_en_con_proyecto_no_se_vuelve_a_copiar(monkeypatch):
     """098:RF-48 — los elementos de la transferencia del operador que la escalera deshizo en «Con proyecto» no se copian
-    otra vez desde «Sin proyecto» al aplicar una obra; lo demás del operador, sí. CA101 + CHN102 (2026-11-07)."""
+    otra vez desde «Sin proyecto» al aplicar una obra; lo demás del operador, sí. CA191 + CHN192 (2026-11-07)."""
     app = _App()
     enlace, otro = _Obj('Breaker/Switch(1)'), _Obj('SW_1')
     R = 'P/Red/'

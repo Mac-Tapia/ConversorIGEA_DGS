@@ -50,13 +50,13 @@ Estado: pedida por el usuario el 2026-10-29. Plan: [plan.md](plan.md).
       `cuadrar_conjunto`, `Reparto.al_perfil` y `factor_q_maximo`; `factor_potencia_minimo_escaladas`
       en el plan; `coherente` y `extremo` en `cuadre_q`; la comparación de 039 dice la Q alcanzable
       con cada criterio. Retira `SIN_MARGEN`.
-- [x] T6. [DIgSILENT] SM218 desde la web: tabla en el instante de la máxima, fijas con la P y la Q
+- [x] T6. [DIgSILENT] SM298 desde la web: tabla en el instante de la máxima, fijas con la P y la Q
       de la tabla a escala 1, escaladas cuadrando P y Q con sus siete bancos, unidades MW/Mvar.
-      Hecho cuando: el informe de la calibración de SM218 dice criterio kW y kvar, Q de cabecera
+      Hecho cuando: el informe de la calibración de SM298 dice criterio kW y kvar, Q de cabecera
       dentro de la tolerancia (o los kvar que faltan, RF-8) y la validación nativa correcta.
-      Hecho el 2026-10-31: SM218, recalibración n.º 13 (2026-09, coincidente): kW y kvar, Q de
+      Hecho el 2026-10-31: SM298, recalibración n.º 13 (2026-09, coincidente): kW y kvar, Q de
       cabecera 2 519,6 frente a 2 506 medidos (+0,5 %, coherente) con las escaladas a FP 0,985,
-      validación nativa VALIDO. NA203: medida no coherente (2 453,6 kvar a FP 1 frente a 1 777),
+      validación nativa VALIDO. NA293: medida no coherente (2 453,6 kvar a FP 1 frente a 1 777),
       Q real de DIgSILENT a FP 0,98 y dicho (RF-28 a RF-30).
 - [x] T12. MEJ10-FIJAS (orden del usuario del 20-11): `derivacion_cliente` con P = 0 en el registro del instante. (RF-32)
       Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera.py -k rf32`; la corrida en DIgSILENT la decide d8.

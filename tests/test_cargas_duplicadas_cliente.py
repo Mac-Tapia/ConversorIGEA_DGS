@@ -1,6 +1,6 @@
 """Spec 099: el mismo cliente dos veces en el libro de cargas nuevas, por su nombre.
 
-Caso real (CA101, 2026-11-07): «SU-1770KW-Tierra Larga - Distrito el Camen- Provincia de chincha» (CH_20) y
+Caso real (CA191, 2026-11-07): «SU-1770KW-Tierra Larga - Distrito el Camen- Provincia de chincha» (CH_20) y
 «SU-1390KW-TierraLarga-Chincha» (CH_23), a 2,6 km una de otra, se creaban las dos; cuenta CH_23, la última.
 """
 from __future__ import annotations
@@ -64,7 +64,7 @@ def test_sin_nombres_fijos_en_el_codigo():
         docstring = ast.get_docstring(fn, clean=False)
         literales += [n.value for n in ast.walk(fn) if isinstance(n, ast.Constant) and isinstance(n.value, str)
                       and n.value != docstring]
-    for nombre in ('CA101', 'CH_2', 'TierraLarga', 'YANACA', 'Dunas'):
+    for nombre in ('CA191', 'CH_2', 'TierraLarga', 'YANACA', 'Dunas'):
         assert not any(nombre.lower() in x.lower() for x in literales)
 
 

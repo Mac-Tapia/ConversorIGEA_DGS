@@ -1,4 +1,4 @@
-"""Generador de exports CYMDIST sintéticos, parametrizable (movido de ``tests/synthetic_export.py``, 112 T13).
+"""Generador de TXT sintéticos, parametrizable (movido de ``tests/synthetic_export.py``, 112 T13).
 
 Existe por dos motivos:
 
@@ -25,7 +25,7 @@ import random
 from dataclasses import dataclass
 from pathlib import Path
 
-# Mismas columnas que un export CYMDIST real (el motor solo usa algunas).
+# Mismas columnas que un TXT real (el motor solo usa algunas).
 FMT_HEADNODES = 'NodeID,NetworkID'
 FMT_NODE = (
     'NodeID,CoordX,CoordY,TagText,TagProperties,TagDeltaX,TagDeltaY,TagAngle,'
@@ -46,7 +46,7 @@ FMT_CUSTOMERLOADS = (
     'LockDuringLoadAllocation,Year,LoadModelID,NormalPriority,EmergencyPriority,'
     'ValueType,Phase,Value1,Value2,ConnectedKVA,KWH,NumberOfCustomer,CenterTapPercent'
 )
-# --- La otra disposicion que exporta CYMDIST -------------------------------------
+# --- La otra disposicion de los TXT -------------------------------------
 # El mismo contenido, dicho de otra forma. Se vio en la entrega de la distribuidora: un
 # export de 21 MB que declara la tension de fuente entre fase y neutro, parte el
 # conductor de cada tramo en dos tablas de ajuste, pone FORMAT_SECTION *antes* del

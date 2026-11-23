@@ -81,7 +81,7 @@ TENSION_CAIDA = 0.5
 #: Elementos sobrecargados que se listan en el diagnóstico, de más a menos cargado.
 MAX_SOBRECARGAS = 20
 #: Lo que una carga consume en el flujo frente a lo escrito (015:RF-49): con cargas PQ
-#: DIgSILENT da lo escrito a 1e-12; CA101 (2026-10-15) consumía el 73 % por u².
+#: DIgSILENT da lo escrito a 1e-12; CA191 (2026-10-15) consumía el 73 % por u².
 CONSUMO_REL = 1e-3
 CONSUMO_ABS = 0.01
 #: Margen del factor de potencia de las escaladas frente al pedido (015:RF-67).
@@ -100,7 +100,7 @@ def kva_en_pf(carga) -> float | None:
     En los DGS del conversor la carga de la SED cuelga de la barra de baja de su
     transformador; con varios transformadores en paralelo en la misma barra, la SED
     tiene la suma. Un ``ElmTr2`` con ``ntnum`` unidades en paralelo cuenta ``ntnum``
-    veces su tipo: en PA217 (2026-10-16) SE30940 quedó con 8 × 630 kVA de la NTP
+    veces su tipo: en PA297 (2026-10-16) SE30940 quedó con 8 × 630 kVA de la NTP
     370.400 y, sin ``ntnum``, se veía con 630 kVA al 606 %.
     """
     try:
@@ -135,8 +135,8 @@ def _clave_objeto_nativo(obj):
 def cargas_sed(alims: Alimentadores, feeder: str, *, audit: dict | None = None) -> tuple[dict, list[dict]]:
     """Carga de cada SED, uniendo topología y la etiqueta nativa del alimentador.
 
-    En CA101, ``ElmFeeder.GetObjs('ElmLod')`` devolvía 95 cargas aunque el proyecto tenía
-    168 ``ElmLod`` con ``p:alimentador=CA101``. La topología sigue admitiendo proyectos
+    En CA191, ``ElmFeeder.GetObjs('ElmLod')`` devolvía 95 cargas aunque el proyecto tenía
+    168 ``ElmLod`` con ``p:alimentador=CA191``. La topología sigue admitiendo proyectos
     antiguos sin esa columna, pero una etiqueta no vacía y contradictoria excluye el objeto.
     """
     from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
@@ -486,7 +486,7 @@ def cambios_manuales(cargas: dict, ultima: dict | None, escrito: dict | None = N
         return [], None
     nombre = ultima.get('nombre') or 'la última calibración'
     # Con la P y la Q escritas guardadas, se compara con ellas: el operador cambia lo escrito,
-    # y el factor de escala de las escaladas lo mueve el propio conversor (SM218, 2026-10-28:
+    # y el factor de escala de las escaladas lo mueve el propio conversor (SM298, 2026-10-28:
     # scale0 de 0,10214 a 0,10305 entre dos calibraciones y 257 cargas «a mano», que tapaban
     # a los clientes importantes). Un registro antiguo, sin ellas, sigue con lo que consume.
     escritas = ultima.get('escrita') or {}
@@ -517,8 +517,8 @@ def _centrales_apagadas(app):
     Su etapa sigue grabando aunque se desactive y se vuelva a activar (sonda del
     2026-10-17): una marca fija o escalable escrita con ella activa queda dentro de la
     variación y la pisa cada vez que se activa. En el sistema Nasca (2026-10-18), la
-    restauración de una pasada no válida dejó 167 cargas en «Central_NA205» y las fijas de
-    NA203 salían escalables en la validación.
+    restauración de una pasada no válida dejó 167 cargas en «Central_NA295» y las fijas de
+    NA293 salían escalables en la validación.
     """
     # Spec 032: las de los conductores con su ficha y de los transformadores de SED también
     # son del conversor y graban; la marca escrita con ellas activas caería en su etapa.
@@ -566,11 +566,11 @@ def _devolver_cargas_nuevas(app, estado: dict) -> None:
 def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
     """Bancos de condensadores del alimentador en el proyecto, tal como están (015:RF-60).
 
-    Los del propio proyecto y nada más: en CA101 el operador los instaló a mano en barras
+    Los del propio proyecto y nada más: en CA191 el operador los instaló a mano en barras
     nuevas («Terminal», partiendo un tramo) y el usuario pidió, el 2026-10-15, no tomar nada
     de otro proyecto ni de otro alimentador. Se toman los del ``ElmFeeder``, los etiquetados
     con el alimentador y, si el proyecto solo tiene este alimentador, todos los del cálculo,
-    porque en CA101 el ``ElmFeeder`` no alcanzaba las barras de los bancos.
+    porque en CA191 el ``ElmFeeder`` no alcanzaba las barras de los bancos.
     """
     filas = []
     for o in _objetos_banco(alims, feeder):
@@ -597,7 +597,7 @@ def bancos_instalados(alims: Alimentadores, feeder: str) -> list[dict]:
 def bancos_en_servicio(alims: Alimentadores, feeder: str) -> list[str]:
     """Los bancos del alimentador que entregan reactiva: con ellos se cuadra la Q (035:RF-5).
 
-    SM218 (2026-10-29) tiene siete de 450 kvar en servicio; con la Q solo informada, la de
+    SM298 (2026-10-29) tiene siete de 450 kvar en servicio; con la Q solo informada, la de
     cabecera quedaba donde la dejaran las escaladas a FP 0,98.
     """
     return sorted(o.loc_name for o in _objetos_banco(alims, feeder)
@@ -882,10 +882,10 @@ def consigna_por_fuente(tensiones: dict[str, dict], cabeceras: dict[str, str | N
 def fijar_consigna_de_la_fuente(app, pu, casos: list) -> list[dict]:
     """La tensión en la fuente, en cada red externa (021:RF-61, RF-79 a RF-83).
 
-    NA203 y NA205, de 22,9 kV (2026-10-17), no convergían con su carga fija: 0,906 pu en
+    NA293 y NA295, de 22,9 kV (2026-10-17), no convergían con su carga fija: 0,906 pu en
     SE50290 con la fuente a 1,0 pu; el usuario: «puede enviar desde la fuente con 1,05 pu».
     ``pu``: la misma para todas, o una función ``ElmXnet → (pu, origen)`` (``consigna_por_fuente``)
-    con la de cada fuente: la medida de PA217 en Pisco, 23,536 kV a las 2026-03-03 10:00, son
+    con la de cada fuente: la medida de PA297 en Pisco, 23,536 kV a las 2026-03-03 10:00, son
     1,0278 pu a 22,9 kV (2026-11-12).
     Es dato de operación: va al escenario de cada caso (``casos``, el primero el que se
     calibra) y se guarda. Deja activo el primero y devuelve lo que cambió en él.
@@ -917,7 +917,7 @@ def fijar_consigna_de_la_fuente(app, pu, casos: list) -> list[dict]:
 def cambios_en_la_red(informe: dict) -> list[dict]:
     """Cada elemento de la red que cambió la calibración, con lo original y lo nuevo (020:RF-60, RF-61).
 
-    El usuario, el 2026-10-17, tras los 6 transformadores de NA203: «todos los cambios que
+    El usuario, el 2026-10-17, tras los 6 transformadores de NA293: «todos los cambios que
     se hacen se deben reportar como original existente con su potencia instalada y el
     valor de potencia cambiada con sus respectivos códigos SED». Un transformador, como
     unidades × kVA y su total; un banco, como escalones conectados × kvar por escalón.
@@ -987,7 +987,7 @@ def _objetos_banco(alims: Alimentadores, feeder: str) -> list:
 def fijas_sobre_su_transformador(fijas: dict, kva: dict, kva_grupo: dict | None = None) -> list[dict]:
     """Fijas cuya demanda supera la potencia instalada de su SED (015:RF-59).
 
-    En CA101 (2026-10-15) un cliente pedía 248 kW en SE20859, de 50 kVA (496 %), y otro
+    En CA191 (2026-10-15) un cliente pedía 248 kW en SE20859, de 50 kVA (496 %), y otro
     201 kW en SE21082, de 100 kVA: o el cruce los lleva a otra SED o el
     transformador está mal. No se puede saber cuál; se nombra y se sigue calibrando.
 
@@ -1182,7 +1182,7 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict],
     """Los transformadores nuevos de las SED marcadas, en «Sin proyecto» (020:RF-18 a RF-24).
 
     Se llama con «Sin proyecto» activo y antes de leer los kVA de la calibración, que así
-    ya ve los nuevos. En PA217 (2026-10-16) se hizo a mano (015, T26): tipo propio copiado
+    ya ve los nuevos. En PA297 (2026-10-16) se hizo a mano (015, T26): tipo propio copiado
     del actual (tensiones, grupo, secuencia cero) con la ficha de la NTP, y ``ntnum``
     unidades en paralelo; ningún tipo existente se toca, porque lo comparten otras SED.
 
@@ -1191,8 +1191,8 @@ def implementar_transformadores(app, cargas: dict, cambios: list[dict],
     """
     # La variación de una central (021:RF-37) es del conversor y está activa en «Sin
     # proyecto»: se apaga mientras se escriben y se vuelve a encender, como al marcar las
-    # cargas fijas o escalables. En NA203 + NA205 (2026-10-17) la de NA205 bloqueaba los
-    # transformadores de NA203.
+    # cargas fijas o escalables. En NA293 + NA295 (2026-10-17) la de NA295 bloqueaba los
+    # transformadores de NA293.
     activas = list(app.GetActiveNetworkVariations() or [])
     centrales = [v for v in activas if v.loc_name.startswith(PREFIJO_CENTRAL)]
     # 032:RF-12: la etapa del operador que graba (sus tramos y ternas a mano) no detiene nada:
@@ -1248,7 +1248,7 @@ def _implementar_transformadores(app, cargas: dict, cambios: list[dict], proyect
         if (nuevo is not None and actual is nuevo
                 and max(1, int(_num(tr, 'ntnum') or 1)) == int(p['unidades'])):
             # 020:RF-24: al recalibrar se vuelven a mandar los ya marcados; si la SED ya los tiene no es un
-            # cambio. Pisco y PE102 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA».
+            # cambio. Pisco y PE192 (2026-11-06): el aviso decía «4 × 630 kVA → 4 × 630 kVA».
             sin_cambio.append({'sed': sed, 'transformador': tr.loc_name, 'tipo': nombre,
                                'kva': p['kva'], 'unidades': int(p['unidades'])})
             continue
@@ -1286,7 +1286,7 @@ def resultado_transformadores(cambiados: list[dict], sobre: list[dict], fijas: d
                               caso: str = NOMBRES['sin']) -> dict:
     """Lo que dejan los transformadores nuevos en la recalibración (020:RF-26, RF-32).
 
-    La sobrecarga era lo que no dejaba converger ni validar (PA217, 2026-10-16: válida a
+    La sobrecarga era lo que no dejaba converger ni validar (PA297, 2026-10-16: válida a
     −0,34 % tras el cambio). Si aun así la calibración no sale, ya no es la causa, y se dice
     qué sigue fallando en vez de repetir el aviso de la sobrecarga.
     """
@@ -1403,7 +1403,7 @@ def escribir_reparto(cargas: dict, rep, omitir=frozenset()) -> list[dict]:
                 if not all(_cerca(a, b) for a, b in zip(potencia(obj), (bp, bq))):
                     escribir_carga(obj, bp / 1000.0, bq / 1000.0)
                 obj.scale0 = rep.a
-                # 014:RF-4: la base también en el escenario de este caso (CA101: «Con
+                # 014:RF-4: la base también en el escenario de este caso (CA191: «Con
                 # proyecto» se quedaba con la del archivo, ver ``potencia``).
                 escrita = potencia(obj)
                 error = (f'scale0={factor_de_escala(obj)}, esperado {rep.a}'
@@ -1508,7 +1508,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
 
     015:RF-47 a RF-52: lo escrito no basta. Tras un flujo convergente cada fija tiene que
     consumir su P y su Q, y cada escalada su P por el factor de escala; si no, no es
-    válida. En CA101 (2026-10-15) la relectura de lo escrito daba «válido» mientras las
+    válida. En CA191 (2026-10-15) la relectura de lo escrito daba «válido» mientras las
     fijas consumían el 73 % por la adaptación automática del modelo del ``ComLdf``.
     """
     apagar = apagar or {}
@@ -1669,7 +1669,7 @@ def validar_cargas_nativas(cargas: dict, reparto, medida, objetivo, tolerancia: 
     if total_p is None:
         # Algunos modelos/dobles no publican resultados por ElmLod aunque el ComLdf si
         # publique la cabecera. En ese caso se conserva la comprobacion historica sobre
-        # las entradas; cuando los resultados existen, como en CA101, siempre prevalecen.
+        # las entradas; cuando los resultados existen, como en CA191, siempre prevalecen.
         total_p = sum(potencia_efectiva(obj)[0] for obj in cargas.values())
         total_q = sum(potencia_efectiva(obj)[1] for obj in cargas.values())
         consumo_origen = 'ENTRADAS_CARGAS_NATIVAS'
@@ -1811,7 +1811,7 @@ def barra_de_la_central(app, elm, nodo: str):
     El ``ElmFeeder`` da sus objetos según la última topología calculada: se corre un
     flujo antes de leer la red. Devuelve ``(barra, subárbol, aviso)`` o lanza
     ``ValueError`` con el nodo y el alimentador. Fuera del camino más largo (la troncal)
-    no se rechaza: en el NA205 del TXT (sistema Nasca, 2026-10-18) ese camino va por otra
+    no se rechaza: en el NA295 del TXT (sistema Nasca, 2026-10-18) ese camino va por otra
     rama, a 37 km, y la central 1720 queda en serie en la suya, a 15 km; las zonas solo
     piden lo de aguas abajo de su barra, que es lo que miden su llegada y su salida.
     """
@@ -1935,7 +1935,7 @@ def marcar_variacion_del_conversor(variacion, prefijo: str) -> None:
 def nombre_de_la_propia(app, prefijo: str, proyecto: str, avisos: list | None = None) -> str:
     """El nombre de la variación del conversor con ese prefijo: la del proyecto, o la que ya trae (086:RF-87).
 
-    Copia PRUEBA064_184942 de PA217 (2026-11-12): la copia trae ``Fichas_<original>`` y la calibración, que buscaba
+    Copia PRUEBA064_184942 de PA297 (2026-11-12): la copia trae ``Fichas_<original>`` y la calibración, que buscaba
     ``Fichas_PRUEBA064_184942``, creaba otra al lado; la restitución de la 064 no la deshacía en «Con proyecto».
     Se reconoce por su marca del conversor (la de los casos, en ``desc``) y, en las creadas antes de la marca, por la
     etapa que crea el conversor; nunca solo por el prefijo, porque una ``Fichas_prueba`` hecha a mano por el operador
@@ -2088,7 +2088,7 @@ def variacion_grabando(app, nombre: str, etiqueta: str):
     """La variación ``nombre`` activa y con su etapa grabando; se crea si no existe (032:RF-8, RF-13).
 
     Reutilizarla y no crear otra en cada calibración es lo que evita duplicar los cambios.
-    Con otras etapas activas de la misma fecha DIgSILENT puede no dejarla grabar (SI213,
+    Con otras etapas activas de la misma fecha DIgSILENT puede no dejarla grabar (SI293,
     2026-10-12): se apartan las demás, se activa la etapa y se reactivan, como
     ``cargas_pf.crear_variacion``. Si aun así no graba, error: escribir sin etapa iría a la
     red que comparte el «Caso base».
@@ -2232,7 +2232,7 @@ def poner_fichas(app, proyecto: str, lineas, fichas: dict) -> dict:
 def _grabar_en_la_ultima_del_conversor(app) -> None:
     """083:RF-29: la grabación, en la última etapa del conversor, para que se apliquen todas.
 
-    Con una etapa grabando, DIgSILENT trabaja a su fecha y no aplica las posteriores. CA101 + CHN102 (2026-11-05,
+    Con una etapa grabando, DIgSILENT trabaja a su fecha y no aplica las posteriores. CA191 + CHN192 (2026-11-05,
     medido con una sonda): con «Etapa_fichas» grabando, TR_SE20701 era de 50 kVA; con «Etapa_sed_ntp», de 2 × 630. La
     recalibración dejaba grabando las fichas, medía sin los transformadores nuevos y las fijas caían a 0,52 p.u.
     """
@@ -2309,8 +2309,8 @@ def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float)
 
     Va en su variación ``Central_<alimentador>``, activa en «Sin proyecto» (y en «Con
     proyecto», que es su copia, 014), nunca en el «Caso base» (RF-37). Si ya está, solo se
-    le escriben la P y la Q, en el escenario. Sonda del 2026-10-17 en una copia de NA203 +
-    NA205: un ``ElmGenstat`` con ``av_mode='constq'`` inyecta lo escrito (5,0 MW y −0,4
+    le escriben la P y la Q, en el escenario. Sonda del 2026-10-17 en una copia de NA293 +
+    NA295: un ``ElmGenstat`` con ``av_mode='constq'`` inyecta lo escrito (5,0 MW y −0,4
     Mvar), y la etapa que lo crea sigue grabando aunque se desactive y active la
     variación: por eso el ajuste escribe antes la marca fija o escalable (red) y después
     crea la central.
@@ -2321,7 +2321,7 @@ def central_en_sin_proyecto(app, barra, feeder: str, p_kw: float, q_kvar: float)
     variacion = variacion_de_la_central(app, feeder)
     propio = generador_del_operador(app, barra)
     if propio is not None:
-        # 028:RF-13: el usuario pone a mano la central de NA205 (2026-10-28); otra del conversor
+        # 028:RF-13: el usuario pone a mano la central de NA295 (2026-10-28); otra del conversor
         # en la misma barra inyectaría dos veces. Se usa la suya con lo medido en el instante.
         if variacion is not None and variacion.loc_name in {
                 v.loc_name for v in (app.GetActiveNetworkVariations() or [])}:
@@ -2384,7 +2384,7 @@ def _mensajes_del_flujo(app, tope: int = 8) -> str:
 def _limpiar_etapa_de_la_central(variacion, generador: str) -> int:
     """Deja en la etapa de la central solo su generador y su cubículo (021:RF-37, 015:RF-37).
 
-    Lo demás que haya grabado (las 167 cargas de «Central_NA205» del sistema Nasca,
+    Lo demás que haya grabado (las 167 cargas de «Central_NA295» del sistema Nasca,
     2026-10-18) no es de la central y pisaba la marca fija o escalable de la red.
     """
     if variacion is None:
@@ -2671,7 +2671,7 @@ def _ejecutar_con_central(app, plan: dict, informe: dict, *, alims, elm, feeder:
 def _factor_minimo_sin_converger(historial, clave: str | None = None) -> float | None:
     """El menor factor de las escaladas con el que el flujo no convergió antes del primero
     que sí, o ``None`` si convergió sin remedios. En el ajuste de un proyecto el historial
-    lleva un factor por alimentador (021:RF-55): ``clave`` dice cuál; NA203 + NA205
+    lleva un factor por alimentador (021:RF-55): ``clave`` dice cuál; NA293 + NA295
     (2026-10-17) acabó en un ``TypeError`` comparando los diccionarios."""
     menor = None
     for paso in historial or []:
@@ -2690,7 +2690,7 @@ def aviso_consumo_fisico(validacion: dict, historial=None, sobre=None,
     """El aviso de 015:RF-49 a RF-51 para el operador, o ``None`` si todas consumen bien.
 
     Con el ``historial`` del cuadre y las fijas ``sobre`` su transformador (RF-59) dice
-    además por qué hizo falta el ajuste del flujo. En PA217 (2026-10-16) el aviso culpaba a
+    además por qué hizo falta el ajuste del flujo. En PA297 (2026-10-16) el aviso culpaba a
     ``iopt_lev`` y no al modelo: sin él no convergía ni con las escaladas al 0,5 % de su
     kVA, porque SE30940 recibía los 3800 kW de su cliente sobre un transformador de
     400 kVA (955 %); lo que hay que corregir en DIgSILENT es ese transformador o el cruce.
@@ -2893,7 +2893,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     fp_cargas = plan.get('factor_potencia_cargas')
     fp_min_fijas = plan.get('factor_potencia_minimo_fijas')
     informe['factor_potencia_cargas'] = {
-        # 091:RF-28: SE20066 (TM102) quedó en FP 0,15 con su registro, y el texto decía «a 0,98» (004:RF-66).
+        # 091:RF-28: SE20066 (TM192) quedó en FP 0,15 con su registro, y el texto decía «a 0,98» (004:RF-66).
         'fijas': ('su registro del instante de la máxima, con su FP; sin registro, el cociente EA/ERI del mes'
                   + (f', llevado a {fp_min_fijas:.2f} por su banco propio si baja de ese mínimo' if fp_min_fijas else '')),
         'escaladas': fp_cargas or Objetivo(**plan['objetivo']).fp,
@@ -3031,7 +3031,7 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                 for x in sobre))
     if plan.get('central'):
         # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45). Las fijas
-        # sobre su transformador se miran antes, también con central: en NA205 (2026-10-17)
+        # sobre su transformador se miran antes, también con central: en NA295 (2026-10-17)
         # SE50293 pedía 1 392 kW en 125 kVA, el flujo no convergía y no se avisaba (020:RF-1).
         return {**comun, 'central': True, 'fijas': fijas, 'sobre': sobre}
     try:
@@ -3139,7 +3139,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     if tension and not simular:
         # 063:RF-29: también el «Caso base» (usuario, 2026-11-01: «en caso base, caso con cargas y
         # caso con proyecto, fuente a 1,02 p.u.»). 086:RF-88: también «Cargas nuevas», que desde la 025:RF-79 solo se
-        # rehace al insertar una carga: PA217 (2026-11-12) se quedó a 1,025 p.u. con la fuente ya en 1,0278.
+        # rehace al insertar una carga: PA297 (2026-11-12) se quedó a 1,025 p.u. con la fuente ya en 1,0278.
         consigna = consigna_por_fuente({feeder: tension}, {feeder: _clave_de_cabecera(elm)})
         informe['consigna_fuente'] = fijar_consigna_de_la_fuente(
             app, consigna, [sin, con, caso_del_sistema(app, 'base', anio), caso_cargas_nuevas(app, anio)])
@@ -3222,7 +3222,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     if validacion_previa['correcta'] and reparto_nativo is not None:
         fotos = _foto_cargas_nativas(cargas)
         # Las pérdidas salen del mismo consumo efectivo con que se validó, no de
-        # ``reparto_nativo.totales()`` (la ``plini`` escrita): en CA101 reabierto, con
+        # ``reparto_nativo.totales()`` (la ``plini`` escrita): en CA191 reabierto, con
         # NO_REDISTRIBUIR, el informe daba -846 kW de pérdidas mientras el flujo aplicado
         # sobre el mismo estado daba +499,8 kW.
         efectivo = validacion_previa.get('consumo_cargas_efectivo') or {}
@@ -3264,7 +3264,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             },
         )
         # 014:RF-4: aunque «Sin proyecto» ya esté calibrado, «Con proyecto» tiene que tener
-        # la misma demanda; en CA101 (2026-10-15) consumía 3861 kW frente a 5264.
+        # la misma demanda; en CA191 (2026-10-15) consumía 3861 kW frente a 5264.
         if con is not None:
             informe['con_proyecto'] = sincronizar_con_proyecto(
                 app, con, sin, cargas, reparto_nativo,
@@ -3378,7 +3378,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
             cabecera=({'kw': res.medida.kw, 'kvar': res.medida.kvar}
                       if res.medida is not None and res.medida.converge else None),
             # «desvio» y no «error»: la web toma «error» por un fallo y mostraba un ajuste
-            # que sí cuadró (SI213, −0,14 % y −0,41 %) como error con este diccionario.
+            # que sí cuadró (SI293, −0,14 % y −0,41 %) como error con este diccionario.
             perdidas={'kw': p_kw, 'kvar': p_kvar}, desvio={'kw': e_kw, 'kvar': e_kvar},
             consumo_cargas_efectivo=(
                 {'kw': res.medida.carga_kw, 'kvar': res.medida.carga_kvar}
@@ -3461,7 +3461,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                     'detalle': fallo,
                 } for fallo in validacion_posterior['fallos'])
                 # 015:RF-69: no se revierte: volver a como estaban dejaba las escaladas con la
-                # demanda del archivo, cero (SL144 + SM117, 2026-10-28). El reparto que cuadró
+                # demanda del archivo, cero (SL194 + SM197, 2026-10-28). El reparto que cuadró
                 # se queda grabado y la calibración, dicha no válida.
                 informe['calibracion_sin_validar'] = True
                 informe['avisos'].append(
@@ -3529,7 +3529,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         guardar_lo_escrito(plan['project'], {feeder: {s: o for s, o in cargas.items() if s not in con_manual}})  # 083:RF-27
         cerrar_diario(plan['project'], [feeder])                                                             # 083:RF-35
         # 015:RF-46: en «Sin proyecto», caso del sistema, los ajustes del flujo que hicieron
-        # falta se quedan para que el caso siga convergiendo (CA101 desde cero, 2026-10-14:
+        # falta se quedan para que el caso siga convergiendo (CA191 desde cero, 2026-10-14:
         # cuadró con «adaptación automática del modelo» y, restituida, no convergía). Si no
         # cuadró o se revirtió, se restituyen, como en el caso del operador (006:RF-16).
         if (sin is not None and remedios.originales
@@ -3556,10 +3556,10 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
                       cancelado=lambda: False) -> list[tuple[dict, int]]:
     """El ajuste de los alimentadores de un proyecto, todos a la vez (021:RF-54 a RF-60).
 
-    El usuario, el 2026-10-17, al ir a aplicar NA203 y después NA205: «la calibración se
+    El usuario, el 2026-10-17, al ir a aplicar NA293 y después NA295: «la calibración se
     debe hacer por proyecto en DIgSILENT; si es un alimentador se hace de ese y dos o más
     se hacen de todas según el proyecto, no de forma independiente». Comparten la red
-    (la SET, la central de NA205, los enlaces): cuadrar uno y después otro deja al primero
+    (la SET, la central de NA295, los enlaces): cuadrar uno y después otro deja al primero
     con lo que movió el segundo. Con un plan, o al simular (no hay flujos), cada uno como
     siempre (RF-60). Devuelve un ``(informe, código)`` por plan, en su orden.
     """
@@ -3733,7 +3733,7 @@ def poner_bancos(app, alims, sin, base, con, pedidos: dict[str, tuple[int, float
     avisos = [] if avisos is None else avisos
     sin.Activate()
     # Spec 032: también las de los conductores con su ficha y los transformadores de SED, que
-    # son del conversor y graban (CA101 desde cero, 2026-10-28: con «Fichas_» activa se
+    # son del conversor y graban (CA191 desde cero, 2026-10-28: con «Fichas_» activa se
     # negaba). Y las del operador (032:RF-29): sus tramos y ternas a mano dejaban la
     # calibración entera en «tiene variaciones activas o una etapa grabando». Se apartan solo
     # mientras se crean los bancos y vuelven activas, con su etapa grabando.
@@ -3805,7 +3805,7 @@ def trasladar_transformadores_de_la_primera(primera: dict, segunda: dict) -> Non
     """101:RF-14: los transformadores que puso la primera pasada (083:RF-31) quedan en el informe que vale.
 
     La primera pasada mide y no se guarda; los cambia en «Sin proyecto», y la segunda ya ve los nuevos y no tiene nada
-    que anotar. CA101 + CHN102 de prueba (2026-11-10): SE20701 quedó con 3 × 630 kVA en «SED_NTP_» y ningún informe lo
+    que anotar. CA191 + CHN192 de prueba (2026-11-10): SE20701 quedó con 3 × 630 kVA en «SED_NTP_» y ningún informe lo
     decía; el día anterior, en el proyecto del operador, no se supo quién los había cambiado.
     """
     hecho = primera.get('transformadores_implementados') or {}
@@ -3827,7 +3827,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
     primera = _ejecutar_proyecto(app, planes, cancelado=cancelado, estado=estado, solo_medir=True)
     # 014:RF-10: los cambios a mano son los que vio la primera pasada. Ella escribe el reparto
     # sin guardarlo, y la segunda, al comparar con la calibración anterior, tomaba lo escrito
-    # por la primera como cambios a mano: en SM218 (2026-10-28), 257 escaladas y las 15 fijas
+    # por la primera como cambios a mano: en SM298 (2026-10-28), 257 escaladas y las 15 fijas
     # de los clientes importantes, todas «a mano», y el scale0 de 0,10214 a 0,10305.
     for plan, (inf, _rc) in zip(planes, primera):
         plan['manuales_de_la_primera'] = [m['sed'] for m in inf.get('cargas_manuales') or []]
@@ -3852,7 +3852,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         if inf.get('remedios'):
             # RF-70: con remedios del flujo (cargas como impedancia) el kVAR de la red no es
             # el de lo escrito: Chincha (2026-10-18) puso 36 bancos sin converger. La Q que
-            # se escribió a las cargas sí lo es, y sin bancos CA101 no converge nunca.
+            # se escribió a las cargas sí lo es, y sin bancos CA191 no converge nunca.
             q_escrita = _q_escrita(inf)
             if q_escrita is None or plan.get('central'):
                 avisos.append(f'{f}: la primera pasada necesitó remedios del flujo y no hay Q '
@@ -3860,7 +3860,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
                 continue
         elif not _cuadro_en_kw(inf, plan):
             # Solo con el kW del alimentador en su objetivo el kVAR de la red dice lo que
-            # falta: en NA205 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.
+            # falta: en NA295 del TXT (2026-10-18) no cuadraba y puso 10 bancos sin sentido.
             avisos.append(f'{f}: no cuadró en kW en la primera pasada; no se calcula qué '
                           'bancos faltan.')
             continue
@@ -3871,7 +3871,7 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         ya = sorted({o.loc_name for o in [*_objetos_banco(alims, f), *por_nombre]
                      if origen_de(o.loc_name)['origen'] == 'conversor'})
         if ya:
-            # 028:RF-14: en Nasca (2026-10-28) se acumulaban entre corridas (8 en NA205); lo que
+            # 028:RF-14: en Nasca (2026-10-28) se acumulaban entre corridas (8 en NA295); lo que
             # ya hay lo cuenta el flujo y lo demás lo decide el operador.
             avisos.append(f"{f}: ya tiene {cuenta(len(ya), 'banco', 'bancos')} de la calibración ({', '.join(ya)}); "
                           'no se ponen más.')
@@ -4097,7 +4097,7 @@ def perfil_de_tension(app, alims, feeder: str, informe: dict, banda=None) -> Non
         raiz = snap.clave_pf(proyecto)
         g = snap.grafo(app, proyecto, raiz, [feeder])
         # El largo de cada tramo, como en obras_pf.datos_oraculo: el grafo del gemelo no lo trae y sin él toda la red
-        # quedaba a 0 km (AL209, 2026-11-06), sin distancias en el perfil ni ramales largos.
+        # quedaba a 0 km (AL299, 2026-11-06), sin distancias en el perfil ni ramales largos.
         largos = {snap._id(ln, raiz): float(getattr(ln, 'dline', 0.0) or 0.0) for ln in alims.objetos(feeder, 'ElmLne')}
         for r in g.get('ramas') or []:
             if r.get('id') in largos:
@@ -4384,8 +4384,8 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                           for f, p in preps.items()}, orden='calibración del proyecto')
     try:
         # La marca fija o escalable es dato de red (015:RF-37): se escribe con todas las
-        # variaciones de las centrales apagadas, para que la de NA203 no caiga en la etapa
-        # de la central de NA205, que sigue grabando.
+        # variaciones de las centrales apagadas, para que la de NA293 no caiga en la etapa
+        # de la central de NA295, que sigue grabando.
         # También las de las centrales de barra (022:RF-44), que no son de un alimentador.
         for v in list(app.GetActiveNetworkVariations() or []):
             if v.loc_name.startswith(PREFIJO_CENTRAL):
@@ -4417,7 +4417,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
 
         def flujo(reps):
             # Con la central activa, la carga escrita se grababa entera en su etapa, con la
-            # marca escalable de otra pasada: 14 fijas de NA203 en «Central_NA205» (sistema
+            # marca escalable de otra pasada: 14 fijas de NA293 en «Central_NA295» (sistema
             # Nasca, 2026-10-18). Se escribe con las centrales apagadas (015:RF-37).
             crono.marca('entre flujos')
             with _centrales_apagadas(app):
@@ -4525,7 +4525,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 if f not in invalidos:
                     inf['status'] = 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO'
                 # 015:RF-69: el reparto que cuadró se queda; volver atrás dejaba las escaladas
-                # en cero, con la demanda del archivo (SL144 + SM117, 2026-10-28).
+                # en cero, con la demanda del archivo (SL194 + SM197, 2026-10-28).
                 inf['calibracion_sin_validar'] = True
                 inf['avisos'].append('La calibración del proyecto no es válida por '
                                      + ', '.join(invalidos) + ', pero el reparto que cuadró queda '
@@ -4779,7 +4779,7 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                                          inf.get('fijas_sobre_su_transformador'), feeder)
             if aviso:
                 inf['avisos'].append(aviso)
-                # 081:RF-19: el motivo del fallo; vacío, el Registro decía «None» (CA101, 2026-11-09).
+                # 081:RF-19: el motivo del fallo; vacío, el Registro decía «None» (CA191, 2026-11-09).
                 inf['motivo'] = inf.get('motivo') or aviso
             inf['fallos'].extend({'sed': x.get('sed'), 'error': f"validación nativa: {x.get('tipo')}",
                                   'detalle': x} for x in validacion['fallos'])
@@ -4912,7 +4912,7 @@ def main(argv=None) -> int:
         resultados = ejecutar_proyecto(app, planes, simular=args.simular,
                                        cancelado=lambda: bool(flag and flag.exists()))
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
-        # «Ajustar SI213 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
+        # «Ajustar SI293 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
         # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
         traceback.print_exc()
         resultados = [(error_inesperado(plan, args.simular, exc), 1) for plan in planes]

@@ -156,8 +156,8 @@ def test_parallel_circuit_offsets_two_abc_same_span():
     assert offsets['C2'] == pytest.approx(2.0)
 
 
-def test_adaptive_scale_matches_na205_units_per_meter():
-    # Compact feeder → NA205 geographic scale, not density blow-up.
+def test_adaptive_scale_matches_na295_units_per_meter():
+    # Compact feeder → NA295 geographic scale, not density blow-up.
     meter_xy = {
         'A': (0.0, 0.0),
         'B': (100.0, 0.0),
@@ -170,7 +170,7 @@ def test_adaptive_scale_matches_na205_units_per_meter():
 def test_una_red_grande_conserva_la_escala_y_agranda_la_hoja():
     """Lo contrario de lo que se hacía antes, y el motivo del cambio.
 
-    La hoja de NA205 medía 55.000 unidades y se tomó como si fuera el lienzo máximo de
+    La hoja de NA295 medía 55.000 unidades y se tomó como si fuera el lienzo máximo de
     DIgSILENT. No lo es: es el tamaño que medía ese diagrama. Usarlo como tope obligaba
     a encoger la escala, y como los símbolos se miden en unidades de diagrama y no en
     metros, encoger la escala los agranda sobre el terreno.
@@ -305,7 +305,7 @@ def _toy_geography(model: FeederModel) -> GeographyManifest:
 def test_visible_pointterm_rules():
     model = _toy_model(with_sed=False)
     visible = visible_pointterm_nodes(model)
-    # Every drawn-line endpoint gets a PointTerm (NA205: lines are not loose).
+    # Every drawn-line endpoint gets a PointTerm (NA295: lines are not loose).
     assert 'A' in visible
     assert 'SRC' in visible
     assert 'D' in visible
@@ -346,10 +346,10 @@ def test_micro_stub_tip_hides_pointterm_and_d_lin():
     assert 'STUB' not in diagram_line_sections(model)
 
 
-def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
+def test_sed_load_nests_inside_triangle_like_na295(tmp_path: Path):
     """ElmSubstat interior: MT+BT buses, Tr2, load on BT. 021:RF-12, 021:RF-13 — la barra del
     alimentador es la barra de MT de la SED, dentro de ella y con su nombre, sin
-    acoplador ni punto aparte: la línea llega al triángulo, como en el NA205 de PF."""
+    acoplador ni punto aparte: la línea llega al triángulo, como en el NA295 de PF."""
     model = _toy_model(with_sed=True)
     geo = _toy_geography(model)
     out = tmp_path / 'toy_sed.dgs'
@@ -406,7 +406,7 @@ def test_sed_load_nests_inside_triangle_like_na205(tmp_path: Path):
 
 
 def test_ica_gps_bounds_enable_digsilent_map(tmp_path: Path):
-    """Toy Ica-zone GPS (same CRS path as NA205) lands on valid WGS84 for PF map."""
+    """Toy Ica-zone GPS (same CRS path as NA295) lands on valid WGS84 for PF map."""
     model = _toy_model(with_sed=True)
     geo = _toy_geography(model)
     out = tmp_path / 'ica_map.dgs'
@@ -417,7 +417,7 @@ def test_ica_gps_bounds_enable_digsilent_map(tmp_path: Path):
     for row in terms:
         lat = float(row['GPSlat'])
         lon = float(row['GPSlon'])
-        # Ica / Nazca coastal band used by NA205 reference
+        # Ica / Nazca coastal band used by NA295 reference
         assert -16.0 <= lat <= -13.0
         assert -77.0 <= lon <= -74.0
     subs = tables['ElmSubstat']['rows_dict']

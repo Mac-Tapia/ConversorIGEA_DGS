@@ -223,7 +223,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   }, [ws.id]);
   const inventario = (lastRead?.result ?? (guardado?.projects.length ? guardado : null)) as PfInventario | null;
   const projects = inventario?.projects ?? [];
-  // El proyecto se identifica por su ruta en la carpeta: dos SI213 en subcarpetas
+  // El proyecto se identifica por su ruta en la carpeta: dos SI293 en subcarpetas
   // distintas son dos proyectos (spec 005, RF-16).
   const ruta = (p: PfProject) => p.path ?? p.name;
   const current = projects.find((p) => ruta(p) === project) ?? null;
@@ -1141,7 +1141,7 @@ interface FichaExistente {
 /**
  * 004:RF-77: antes de conectar, las cargas nuevas (solas o del bloque) que ya están en DIgSILENT, con su nombre, su punto y
  * su potencia, y si se reutilizan o se reemplazan: nunca se conectan dos veces. Antes solo un aviso de texto lo decía
- * (SECA001 y SECA0001 en CA101, 2026-11-13).
+ * (SECA001 y SECA0001 en CA191, 2026-11-13).
  */
 function YaEnElProyecto({ fichas, simular }: { fichas: FichaExistente[]; simular: boolean }) {
   if (!fichas.length) return null;

@@ -65,8 +65,8 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 
 ### 2026-11-07 — T4 medida, abierta (rama `worktree-agent-a578852c96aa94605` sobre `7e81450c`)
 
-- Proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10` (CA101 + PE104), DIgSILENT 24.0.2. Obra: banco de 300 kvar en
-  la barra 14932 de CA101, en «Con proyecto», por `tools/aceptacion_nativa.py obras --guion-local` (el mismo `tools/obras_pf.py`
+- Proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10` (CA191 + PE194), DIgSILENT 24.0.2. Obra: banco de 300 kvar en
+  la barra 14932 de CA191, en «Con proyecto», por `tools/aceptacion_nativa.py obras --guion-local` (el mismo `tools/obras_pf.py`
   con el plan firmado por la web; detalle y arreglos de la fecha de «Con proyecto» en la T4 de la 044). Evidencia:
   `D:/converter/evidencia_nativa/20261107_PE10_t4c/` (manifiesto `e582c7c3a660f79b…`, fuera de git).
 - `CSG_EVIDENCIA_NATIVA=… pytest -q -rs tests/test_optimizacion_mixta_nativa.py`: 3 passed, 0 omitidas.
@@ -75,7 +75,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
   diferencia 0,0 p.u. y 0,0 kW; mismas huellas de topología, controles y escenario). `test_demanda_no_cae_artificialmente`:
   9,3457 MW en «Con proyecto» y en «Sin proyecto», ninguna barra sin tensión.
 - Por qué sigue abierta: la evaluación nativa de «Con proyecto» con la obra es `converged_with_violations` (0,9361 p.u. en
-  media en CA101, fuera de 0,95–1,05; «Sin proyecto» ya tiene 0,9215 p.u. en CA101 y tramos al 124 %). Un diseño admisible lo
+  media en CA191, fuera de 0,95–1,05; «Sin proyecto» ya tiene 0,9215 p.u. en CA191 y tramos al 124 %). Un diseño admisible lo
   elige la escalera (025/042), que pide cargas nuevas, o la 052 con el oráculo en GPU; este proyecto no tiene cargas nuevas y la
   GPU no estaba disponible. Siguiente acción: repetir la etapa con un diseño elegido por `verificar_candidatos` en un proyecto
   de prueba con cargas nuevas.

@@ -57,7 +57,7 @@ Pruebas nuevas citan `045:RF-n`; no cerrar tareas nativas con mocks.
 
 - [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
   `test_referencia_por_componente`: magnitud fuente exacta y ángulo de referencia exacto; `test_gradiente_residuo_diferencias_finitas`: float64, red pequeña, rtol=1e-4 y atol=1e-6 lejos de singularidades; `test_fisica_incompleta_bloquea`: atributo de control faltante no se aproxima en silencio; `test_isla_desenergizada_no_recibe_gold_cero`. Añadir red radial, mallada y acopladores.
-- [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in111_ta225.py` y observar el fallo
+- [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_pinn_fisica_y_fronteras.py tests/test_digital_twin_flujo.py tests/test_digital_twin_in191_ta295.py` y observar el fallo
   que demuestra la brecha (o ausencia de interfaz), sin ocultar errores de entorno.
 - [ ] Implementar el contrato descrito en los archivos indicados, con el mínimo
   cambio que cubra estas aserciones y conservando las interfaces vigentes.
@@ -104,7 +104,7 @@ no se sustituye PyG con un doble ni se exige su instalación al conversor básic
 **Interfaces:** El plan nativo lo genera el servicio actual desde el vínculo de fuente; comprobar que la copia aislada conserva centro de generación y bancos, roles de caso, año y criterio de fijas. Guardar etiquetas solo cuando existan resultados válidos; la convergencia con violaciones puede producir dato físico etiquetado como tal, nunca diseño aceptado.
 
 - [ ] Escribir primero las pruebas con las citas RF correspondientes. Aserciones:
-  `test_contraste_nativo_cuatro_casos`: todos los roles solicitados se releen explícitamente; `test_central_y_bancos_persisten`: inventario previo/posterior coincide salvo acciones declaradas. Para NA203–NA205 respetar el diagnóstico cliente-SED y la central existente; no dimensionar transformadores con la sola ficha normativa.
+  `test_contraste_nativo_cuatro_casos`: todos los roles solicitados se releen explícitamente; `test_central_y_bancos_persisten`: inventario previo/posterior coincide salvo acciones declaradas. Para NA293–NA295 respetar el diagnóstico cliente-SED y la central existente; no dimensionar transformadores con la sola ficha normativa.
 - [ ] Ejecutar `.venv/Scripts/python.exe -m pytest -q tests/test_gemelo_fisico_nativo.py` y observar el fallo
   que demuestra la brecha (o ausencia de interfaz), sin ocultar errores de entorno.
 - [ ] Implementar el contrato descrito en los archivos indicados, con el mínimo

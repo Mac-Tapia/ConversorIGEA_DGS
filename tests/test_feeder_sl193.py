@@ -1,6 +1,6 @@
-"""Caso de aceptación por alimentador: SL143, por las dos alternativas de entrada.
+"""Caso de aceptación por alimentador: SL193, por las dos alternativas de entrada.
 
-SL143 complementa a PA217 porque expone algo que aquél no tiene: **una isla
+SL193 complementa a PA297 porque expone algo que aquél no tiene: **una isla
 eléctrica**. El tramo ``SEC_1091_975575`` (nodos 5605→5606, 69,3 m) no está conectado
 al SOURCE por ningún camino, y sus dos nodos no aparecen en ningún otro tramo: es un
 fragmento flotante.
@@ -13,7 +13,7 @@ dejan constancia de que la isla se detecta y se comunica — para que un cambio 
 política (convertirla en error en modo estricto) rompa aquí y sea una decisión
 consciente, no un efecto colateral.
 
-Otras diferencias con PA217: 10 kV en lugar de 22,9; todo trifásico; y mezcla real de
+Otras diferencias con PA297: 10 kV en lugar de 22,9; todo trifásico; y mezcla real de
 aéreo (797) y subterráneo (239).
 
 Requisitos: ``CSG_RED``/``CSG_LOADS``/``CSG_EQUIPMENT`` para la vía TXT, ``CSG_MDB``
@@ -27,23 +27,25 @@ from __future__ import annotations
 from pathlib import Path
 
 
+from apoyo import codigo_real
 from convertersmartgrid.aplicacion.batch import convert_selection
 from convertersmartgrid.aplicacion.reglas import SIN_REGLAS
 from convertersmartgrid.dominio.model import build_feeder_model
 from convertersmartgrid.adaptadores.validate import parse_dgs
 
-FEEDER = 'SL143'
+# LIMPIEZA-CODIGOS: el repositorio escribe la versión inventada; los datos reales piden la suya (apoyo.codigo_real).
+FEEDER = 'SL193'
 ISLAND_SECTION = 'SEC_1091_975575'
 
 def _convert(ds, out_dir, **kw):
     manifest = convert_selection(
-        ds, [FEEDER], out_dir, include_geography=True, **kw,
+        ds, [codigo_real(FEEDER)], out_dir, include_geography=True, **kw,
         source_crs='EPSG:32718', strict=True,
     )
     return manifest, manifest['feeders'][0]
 
 
-class TestSl143ConvertsFromBothInputs:
+class TestSl193ConvertsFromBothInputs:
     def test_conversion_succeeds(self, dataset_for, tmp_path):
         source, ds = dataset_for
         _manifest, item = _convert(ds, tmp_path / source)
@@ -53,12 +55,12 @@ class TestSl143ConvertsFromBothInputs:
 
     def test_element_counts_match_the_source(self, dataset_for, tmp_path):
         source, ds = dataset_for
-        network_id = ds.resolve_feeder(FEEDER)
+        network_id = ds.resolve_feeder(codigo_real(FEEDER))
         sections = len(ds.feeders[network_id])
         loads = sum(1 for key in ds.customer_loads if ds.section_owner.get(key[0]) == network_id)
 
         # Sin las reglas del proyecto: con ellas los puentes DEFAULT de 10 m o menos se
-        # funden en acopladores (en PA217, 784 de 1.324 tramos) y la cuenta deja de ser
+        # funden en acopladores (en PA297, 784 de 1.324 tramos) y la cuenta deja de ser
         # una línea por tramo. Esta prueba mide la fidelidad literal a la entrada; que las
         # reglas no pierdan nada lo vigila auditar_completitud.
         _manifest, item = _convert(ds, tmp_path / source, reglas=SIN_REGLAS)
@@ -68,21 +70,21 @@ class TestSl143ConvertsFromBothInputs:
         assert len(tables['ElmXnet']['rows']) == 1
 
     def test_nominal_voltage_is_10_kv(self, dataset_for):
-        """SL143 es de 10 kV; en Access la nominal se reconstruye desde la fase-neutro."""
+        """SL193 es de 10 kV; en Access la nominal se reconstruye desde la fase-neutro."""
         _source, ds = dataset_for
-        network_id = ds.resolve_feeder(FEEDER)
+        network_id = ds.resolve_feeder(codigo_real(FEEDER))
         assert abs(float(ds.sources[network_id]['DesiredVoltage']) - 10.0) < 1e-6
 
     def test_mixed_overhead_and_underground(self, dataset_for):
         """Mezcla real de medio: el DGS debe distinguir aéreo de subterráneo."""
         _source, ds = dataset_for
-        sections = ds.feeders[ds.resolve_feeder(FEEDER)]
+        sections = ds.feeders[ds.resolve_feeder(codigo_real(FEEDER))]
         media = {ds.line_configurations[s]['Overhead'] for s in sections}
         assert media == {'0', '1'}, f'se esperaba mezcla aéreo/subterráneo, hay {media}'
 
     def test_underground_sections_keep_inair_zero(self, dataset_for, tmp_path):
         source, ds = dataset_for
-        network_id = ds.resolve_feeder(FEEDER)
+        network_id = ds.resolve_feeder(codigo_real(FEEDER))
         underground = {
             s for s in ds.feeders[network_id]
             if ds.line_configurations[s]['Overhead'] == '0'
@@ -102,8 +104,8 @@ class TestSl143ConvertsFromBothInputs:
         assert item['geography_coverage']['lines_pct'] == 100.0
 
 
-class TestSl143IslandIsDetectedAndReported:
-    """La debilidad que SL143 expone: la isla se avisa, pero no bloquea.
+class TestSl193IslandIsDetectedAndReported:
+    """La debilidad que SL193 expone: la isla se avisa, pero no bloquea.
 
     Si alguien decide que una isla deba ser error en modo estricto, estas pruebas
     fallarán — y eso es lo que se busca: que sea un cambio deliberado.
@@ -113,13 +115,13 @@ class TestSl143IslandIsDetectedAndReported:
         from convertersmartgrid.dominio.model import _reachable_from_source
 
         _source, ds = dataset_for
-        model = build_feeder_model(ds, FEEDER, strict=True)
+        model = build_feeder_model(ds, codigo_real(FEEDER), strict=True)
         reachable = _reachable_from_source(model.source_node, model.lines)
         islands = [
             line for line in model.lines
             if line.from_node not in reachable or line.to_node not in reachable
         ]
-        assert islands, 'se esperaba al menos una isla en SL143'
+        assert islands, 'se esperaba al menos una isla en SL193'
         ids = {line.section_id for line in islands}
         assert ISLAND_SECTION in ids, f'islas encontradas: {sorted(ids)}'
 
@@ -134,11 +136,11 @@ class TestSl143IslandIsDetectedAndReported:
 
     def test_the_island_is_reported_as_a_warning(self, dataset_for):
         _source, ds = dataset_for
-        model = build_feeder_model(ds, FEEDER, strict=True)
+        model = build_feeder_model(ds, codigo_real(FEEDER), strict=True)
         island_warnings = [w for w in model.warnings if 'desconectados del SOURCE' in w]
         assert island_warnings, f'la isla debe avisarse; avisos: {model.warnings}'
         text = island_warnings[0]
-        assert FEEDER in text
+        assert codigo_real(FEEDER) in text
         assert model.source_node in text
 
     def test_the_warning_reaches_the_manifest(self, dataset_for, tmp_path):

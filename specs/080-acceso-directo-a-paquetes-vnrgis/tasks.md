@@ -12,7 +12,7 @@
 - [x] T6. Ninguna salida con red se pierde y cada alimentador conserva su nombre. (RF-27, RF-28, RF-32, RF-33)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_vnr_sqlserver.py` en verde y la suite completa sin nombres cambiados en la fuente TXT.
 - [x] T8. El CRS que declara la propia fuente. (RF-34)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` convierte por la web sin pedir CRS.
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI09` convierte por la web sin pedir CRS.
 - [x] T7. Herramienta de cruce de la totalidad. (RF-29, RF-30, RF-31)
       Hecho cuando: `tools/validar_totalidad_vnr.py` da OK con Empresa D y con Empresa C cargadas por la web.
 - [x] T9. Celdas, derivaciones, kvar de los bancos y aviso de lo no modelado. (RF-35, RF-36, RF-37)
@@ -20,9 +20,9 @@
 - [x] T10. Reguladores hasta el DGS; pararrayos y seccionadores cerrados fuera. (RF-38, RF-39, RF-40, RF-41)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y un alimentador con `BR` importa en DIgSILENT con su regulador.
 - [x] T11. Demanda proporcional de relleno, factor sin tensiones imposibles, toda carga de `Sed` como SED y reducción por igual. (RF-42, RF-43, RF-44, RF-45)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` pasa la verificación previa.
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI09` pasa la verificación previa.
 - [x] T12. Códigos operativos de las SED y reguladores en el recuento esperado. (RF-46, RF-47, RF-48)
-      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI01` y `C+æ02` en DIgSILENT con sus SED por código operativo y `equipment_pass` verdadero.
+      Hecho cuando: `pytest tests/test_vnr_accesos_directos.py` en verde y `TI09` y `C+æ02` en DIgSILENT con sus SED por código operativo y `equipment_pass` verdadero.
 - [x] T13. Un catálogo por empresa, con semilla sin datos de ninguna, reguladores a 60 Hz, y cada tramo aéreo o cable, con su tipo, su estado y la capacitancia de los cables. (RF-49, RF-50, RF-51, RF-52, RF-53, RF-54, RF-55, RF-58)
       Hecho cuando: `pytest tests/test_vnr_accesos_directos.py tests/test_catalogo_crece.py` en verde y dos alimentadores reales de prueba en DIgSILENT sin filas de otra empresa en su catálogo. Y `pytest tests/test_vnr_cymdist_bridge.py tests/test_vnr_web_adapter.py tests/test_catalog_resolution.py tests/test_vnr_etl.py tests/test_vnr_sqlserver.py` en verde, con `comparar_red` vacío de SQL → GeoPackage → capas en tramos MT y BT, nodos, SED y equipos, y un alimentador real en una copia da su `vm_min` antes y después.
       Ampliado (2026-11-20, MEJ17): RF-49 dice ahora «Lo comprobará en cada carga: SI el fichero de la empresa trae filas añadidas al aparecer otra (un fichero copiado de otra carpeta, un código de empresa cambiado), ENTONCES EL SISTEMA lo dirá en los avisos y en la procedencia de la carga (`CATALOGO_CON_FILAS_DE_OTRA_EMPRESA`, con sus códigos) y en el registro del trabajo, sin bloquearla; la semilla no es de ninguna empresa.»: `catalog.filas_de_otra_empresa` (por la empresa que dice cada fila y, con los códigos de la fuente, por su código), usada por `sources/vnr._cargar_copia_sql` y por el registro de `web/services`. La importación en DIgSILENT y el `vm_min` pasan a T19, que lleva su guion.

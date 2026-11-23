@@ -1,6 +1,6 @@
 """Spec 027, T2 — particiones «un sistema fuera» y mínimo de episodios de prueba.
 
-Con la partición por familia de escenario, las variantes de IN111–TA225 caían en
+Con la partición por familia de escenario, las variantes de IN191–TA295 caían en
 entrenamiento y en prueba y el error de prueba medía la misma red (revisión del 2026-10-28).
 """
 from __future__ import annotations

@@ -14,7 +14,7 @@ huella SHA-256 de cada uno, la versión de DIgSILENT, el commit y los veredictos
 ``CSG_EVIDENCIA_NATIVA``, comprueban las huellas y vuelven a calcular los veredictos con las funciones de
 aquí: no se fían del veredicto guardado.
 
-    python tools/aceptacion_nativa.py --espacio ID --proyecto P --alimentador CA101 \\
+    python tools/aceptacion_nativa.py --espacio ID --proyecto P --alimentador CA191 \\
         --planes CARPETA_DE_PLANES_DEL_ESPACIO --evidencia CARPETA obras --barra 14932 --q-kvar 300
     python tools/aceptacion_nativa.py ... protecciones
 
@@ -184,7 +184,7 @@ def prediccion_fisica(lectura: dict, kv_min: float) -> dict[str, Any]:
     grafo = (lectura.get('topologia') or {}).get('grafo') or {}
     tensiones = ((lectura.get('flujo') or {}).get('tensiones') or {}).get('valores') or {}
     if not grafo.get('nodos') or not tensiones:
-        # Sin flujo convergido tras reabrir no hay con qué contrastar («Con proyecto» de CA101 + PE104,
+        # Sin flujo convergido tras reabrir no hay con qué contrastar («Con proyecto» de CA191 + PE194,
         # 2026-11-07: 687 barras sin tensión); se dice, no se inventa una predicción.
         return {'v_min': None, 'perdidas_kw': None, 'fuera_de_dominio': True, 'convergio': False,
                 'motivos': ['la lectura no trae grafo o tensiones de DIgSILENT'], 'barras_contrastadas': 0,

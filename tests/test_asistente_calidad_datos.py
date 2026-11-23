@@ -24,9 +24,9 @@ def test_same_group_across_partitions_invalidates_dataset_even_if_text_changes()
     from convertersmartgrid.aplicacion.asistente.calidad_datos import auditar_contaminacion
 
     audit = auditar_contaminacion({
-        'train': (_row('convierte CA101', 'convertir', 'family-1'),),
+        'train': (_row('convierte CA191', 'convertir', 'family-1'),),
         'validation': (),
-        'test': (_row('haz la conversión de CA101', 'convertir', 'family-1'),),
+        'test': (_row('haz la conversión de CA191', 'convertir', 'family-1'),),
     })
 
     assert not audit['valid'] and audit['group_leaks'] == ['family-1']

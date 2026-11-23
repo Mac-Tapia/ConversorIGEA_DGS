@@ -146,7 +146,7 @@ def construir_episodio(plan: Mapping[str, Any], resultado: Mapping[str, Any],
                    'context_sha256': contexto['context_sha256'],
                    # La variante simulada (T10): su familia decide la partición (RF-12). Los
                    # estudios de 4.2 traen en «escenario» el nombre del escenario de operación
-                   # (011:RF-49): con PE102 (2026-11-06) dict('Con proyecto') mandaba a cuarentena
+                   # (011:RF-49): con PE192 (2026-11-06) dict('Con proyecto') mandaba a cuarentena
                    # cada episodio. El nombre va aparte y no es una variante.
                    **_escenario_de(resultado.get('escenario'))},
         'topologia': dict(lectura.get('topologia') or {}),

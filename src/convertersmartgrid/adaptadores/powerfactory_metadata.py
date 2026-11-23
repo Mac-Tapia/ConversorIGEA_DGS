@@ -460,7 +460,7 @@ def resolve_feeder_assignments(records: Iterable[Any], objects: Iterable[Any]) -
     records = list(records)
     runtime: dict[RuntimeObjectIdentity, list[Any]] = {}
     # Metadatos escritos antes de que la identidad llevara la red (commit 1f415549, 13/10
-    # a las 16:13) no traen ``grid``: CA101 de las 12:18 no resolvía ninguna carga al
+    # a las 16:13) no traen ``grid``: CA191 de las 12:18 no resolvía ninguna carga al
     # reimportarse. Sin red en el registro se busca sin ella; si hay dos, sigue ambiguo.
     sin_red: dict[RuntimeObjectIdentity, list[Any]] = {}
     for obj in objects:

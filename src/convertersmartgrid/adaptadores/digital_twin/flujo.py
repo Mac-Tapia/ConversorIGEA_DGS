@@ -2,7 +2,7 @@
 
 Es la física sobre la que la PINN aprende su corrección y con la que los algoritmos
 evolutivos evalúan cada obra candidata. El barrido radial que la precedía recorría un árbol
-desde cada fuente y descartaba las ramas que cierran un lazo: en IN111–TA225 (2470 barras,
+desde cada fuente y descartaba las ramas que cierran un lazo: en IN191–TA295 (2470 barras,
 3 lazos) se apartaba 0,019 p.u. de DIgSILENT y llevaba a elegir un modelo de carga que no
 es el suyo; con la matriz de admitancias el error es 0,0032 p.u. con potencia constante
 (2026-10-24).

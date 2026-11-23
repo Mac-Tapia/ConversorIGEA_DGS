@@ -16,7 +16,7 @@ from convertersmartgrid.aplicacion.asistente.sinteticos import generar
 from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
 SEMILLA = random.randrange(1 << 30)
-VOCAB = {'alimentadores': ['IN111', 'TA225', 'NA203'], 'proyecto': ['CA101 13'], 'sistema': ['Pisco', 'Nasca']}
+VOCAB = {'alimentadores': ['IN191', 'TA295', 'NA293'], 'proyecto': ['CA191 13'], 'sistema': ['Pisco', 'Nasca']}
 
 
 class MaestroFalso:
@@ -70,16 +70,16 @@ def test_sin_etiqueta_son_las_no_confirmadas_y_no_las_de_prueba(tmp_path, monkey
     """027:RF-59 — del registro de órdenes, las que el operador no confirmó ni corrigió, sin
     las de la prueba fija y sin repetir."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
-    for t in ('convierte IN111', 'calibra Pisco', 'convierte IN111', 'informe de CA101', 'de prueba'):
+    for t in ('convierte IN191', 'calibra Pisco', 'convierte IN191', 'informe de CA191', 'de prueba'):
         almacen.anotar('ordenes', {'texto': t})
     almacen.anotar('ejemplos', {'texto': 'calibra Pisco', 'tarea': 'convertir', 'datos': []})
-    assert dst.sin_etiqueta(excluir=['de prueba']) == ['convierte IN111', 'informe de CA101']
+    assert dst.sin_etiqueta(excluir=['de prueba']) == ['convierte IN191', 'informe de CA191']
 
 
 def test_maestro_mudo_y_registro():
     """027:RF-61 / 027:RF-62 — si el maestro no responde, se dice; el registro guarda maestro,
     k, temperaturas, α y cuántas etiquetó y descartó."""
-    r = dst.etiquetar(['convierte IN111'], MaestroMudo())
+    r = dst.etiquetar(['convierte IN191'], MaestroMudo())
     assert not r['respondio'] and not r['blandos']
     reg = dst.registro(dst.Destilacion(), MaestroMudo(), r)
     assert reg['maestro'] == 'mudo' and reg['k'] == 5 and reg['alfa'] == 0.5 and reg['T'] == 2.0
@@ -138,24 +138,24 @@ def test_maestro_claude_de_archivo(tmp_path, monkeypatch):
     """027:RF-64 — las etiquetas de Claude (votos y datos) son el maestro: cada semilla toma el
     voto siguiente y la distribución sale de ellos."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
-    almacen.anotar('etiquetas_maestro', {'texto': 'convierte IN111 y TA225', 'votos': ['convertir'] * 4 + ['unir'],
-                                         'datos': {'alimentadores': ['IN111', 'TA225']}, 'maestro': 'claude-opus-5-5'})
+    almacen.anotar('etiquetas_maestro', {'texto': 'convierte IN191 y TA295', 'votos': ['convertir'] * 4 + ['unir'],
+                                         'datos': {'alimentadores': ['IN191', 'TA295']}, 'maestro': 'claude-opus-5-5'})
     m = dst.MaestroArchivo()
     assert m.modelo == 'claude-opus-5-5' and m.interpretar('otra orden') is None
-    r = dst.etiquetar(['convierte IN111 y TA225'], m, dst.Destilacion(k=5, acuerdo_min=0.6))
+    r = dst.etiquetar(['convierte IN191 y TA295'], m, dst.Destilacion(k=5, acuerdo_min=0.6))
     [b] = r['blandos']
     assert b.distribucion == {'convertir': 0.8, 'unir': 0.2}
-    assert [texto for texto in ('IN111', 'TA225') if any(b.texto[x:y] == texto for x, y, _t in b.datos)] == ['IN111', 'TA225']
+    assert [texto for texto in ('IN191', 'TA295') if any(b.texto[x:y] == texto for x, y, _t in b.datos)] == ['IN191', 'TA295']
 
 
 def test_maestro_codex_enmascarado(tmp_path, monkeypatch):
     """027:RF-56 / 027:RF-63 — a Codex solo le llega la orden con los nombres de la red cambiados
     por marcadores; se reponen en su respuesta y el envío queda anotado."""
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path))
-    vocab = {'alimentadores': ['IN111', 'TA225', 'IN11'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
-    oculto, tabla = dst.enmascarar('convierte in111 y TA225 de Pisco', vocab)
-    assert 'IN111' not in oculto.upper() and 'TA225' not in oculto and 'Pisco' not in oculto
-    assert dst.reponer(oculto, tabla).lower() == 'convierte in111 y ta225 de pisco'
+    vocab = {'alimentadores': ['IN191', 'TA295', 'IN11'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
+    oculto, tabla = dst.enmascarar('convierte in191 y TA295 de Pisco', vocab)
+    assert 'IN191' not in oculto.upper() and 'TA295' not in oculto and 'Pisco' not in oculto
+    assert dst.reponer(oculto, tabla).lower() == 'convierte in191 y ta295 de pisco'
     enviados = []
 
     def codex_falso(prompt):
@@ -163,10 +163,10 @@ def test_maestro_codex_enmascarado(tmp_path, monkeypatch):
         return 'Mi respuesta: {"tarea": "convertir", "datos": {"alimentadores": ["<ALIMENTADORES1>", "<ALIMENTADORES2>"]}}'
 
     m = dst.MaestroCodex(vocab, ejecutar=codex_falso)
-    r = m.interpretar('convierte IN111 y TA225', semilla=1)
-    assert r['tarea'] == 'convertir' and sorted(d['valor'] for d in r['datos']['alimentadores']) == ['IN111', 'TA225']
-    assert 'IN111' not in enviados[0] and 'TA225' not in enviados[0]
-    assert almacen.leer('internet')[-1]['destino'] == 'codex' and 'IN111' not in almacen.leer('internet')[-1]['consulta']
+    r = m.interpretar('convierte IN191 y TA295', semilla=1)
+    assert r['tarea'] == 'convertir' and sorted(d['valor'] for d in r['datos']['alimentadores']) == ['IN191', 'TA295']
+    assert 'IN191' not in enviados[0] and 'TA295' not in enviados[0]
+    assert almacen.leer('internet')[-1]['destino'] == 'codex' and 'IN191' not in almacen.leer('internet')[-1]['consulta']
     assert dst.MaestroCodex(vocab, ejecutar=lambda _p: 'sin json').interpretar('x') is None
 
 

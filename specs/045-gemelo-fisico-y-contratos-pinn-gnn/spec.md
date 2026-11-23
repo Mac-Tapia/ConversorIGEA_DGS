@@ -1,6 +1,6 @@
 # Spec 045 — Gemelo físico y contratos PINN/GNN
 
-Estado: aprobada (2026-11-22: T3 cerrada con la ablación real en CUDA; RF-15 a RF-18 nuevos de MEJ30 con la T6 [GPU] abierta) · cumplida el 2026-11-21 · Fecha: 2026-10-31
+Estado: cumplida (2026-11-22: T6 cerrada en la GPU; todas sus tareas cerradas) · antes aprobada (2026-11-22: T3 cerrada con la ablación real en CUDA; RF-15 a RF-18 nuevos de MEJ30 con la T6 [GPU] abierta) · cumplida el 2026-11-21 · Fecha: 2026-10-31
 
 ## Contexto y objetivo
 

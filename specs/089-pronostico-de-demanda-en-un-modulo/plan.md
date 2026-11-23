@@ -65,7 +65,7 @@ Lee: `docs/constitution.md`, 029, 046, 088.
 
 - Repetir el backtest real con los dos errores corregidos y anotar sus cifras en T5.
 - Revisar las series peores (WAPE mayor de 0,5) y las apartadas, y decidir con datos si son medidores o reglas.
-- Declarar en el perfil las centrales que faltan al correr fuera del perfil local (`NA205`, y `PO101` si tiene).
+- Declarar en el perfil las centrales que faltan al correr fuera del perfil local (`NA295`, y `PO191` si tiene).
 - Ejecutar la suite completa con las nueve variables y sin omitidas. **Puerta:** ningún fallo nuevo frente a `main` c9c4d129.
 - Hecho cuando: T1 a T5 marcadas y la 088 cumplida con evidencia.
 

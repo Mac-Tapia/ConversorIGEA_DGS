@@ -152,8 +152,8 @@ def test_confiabilidad_ausente_no_bloquea():
     assert any('confiabilidad' in d for d in r.diagnostico)
 
 
-def test_caso_dorado_in111_ta225_con_proyecto():
-    """024:RF-26 — la subtensión de 0,8683 p.u. tras reabrir IN111–TA225 («Con proyecto»)
+def test_caso_dorado_in191_ta295_con_proyecto():
+    """024:RF-26 — la subtensión de 0,8683 p.u. tras reabrir IN191–TA295 («Con proyecto»)
     no se oculta por converger."""
     r = _evaluar(Caso.CON_PROYECTO, _flujo(v_min=0.8683284313), referencia=_flujo())
     assert r.clase is Clase.CONVERGED_WITH_VIOLATIONS

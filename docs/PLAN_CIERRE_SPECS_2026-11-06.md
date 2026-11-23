@@ -1,6 +1,6 @@
 # Diagnóstico y plan de cierre de las specs 001 a 095 (2026-11-06)
 
-Revisión: `main` en 6987208f, con cambios sin confirmar de la sesión eafcf16e (PE102) en 004 y 024.
+Revisión: `main` en 6987208f, con cambios sin confirmar de la sesión eafcf16e (PE192) en 004 y 024.
 Fuente del estado: `tools/estado_specs.py` (spec 033), las casillas de cada `tasks.md`, `git cherry`
 de las ramas locales y `.agents/coordination/ACTIVE.md`. Este documento no cambia el estado de ninguna
 spec: el estado vive solo en su línea `Estado:`.
@@ -33,7 +33,7 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 ### 1.3 Incoherencias que hay que corregir primero
 
 1. **004 cumplida con la T20 abierta.** La T20 pide que ningún transformador de carga nueva pase del
-   80 % en «Con proyecto» de PE102; la última medida en DIgSILENT dio 83,5 % (PTAR 4 × 630) y
+   80 % en «Con proyecto» de PE192; la última medida en DIgSILENT dio 83,5 % (PTAR 4 × 630) y
    81,3 % (vivero 315). No se cumple: la 004 debe volver a «implementada» hasta cerrar la T20, y
    RF-52 (`kva_normalizado` dimensiona al 100 %) es la causa probable.
 2. **Cambios sin confirmar de la sesión eafcf16e**: 004 RF-68/RF-69 (transformador de ficha) y 024
@@ -51,13 +51,13 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 
 | Defecto | Spec que lo recibe |
 | --- | --- |
-| El refuerzo de tramos sobrecargados de cada variante es siempre terna; debe seguir bancos → sección hasta 240 mm² → terna (PE102) | 042 (RF-43) |
-| La escalera mide en DIgSILENT todas las variantes (34 en PE102); debe ordenar por costo, parar en las 3 más baratas que cumplen y añadir una definitiva para el horizonte | 042 / 087 |
+| El refuerzo de tramos sobrecargados de cada variante es siempre terna; debe seguir bancos → sección hasta 240 mm² → terna (PE192) | 042 (RF-43) |
+| La escalera mide en DIgSILENT todas las variantes (34 en PE192); debe ordenar por costo, parar en las 3 más baratas que cumplen y añadir una definitiva para el horizonte | 042 / 087 |
 | «Con proyecto» relee los 21 libros mensuales de clientes en cada corrida; guardar por alimentador y huella | 029 / 042 |
 | Si el refuerzo por terna se compara por costo con la sección (decisión del usuario) | 042 |
 | FP por defecto de las cargas nuevas que solo traen kW (hoy Q = 0; decisión del usuario) | 007 |
 | Aviso «4 × 630 → 4 × 630» | 020 / 083 |
-| `factor_escala` 0,290 frente a 0,884 en el historial de PN103 (por verificar) | 006 |
+| `factor_escala` 0,290 frente a 0,884 en el historial de PN193 (por verificar) | 006 |
 | `test_cancelar` depende del orden de las pruebas | 067 |
 | Un worktree no ve `output/web` del clon principal (`raiz_componente`) | 086 |
 
@@ -65,7 +65,7 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 
 | Punto | Resultado | Commit |
 | --- | --- | --- |
-| 0.1 Cambios de PE102 (004 RF-68/69, 024 RF-12) | confirmados; la 004 pasa a «implementada» | 4ac024b1, 1df549d4 |
+| 0.1 Cambios de PE192 (004 RF-68/69, 024 RF-12) | confirmados; la 004 pasa a «implementada» | 4ac024b1, 1df549d4 |
 | 0.2 README y tabla de `CLAUDE.md` | al día; `test_trazabilidad_specs` en verde | cf3c727f |
 | 0.3 Rama `feat/093-retomar-tras-suspender` | integrada como spec 096; contrato de la API regenerado (faltaba `transformadores_automaticos`) | bf7452ee |
 | 0.4 Parada bayesiana | ya estaba en `main` como 087:RF-7 a RF-9 (la «085» de las ramas era otra colisión de número); sin cambios | — |
@@ -74,7 +74,7 @@ RF sin prueba que la cite (según el generador): 002 (6), 027 (8), 045 (1), 049 
 | 0.5 Aviso «4 × 630 → 4 × 630» | la SED que ya tiene la propuesta queda en «sin_cambio» (020:RF-24) | 4e9139d4 |
 | 0.5 Libros de clientes releídos (042:RF-96) | la POT de cada libro se guarda con su huella | 29b41e62 |
 | 0.5 `test_cancelar` según el orden | ya arreglado por otra sesión el 2026-11-06 (cuenta flujos, no consultas) | — |
-| 0.5 `factor_escala` de PN103 | verificado, no es un fallo: 0,290 es el factor del reparto determinista, con el que arranca la recalibración (083:RF-9); 0,884 es el del P50 probabilístico sobre su propia base | — |
+| 0.5 `factor_escala` de PN193 | verificado, no es un fallo: 0,290 es el factor del reparto determinista, con el que arranca la recalibración (083:RF-9); 0,884 es el del P50 probabilístico sobre su propia base | — |
 | 0.5 `raiz_componente` en un worktree | sin cambio a propósito: un worktree no debe escribir en los datos del clon principal; para compartirlos está `CSG_WEB_DATA` | — |
 | 0.6 Archivar worktrees | pendiente de la decisión del usuario | — |
 
@@ -97,7 +97,7 @@ entrenamiento: la fase 3 empieza al terminar la fase 2.
 ## 2. Plan de cierre
 
 Reglas: una tarjeta o trabajo pesado a la vez (DIgSILENT, GPU, suite), integrar cada una antes de la
-siguiente; DIgSILENT solo en proyectos de prueba nuevos importados por la web, nunca en PA217, AL209
+siguiente; DIgSILENT solo en proyectos de prueba nuevos importados por la web, nunca en PA297, AL299
 ni otros ya trabajados; la 002 T7–T12 va al final.
 
 ### Fase 0. Saneamiento (sin DIgSILENT, en un día)
@@ -136,12 +136,12 @@ Cada proyecto se importa una vez por la web (`tools/sistema_web.py`) y sirve a v
 
 | Grupo | Proyecto de prueba | Tareas |
 | --- | --- | --- |
-| G1 | CA101 + PE104, TXT (086 T24, R1) | 008 T7, 011 T19, 012 T13, 013 T7, 017 T13, T14, T19, 037 T4, 044 T4, 048 T4 |
+| G1 | CA191 + PE194, TXT (086 T24, R1) | 008 T7, 011 T19, 012 T13, 013 T7, 017 T13, T14, T19, 037 T4, 044 T4, 048 T4 |
 | G2 | Pisco, TXT (086 T26, R3) | 028 T15, 042 T37, T44, T48, T50, 073 T8, 081 T24, 083 T3, 087 T12, T13, T27, 092 T2, 084 T8, T9 |
-| G3 | NA203 + NA205, TXT (086 T27, R4) | 039 T4, 042 T6, 052 T4, 028 T6, 067 T9 |
-| G4 | NJA202 y R205, VNR-GIS de Empresa B (086 T28, R5) | 051 T3, 055 T2, 056 T3, 042 T29, 087 T14, 081 T16, 058 T7 |
-| G5 | SI213 y PN107, MDB (086 T25, R2) | 016 T18, 081 T20 |
-| G6 | Copias de prueba de AL209, PA217/TM105 y PE102 | 094 T5, 093 T2, 025 T21, 004 T20, 042 T42 |
+| G3 | NA293 + NA295, TXT (086 T27, R4) | 039 T4, 042 T6, 052 T4, 028 T6, 067 T9 |
+| G4 | NJA292 y R295, VNR-GIS de Empresa B (086 T28, R5) | 051 T3, 055 T2, 056 T3, 042 T29, 087 T14, 081 T16, 058 T7 |
+| G5 | SI293 y PN197, MDB (086 T25, R2) | 016 T18, 081 T20 |
+| G6 | Copias de prueba de AL299, PA297/TM195 y PE192 | 094 T5, 093 T2, 025 T21, 004 T20, 042 T42 |
 | G7 | Asistente desde la consola | 026 T12, 070 T9, T10, 078 T6, T7, 027 T14, T22, T29–T31, 086 T30 |
 | G8 | Navegador sin DIgSILENT | 081 T22, 073 T12, 086 T29 |
 | G9 | Robustez y cortes | 081 T10–T14, 086 T33, T36 |

@@ -4,7 +4,7 @@ La red de distribución se opera radial: cada barra se alimenta desde una sola S
 solo camino, y los alimentadores se enlazan con maniobras normalmente abiertas. El usuario,
 el 2026-10-17: «lo que debe identificar son los puntos de enlace y abrirlos para ejecutar
 el flujo de potencia; ahí debe trabajar el oráculo», y los anillos dentro de un mismo
-alimentador «debe abrirlos» (IN111 trae tres en el TXT de referencia).
+alimentador «debe abrirlos» (IN191 trae tres en el TXT de referencia).
 
 Los enlaces entre alimentadores ya salen de la unión (:class:`~convertersmartgrid.aplicacion.combine.TiePoint`,
 abiertos). Aquí se buscan los caminos cerrados que queden —por tramos y maniobras
@@ -184,7 +184,7 @@ def _abrir(model: FeederModel, nombre: str, clase: str, arista, dist) -> None:
 
 
 #: Distancia máxima entre la red de un alimentador y la de otro para reconstruir el tramo
-#: que falta (022:RF-57): TM106 quedaba a 78 m de TM104 y TM101 a 15 m de TM105.
+#: que falta (022:RF-57): TM196 quedaba a 78 m de TM194 y TM191 a 15 m de TM195.
 DISTANCIA_MAX_M = 100.0
 #: Prefijo del tramo que añade la reconstrucción: no viene de la entrada (completitud).
 PREFIJO_RECONSTRUIDO = 'REC_'
@@ -226,8 +226,8 @@ def _mas_cercano(model: FeederModel, receptor: str, distancia_max_m: float):
     info = model.combined
     barras = {b.node_id for b in info.barras_set} | {f.source_node for f in info.feeders}
     # Solo los extremos de su red (un tramo): lo que falta está al final. Ni la barra de SET
-    # ni las cabeceras, juntas en la SET; en Chincha (2026-10-18) un nodo de TM106 junto a la
-    # SET quedaba a 7 m de TM104 y pasaba 2 000 de los 9 000 kVA que tocaban; su final está a 78 m.
+    # ni las cabeceras, juntas en la SET; en Chincha (2026-10-18) un nodo de TM196 junto a la
+    # SET quedaba a 7 m de TM194 y pasaba 2 000 de los 9 000 kVA que tocaban; su final está a 78 m.
     grado: dict[str, int] = defaultdict(int)
     for ln in model.lines:
         grado[ln.from_node] += 1
@@ -284,7 +284,7 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
         d, n, m = mejor
         donante = sorted(f for f in info.feeder_of_node[m] if f != receptor)[0]
         # El árbol antes del tramo nuevo, solo en la red del donante y desde su cabecera: con
-        # toda la red, el nodo de unión de TM104 se alcanzaba por otro camino y el corte
+        # toda la red, el nodo de unión de TM194 se alcanzaba por otro camino y el corte
         # dejaba 2 000 de los 9 000 kVA que tocaban (Chincha, 2026-10-18).
         # Sin la barra de SET: es de todos sus alimentadores y por ella el árbol del donante
         # seguía a la red de los demás.
@@ -347,8 +347,8 @@ def reconstruir_por_medida(model: FeederModel, pedidos: dict[str, float],
                 else:
                     # RF-58b: el donante conserva las ramas de su cabecera más cercanas a su
                     # parte; el reconstruido, las demás. Cuando la unión cuelga de una rama de
-                    # la cabecera, ningún corte del camino pasa más que esa rama (TM106 y
-                    # TM104 en Chincha, 2026-10-18: TM104 mide 31 kW y no puede quedar fuera).
+                    # la cabecera, ningún corte del camino pasa más que esa rama (TM196 y
+                    # TM194 en Chincha, 2026-10-18: TM194 mide 31 kW y no puede quedar fuera).
                     kva_receptor = sum(kva_de[x] for x, fs in info.feeder_of_node.items()
                                        if receptor in fs and x not in barras_set)
                     partida = _partir_cabecera(hijos, aguas_abajo, kva_de, cabecera, m,
@@ -416,7 +416,7 @@ def _partir_cabecera(hijos, aguas_abajo, kva_de, cabecera: str, union: str,
     Las ramas salen de nodos a menos de :data:`DISTANCIA_RAMAS_M` de su cabecera y no llevan
     la unión; se reenganchan a su interruptor. Se elige el grupo de ramas sin solaparse que
     deja a los dos con kVA para lo que miden y, entre esos, el más cercano a
-    ``kva_que_queda``. En TM104 (Chincha, 2026-10-18) las dos ramas de la cabecera daban
+    ``kva_que_queda``. En TM194 (Chincha, 2026-10-18) las dos ramas de la cabecera daban
     7 394 y 2 015 kVA, y la buena era una de 1 015 kVA a 44 m. ``None`` sin ramas.
     """
     from itertools import combinations

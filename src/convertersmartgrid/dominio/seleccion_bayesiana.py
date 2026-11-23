@@ -1,7 +1,7 @@
 """Cuándo dejar de sortear una variante: la probabilidad bayesiana de que cumpla (spec 087, RF-7 a RF-9).
 
 La escalera mide 200 sorteos por variante, y solo paraba si ya no podía llegar al cumplimiento pedido. Una variante sin ningún
-fallo se sorteaba entera, a varios minutos cada una; y CHI201 (Pisco, 2026-11-03) salió con 94,5 % frente al 95 % pedido, una
+fallo se sorteaba entera, a varios minutos cada una; y CHI291 (Pisco, 2026-11-03) salió con 94,5 % frente al 95 % pedido, una
 diferencia que 200 sorteos no distinguen. Con una posterior Beta se para en cuanto la respuesta está clara y se dice la certeza.
 
 Puro: no habla con DIgSILENT. La posterior es Beta(1 + cumplen, 1 + fallan), con la previa uniforme: sin datos no se supone nada.

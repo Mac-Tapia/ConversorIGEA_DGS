@@ -11,7 +11,7 @@ cadena real: web → ``pf_cliente`` → ``pf_servidor.atender`` → foto, orden 
 - ``borrar``: desactiva y borra la copia.
 
 Solo altera o borra proyectos cuyo nombre empieza por ``PRUEBA064_``: el original se copia y
-no se toca (los proyectos trabajados, como SM218, nunca se modifican en una prueba).
+no se toca (los proyectos trabajados, como SM298, nunca se modifican en una prueba).
 
     python tools/restitucion_pf.py --plan plan.json --output-json informe.json
 """
@@ -83,7 +83,7 @@ def alterar_y_fallar(app, plan: dict) -> dict:
     otro = next((c for c in casos if c.loc_name != caso.loc_name), None)
     if otro is not None:
         otro.Activate()
-    # Un escenario distinto del de partida (no del activo tras cambiar de caso): en SM218 y en
+    # Un escenario distinto del de partida (no del activo tras cambiar de caso): en SM298 y en
     # 0205 el elegido coincidía con el inicial y la restitución del escenario no se probaba.
     escenarios = app.GetProjectFolder('scen', 1).GetContents('*.IntScenario', 1)
     otro_esc = next((e for e in escenarios if e.loc_name != antes.get('escenario')), None)

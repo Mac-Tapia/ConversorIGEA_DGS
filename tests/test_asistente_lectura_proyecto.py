@@ -263,7 +263,7 @@ def test_nombres_en_la_pregunta(tmp_path):
     assert not negadas['pedidas'] and len(negadas['rechazadas']) == 3
     assert lp.nombradas_en(repo, 'como se calibra una barra de 60 kv')['pedidas'] == []
     # Lo que solo tiene forma de ruta no se lee ni se avisa: el operador no pidió ningún fichero.
-    corriente = lp.nombradas_en(repo, 'la caida en kV/km y/o el 12/10/2026 de TM106/TM107 con otra.md')
+    corriente = lp.nombradas_en(repo, 'la caida en kV/km y/o el 12/10/2026 de TM196/TM107 con otra.md')
     assert corriente == {'pedidas': [], 'rechazadas': []}
     assert lp.nombradas_en(repo, 'abre .ENV')['rechazadas'] == ['.ENV']
 
@@ -401,7 +401,7 @@ def test_formas_de_pregunta_con_ruta(texto):
 
 @pytest.mark.parametrize('texto', [
     'convierte input/RED_030826.txt con su carga',          # orden de acción con ruta: sin forma de pregunta
-    'calibra PA217 con D:/demanda/libro.xlsx',
+    'calibra PA297 con D:/demanda/libro.xlsx',
     '¿puedes convertir data/RED.txt?',                     # con signos, pero es una petición de acción
     '¿convierte input/RED.txt?',
     '¿cómo se calibra una barra sin medidor?',             # la pregunta de control: sin ruta
@@ -418,7 +418,7 @@ def test_no_desvia_ordenes_ni_preguntas_sin_ruta(texto):
 
 @pytest.mark.parametrize('texto, tarea', [
     ('convierte input/RED_030826.txt con su carga', 'convertir'),
-    ('calibra PA217 con D:/demanda/libro.xlsx', 'calibrar'),
+    ('calibra PA297 con D:/demanda/libro.xlsx', 'calibrar'),
 ])
 def test_ordenes_de_accion_las_decide_el_modelo(texto, tarea):
     """077:RF-73 — una orden de acción con ruta la sigue decidiendo el Transformer."""

@@ -1,4 +1,4 @@
-"""Deep inventory of a loaded CYMDIST TXT dataset (production diagnostics)."""
+"""Deep inventory of a loaded TXT dataset (production diagnostics)."""
 
 from __future__ import annotations
 
@@ -303,7 +303,7 @@ def format_inventory_report(inventory: dict[str, Any]) -> str:
     c = inventory['conversion']
     inputs = inventory['inputs']
     lines = [
-        '=== INVENTARIO TXT CYMDIST ===',
+        '=== INVENTARIO TXT ===',
         f"RED:       {inputs['red_name']}",
         f"CARGA:     {inputs['loads_name']}",
         f"BD_Equipo: {inputs['equipment_name']}",

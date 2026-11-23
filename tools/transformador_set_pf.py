@@ -3,7 +3,7 @@
 
 En el proyecto de transmisión (en Empresa A, ``AD08_MPIT25-29_v4``) no hay redes de
 media tensión ni una carga por alimentador: la sonda del 2026-10-15 dio 859 cargas por
-barra de SET y tensión (``LElCarmen10`` en ``CAR10A``, con CA101 y los demás alimentadores
+barra de SET y tensión (``LElCarmen10`` en ``CAR10A``, con CA191 y los demás alimentadores
 de 10 kV de El Carmen dentro). Por eso, decidido por el usuario ese día:
 
 * Sin proyecto: el caso de estudio tal cual.

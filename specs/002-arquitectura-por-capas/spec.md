@@ -24,7 +24,7 @@ El conversor es universal: carga TXT, MDB y VNR-GIS de cualquier distribuidora
 antes de producción, no el diseño. Hoy hay tres convenciones suyas fijadas en el motor:
 el CRS `EPSG:32718` por defecto (`batch.py`, `geography.py`, `cli.py`, `web/services.py`),
 la exclusión de SED `M…` activada por defecto (`reglas.py`) y la escala del diagrama de
-NA205 (`dgs.py`). Esta spec las lleva a un perfil de empresa.
+NA295 (`dgs.py`). Esta spec las lleva a un perfil de empresa.
 
 ## Usuarios / actores
 

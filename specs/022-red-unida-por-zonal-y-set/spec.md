@@ -5,7 +5,7 @@ Estado: cumplida (revisión 033 del 2026-10-29) · implementada (2026-10-18) · 
 ## Contexto y objetivo
 
 Hoy la red unida pone una red externa por alimentador: cada uno es una isla con su fuente.
-En NA203 + NA205 (2026-10-17) cada «External Grid» alimentaba su isla, y la calibración por
+En NA293 + NA295 (2026-10-17) cada «External Grid» alimentaba su isla, y la calibración por
 proyecto (021:RF-54) no tenía nada que acoplar. Los alimentadores de una misma SET comparten
 su barra de media tensión, y la empresa los agrupa en zonales y sistemas eléctricos con su
 sector típico y su norma (NTCSE, NTCSER). El usuario, el 2026-10-17, con la tabla pública
@@ -139,8 +139,8 @@ por ejemplo, la barra B-PA2T1, 22,9, PA, es la barra de 22,9 kV de la SET Paraca
   que en «código alimentador» dicen «Barra», con su medidor, su nivel de tensión y sus
   siglas.
 - RF-38: EL SISTEMA asignará cada medidor de barra a la barra de la SET de sus siglas y su
-  nivel de tensión, con las siglas de cada SET de la estructura del perfil (AL → SET 33 Alto
-  la Luna, PA → SET 32 Paracas…).
+  nivel de tensión, con las siglas de cada SET de la estructura del perfil (AL → SET 73 Alto
+  la Luna, PA → SET 72 Paracas…).
 - RF-39: CUANDO el operador calibra un proyecto unido por SET, EL SISTEMA tomará como
   objetivo de cada barra de SET con medidor la máxima, registro a registro, de la suma de
   sus medidores de esa tensión (los de cada transformador, T1 y T2).
@@ -200,16 +200,16 @@ sistema eléctrico»)
 - RF-55: SI la demanda medida de un alimentador supera lo que su red puede dar (sus fijas
   más la potencia instalada de sus escaladas por el factor de potencia del perfil),
   ENTONCES EL SISTEMA no lo calibrará, lo dirá con las dos cifras y calibrará los demás
-  (Chincha, 2026-10-18: TM106 medía 3 133 kW con unos 230 kVA instalados; su factor 13,7
+  (Chincha, 2026-10-18: TM196 medía 3 133 kW con unos 230 kVA instalados; su factor 13,7
   impedía converger al sistema entero).
 - RF-56: EL SISTEMA dará una herramienta de línea de órdenes que, por la API de la web,
   convertirá, importará y calibrará un sistema eléctrico entero, retomará lo que el espacio
   ya tenga hecho y reintentará cuando la web corte una consulta mientras trabaja.
 
 Reconstrucción por medida (usuario, 2026-10-18: «revisa en los archivos originales los tres
-alimentadores; deberían estar completos; si no, debe reconstruirlos y activarlo». TM106 trae 4
-tramos y mide 3 133 kW: su red está en la de TM104, a 78 m y sin el tramo que los une; TM101,
-fuera de servicio y sin medidor, a 15 m de TM105)
+alimentadores; deberían estar completos; si no, debe reconstruirlos y activarlo». TM196 trae 4
+tramos y mide 3 133 kW: su red está en la de TM194, a 78 m y sin el tramo que los une; TM191,
+fuera de servicio y sin medidor, a 15 m de TM195)
 
 - RF-57: DONDE el operador pide reconstruir un alimentador al convertir por sistema
   eléctrico, EL SISTEMA buscará el nodo de otro alimentador de la misma tensión más cercano
@@ -222,8 +222,8 @@ fuera de servicio y sin medidor, a 15 m de TM105)
 - RF-58b: SI el donante tiene medida, ENTONCES EL SISTEMA no le quitará toda su red: cuando
   ningún corte del camino deja la proporción, partirá su cabecera, de modo que el donante
   conserve con su interruptor las ramas de la cabecera cuya potencia instalada se acerque a
-  su parte y el reconstruido reciba las demás (usuario, 2026-10-18: «TM104 sí existe, tiene
-  su medidor; no puede quedar afuera para nada»; TM104 mide 31 kW, máxima propia 224 kW).
+  su parte y el reconstruido reciba las demás (usuario, 2026-10-18: «TM194 sí existe, tiene
+  su medidor; no puede quedar afuera para nada»; TM194 mide 31 kW, máxima propia 224 kW).
 - RF-59: SI el alimentador reconstruido no tiene medidor, ENTONCES su medida será la máxima
   de su barra de SET menos las de los demás alimentadores de la barra en ese instante, y con
   cero o menos el tramo nuevo quedará abierto: activado sin carga pasada.
@@ -233,22 +233,22 @@ fuera de servicio y sin medidor, a 15 m de TM105)
   la herramienta de RF-56 las pedirá con sus medidas.
 - RF-63: MIENTRAS un alimentador esté reconstruido por medida, EL SISTEMA calibrará con el
   kVA de las SED que le asigna el DGS reconstruido, y no con el de la entrada original
-  (TM106 seguía con sus 339 kW de la entrada y no se calibraba).
+  (TM196 seguía con sus 339 kW de la entrada y no se calibraba).
 - RF-62: CUANDO se implementan los transformadores de las fijas sobrecargadas de varios
   alimentadores de un proyecto (020:RF-15), EL SISTEMA los cambiará todos y recalibrará el
-  proyecto una sola vez (Chincha, 2026-10-18: CA101, PE102 y PN103 no convergían por sus
+  proyecto una sola vez (Chincha, 2026-10-18: CA191, PE192 y PN193 no convergían por sus
   fijas sobre transformadores pequeños; uno a uno, cada uno recalibraba el sistema).
 
 Una red por SET en un zonal grande (usuario, 2026-10-23: «el sistema eléctrico Nasca hay que
 dividirlo por sus SET; la hoja en DIgSILENT no alcanza; mejor por SET». El zonal Nasca va de
-la costa a la sierra, de SET 51 Nasca a SET 56, y su diagrama único no cabe en la hoja)
+la costa a la sierra, de SET 91 Nasca a SET 96, y su diagrama único no cabe en la hoja)
 
 - RF-64: DONDE la estructura marca un zonal como dividido por SET, EL SISTEMA pondrá en ese
   zonal una red (`ElmNet`) por cada SET con alimentadores en la entrega, en lugar de la red
   del zonal de RF-8.
 - RF-65: EL SISTEMA dará a cada red de RF-64 su propio diagrama, con la hoja a la medida de
   esa SET y sus alimentadores.
-- RF-66: EL SISTEMA nombrará cada red de RF-64 con su zonal y su SET («Nasca SET 52
+- RF-66: EL SISTEMA nombrará cada red de RF-64 con su zonal y su SET («Nasca SET 92
   Llipata»).
 - RF-67: MIENTRAS un zonal no esté marcado como dividido por SET, EL SISTEMA mantendrá una
   sola red para todo el zonal (RF-8).
@@ -263,8 +263,8 @@ SET y alimentadores nuevos de la entrega (usuario, 2026-10-23: «en los TXT carg
 una nueva SET que no está en el sistema eléctrico y no carga para conversión, SET Chincha
 Nueva (CHN); sus alimentadores deben considerarse, y otros que existan, cada vez que se
 cargan archivos nuevos, TXT, MDB y VNR-GIS». La entrega RED_231026 trae 101 alimentadores y
-siete no estaban en la tabla de la empresa: CN101, CN102, CN103 y CN201, de la SET nueva;
-PA219, junto a las cabeceras de Paracas; COH101 y SC215. Quedaban «Sin SET» y la conversión
+siete no estaban en la tabla de la empresa: CN191, CN192, CN193 y CN291, de la SET nueva;
+PA219, junto a las cabeceras de Paracas; COH191 y SC215. Quedaban «Sin SET» y la conversión
 por zonal los dejaba fuera)
 
 - RF-71: CUANDO un alimentador de la entrega no está en la estructura y sus siglas (las
@@ -289,17 +289,17 @@ por zonal los dejaba fuera)
   zonal y la regla que lo colocó, en el resumen de la estructura y en el informe de la
   conversión, sin bloquear.
 - RF-79: La estructura del perfil de Empresa A tendrá la SET Chincha Nueva (siglas CN),
-  en el zonal Chincha, con CN101, CN102, CN103 y CN201 en el sistema eléctrico SE0043
+  en el zonal Chincha, con CN191, CN192, CN193 y CN291 en el sistema eléctrico SE0043
   Chincha (usuario, 2026-10-23).
-- RF-80: La estructura del perfil de Empresa A pondrá PO101, de la SET 35 Pampa de
+- RF-80: La estructura del perfil de Empresa A pondrá PO191, de la SET 75 Pampa de
   Ocas, en el sistema eléctrico SE0046 Pisco (usuario, 2026-10-23).
 - RF-81: CUANDO una SET de la estructura declare varias siglas, EL SISTEMA tratará como el
   mismo alimentador los códigos que solo difieren en esas siglas: en la estructura, en el
   libro de medidores (sus medidores y si es de la red) y en la barra de su SET. La SET
-  nueva Chincha Nueva viene en RED_231026 como CN101 a CN201 y en los libros de la empresa
-  como CHN101 a CHN201, con el medidor de barra CHNB1T1; en la web sus alimentadores no
+  nueva Chincha Nueva viene en RED_231026 como CN191 a CN291 y en los libros de la empresa
+  como CHN191 a CHN291, con el medidor de barra CHNB1T1; en la web sus alimentadores no
   encontraban medidor y su barra quedaba suelta (usuario, 2026-10-27). El perfil de
-  Empresa A da a la SET CHN las siglas CN y CHN; sin siglas declaradas no se casa nada.
+  Empresa A da a la SET QHN las siglas CN y CHN; sin siglas declaradas no se casa nada.
 - RF-82: La web tendrá, junto a «Convertir sistema», un desplegable con las SET de la
   entrega (las del sistema elegido, o todas), cada una con sus alimentadores, y un botón
   «Convertir SET» que convierte solo esa SET como en su sistema: su red, sus barras y la
@@ -317,13 +317,13 @@ por zonal los dejaba fuera)
   ser con el máximo valor de barras en 60 kV, emparejando la columna alimentador, que ahí
   dice barra de 60 kV, MEDIDOR y columna SET»). Prevalece sobre la barra de media de RF-38.
 - RF-85: EL SISTEMA reconocerá la columna «SET» del libro de medidores como la de las
-  siglas, y su valor por las siglas de la SET, su código («SET 21») o su nombre.
+  siglas, y su valor por las siglas de la SET, su código («SET 61») o su nombre.
 - RF-86: SI una SET no tiene medidor de barra de 60 kV, ENTONCES EL SISTEMA seguirá con su
   barra de media (RF-38 a RF-42); SI un medidor de 60 kV no es de ninguna SET de la
   estructura, ENTONCES lo dirá y no lo usará, sin barra suelta; los de 220 kV no se usan.
   SI un medidor de una barra no tiene registros en el periodo (B-PA6T1 en julio de 2026),
   ENTONCES EL SISTEMA lo dirá y sumará la barra con los demás. Una columna SET vacía se
-  deduce del nombre del medidor (TMB6T2 → SET 22), y un medidor en dos SET se avisa.
+  deduce del nombre del medidor (TMB6T2 → SET 62), y un medidor en dos SET se avisa.
 - RF-87: Una SET tiene 1, 2 o 3 transformadores (T1, T2, T3 en el rótulo «Barra60KV_T2» o
   en el medidor, B-PA6T2, TA6TR2). EL SISTEMA sumará, registro a registro, los medidores
   de todos sus transformadores en cada barra (la de 60 kV y cada una de media), dirá de
@@ -332,7 +332,7 @@ por zonal los dejaba fuera)
 - RF-88: Los medidores que empiezan por CT son centrales térmicas. La web listará las del
   libro con su SET y su nivel, y el operador dirá si cada una está en la barra de su SET
   (CT_PEDREG, en la de 10 kV de Pedregal) o en un tramo de media de un alimentador (la de
-  Nasca, CT_BH4 NA, en la troncal de 22,9 kV de NA205); la propuesta sale de
+  Nasca, CT_BH4 NA, en la troncal de 22,9 kV de NA295); la propuesta sale de
   `centrales_termicas` del perfil. EL SISTEMA pondrá la de barra como generador en esa
   barra con su medida en el instante de la barra de 60 kV, y la de tramo no la pondrá en
   la barra: la medirá con su alimentador, en ese mismo instante (021:RF-28) (usuario,
@@ -344,21 +344,21 @@ por zonal los dejaba fuera)
   unidad.
 - RF-90: CUANDO una SET de la estructura declare varias siglas, la primera será la
   canónica, y EL SISTEMA nombrará con ella al alimentador desde la carga de la fuente
-  (inventario, DGS, web y calibración): la red de RED_231026 trae CN101 a CN201 y la SET
-  Chincha Nueva se declara `["CHN", "CN"]`, así que son CHN101 a CHN201 (usuario,
+  (inventario, DGS, web y calibración): la red de RED_231026 trae CN191 a CN291 y la SET
+  Chincha Nueva se declara `["CHN", "CN"]`, así que son CHN191 a CHN291 (usuario,
   2026-10-28: «debes corregirlo con los CHN desde la carga de los TXT en la web»). Sin
   perfil, el nombre de la red tal cual.
 - RF-91: EL SISTEMA buscará la máxima de la barra de 60 kV solo entre los registros que
   tienen también todos los medidores de los alimentadores de su SET, para que el instante
   coincida en todos; si la máxima sin esa condición cae en un registro que falta en alguno,
-  lo dirá con las dos fechas (CHNB6T1 dio el 2026-07-24 11:45 y CHN101, CHN102 y CHN201 no
+  lo dirá con las dos fechas (CHNB6T1 dio el 2026-07-24 11:45 y CHN191, CHN192 y CHN291 no
   tenían ese registro y quedaban sin calibrar, DIgSILENT, 2026-10-28).
 - RF-92: no se usa (nunca se definió: la herramienta de las hojas entró como RF-93).
 - RF-93: EL SISTEMA dará una herramienta de solo lectura que compare en DIgSILENT la hoja de
   cada diagrama con sus gráficos y conectores y diga, por diagrama, su formato, su
   orientación y si todo cae dentro. Usuario, 2026-10-29: no había ninguna en `tools/`
   (`prueba_representacion.py` mira el DGS). Medido ese día en Nasca por SET: DIgSILENT crea
-  la hoja a la medida y la orienta él (vertical la SET 52, la 53 y la 56, más altas que
+  la hoja a la medida y la orienta él (vertical la SET 92, la 53 y la 56, más altas que
   anchas); los vectores de los conectores traen −1 en los puntos sin usar, que no son del
   dibujo. No hace falta orientar las hojas al importar.
 
@@ -386,7 +386,7 @@ Informe
 
 - Disposición reducida y completa del TXT: el resultado es el mismo.
 - Una SET con alimentadores de 10 kV y de 22,9 kV: dos barras y dos redes externas.
-- Un alimentador partido en varias redes en la base (PE104 en 260924.mdb): todas sus
+- Un alimentador partido en varias redes en la base (PE194 en 260924.mdb): todas sus
   partes cuelgan de la misma barra.
 - Una SET, un sistema eléctrico (SER Chincha, SER Nasca) o un zonal sin alimentadores en
   la entrega: no se escribe (RF-25b).
@@ -422,7 +422,7 @@ Informe
 - Suite en verde con los TXT, la MDB y VNR-GIS reales, y DGS idéntico con `workers=1` y
   `workers>1`.
 - Probado en DIgSILENT: la entrega de Empresa A importada como un proyecto, con los
-  cuatro zonales, sus SET y un flujo que converge; NA203 + NA205 calibrados juntos en SET
+  cuatro zonales, sus SET y un flujo que converge; NA293 + NA295 calibrados juntos en SET
   51 Nasca.
 
 ## Dudas abiertas

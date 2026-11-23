@@ -225,7 +225,7 @@ def test_sin_patron_se_conservan_las_sed_que_otro_perfil_excluye(tmp_path):
 
 # --------------------------------------------------------------------------- RF-34
 #: Convenciones de una distribuidora real que no pueden volver al código como valores.
-CONVENCIONES = ('EPSG:32718', '^M\\d', 'IN111', 'NA205')
+CONVENCIONES = ('EPSG:32718', '^M\\d', 'IN191', 'NA295')
 
 
 def _literales(ruta: Path) -> list[tuple[int, str]]:

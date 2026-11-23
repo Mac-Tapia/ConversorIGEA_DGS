@@ -15,7 +15,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
         }
 
         // ------------------------------------------------------------------ sistemas externos
-        fuentes = softwareSystem "Fuentes de la distribuidora" "TXT de CYMDIST, base Access y libros de medición; cada fuente se carga por su ruta." {
+        fuentes = softwareSystem "Fuentes de la distribuidora" "TXT, base Access y libros de medición; cada fuente se carga por su ruta." {
             url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/src/convertersmartgrid/adaptadores/sources"
             tags "External"
         }

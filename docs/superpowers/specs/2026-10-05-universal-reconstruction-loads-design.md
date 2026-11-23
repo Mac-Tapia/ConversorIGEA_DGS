@@ -9,7 +9,7 @@ cargas y SED.
 ## 1. Objetivo
 
 El conversor debe funcionar para cualquier empresa, periodo, CRS, nomenclatura de
-alimentadores y combinación válida de equipos. Empresa A e IN111 son conjuntos
+alimentadores y combinación válida de equipos. Empresa A e IN191 son conjuntos
 de aceptación disponibles, no reglas del producto.
 
 Una entrada incompleta no se descarta. El sistema conserva los originales,
@@ -249,7 +249,7 @@ hash de artefacto y plan preflight.
 ### 13.3 Reales
 
 - Fixtures universales prueban la lógica general.
-- Empresa A/IN111 se usa como aceptación real disponible, no como requisito.
+- Empresa A/IN191 se usa como aceptación real disponible, no como requisito.
 - TXT y MDB se ejecutan en runs independientes.
 - Un VNR-GIS se declara real solo con paquete oficial/completo.
 - PowerFactory exige relectura efectiva y `ComLdf`; éxito de comando no basta.

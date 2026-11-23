@@ -1,4 +1,4 @@
-"""047:RF-48 a RF-56: qué contradicción de un dictamen de revisión cuenta, decidido por el código y no por el LLM.
+"""047:RF-48 a RF-56, RF-75 a RF-83: qué contradicción de un dictamen de revisión cuenta, decidido por el código y no por el LLM.
 
 Una contradicción es ``{campo, valor_propuesta, valor_evidencia, fuente, base}``. Cuenta solo si sus dos valores son
 distintos con la unidad normalizada, están en la propuesta y en la fuente citada y se refieren a la misma base (total o
@@ -467,9 +467,29 @@ def _texto_de_fuentes(fuente, evidencia):
     return ' ; '.join(fragmentos), None
 
 
-def _motivo(campo, valor_p, valor_e, fuente, propuesta, evidencia) -> tuple[str | None, dict]:
-    """Por qué no cuenta (o ``None`` si cuenta) y lo que el código calculó (RF-49, RF-53, RF-55, RF-56, RF-75, RF-76)."""
-    if _clave(campo) == ACCION and (_leer(valor_p) is None or _leer(valor_e) is None):
+def _solo_cifra(valor) -> bool:
+    """047:RF-83: el valor es una cifra con su unidad y, como mucho, dos palabras más («450 kvar», «2 aisladores»),
+    no una frase que trae de paso una cifra («trabajar en caliente en el tramo T210 para cambiar 2 aisladores»)."""
+    if _leer(valor) is None:
+        return False
+    resto = _NUM.sub(' ', _limpio(valor))
+    palabras = [p for p in re.findall(r'[a-záéíóúñ%$²μω.]+', resto) if p.strip('.') and p.strip('.') not in _UNIDADES]
+    return len(palabras) <= 2
+
+
+def _motivo(campo, valor_p, valor_e, fuente, propuesta, evidencia, comprobados=()) -> tuple[str | None, dict]:
+    """Por qué no cuenta (o ``None`` si cuenta) y lo que el código calculó (RF-49, RF-53, RF-55, RF-56, RF-75, RF-76,
+    RF-79, RF-83)."""
+    motivo, calculo = _motivo_por_valores(campo, valor_p, valor_e, fuente, propuesta, evidencia)
+    if motivo is None and _clave(campo) in comprobados:
+        # 047:RF-79: con el 047f, el modelo comparaba el coste total con cada partida («18900» frente a «16.400»); el
+        # código ya sumó las partidas de la evidencia y cuadran, así que para ese campo decide su cuenta.
+        return f'el código comprobó {_clave(campo)} con la evidencia y cuadra', calculo
+    return motivo, calculo
+
+
+def _motivo_por_valores(campo, valor_p, valor_e, fuente, propuesta, evidencia) -> tuple[str | None, dict]:
+    if _clave(campo) == ACCION and not (_solo_cifra(valor_p) and _solo_cifra(valor_e)):
         return 'la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia', {}
     if propuesta is not None and _del_campo(campo, propuesta) is None and not _aparece(valor_p, texto_de(propuesta)):
         return f'no fundada: «{valor_p}» no está en la propuesta', {}
@@ -508,12 +528,33 @@ def _motivo(campo, valor_p, valor_e, fuente, propuesta, evidencia) -> tuple[str 
     return None, {}
 
 
-def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[list, list[dict]]:
-    """047:RF-48 a RF-78 — las contradicciones que cuentan y las descartadas, con su motivo.
+def filtrar_incertidumbres(incertidumbres, propuesta=None) -> tuple[list, list[dict]]:
+    """047:RF-80 — las incertidumbres que cuentan y las descartadas, con su motivo.
+
+    Con el 047f, un rol dejó «buzones» como incertidumbre cuando la acción dice «construir 2 buzones»: la acción es lo
+    que se revisa (RF-46) y fija esa cantidad. Solo se descarta una incertidumbre que es únicamente el nombre de un
+    campo de la propuesta cuyo valor está en la acción; si el valor solo está en una evidencia, se mantiene, porque la
+    evidencia puede ser de otro elemento.
+    """
+    quedan, descartadas = [], []
+    accion = propuesta.get(ACCION) if isinstance(propuesta, dict) else None
+    for texto in incertidumbres:
+        clave = _normal(texto).strip(' `"\'«».:')
+        valor = _del_campo(clave, propuesta) if clave and ' ' not in clave else None
+        if valor is not None and isinstance(accion, str) and _aparece(valor, accion):
+            descartadas.append({'entrada': texto, 'motivo': f'la acción fija {clave} ({valor}): no es una incertidumbre'})
+        else:
+            quedan.append(texto)
+    return quedan, descartadas
+
+
+def filtrar_contradicciones(entradas, propuesta=None, evidencia=None, comprobados=()) -> tuple[list, list[dict]]:
+    """047:RF-48 a RF-83 — las contradicciones que cuentan y las descartadas, con su motivo.
 
     Con ``propuesta`` y ``evidencia`` comprueba además que cada valor esté donde dice; si el campo es de la propuesta,
     su valor es el de la propuesta. Una entrada en texto libre (formato anterior) se interpreta como «X vs Y» y, si no
-    se puede, se mantiene. Una entrada con otra forma lanza ``ValueError``: el dictamen no es válido.
+    se puede, se mantiene. Una entrada con otra forma lanza ``ValueError``: el dictamen no es válido. ``comprobados``
+    son los campos que el código ya comprobó con la evidencia y cuadran (RF-79).
     """
     quedan, descartadas = [], []
     for entrada in entradas:
@@ -526,7 +567,7 @@ def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[l
                 continue
             campo, valor_p, valor_e = leida
             valor_p = _del_campo(campo, propuesta) if _del_campo(campo, propuesta) is not None else valor_p
-            motivo, _calculo = _motivo(campo, valor_p, valor_e, None, propuesta, evidencia)
+            motivo, _calculo = _motivo(campo, valor_p, valor_e, None, propuesta, evidencia, comprobados)
             (descartadas.append({'entrada': entrada, 'motivo': motivo}) if motivo else quedan.append(entrada))
             continue
         if not _valida(entrada):
@@ -537,7 +578,7 @@ def filtrar_contradicciones(entradas, propuesta=None, evidencia=None) -> tuple[l
             entrada['valor_propuesta_devuelto'] = entrada['valor_propuesta']
             entrada['valor_propuesta'] = propio
         motivo, calculo = _motivo(entrada['campo'], entrada['valor_propuesta'], entrada['valor_evidencia'],
-                                  str(entrada['fuente']), propuesta, evidencia)
+                                  str(entrada['fuente']), propuesta, evidencia, comprobados)
         entrada.update(calculo)
         (descartadas.append({'entrada': entrada, 'motivo': motivo}) if motivo else quedan.append(entrada))
     return quedan, descartadas

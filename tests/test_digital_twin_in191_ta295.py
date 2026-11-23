@@ -1,4 +1,4 @@
-"""Spec 024, T8: caso dorado IN111–TA225, sin licencia (la aceptación nativa es aparte)."""
+"""Spec 024, T8: caso dorado IN191–TA295, sin licencia (la aceptación nativa es aparte)."""
 from __future__ import annotations
 
 import copy
@@ -14,14 +14,14 @@ from convertersmartgrid.dominio.digital_twin.episode import Caso, Clase
 from convertersmartgrid.adaptadores.digital_twin.evaluacion import Limites
 from convertersmartgrid.dominio.native_action import build_native_action_context
 
-FIXTURE = Path(__file__).parent / 'fixtures' / 'digital_twin' / 'in111_ta225_topology_episode.json'
+FIXTURE = Path(__file__).parent / 'fixtures' / 'digital_twin' / 'in191_ta295_topology_episode.json'
 ESPERADO = json.loads(FIXTURE.read_text(encoding='utf-8'))
 H = '1' * 64
 
 
 @pytest.fixture(scope='module')
 def guion():
-    return cargar_herramienta('accept_digital_twin_in111_ta225.py', 'aceptacion_gemelo')
+    return cargar_herramienta('accept_digital_twin_in191_ta295.py', 'aceptacion_gemelo')
 
 
 def _lectura():
@@ -42,7 +42,7 @@ def _lectura():
             'estados': {ESPERADO['frontera_cerrada']: {'clase': 'StaSwitch', 'en_servicio': True, 'cerrado': True},
                         ESPERADO['enlace']: {'clase': 'ElmLne', 'en_servicio': True, 'cerrado': True}}},
         'flujo': {
-            'balance': {'unidad': 'kW', 'valores': {'cabeceras': {'IN111': 1.0, 'TA225': 1.0}}},
+            'balance': {'unidad': 'kW', 'valores': {'cabeceras': {'IN191': 1.0, 'TA295': 1.0}}},
             'perdidas': {'unidad': 'kW', 'valores': {'total': 1.0}},
             'cargabilidad': {'unidad': '%', 'valores': {'lineas': {}, 'transformadores': {}}},
             'tensiones': {'unidad': 'p.u.', 'valores': {

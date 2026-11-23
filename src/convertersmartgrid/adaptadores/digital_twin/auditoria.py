@@ -1,7 +1,7 @@
 """Auditoría del dataset de cada modelo antes de entrenar (spec 027, RF-29 a RF-34).
 
 La revisión del 2026-10-28 halló que el gemelo se entrenaba con 24 muestras de una sola red
-(IN111–TA225, 2 470 nodos) y 928 518 parámetros, y el asistente con 4 055 órdenes de las que
+(IN191–TA295, 2 470 nodos) y 928 518 parámetros, y el asistente con 4 055 órdenes de las que
 una era real, medido con órdenes sintéticas. Nada de eso fallaba: el error de prueba salía
 bueno porque medía lo mismo con que se entrenó. Este informe lo dice antes de cada
 entrenamiento, y un dataset con valores no finitos no se entrena (RF-30).
@@ -28,7 +28,7 @@ class Umbrales:
 
 def _red(m: Any) -> tuple:
     """Lo que distingue una red de otra: sus nodos. Ni las cargas ni el estado de una maniobra:
-    IN111–TA225 con una maniobra más cerrada (4 942 aristas frente a 4 940) es la misma red y
+    IN191–TA295 con una maniobra más cerrada (4 942 aristas frente a 4 940) es la misma red y
     contaba como dos (2026-10-28)."""
     return tuple(m.ids)
 

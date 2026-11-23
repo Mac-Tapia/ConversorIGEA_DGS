@@ -41,7 +41,7 @@
   RF-11, RF-12); el guion contra `tests/fake_pf.py` (RF-1, RF-2, RF-8); la ruta de la web
   (RF-9, RF-10) y el front compilado con el botón (RF-9, RF-11).
 - `tests/test_ajuste_cabecera_pf.py` o la prueba de centrales existente para RF-13 y RF-14.
-- En DIgSILENT: escanear Nasca tras poner el usuario la central de NA205 a mano.
+- En DIgSILENT: escanear Nasca tras poner el usuario la central de NA295 a mano.
 
 ## Continuación RF-24 y RF-25
 

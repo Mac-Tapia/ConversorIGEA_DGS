@@ -497,8 +497,8 @@ def test_set_nueva_comprobada_con_el_oraculo_y_con_su_nombre():
                                   'r_ohm_km': 0.3, 'x_ohm_km': 0.35, 'inom_ka': 0.4}], kv=10.0)
     e = con_set.evaluar([], 1, p)
     assert e['maxima'], e['motivos']
-    obra = validar_obra({'clase': 'set_nueva', 'alimentador': 'NA203', 'casos': ['Con proyecto'],
-                         'destino': '-14.8, -74.9', 'ramas': ['NA203/N1'], 'mva': 25, 'kv_alta': 60,
+    obra = validar_obra({'clase': 'set_nueva', 'alimentador': 'NA293', 'casos': ['Con proyecto'],
+                         'destino': '-14.8, -74.9', 'ramas': ['NA293/N1'], 'mva': 25, 'kv_alta': 60,
                          'nombre_set': 'SET NORTE'})
     assert obra.nombre_set == 'SET NORTE'
 

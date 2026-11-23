@@ -201,7 +201,7 @@ def subtipos_del_perfil() -> list[str]:
 def registrar(texto: str, tipo: str, subtipo: str, origen: str, grupo: str | None = None) -> None:
     """Un informe o una corrección como ejemplo del próximo entrenamiento (RF-15).
 
-    026:RF-33: ``grupo`` junta las versiones de un mismo informe (el CA101 se generó nueve veces): van todas a
+    026:RF-33: ``grupo`` junta las versiones de un mismo informe (el CA191 se generó nueve veces): van todas a
     entrenamiento o todas a prueba. Sin él, cada texto es su propio grupo.
     """
     fila = {'texto': texto[:LARGO_MAX * 8], 'tipo': tipo, 'subtipo': subtipo, 'origen': origen}

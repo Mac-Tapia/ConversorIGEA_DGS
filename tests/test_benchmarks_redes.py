@@ -1,6 +1,6 @@
 """Spec 112: benchmark de redes anonimizado (112:RF-1, RF-2, RF-3, RF-10).
 
-El benchmark de redes es un trío TXT de CYMDIST, el formato que el conversor ya lee (plan de la 112, decisiones): así
+El benchmark de redes es un trío TXT, el formato que el conversor ya lee (plan de la 112, decisiones): así
 el benchmark prueba también el lector y las reglas. Solo lleva las secciones y columnas de una lista cerrada; los
 identificadores pasan por el mapa de seudónimos y las columnas de texto libre se quedan fuera. Todo con exports
 sintéticos sorteados (``ExportSpec``), en las dos disposiciones: ningún dato de la distribuidora entra en ``tests/``.

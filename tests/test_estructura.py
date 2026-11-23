@@ -7,6 +7,7 @@ import random
 
 import pytest
 
+from apoyo import perfiles_anonimizados
 from convertersmartgrid.dominio import estructura as es
 from convertersmartgrid.aplicacion.demanda_medida import leer_tabla_excel
 
@@ -129,30 +130,29 @@ def test_asignar_la_entrega():
 
 def test_la_estructura_de_electro_dunas_en_su_perfil(tmp_path):
     """022:RF-3, 022:RF-46 — el perfil local que hereda de una distribuidora real trae la estructura
-    de la tabla pública: 4 zonales, NA205 en SET 51 Nasca, siglas SI → SEIN, PA → Paracas."""
-    from pathlib import Path
-
+    de la tabla pública: 4 zonales, NA295 en SET 91 Nasca, siglas SI → SEIN, PA → Paracas."""
     from convertersmartgrid.dominio.perfil_empresa import estructura_empresa
 
     local = tmp_path / 'perfil_empresa.json'
     local.write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
-    carpeta = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
+    # LIMPIEZA-CODIGOS: la tabla del perfil, con los códigos inventados de esta prueba (``anonimizar_codigos``).
+    carpeta = perfiles_anonimizados(tmp_path / 'perfiles')
     e = estructura_empresa(local, carpeta=carpeta)
     assert e.zonales == ['Chincha', 'Pisco', 'Ica', 'Nasca']
-    assert e.set_de('NA205').rotulo == 'SET 51 Nasca'
+    assert e.set_de('NA295').rotulo == 'SET 91 Nasca'
     assert e.set_de_siglas('SI').codigo == 'SEIN' and e.set_de_siglas('PA').nombre == 'Paracas'
-    assert e.sistemas[e.alimentadores['TA122'].sistema].norma == 'NTCSER'
-    # SET nueva que la tabla pública aún no trae: PO101 sale de su SET, no de Alto la Luna.
-    assert e.set_de('PO101').rotulo == 'SET 35 Pampa de Ocas'
-    # 022:RF-80: PO101 es del sistema Pisco (operador, 2026-10-23).
-    assert e.set_de_siglas('PO').zonal == 'Pisco' and e.alimentadores['PO101'].sistema == 'SE0046'
+    assert e.sistemas[e.alimentadores['TA192'].sistema].norma == 'NTCSER'
+    # SET nueva que la tabla pública aún no trae: PO191 sale de su SET, no de Alto la Luna.
+    assert e.set_de('PO191').rotulo == 'SET 75 Pampa de Ocas'
+    # 022:RF-80: PO191 es del sistema Pisco (operador, 2026-10-23).
+    assert e.set_de_siglas('PO').zonal == 'Pisco' and e.alimentadores['PO191'].sistema == 'SE0046'
     # 022:RF-79: la SET Chincha Nueva, nueva en RED_231026, en Chincha y su sistema.
     # 022:RF-90: CHN es la canónica; CN, la de la red de RED_231026, la misma SET.
-    for a in ('CHN101', 'CHN102', 'CHN103', 'CHN201'):
-        assert e.set_de(a).rotulo == 'SET CHN Chincha Nueva' and e.set_de(a).zonal == 'Chincha'
+    for a in ('CHN191', 'CHN192', 'CHN193', 'CHN291'):
+        assert e.set_de(a).rotulo == 'SET QHN Chincha Nueva' and e.set_de(a).zonal == 'Chincha'
         assert e.sistemas[e.alimentadores[a].sistema].nombre == 'Chincha'
-    assert e.set_de_siglas('CN').codigo == e.set_de_siglas('CHN').codigo == 'SET CHN'
-    assert e.sets['SET CHN'].siglas[0] == 'CHN'
+    assert e.set_de_siglas('CN').codigo == e.set_de_siglas('CHN').codigo == 'SET QHN'
+    assert e.sets['SET QHN'].siglas[0] == 'CHN'
     # 022:RF-70: el zonal Nasca no cabe en una hoja; los demás siguen con una red.
     assert e.zonales_por_set == {'Nasca'}
     sin = tmp_path / 'otro.json'
@@ -165,16 +165,16 @@ def _ed():
     from pathlib import Path
 
     from convertersmartgrid.dominio.perfil_empresa import estructura_empresa
-    carpeta = Path(__file__).resolve().parents[1] / 'config' / 'perfiles'
     import tempfile
     d = Path(tempfile.mkdtemp())
+    carpeta = perfiles_anonimizados(d / 'perfiles')
     (d / 'p.json').write_text('{"perfil": "electro_dunas"}', encoding='utf-8')
     return estructura_empresa(d / 'p.json', carpeta=carpeta)
 
 
 def test_medidores_de_barra_del_libro(tmp_path):
     """022:RF-37 — las filas «Barra» del libro de medidores, con su nivel, sus siglas, si es
-    de central y la barra suelta de un alimentador («Barra/CHI201»)."""
+    de central y la barra suelta de un alimentador («Barra/CHI291»)."""
     from openpyxl import Workbook
 
     from convertersmartgrid.aplicacion.demanda_medida import leer_medidores_de_barra
@@ -182,16 +182,17 @@ def test_medidores_de_barra_del_libro(tmp_path):
     wb = Workbook()
     h = wb.active
     h.append(['codigo alimentador', 'Medidor', 'Nivel Tension', 'siglas'])
-    for fila in (['PA217', 'PA217', 22.9, 'PA'], ['Barra', 'B-PA2T1', 22.9, 'PA'],
+    for fila in (['PA297', 'PA297', 22.9, 'PA'], ['Barra', 'B-PA2T1', 22.9, 'PA'],
                  ['Barra', 'B-PA6T1', 60, 'PA'], ['Barra CT ', 'CT_PEDREG', 10, 'PE'],
-                 ['Barra/CHI201', 'CHB2T1', 22.9, None], ['Barra', 'B-PN1T2  ', 10, 'PN']):
+                 ['Barra/CHI291', 'CHB2T1', 22.9, None], ['Barra', 'B-PN1T2  ', 10, 'PN']):
         h.append(fila)
     wb.save(tmp_path / 'm.xlsx')
     ms = leer_medidores_de_barra(tmp_path / 'm.xlsx')
     assert [m.medidor for m in ms] == ['B-PA2T1', 'B-PA6T1', 'CT_PEDREG', 'CHB2T1', 'B-PN1T2']
     ct = next(m for m in ms if m.medidor == 'CT_PEDREG')
     assert ct.central and ct.siglas == 'PE' and ct.kv == 10
-    assert next(m for m in ms if m.medidor == 'CHB2T1').alimentador == 'CHI201'
+    chb = next((m for m in ms if m.medidor == 'CHB2T1'), None)
+    assert chb is not None and chb.alimentador == 'CHI291'
 
 
 def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
@@ -199,7 +200,7 @@ def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
     barra de su SET y nivel; los de 220 kV no; T1 y T2 de Pueblo Nuevo en la misma barra; la
     central en su barra; SI es SEIN; unas siglas sin SET (QX), barra suelta de sus
     alimentadores; sin medidor de barra, el alimentador queda con su propia máxima.
-    022:RF-81: CHNB1T1 es de la SET CHN y lleva a CN101, que el libro llama CHN101."""
+    022:RF-81: CHNB1T1 es de la SET QHN y lleva a CN191, que el libro llama CHN191."""
     from convertersmartgrid.aplicacion.demanda_medida import MedidorBarra, barras_de_calibracion
 
     M = lambda med, kv, sig, ct=False, al='': MedidorBarra(med, kv, sig, ct, 1, al)  # noqa: E731
@@ -207,19 +208,19 @@ def test_barras_de_calibracion_con_la_estructura_de_electro_dunas():
                  M('B-PN1T1', 10.0, 'PN'), M('B-PN1T2', 10.0, 'PN'), M('B-PN2T2', 22.9, 'PN'),
                  M('CT_PEDREG', 10.0, 'PE', True), M('B-PE1T1', 10.0, 'PE'), M('B-SI1T1', 10.0, 'SI'),
                  M('CHNB1T1', 10.0, 'CHN'), M('QXB1T1', 10.0, 'QX'), M('CT_BH4 NA', 22.9, 'NA', True)]
-    kv = {'PA217': 22.9, 'PA111': 10.0, 'PN107': 10.0, 'PE103': 10.0, 'SI112': 10.0, 'NA203': 22.9,
-          'CN101': 10.0, 'QX101': 10.0}
+    kv = {'PA297': 22.9, 'PA191': 10.0, 'PN197': 10.0, 'PE193': 10.0, 'SI192': 10.0, 'NA293': 22.9,
+          'CN191': 10.0, 'QX101': 10.0}
     barras, avisos = barras_de_calibracion(_ed(), medidores, list(kv), kv)
     por = {b.clave: b for b in barras}
-    assert por['SET 32 22.9 kV'].alimentadores == ['PA217'] and por['SET 32 22.9 kV'].medidores == ['B-PA2T1']
-    assert por['SET 32 10 kV'].alimentadores == ['PA111']
-    assert por['SET 23 10 kV'].medidores == ['B-PN1T1', 'B-PN1T2']
-    assert por['SET 25 10 kV'].centrales == ['CT_PEDREG']
-    assert por['SEIN 10 kV'].alimentadores == ['SI112']
-    assert por['SET CHN 10 kV'].alimentadores == ['CN101'] and por['SET CHN 10 kV'].medidores == ['CHNB1T1']
+    assert por['SET 72 22.9 kV'].alimentadores == ['PA297'] and por['SET 72 22.9 kV'].medidores == ['B-PA2T1']
+    assert por['SET 72 10 kV'].alimentadores == ['PA191']
+    assert por['SET 63 10 kV'].medidores == ['B-PN1T1', 'B-PN1T2']
+    assert por['SET 65 10 kV'].centrales == ['CT_PEDREG']
+    assert por['SEIN 10 kV'].alimentadores == ['SI192']
+    assert por['SET QHN 10 kV'].alimentadores == ['CN191'] and por['SET QHN 10 kV'].medidores == ['CHNB1T1']
     assert por['Suelta QX 10 kV'].alimentadores == ['QX101'] and por['Suelta QX 10 kV'].suelta
     assert not any('220' in b.clave for b in barras)
-    assert not any('NA203' in b.alimentadores for b in barras), 'SET 51 solo tiene la central'
+    assert not any('NA293' in b.alimentadores for b in barras), 'SET 91 solo tiene la central'
     assert any('QX' in a and 'barra suelta propia' in a for a in avisos)
     assert not any('CHN' in a for a in avisos)
 
@@ -236,55 +237,55 @@ def test_barra_de_60_kv_fija_el_instante_de_toda_su_set():
     e = _ed()
     rng = random.Random(84)
     M = lambda med, kv, set_: MedidorBarra(med, kv, set_, False, 1)  # noqa: E731
-    pn = rng.choice(['PN', 'SET 23', 'Pueblo Nuevo'])                # RF-85: cualquiera vale
+    pn = rng.choice(['PN', 'SET 63', 'Pueblo Nuevo'])                # RF-85: cualquiera vale
     medidores = [M('B-PN60-1', 60.0, pn), M('B-PN60-2', 60.0, 'PN'), M('B-PN1T1', 10.0, 'PN'),
                  M('B-PA1T1', 10.0, 'PA'), M('B-XX60', 60.0, 'XX'), M('B-PN220', 220.0, 'PN')]
-    kv = {'PN107': 10.0, 'PN209': 22.9, 'PA111': 10.0}
+    kv = {'PN197': 10.0, 'PN299': 22.9, 'PA191': 10.0}
     barras, avisos = barras_de_calibracion(e, medidores, list(kv), kv)
     por = {b.clave: b for b in barras}
-    alta = por['SET 23 60 kV']
+    alta = por['SET 63 60 kV']
     assert alta.alta and alta.medidores == ['B-PN60-1', 'B-PN60-2'], pn
-    # PN107 sigue en su barra de 10 kV, que toma el instante de la de 60 kV; PN209, sin
+    # PN197 sigue en su barra de 10 kV, que toma el instante de la de 60 kV; PN299, sin
     # barra de 22,9 kV con medidor, va a la de 60 kV con el mismo instante.
-    assert por['SET 23 10 kV'].alimentadores == ['PN107'] and por['SET 23 10 kV'].de_alta == 'SET 23 60 kV'
-    assert alta.alimentadores == ['PN209']
-    assert por['SET 32 10 kV'].alimentadores == ['PA111'] and not por['SET 32 10 kV'].de_alta
+    assert por['SET 63 10 kV'].alimentadores == ['PN197'] and por['SET 63 10 kV'].de_alta == 'SET 63 60 kV'
+    assert alta.alimentadores == ['PN299']
+    assert por['SET 72 10 kV'].alimentadores == ['PA191'] and not por['SET 72 10 kV'].de_alta
     assert not any('XX' in b.clave or '220' in b.clave for b in barras)
     assert any('B-XX60' in a and 'no se usa' in a for a in avisos)
-    assert e.set_de_texto('Chincha Nueva').codigo == 'SET CHN' and e.set_de_texto('') is None
+    assert e.set_de_texto('Chincha Nueva').codigo == 'SET QHN' and e.set_de_texto('') is None
     # Grafías del libro real (2026-10-27): sin espacio, nombre con «SET», siglas de sus
     # alimentadores; y sin columna SET, por el nombre del medidor.
-    assert e.set_de_texto('SET41').codigo == 'SET 41' and e.set_de_texto('SET CHINCHA NUEVA').codigo == 'SET CHN'
-    assert e.set_de_texto('IN').codigo == 'SET 44' and e.set_de_texto('LTSETINDP_S') is None
-    for med, st in (('TMB6T2', 'SET 22'), ('B-PU6T1', 'SET 53'), ('CHNB6T1', 'SET CHN'),
-                    ('TA6TR2', 'SET 41'), ('CAB1T2', 'SET 21'), ('B-SPIT1', None)):
+    assert e.set_de_texto('SET81').codigo == 'SET 81' and e.set_de_texto('SET CHINCHA NUEVA').codigo == 'SET QHN'
+    assert e.set_de_texto('IN').codigo == 'SET 84' and e.set_de_texto('LTSETINDP_S') is None
+    for med, st in (('TMB6T2', 'SET 62'), ('B-PU6T1', 'SET 93'), ('CHNB6T1', 'SET QHN'),
+                    ('TA6TR2', 'SET 81'), ('CAB1T2', 'SET 61'), ('B-SPIT1', None)):
         assert (e.set_de_medidor(med).codigo if e.set_de_medidor(med) else None) == st, med
-    sin_col = [MedidorBarra('TMB6T2', 60.0, '', False, 1), MedidorBarra('B-TM1T1', 10.0, 'SET 22', False, 2)]
-    barras, avisos = barras_de_calibracion(e, sin_col, ['TM101'], {'TM101': 10.0})
+    sin_col = [MedidorBarra('TMB6T2', 60.0, '', False, 1), MedidorBarra('B-TM1T1', 10.0, 'SET 62', False, 2)]
+    barras, avisos = barras_de_calibracion(e, sin_col, ['TM191'], {'TM191': 10.0})
     por = {b.clave: b for b in barras}
-    assert por['SET 22 10 kV'].de_alta == 'SET 22 60 kV' and por['SET 22 60 kV'].medidores == ['TMB6T2']
+    assert por['SET 62 10 kV'].de_alta == 'SET 62 60 kV' and por['SET 62 60 kV'].medidores == ['TMB6T2']
     assert any('TMB6T2' in a and 'vacía' in a for a in avisos)
 
 
 def test_siglas_de_una_set_nueva_son_el_mismo_alimentador():
-    """022:RF-81 — CN101 de la red y CHN101 de los libros son el mismo alimentador de la SET
+    """022:RF-81 — CN191 de la red y CHN191 de los libros son el mismo alimentador de la SET
     nueva Chincha Nueva: misma SET, sus medidores y no «faltan»; sin siglas declaradas
     juntas, nada se casa."""
     from convertersmartgrid.aplicacion.demanda_medida import Medidor, medidores_de
     from convertersmartgrid.dominio.estructura import asignar
 
     e = _ed()
-    for a in ('CHN101', 'CHN102', 'CHN103', 'CHN201'):
-        assert e.set_de(a).codigo == 'SET CHN' and e.alimentador(a).codigo == a
-    assert e.equivalentes('CN101') == ['CN101', 'CHN101']
-    assert e.equivalentes('PA217') == ['PA217'] and e.equivalentes('XYZ1') == ['XYZ1']
-    a = asignar(e, ['CHN101', 'CN102', 'CHN103', 'CHN201'])
-    assert set(a.set_de.values()) == {'SET CHN'} and not a.sin_set
-    assert not {'CHN101', 'CHN102', 'CHN103', 'CHN201'} & set(a.faltan)
-    assert e.alimentador('CN102').codigo == 'CHN102', 'la grafía de la red, al canónico'
-    libro = [Medidor('CHN101', 'CHN1-M1', 2), Medidor('CN102', 'CN2-M1', 3)]
-    assert medidores_de(libro, 'CN101', e.equivalentes('CN101')[1:]) == ['CHN1-M1']
-    assert medidores_de(libro, 'CN101') == [], 'sin grafías, el libro no se casa'
+    for a in ('CHN191', 'CHN192', 'CHN193', 'CHN291'):
+        assert e.set_de(a).codigo == 'SET QHN' and e.alimentador(a).codigo == a
+    assert e.equivalentes('CN191') == ['CN191', 'CHN191']
+    assert e.equivalentes('PA297') == ['PA297'] and e.equivalentes('XYZ1') == ['XYZ1']
+    a = asignar(e, ['CHN191', 'CN192', 'CHN193', 'CHN291'])
+    assert set(a.set_de.values()) == {'SET QHN'} and not a.sin_set
+    assert not {'CHN191', 'CHN192', 'CHN193', 'CHN291'} & set(a.faltan)
+    assert e.alimentador('CN192').codigo == 'CHN192', 'la grafía de la red, al canónico'
+    libro = [Medidor('CHN191', 'CHN1-M1', 2), Medidor('CN192', 'CN2-M1', 3)]
+    assert medidores_de(libro, 'CN191', e.equivalentes('CN191')[1:]) == ['CHN1-M1']
+    assert medidores_de(libro, 'CN191') == [], 'sin grafías, el libro no se casa'
 
 
 def test_maxima_de_la_barra_suma_sus_transformadores():

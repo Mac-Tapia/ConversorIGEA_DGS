@@ -259,7 +259,7 @@ def test_toma_automatica_sin_iopt_at_esta_en_su_posicion():
 
 
 def test_iopt_lev_bloquea_solo_si_cambio_el_consumo():
-    """045:RF-4 — con la adaptación del modelo, el consumo medido decide: CA101 consumía el 73 % de lo escrito."""
+    """045:RF-4 — con la adaptación del modelo, el consumo medido decide: CA191 consumía el 73 % de lo escrito."""
     g = _base()
     g['controles']['comldf']['iopt_lev'] = 1
     g['nodos']['A'].update(carga_p_mw=0.1, carga_q_mvar=0.01, carga_p_efectiva_mw=0.1, carga_q_efectiva_mvar=0.01)
@@ -374,7 +374,7 @@ def test_acoplador_sigue_siendo_acoplador():
 def test_sin_barras_que_cumplir_el_balance_la_fisica_es_cero_y_no_nan():
     """045:RF-6 — una red sin barras libres (la fuente y lo que cuelga de ella por acopladores) no tiene residuo que medir.
 
-    Ciclo del 2026-11-12: cinco episodios de TM102 sin barras libres daban en PyTorch la media de nada, NaN, y la pérdida de
+    Ciclo del 2026-11-12: cinco episodios de TM192 sin barras libres daban en PyTorch la media de nada, NaN, y la pérdida de
     la época salía «nan» en los tres miembros; ``perdidas_fisicas`` daba 0 para la misma muestra.
     """
     torch = pytest.importorskip('torch')

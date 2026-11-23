@@ -102,7 +102,7 @@ def fijas_de(cruzados: Iterable[Mapping[str, Any]], objetivo: Objetivo,
 
     Con ``fp_minimo`` (perfil de empresa, 015:RF-62 a RF-64), el cliente cuyo EA/ERI da un
     factor menor se escribe con ese mínimo, como compensado por su banco propio, y queda
-    dicho en su derivación y en un aviso. En CA101 (2026-10-15) el EA/ERI daba factores
+    dicho en su derivación y en un aviso. En CA191 (2026-10-15) el EA/ERI daba factores
     de 0,43 a 0,98 y la cabecera 3036 kvar frente a 302 medidos.
     """
     por_clave: dict[str, Fija] = {}
@@ -359,7 +359,7 @@ def reparto_inicial(objetivo: Objetivo, fijas: Mapping[str, Fija],
     ese mismo FP, y un solo factor de escala, el ``scale0`` de DIgSILENT, que es así la
     fracción de carga de sus transformadores. El usuario, el 2026-10-15: «el escalado se
     debe hacer a sus potencias instaladas de cada SED escalada». Con la P del archivo, en
-    CA101 98 de 160 escaladas (11 057 kVA) tenían demanda cero y los 6 MW caían en 62 SED.
+    CA191 98 de 160 escaladas (11 057 kVA) tenían demanda cero y los 6 MW caían en 62 SED.
     El FP es el del perfil de empresa (``fp``, 015:RF-54) o, sin él, el de la máxima de
     cabecera (RF-55). Una SED sin kVA conocido queda en cero, con aviso (RF-45). Las fijas
     conservan la Q de su EA/ERI y las cambiadas a mano la que tienen (RF-53, RF-58).
@@ -905,8 +905,8 @@ def _paso_q(rep: Reparto, kvar: float, objetivo: Objetivo, puntos: list[tuple[fl
     La Q de las fijas es la de su registro y los bancos son la red: lo único libre es la Q de
     las escaladas, con su FP entre 1 (factor 0) y su mínimo (``b_maximo``). Solo un flujo en
     el extremo decide que la medida no se alcanza (035:RF-28). El usuario, el 2026-10-31:
-    «las mediciones en cabecera que no sean coherentes como de NA203» quedan con la Q real de
-    DIgSILENT, y «en las que sí tienen coherencia se debe hacer cuadre». NA203 daba 3 447 kvar
+    «las mediciones en cabecera que no sean coherentes como de NA293» quedan con la Q real de
+    DIgSILENT, y «en las que sí tienen coherencia se debe hacer cuadre». NA293 daba 3 447 kvar
     con las escaladas a FP 1 frente a 1 711 medidos: le hacía falta reactiva negativa, y una
     escalada con reactiva negativa no es una carga.
     """
@@ -1100,7 +1100,7 @@ def cuadrar(
                 perdida_p = m.kw - p_cargas
                 # Una red pasiva no puede entregar en su cabecera menos potencia activa
                 # que el consumo efectivo de sus cargas (o el nominal, si el motor no da
-                # resultados). CA101 llegó a aparentar -6.684 MW porque el ElmFeeder
+                # resultados). CA191 llegó a aparentar -6.684 MW porque el ElmFeeder
                 # medía solo una de sus dos troncales.
                 # Se admite únicamente ruido numérico pequeño (0,01 % del objetivo).
                 tolerancia_perdida = max(0.1, abs(objetivo.kw) * 1e-4)
@@ -1195,7 +1195,7 @@ def cuadrar(
 class ObjetivoZonas:
     """El objetivo de un alimentador con una central en su troncal (spec 021, RF-33).
 
-    En NA205 la cabecera solo ve lo que entra desde la SET: con la central generando, 1 123
+    En NA295 la cabecera solo ve lo que entra desde la SET: con la central generando, 1 123
     kW de una demanda de 10 753 kW. Se calibra por zonas: aguas arriba de la central
     (cabecera + llegada) y aguas abajo (la salida), cada una con su factor de escala, y
     la central con la P y Q que medía en el mismo registro (RF-35).
@@ -1446,7 +1446,7 @@ def cuadrar_conjunto(
     las demás ya cumplen, se para en vez de gastar los flujos.
 
     Las claves son los alimentadores de un proyecto, o las zonas de uno con central: en el
-    proyecto de NA203 y NA205 (2026-10-17) se iba a calibrar uno y después el otro, y el
+    proyecto de NA293 y NA295 (2026-10-17) se iba a calibrar uno y después el otro, y el
     usuario pidió calibrar por proyecto, todos en el mismo flujo. ``flujo(repartos)``
     escribe todas las demandas, ejecuta **un** flujo de carga y mide cada clave. Cada
     factor sigue su secante con la medida de su clave; solo cuadra cuando todas cumplen en
@@ -1670,7 +1670,7 @@ def bancos_que_faltan(q_red_kvar: float | None, q_medido_kvar: float | None,
                       tamano_kvar: float | None) -> int:
     """Cuántos bancos de ``tamano_kvar`` cubren el déficit reactivo (021:RF-64, RF-65).
 
-    El déficit es lo que da la red en la cabecera menos lo medido: en NA203 (2026-10-17)
+    El déficit es lo que da la red en la cabecera menos lo medido: en NA293 (2026-10-17)
     2 645 kVAR frente a 1 560, sin ningún banco en el modelo; el usuario: «coloca los
     bancos necesarios en cada alimentador». Sin déficit, sin tamaño o sin medida, ninguno.
     """
@@ -1741,7 +1741,7 @@ def probabilistico_de_fijas(rep: Reparto, *, n: int = N_PROBABILISTICO, semilla:
     if len(pares) < max(3, minimo):
         return None
     # 095:RF-1, RF-2: de las fijas solo la dispersión de su utilización alrededor de su media, sin pendiente con
-    # la potencia. AL209 (2026-11-06): con la pendiente de 0,306 las SED de 5 kVA quedaban al 2 % de su kVA frente
+    # la potencia. AL299 (2026-11-06): con la pendiente de 0,306 las SED de 5 kVA quedaban al 2 % de su kVA frente
     # al 10 % de media; el usuario pidió escaladas proporcionales a su potencia instalada.
     my = sum(y for _, y in pares) / len(pares)
     dispersion = math.sqrt(sum((y - my) ** 2 for _, y in pares) / (len(pares) - 1))

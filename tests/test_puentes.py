@@ -73,7 +73,7 @@ def test_el_seccionador_pasa_al_cubiculo_de_la_linea_vecina():
 
 
 def _derivacion(con_carga_en_x1: bool = False) -> FeederModel:
-    """La derivación de EQ_1080_320414/15/16 (NA205): un nudo J del que salen tres
+    """La derivación de EQ_1080_320414/15/16 (NA295): un nudo J del que salen tres
     puentes con fusible, dos hacia líneas y uno hacia la barra T de un trafomix.
 
         S ─LA─ X1 ─P1(f1)─ J ─P2(f2)─ X2 ─LB─ F
@@ -492,7 +492,7 @@ def test_el_trecho_del_conductor_sigue_corrido_sin_acoples():
 
 
 def _sed_de_derivacion(dos_seds: bool = False) -> FeederModel:
-    """SE50195 con EQ_1080_875778 (NA203 + NA205): línea ─ fusible ─ SED.
+    """SE50195 con EQ_1080_875778 (NA293 + NA295): línea ─ fusible ─ SED.
 
         S ─L1─ X ─P1(fusible)─ Y (SED)
     """

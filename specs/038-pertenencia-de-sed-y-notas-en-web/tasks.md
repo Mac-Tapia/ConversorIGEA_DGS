@@ -30,8 +30,8 @@
   (`E9,F63,F7,F82`) de los dos módulos afectados: correcto. La revisión completa de
   estilo de esos módulos conserva deuda anterior; no se declara limpia globalmente.
 - Tabla y plan: pruebas de pertenencia antes del filtro y rechazo de ambigüedad.
-- Entrega real por la API: 15 clientes de NA203 y 17 de NA205; las tres SED corregidas
-  conservan la nota del libro compartido. Las dos discrepancias PE104/CHN102 observadas
+- Entrega real por la API: 15 clientes de NA293 y 17 de NA295; las tres SED corregidas
+  conservan la nota del libro compartido. Las dos discrepancias PE194/CHN192 observadas
   se asignan a la red exportada y muestran el radial comercial anterior.
 - Fuente TXT cargada de nuevo por la API, sin reconversión ni importación nativa:
   `20261031T085543-af2dc31e9a8f`; huella
@@ -41,6 +41,6 @@
 - La recalibración nativa del 2026-10-29 incorporó las tres SED corregidas, sin omitidas,
   y conservó la central del operador y cuatro bancos por alimentador en su escaneo;
   terminó en `FALLO_VALIDACION_NATIVA`. El cierre de esta spec de pertenencia y notas
-  no acredita aceptación eléctrica de NA203 ni NA205.
+  no acredita aceptación eléctrica de NA293 ni NA295.
 - Los planos previos de la distribuidora no se modificaron; el aviso añadido inicialmente a la vista
   previa se retiró al aclarar el usuario el alcance.

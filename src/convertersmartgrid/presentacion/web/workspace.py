@@ -73,7 +73,7 @@ SLOTS: dict[str, dict[str, Any]] = {
 
 DEFAULT_OPTIONS: dict[str, Any] = {
     # Sin fuente hasta que se carga un fichero: la dice el fichero (059:RF-1). Con 'txt' por
-    # defecto, el 2026-11-01 un espacio vacío se abrió como «Tres TXT de CYMDIST».
+    # defecto, el 2026-11-01 un espacio vacío se abrió como «Tres TXT».
     'input_mode': None,
     'source_company': None,
     # 081:RF-51: la empresa de una fuente que no la dice (un TXT, una .mdb); ``source_company`` es lo elegido en VNR-GIS.
@@ -342,7 +342,7 @@ class Workspace:
     # cada una con su ``id`` y la forma de ``obras_pf.Obra.a_dict``.
     obras: list[dict[str, Any]] = field(default_factory=list)
     # Obras ya aplicadas en DIgSILENT, con su proyecto y su variación: salen de ``obras``
-    # al aplicarse y el informe de estudio las necesita (017:RF-35; CA101, 2026-10-15).
+    # al aplicarse y el informe de estudio las necesita (017:RF-35; CA191, 2026-10-15).
     obras_aplicadas: list[dict[str, Any]] = field(default_factory=list)
     # Spec 017: lo escrito en los formularios de 4.4 por proyecto y tipo (RF-82), y el
     # libro de pérdidas de la empresa (RF-93), para no perderlos al recargar la página.

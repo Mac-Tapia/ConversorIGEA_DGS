@@ -4,7 +4,7 @@
 Lee, sin escribir nada en la red, lo que tiene cada alimentador en «Sin proyecto» (el de su año, si el
 plan lo trae): generadores con su barra, bancos, variaciones que no son del conversor y cargas
 cuya demanda difiere de la última calibración. En Nasca (2026-10-28) el usuario pone a mano la
-central y los bancos de NA205; con esto la web los ve y la calibración usa su barra.
+central y los bancos de NA295; con esto la web los ve y la calibración usa su barra.
 
     python tools/escanear_alimentador_pf.py --plan plan.json --output-json escaneo.json
 
@@ -214,8 +214,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
 def _transferencias(app, alims, plan: dict, informe: dict) -> None:
     """098:RF-9: lo que está en un alimentador porque el operador se lo transfirió desde otro.
 
-    CA101 y CHN102 (2026-11-07): con la parte transferida pasaron EBC_1, EBC_2 y EBC_3 a CHN102; sin decirlo, parecían
-    bancos que el operador había puesto en CHN102, y los tramos nuevos de la transferencia, una ampliación suya.
+    CA191 y CHN192 (2026-11-07): con la parte transferida pasaron EBC_1, EBC_2 y EBC_3 a CHN192; sin decirlo, parecían
+    bancos que el operador había puesto en CHN192, y los tramos nuevos de la transferencia, una ampliación suya.
     """
     from transferencia_operador_pf import equipos_de_las_zonas, leer_transferencias
 

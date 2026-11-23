@@ -77,7 +77,7 @@ de RF-25 es el contrato entre las dos mitades.
 
 - Se escribe con `python-docx`, abriendo el modelo de la empresa como documento base: así
   quedan su cabecera, su pie, su logo y sus estilos. Se vacía el cuerpo y se escriben las
-  secciones en el orden de RF-106 (factibilidad) y del modelo de Casa Blanca (estudio),
+  secciones en el orden de RF-106 (factibilidad) y del modelo de Cliente L (estudio),
   con los estilos de título y de tabla del modelo.
 - Los huecos (RF-23) se escriben con un estilo resaltado y su motivo, y se listan en el
   JSON para el resumen de la web (RF-102).
@@ -96,7 +96,7 @@ de RF-25 es el contrato entre las dos mitades.
   RF-110 a RF-112), y un rótulo con flecha para la carga nueva (RF-117).
 - Etapas (parte 7): cada etapa es una obra de la 011 o de la 016 en su variación. Bancos
   existentes: se leen los del proyecto estudiado y, si el plan trae un proyecto anterior
-  («CA101 13»), los de ese. Los que faltan se crean en el mismo nodo, con el mismo tipo y
+  («CA191 13»), los de ese. Los que faltan se crean en el mismo nodo, con el mismo tipo y
   los mismos kvar (RF-36 a RF-38). Bancos nuevos con `ComCapo` y reguladores con
   `ComPlaceopt`, con los costes de la parte 4 (RF-39 a RF-40d). Conductor y migración con la
   troncal de la 016 hasta la SED del operador (RF-41 a RF-42c).
@@ -144,8 +144,8 @@ de RF-25 es el contrato entre las dos mitades.
 - `tests/test_informes_pf.py`: el guion sobre `fake_pf`, incluidas la restauración y la
   cancelación (partes 6 a 8).
 - `tests/test_web_api.py`: un caso por endpoint nuevo (parte 9).
-- Prueba en DIgSILENT (P: probar en DIgSILENT real): CA101 desde cero con el proyecto
-  anterior «CA101 13» para los bancos, y una carga nueva del libro de cargas nuevas con
+- Prueba en DIgSILENT (P: probar en DIgSILENT real): CA191 desde cero con el proyecto
+  anterior «CA191 13» para los bancos, y una carga nueva del libro de cargas nuevas con
   AD08 V4.
 - Cada prueba cita `017:RF-n`.
 

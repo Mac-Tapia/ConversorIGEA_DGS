@@ -1087,7 +1087,7 @@ def _dias(n, inicio=T0):
 
 
 def test_antes_de_haber_libros_de_clientes_no_hay_escaladas():
-    """089:RF-81 — PA217: cabecera desde 2023 y libros desde 2025; dar la cabecera como escaladas es un nivel falso."""
+    """089:RF-81 — PA297: cabecera desde 2023 y libros desde 2025; dar la cabecera como escaladas es un nivel falso."""
     ts = _dias(100)
     cab = [(t, 1000.0, 0.0) for t in ts]
     cli = [(t, 700.0, 0.0) for t in ts[50:]]
@@ -1095,7 +1095,7 @@ def test_antes_de_haber_libros_de_clientes_no_hay_escaladas():
 
 
 def test_cliente_que_aparece_sin_escalon_ya_estaba():
-    """089:RF-82 — PE102: la cabecera sigue plana cuando empieza su libro; la carga ya estaba, faltaba el dato."""
+    """089:RF-82 — PE192: la cabecera sigue plana cuando empieza su libro; la carga ya estaba, faltaba el dato."""
     ts = _dias(100)
     cab = [(t, 1000.0, 0.0) for t in ts]
     cli = [(t, 700.0, 0.0) for t in ts[50:]]

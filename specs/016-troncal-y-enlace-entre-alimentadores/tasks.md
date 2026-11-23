@@ -27,15 +27,15 @@ Lógica sin DIgSILENT
 - [x] T3. `src/convertersmartgrid/dominio/troncal.py`: `Red`, `troncal`, `aguas_abajo`. Entra en
       `CODIGO_FUENTE.md`. (RF-1 a RF-5, RF-64)
       Hecho cuando: `pytest -q tests/test_troncal.py tests/test_inventario.py` en verde, y
-      con las tres `CSG_*` IN111 da 71 tramos y 13,58 km.
+      con las tres `CSG_*` IN191 da 71 tramos y 13,58 km.
       Hecha el 2026-10-15: 106 en verde. El árbol es el de los caminos más cortos en
-      metros (IN111 tiene tres anillos cerrados); la spec y el plan, corregidos.
+      metros (IN191 tiene tres anillos cerrados); la spec y el plan, corregidos.
 - [x] T4. `troncal.py`: `punto_mas_cercano`, `punto_en_troncal`, `partir` y
       `extremos_del_enlace` con la rejilla. (RF-15, RF-18, RF-20, RF-27, RF-28, RF-45,
       RF-67)
       Hecho cuando: `pytest -q tests/test_troncal.py` en verde.
       Hecha el 2026-10-15: 177 en verde. Con los TXT, el enlace va del nodo `15232` de la
-      troncal de TA225 al 47,4 % de `SEC_1091_1055021` de la de IN111: 3.626 m.
+      troncal de TA295 al 47,4 % de `SEC_1091_1055021` de la de IN191: 3.626 m.
 - [x] T5. `src/convertersmartgrid/aplicacion/obras_pf.py`: casos (Sin proyecto implica Con proyecto), clases
       `enlace` y `migracion`, sección con toda la troncal y tipo de cable, simulación de
       cada una. (RF-6 a RF-9, RF-11, RF-13, RF-14, RF-23 a RF-25, RF-31, RF-38, RF-39,
@@ -109,20 +109,20 @@ Cierre
       Hecha el 2026-10-15: anotados 007:RF-24, RF-28, RF-30, RF-31 y 011:RF-57, RF-87. Los
       73 RF citados; RF-44 también con una prueba del doble (el enlace de la obra es una
       línea con seccionador abierto), además de la de DIgSILENT de la T14.
-- [x] T14. Prueba en DIgSILENT con el proyecto de IN111 y TA225: toda la troncal de IN111
+- [x] T14. Prueba en DIgSILENT con el proyecto de IN191 y TA295: toda la troncal de IN191
       a 120 mm² en «Sin proyecto» y «Con proyecto»; el enlace abierto solo en «Con
       proyecto», partiendo un tramo de cada troncal; la migración a 22,9 kV desde el nodo
-      que indique el operador; y la transferencia de IN111 a TA225 por el enlace.
+      que indique el operador; y la transferencia de IN191 a TA295 por el enlace.
       (RF-44 y los criterios de finalización)
       Hecho cuando: el informe de cada paso converge, o se anota por qué no, y el usuario
       lo da por bueno.
-      Avance del 2026-10-15 (desde la web, proyecto 20261015-170359_CSG_IN111_TA225):
-      nueve cargas nuevas en TA225, enlace a 22,9 kV, migración de IN111 desde el nodo
+      Avance del 2026-10-15 (desde la web, proyecto 20261015-170359_CSG_IN191_TA295):
+      nueve cargas nuevas en TA295, enlace a 22,9 kV, migración de IN191 desde el nodo
       del enlace (que lo cierra, RF-80) y segunda terna en siete tramos sobrecargados de
-      TA225: «Con proyecto» converge, tramo más cargado 98,1 %. Salieron RF-74 a RF-80.
+      TA295: «Con proyecto» converge, tramo más cargado 98,1 %. Salieron RF-74 a RF-80.
       La transferencia no aplica tras la migración (la parte que pasa ya no cuelga de
-      IN111). Cerrada el 2026-10-16: el usuario aclaró que la sección de la troncal de
-      IN111 era solo actualizar lo existente.
+      IN191). Cerrada el 2026-10-16: el usuario aclaró que la sección de la troncal de
+      IN191 era solo actualizar lo existente.
 
 - [x] T15. Trazado del enlace por la vía: `vias.py` con pruebas que inyectan la respuesta
       de OSRM (ruta, sin ruta, error de red, extremo lejos de la vía, sin perfil), el
@@ -130,27 +130,27 @@ Cierre
       (RF-81 a RF-87)
       Hecho cuando: las pruebas que citan 016:RF-81 a RF-87 pasan y un enlace en DIgSILENT
       sale con el trazado de la vía.
-      Hecho el 2026-10-16: enlace TA225-IN111 por la vía, 6,27 km y 140 vértices (3,62 km en
+      Hecho el 2026-10-16: enlace TA295-IN191 por la vía, 6,27 km y 140 vértices (3,62 km en
       recta), 9,4 m fuera de vía; «Con proyecto» converge con la migración, las nueve
       cargas y la segunda terna en siete tramos (máximo 98,1 %).
 - [x] T16. Cable hasta la carga nueva solo a más de 25 m del nodo de media; a menos, la SED
       cuelga del nodo. `con_cable` en `tools/cargas_pf.py`, en la resolución, al crear, en la
       simulación y en el informe. (RF-88)
-      Hecho cuando: las pruebas que citan 016:RF-88 pasan y una carga de PN107 en DIgSILENT
+      Hecho cuando: las pruebas que citan 016:RF-88 pasan y una carga de PN197 en DIgSILENT
       sale con su nodo y, según la distancia, con o sin cable.
-      Código hecho el 2026-10-16 (las pruebas de 016:RF-88 pasan); la prueba en DIgSILENT con PN107 pasa a T18 (033, 2026-10-29).
+      Código hecho el 2026-10-16 (las pruebas de 016:RF-88 pasan); la prueba en DIgSILENT con PN197 pasa a T18 (033, 2026-10-29).
 - [x] T17. Dibujar en el diagrama lo que crean las cargas y las obras sin símbolo
       (`Diagrama.completar` en `tools/cargas_pf.py`, al final de cargas y de obras). (RF-89)
-      Hecho cuando: las pruebas que citan 016:RF-89 pasan y el enlace de IN111 + TA225 se ve.
-      Hecho el 2026-10-16: en IN111 + TA225 se dibujaron el enlace (140 vértices, extremos
-      en 15232 y ENLACE_C_IN111(2)), las seis mitades partidas y sus seis nodos; las cargas
+      Hecho cuando: las pruebas que citan 016:RF-89 pasan y el enlace de IN191 + TA295 se ve.
+      Hecho el 2026-10-16: en IN191 + TA295 se dibujaron el enlace (140 vértices, extremos
+      en 15232 y ENLACE_C_IN191(2)), las seis mitades partidas y sus seis nodos; las cargas
       IC_9 a IC_17 están en el punto del Excel (0,0 m); «Con proyecto» converge.
-- [x] T18. [DIgSILENT] Carga nueva de PN107 con y sin cable según la distancia a su nodo de
+- [x] T18. [DIgSILENT] Carga nueva de PN197 con y sin cable según la distancia a su nodo de
       media. (RF-88)
-      Hecho cuando: en DIgSILENT una carga de PN107 sale con su nodo y, según la distancia,
+      Hecho cuando: en DIgSILENT una carga de PN197 sale con su nodo y, según la distancia,
       con o sin cable.
       Verificado 2026-11-07 con dos cargas sintéticas explícitas en proyecto propio separado
-      `20261107-230805_CSG_MDB_PN107`, importado por la API de la web desde MDB real.
+      `20261107-230805_CSG_MDB_PN197`, importado por la API de la web desde MDB real.
       ENSAYOA_CERCA: 0,0000049 m y ninguna ElmLne de enlace; ENSAYOB_LEJOS: 1926,337 m,
       ElmLne nativa cerrada con 1,926337 km y trazado GPS releído. Ambas convergen.
       Repetición: cero creadas/dos reutilizadas. Tres procesos nuevos (57180/21216/10100),

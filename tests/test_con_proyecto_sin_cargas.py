@@ -52,15 +52,15 @@ def _sin_cargas(monkeypatch, tmp_path, bajas):
 
 
 def test_sin_cargas_nuevas_solo_el_que_viola_limites_lleva_obra(monkeypatch, tmp_path):
-    """086:RF-76 — NJA202 viola y sube su escalera; NJA203 cumple y queda sin obras; sin reponer cargas ni oráculo."""
-    services, llamadas, tocadas = _sin_cargas(monkeypatch, tmp_path, {'NJA202': ['N_7', 'N_5'], 'NJA203': []})
+    """086:RF-76 — NJA292 viola y sube su escalera; NJA293 cumple y queda sin obras; sin reponer cargas ni oráculo."""
+    services, llamadas, tocadas = _sin_cargas(monkeypatch, tmp_path, {'NJA292': ['N_7', 'N_5'], 'NJA293': []})
     ctx = _Ctx()
-    r = services.escalera_por_alimentador(object(), ctx, 'P', ['NJA202', 'NJA203'])
-    assert [x for x in llamadas if x[0] == 'NJA202'][-1] == ('NJA202', 'aplica', True)
-    assert not [x for x in llamadas if x[0] == 'NJA203']
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['NJA292', 'NJA293'])
+    assert [x for x in llamadas if x[0] == 'NJA292'][-1] == ('NJA292', 'aplica', True)
+    assert not [x for x in llamadas if x[0] == 'NJA293']
     assert r['caben'] == 0 and r['orden'] == [] and r['a_set_nueva'] == []
-    assert r['por_alimentador']['NJA202']['barras_bajas'] == ['N_7', 'N_5']
-    assert 'NJA203' not in r['por_alimentador']
+    assert r['por_alimentador']['NJA292']['barras_bajas'] == ['N_7', 'N_5']
+    assert 'NJA293' not in r['por_alimentador']
     assert tocadas == {'reponer': 0, 'oraculo': 0}
     assert any('086:RF-76' in t for t in ctx.textos)
 
@@ -96,7 +96,7 @@ def test_optimizar_sin_cargas_va_a_la_escalera_por_alimentador(monkeypatch, tmp_
     monkeypatch.setattr(services, 'optimizar_con_proyecto', no)
     monkeypatch.setattr(services, 'set_nueva_proponer', no)
     ctx = _Ctx()
-    r = services.con_proyecto_optimizar(object(), ctx, 'P', ['NJA202'])
-    assert vistas == [['NJA202']]
+    r = services.con_proyecto_optimizar(object(), ctx, 'P', ['NJA292'])
+    assert vistas == [['NJA292']]
     assert r['escalera_por_cargas']['orden'] == [] and r['set_nueva'] == {'zonas': [], 'avisos': []}
     assert any('086:RF-76' in t for t in ctx.textos)

@@ -186,7 +186,7 @@ def test_sed_cliente_fuera_del_alimentador_se_omite():
 
 def test_sed_sin_demanda_queda_en_cero_y_se_avisa():
     """006:RF-24 / 015:RF-44 / 015:RF-45 — una SED escalada sin demanda en el archivo recibe la
-    suya por su kVA (CA101: 98 de 160 estaban en cero); la que no tiene kVA conocido queda
+    suya por su kVA (CA191: 98 de 160 estaban en cero); la que no tiene kVA conocido queda
     en cero y se dice."""
     o = objetivo_de(_maxima())
     r = reparto_inicial(o, {}, {'E1': (400.0, 100.0), 'E2': (0.0, 0.0), 'E3': (50.0, 5.0)},
@@ -528,7 +528,7 @@ def test_fija_con_fp_bajo_se_compensa_al_minimo_del_perfil():
 # ---------------------------------------------------------------- spec 021: dos zonas
 def _con_central(**kw):
     """La máxima de demanda de un alimentador con central, como la da la web (021:RF-34)."""
-    base = {'alimentador': 'NA205', 'fecha': '2026-08-20 16:45:00', 'demanda_kw': 10753.0,
+    base = {'alimentador': 'NA295', 'fecha': '2026-08-20 16:45:00', 'demanda_kw': 10753.0,
             'arriba_kw': 1131.0, 'arriba_kvar': 380.0, 'abajo_kw': 9622.0, 'abajo_kvar': 2100.0,
             'generacion_kw': 9605.0, 'generacion_kvar': -593.0, 'cabecera_kw': 1123.0,
             'cabecera_kvar': 4199.0, 'error': None}
@@ -583,7 +583,7 @@ def test_objetivo_de_dos_zonas():
     assert (o.arriba.kw, o.arriba.kvar) == (1131.0, 380.0)
     assert (o.abajo.kw, o.abajo.kvar) == (9622.0, 2100.0)
     assert (o.generacion_kw, o.generacion_kvar) == (9605.0, -593.0)
-    assert o.fecha == '2026-08-20 16:45:00' and o.alimentador == 'NA205'
+    assert o.fecha == '2026-08-20 16:45:00' and o.alimentador == 'NA295'
     with pytest.raises(AjusteError, match='balance'):
         objetivo_zonas_de(_con_central(error='el balance de la barra de la central no cuadra'))
 

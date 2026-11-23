@@ -27,7 +27,7 @@ def _reparto(n_fijas=6, n_esc=8, pendiente_real=0.3):
 
 def test_la_dispersion_sale_de_las_fijas_y_la_pendiente_es_cero():
     """041:RF-3, 095:RF-1, 095:RF-2 — de las fijas solo la dispersión de su utilización alrededor de su media; la
-    pendiente con la potencia es 0 (AL209, 2026-11-06: con 0,306 las SED de 5 kVA quedaban al 2 % de su kVA); con
+    pendiente con la potencia es 0 (AL299, 2026-11-06: con 0,306 las SED de 5 kVA quedaban al 2 % de su kVA); con
     menos de cinco fijas, nada."""
     import math
     prob = probabilistico_de_fijas(_reparto(pendiente_real=0.3), n=50, semilla=7)

@@ -490,7 +490,7 @@ hacer esos estudios en cualquier proyecto físico existente en DIgSILENT, con cu
   estaba no se toca (a3, 2026-11-14: tras un estudio con troncal, el «Caso base» quedaba con ``ElmBbone``).
 - RF-137: SI la orden de DIgSILENT de un estudio termina con un código distinto de 0, ENTONCES EL SISTEMA dará el
   estudio por fallido, con un error que nombre la orden y su código, y saldrá con el código 2, en vez de dar por
-  resultado las medidas del flujo base (H11, auditoría del 2026-11-14: ComVoltplan con 1 en NJA202 se dio por bueno).
+  resultado las medidas del flujo base (H11, auditoría del 2026-11-14: ComVoltplan con 1 en NJA292 se dio por bueno).
 
 ## Requisitos no funcionales
 

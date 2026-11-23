@@ -120,7 +120,7 @@ def _nodo_de_banco(barra) -> tuple[str | None, list[float] | None]:
     """El nodo de la red donde está un banco y su GPS (017, usuario 2026-10-16: «se debe
     mencionar los bancos existentes y en qué nodos están»).
 
-    En CA101 los tres bancos cuelgan de barras «Terminal» y «Terminal(1)» creadas a mano:
+    En CA191 los tres bancos cuelgan de barras «Terminal» y «Terminal(1)» creadas a mano:
     ese nombre no dice dónde están. Se sube a la subestación que la contiene o se recorre
     la red desde la barra hasta el primer nodo con nombre propio.
     """
@@ -169,7 +169,7 @@ def medida(elm, app=None) -> dict:
     """Lo que la web necesita de un alimentador tras un flujo (RF-31, RF-33).
 
     Con ``app``, los objetos son los de toda la red calculable del proyecto en vez de los
-    del ``ElmFeeder``. El medidor de CA101 alimenta dos troncales desde la misma barra
+    del ``ElmFeeder``. El medidor de CA191 alimenta dos troncales desde la misma barra
     (006:RF-11) y el ``ElmFeeder`` solo abarca una: el 2026-10-15 la medida dejó fuera
     1900 kW de cargas y daba un 43 % de pérdidas. ``medidas`` lo pasa cuando el proyecto
     es de un solo alimentador.
@@ -193,7 +193,7 @@ def medida(elm, app=None) -> dict:
            'vm_min_fases': None, 'bancos': []}
     # Los bancos de condensadores que existen en la red entran en la calibración y el
     # informe los nombra con su nodo y sus kvar, tal como están en DIgSILENT (el usuario,
-    # 2026-10-15: CA101 tiene tres en la troncal que va a Casa Blanca).
+    # 2026-10-15: CA191 tiene tres en la troncal que va a Cliente L).
     for sh in objetos('ElmShnt'):
         cub = getattr(sh, 'bus1', None)
         barra = cub.GetParent() if cub is not None else None
@@ -209,7 +209,7 @@ def medida(elm, app=None) -> dict:
                               'q_flujo_kvar': (-_num(sh, 'm:Qsum:bus1') * 1000.0
                                                if _num(sh, 'm:Qsum:bus1') is not None else None)})
     out['bancos'].sort(key=lambda x: (str(x['barra']), x['nombre']))
-    # 063:RF-43: una barra a 0 p.u. es una isla sin fuente, no una caída: 8674 y 8675 de SM218 daban
+    # 063:RF-43: una barra a 0 p.u. es una isla sin fuente, no una caída: 8674 y 8675 de SM298 daban
     # «tensión mínima 0,000» y dejaban no factible cualquier conexión. 063:RF-44: el criterio es de
     # media tensión; la baja de las SED sigue en ``barras``.
     out['sin_tension'] = [n for n, u in barras if u <= UMBRAL_SIN_TENSION]
@@ -240,7 +240,7 @@ def medida(elm, app=None) -> dict:
         if cab.converge:
             out.update(cabecera_kw=cab.kw, cabecera_kvar=cab.kvar)
             # Pérdidas = cabecera − lo que consumen de verdad cargas y bancos en el flujo
-            # («m:Psum:bus1», como el ajuste). Con la P escrita en las cargas, CA101 dio el
+            # («m:Psum:bus1», como el ajuste). Con la P escrita en las cargas, CA191 dio el
             # 2026-10-15 un 39 % de pérdidas: a 0,65 p.u. las cargas consumen mucho menos de
             # lo escrito. Si a alguna le falta el resultado no se estima: queda en None.
             consumos = []
@@ -262,8 +262,8 @@ def medida(elm, app=None) -> dict:
 def resumen_proyecto(app) -> dict:
     """063:RF-6/RF-9: cobertura completa, también de ramas alimentadas por una SET nueva.
 
-    NA203–NA205, 2026-11-01: el ElmFeeder original conservaba solo 44/176 barras después
-    del traslado a COPARA. No representa el proyecto completo ni permite juzgar sus pérdidas.
+    NA293–NA295, 2026-11-01: el ElmFeeder original conservaba solo 44/176 barras después
+    del traslado a BOREALIS. No representa el proyecto completo ni permite juzgar sus pérdidas.
     El balance usa inyecciones y consumos efectivos, con el signo nativo y sin estimaciones.
     """
     m = medida(None, app)
@@ -333,7 +333,7 @@ def geografia(elm, app=None) -> dict:
         carga = _num(ln, 'c:loading')
         carga = None if carga is None else round(carga, 2)
         # 017:RF-131: barras, tipo y longitud, para decir desde dónde hasta dónde va el
-        # cambio de conductor (CA101, 2026-10-16: 21 tramos sin más que su nombre).
+        # cambio de conductor (CA191, 2026-10-16: 21 tramos sin más que su nombre).
         barras_ln = [getattr(getattr(getattr(ln, c, None), 'cterm', None), 'loc_name', None)
                      for c in ('bus1', 'bus2')]
         if len(puntos) >= 2:
@@ -345,7 +345,7 @@ def geografia(elm, app=None) -> dict:
         elif all(barras_ln):
             esquema.append([ln.loc_name, barras_ln[0], barras_ln[1], carga])
     # 017:RF-132: los acoples cerrados unen barras sin ser líneas. Sin ellos, el cambio de
-    # conductor de CA101 (2026-10-16) salía en 10 trechos, cuatro de 0,00 a 0,02 km,
+    # conductor de CA191 (2026-10-16) salía en 10 trechos, cuatro de 0,00 a 0,02 km,
     # cortados en cada seccionador de la troncal.
     acoples = []
     for c in objetos('ElmCoup'):
@@ -474,7 +474,7 @@ def _optimizador(app, plan, alims, feeders, orden, informe) -> None:
     previas = {_clave_nativa(v) for v in carpeta.GetContents('*.IntScheme', 1)}
     foto = Foto(alims, feeders)
     # La hora del caso y la etapa que graba vuelven al final: activar la etapa temporal lleva la
-    # hora del caso a su fecha, un millón de segundos antes (VENTANA_ETAPAS_S). En SM218
+    # hora del caso a su fecha, un millón de segundos antes (VENTANA_ETAPAS_S). En SM298
     # (2026-11-01) el balance de fases dejó «Sin proyecto» así, y las etapas de los bancos
     # EBC/ECB y de los transformadores NTP dejaron de aplicarse: TR_SE41225 salía al 826 %.
     caso = app.GetActiveStudyCase()
@@ -598,7 +598,7 @@ def _traza(app, alims, feeders, feeder: str, linea, falta) -> dict:
 def _alternativas(app, alims, feeders, alternativas: list[dict], todo, avisos: list) -> list[dict]:
     """017:RF-130: cada alternativa medida con solo las variaciones de sus obras activas.
 
-    En CA101 (2026-10-16) «Con proyecto» tenía los bancos, la consigna y el cambio de
+    En CA191 (2026-10-16) «Con proyecto» tenía los bancos, la consigna y el cambio de
     sección a la vez y el informe no podía decir qué lograban los bancos solos. Se mide en
     la misma ejecución, con el mismo caso y escenario; solo se apartan variaciones de obras
     (prefijo de la spec 011), nunca las del operador ni las de las cargas. Al terminar se
@@ -871,7 +871,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
             informe['avisos'] += informe['sin_a_con']['avisos']
         caso.Activate()
         # 063:RF-5: una etapa activa fechada justo después de la hora del caso no se aplica, y
-        # DIgSILENT no avisa. SM218 (2026-11-01): la de los bancos EBC/ECB quedó así y el flujo
+        # DIgSILENT no avisa. SM298 (2026-11-01): la de los bancos EBC/ECB quedó así y el flujo
         # de «Sin proyecto» salía sin ellos. Se adelanta antes del flujo y se dice. En un caso del
         # operador no (011:RF-136): sus etapas son trabajo suyo; solo se dice cuáles no se aplican.
         if rol == ROL_POR_NOMBRE:

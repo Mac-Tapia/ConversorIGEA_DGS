@@ -3,7 +3,7 @@
 El conversor es universal (constitución P13). Hasta la spec 002, tres convenciones de
 una distribuidora real iban como valores por defecto: el CRS de Ica (UTM 18S), la exclusión
 de las SED cuyo código empieza por ``M`` (sus «trafomix») y la escala del diagrama de
-NA205. En otra empresa la primera desplazaba la red cientos de kilómetros sin aviso, y la
+NA295. En otra empresa la primera desplazaba la red cientos de kilómetros sin aviso, y la
 segunda borraba SED reales que se llamaran ``M…``.
 
 Ahora cada una sale de un perfil (RF-31):
@@ -142,7 +142,7 @@ def seccion_transformadores_sed(datos: Mapping[str, Any] | None = None) -> dict[
     """020:RF-63: las fichas de transformadores de SED del perfil; si el perfil no las trae, las del conversor.
 
     Usuario (2026-11-11): «las fichas deben ser parte del conversor». El programa instalado sin perfil no pudo cambiar
-    SE20701 (1 506 kVA de cliente en 50 kVA) y CA101 no quedó válido. Las del perfil de la empresa mandan; las del conversor
+    SE20701 (1 506 kVA de cliente en 50 kVA) y CA191 no quedó válido. Las del perfil de la empresa mandan; las del conversor
     (NTP 370.400, norma técnica nacional) llevan ``origen: conversor`` para que el informe diga de dónde salen.
     """
     datos = datos_perfil() if datos is None else datos
@@ -327,7 +327,7 @@ def _positivo(v: Any) -> bool:
 def transformadores_sed(datos: dict[str, Any]) -> dict[str, Any] | None:
     """Las fichas de transformadores de ``calibracion.transformadores_sed`` (020:RF-29 a RF-31).
 
-    Con ellas se proponen transformadores nuevos para las SED fijas sobrecargadas. En PA217
+    Con ellas se proponen transformadores nuevos para las SED fijas sobrecargadas. En PA297
     (2026-10-16) SE30940 pedía 3818 kVA sobre 400 kVA y hubo que buscar a mano la ficha de
     la NTP 370.400; la norma es de Perú, así que va en el perfil y no en el código (P13).
     Devuelve ``None`` sin la sección; si no, el umbral, las tablas válidas (``fichas`` por
@@ -379,7 +379,7 @@ def centrales_termicas(datos: dict[str, Any]) -> dict[str, dict[str, str]]:
     """La sección ``centrales_termicas`` del perfil: ``{alimentador: {generacion, llegada,
     salida, nodo}}`` (021:RF-27), o vacía.
 
-    NA205 tiene en su troncal la central de Nasca, y el libro de medidores la trae como
+    NA295 tiene en su troncal la central de Nasca, y el libro de medidores la trae como
     tres «alimentadores» que no son de la red (CTBarra, CTLADOSET, CTLADOCARGA). Es un
     dato de la red de la empresa, no una convención: va en el perfil local. ``nodo`` es
     optativo: el nombre de la barra en DIgSILENT cambia con cada proyecto importado.

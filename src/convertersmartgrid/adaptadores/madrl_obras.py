@@ -67,7 +67,7 @@ class Evaluacion:
 def cargas_de_rama(m, v: np.ndarray, th: np.ndarray) -> dict[str, float]:
     """La carga en % de cada rama, sumando las corrientes aguas abajo en el árbol de cada fuente.
 
-    Dividir la caída entre la impedancia daba SM218 con un tramo al 202 % que DIgSILENT mide al 20 %: el
+    Dividir la caída entre la impedancia daba SM298 con un tramo al 202 % que DIgSILENT mide al 20 %: el
     oráculo sube a un mínimo la impedancia de los tramos cortos, y la caída ya no corresponde a esa z.
     """
     n = len(m.ids)
@@ -139,7 +139,7 @@ def fidelidad(grafo: Mapping[str, Any], tensiones: Mapping[str, float], cargas: 
 
     Una política que aprende contra una física equivocada aprende a resolver otra red: un alimentador daba una mínima
     muy por encima de la que mide DIgSILENT. Sin medida comparable, tampoco pasa. El peor error también cuenta:
-    SM218 tiene 0,9 % de error medio y una rama a 245 %, y una obra se decide por esa rama, no por la media.
+    SM298 tiene 0,9 % de error medio y una rama a 245 %, y una obra se decide por esa rama, no por la media.
     """
     m = muestra(grafo)
     r = ModeloRadial().predecir(grafo)

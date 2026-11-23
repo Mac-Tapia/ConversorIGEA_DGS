@@ -584,7 +584,7 @@ Expected audit-source report:
 ## J. Integration with an existing converter
 
 The agent MUST search the repository for:
-- existing CYMDIST TXT readers;
+- existing TXT readers;
 - GIS database connectors;
 - existing DGS writer;
 - CYMDIST import/export mappings;

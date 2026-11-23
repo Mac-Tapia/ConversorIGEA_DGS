@@ -296,8 +296,8 @@ def alimentadores_de_rotulos(rotulos: Iterable[str]) -> set[str]:
     """Los alimentadores de los rótulos del vínculo, con los de una barra de SET separados.
 
     La red externa de una barra de SET la comparten sus alimentadores y se rotula con todos,
-    «PI101 + PI102 + PI103 + PI116» (022:RF-11). En el sistema Pisco (2026-10-18), PI101 y
-    SI114 solo salían en esos rótulos y el plan de la calibración se rechazaba.
+    «PI191 + PI192 + PI193 + PI196» (022:RF-11). En el sistema Pisco (2026-10-18), PI191 y
+    SI194 solo salían en esos rótulos y el plan de la calibración se rechazaba.
     """
     return {parte.strip() for rotulo in rotulos for parte in str(rotulo).split(' + ')
             if parte.strip()}
@@ -448,7 +448,7 @@ def fusionar_caso_base(
     """Conserva el estado del «Caso base» de los alimentadores que no se volvieron a verificar.
 
     Spec 015, RF-14: se verifica alimentador por alimentador y el vínculo es uno por
-    proyecto; sin fusionar, verificar PE104 borraría el estado de CA101. Solo se fusiona
+    proyecto; sin fusionar, verificar PE194 borraría el estado de CA191. Solo se fusiona
     con un vínculo de la misma fuente; otra fuente es otro modelo y empieza de cero.
     """
     if not anterior or anterior.get('source_fingerprint') != binding.source_fingerprint:
@@ -477,7 +477,7 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
 
     Spec 015, RF-13: sin «Caso base» verificado no se calibra ni se crea «Sin proyecto». El flujo
     no bloquea (015:RF-38 a RF-40, 078:RF-17): se calibra también si no converge o no hay dato.
-    Un vínculo de antes de la spec 015 no trae ``caso_base`` (CA101, 2026-10-13, adoptado
+    Un vínculo de antes de la spec 015 no trae ``caso_base`` (CA191, 2026-10-13, adoptado
     sin GPS ni convergencia y promovido por el ajuste): cuenta como no verificado y hay
     que volver a verificarlo.
     """
@@ -488,7 +488,7 @@ def caso_base_verificado(ws: Any, project: str, feeders: Iterable[str]) -> dict[
         return {str(f).strip(): [exc.code] for f in feeders}
     estados = ((raw.get('native_reread') or {}).get('caso_base') or {})
     # 022:RF-52: un alimentador sin cargas solo está en el rótulo de su barra de SET
-    # («CA101 + CA103 + …»); vale el estado de ese rótulo (CA103 y TM101 en Chincha,
+    # («CA191 + CA193 + …»); vale el estado de ese rótulo (CA193 y TM191 en Chincha,
     # 2026-10-18, salían «sin verificar» con el sistema verificado).
     for rotulo, estado in list(estados.items()):
         for parte in alimentadores_de_rotulos([rotulo]):
@@ -506,7 +506,7 @@ def _active_source_identity(ws: Any) -> tuple[str | None, str | None, str | None
     mode = getattr(ws, 'loaded_source_mode', None)
     fingerprint = getattr(ws, 'loaded_source_fingerprint', None)
     # El modo y la huella cargados solo viven en memoria; ``active_run_id`` se guarda en
-    # disco. El 2026-10-14, tras reiniciar la web, CA101 quedó bloqueado con
+    # disco. El 2026-10-14, tras reiniciar la web, CA191 quedó bloqueado con
     # PROJECT_BINDING_SOURCE_MISMATCH frente a la misma .mdb: la pestaña de cargas no
     # vuelve a cargar la fuente. El manifiesto de la ejecución activa es inmutable y
     # dice lo mismo que la carga en memoria.
@@ -564,7 +564,7 @@ def require_project_binding(
     """Exige identidad suficiente; la evolución manual legible queda como aviso."""
     project = str(project or '').strip()
     # Pisco (092 T2, 2026-11-08): el «Caso base» pide los rótulos del vínculo tal cual, con los
-    # de barra de SET («AL104 + AL105 + …»); se comparan sus alimentadores, como los del vínculo,
+    # de barra de SET («AL194 + AL195 + …»); se comparan sus alimentadores, como los del vínculo,
     # porque si no el rótulo entero nunca está en el conjunto ya separado y se rechazaba.
     requested = alimentadores_de_rotulos(str(item) for item in feeders if str(item).strip())
     raw = vinculo_guardado(ws, project)

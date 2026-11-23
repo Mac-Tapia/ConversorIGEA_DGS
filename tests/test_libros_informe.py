@@ -37,8 +37,8 @@ def _libro(tmp_path: Path, filas=None, porcentaje_como_fraccion=True, titulo=Tru
         hoja.append([])
     hoja.append(['Ítem', ' alimentador ', 'Sistema  eléctrico', '% Reconocido (kW)', '% reconocido (kWh)',
                  'Código'])
-    for fila in filas or [(1, 'IC106', 'Ica', 0.0512, 0.0431, 'SE0044'),
-                          (2, 'CA101', 'Chincha', 0.0611, 0.0502, 'SE0050')]:
+    for fila in filas or [(1, 'IC196', 'Ica', 0.0512, 0.0431, 'SE0044'),
+                          (2, 'CA191', 'Chincha', 0.0611, 0.0502, 'SE0050')]:
         hoja.append(list(fila))
         if porcentaje_como_fraccion:
             for celda in hoja[hoja.max_row][3:5]:
@@ -55,7 +55,7 @@ def _libro(tmp_path: Path, filas=None, porcentaje_como_fraccion=True, titulo=Tru
 def test_lee_sistema_reconocidas_y_precio_del_alimentador(tmp_path):
     """017:RF-62, 017:RF-63 — sistema, % reconocidos y precio, por los nombres del perfil."""
     columnas = ColumnasPerdidas.de_perfil(PERFIL)
-    datos = leer_libro_perdidas(_libro(tmp_path), 'CA101', columnas)
+    datos = leer_libro_perdidas(_libro(tmp_path), 'CA191', columnas)
     assert datos.sistema_electrico == 'Chincha'
     assert datos.reconocido_kw_pct == pytest.approx(6.11)
     assert datos.reconocido_kwh_pct == pytest.approx(5.02)
@@ -65,15 +65,15 @@ def test_lee_sistema_reconocidas_y_precio_del_alimentador(tmp_path):
 
 
 def test_alimentador_con_otra_escritura(tmp_path):
-    """017:RF-62 — «ca101 » en el formulario es el CA101 del libro."""
-    datos = leer_libro_perdidas(_libro(tmp_path), ' ca101 ', ColumnasPerdidas.de_perfil(PERFIL))
+    """017:RF-62 — «ca191 » en el formulario es el CA191 del libro."""
+    datos = leer_libro_perdidas(_libro(tmp_path), ' ca191 ', ColumnasPerdidas.de_perfil(PERFIL))
     assert datos.sistema_electrico == 'Chincha'
 
 
 def test_porcentaje_escrito_como_numero(tmp_path):
     """017:RF-62 — un 6,11 sin formato de % es 6,11 %, no 611 %."""
-    ruta = _libro(tmp_path, filas=[(1, 'CA101', 'Chincha', 6.11, 5.02)], porcentaje_como_fraccion=False)
-    datos = leer_libro_perdidas(ruta, 'CA101', ColumnasPerdidas.de_perfil(PERFIL))
+    ruta = _libro(tmp_path, filas=[(1, 'CA191', 'Chincha', 6.11, 5.02)], porcentaje_como_fraccion=False)
+    datos = leer_libro_perdidas(ruta, 'CA191', ColumnasPerdidas.de_perfil(PERFIL))
     assert datos.reconocido_kw_pct == pytest.approx(6.11)
 
 
@@ -83,12 +83,12 @@ def test_precio_en_una_columna_de_la_misma_hoja(tmp_path):
     hoja = wb.active
     hoja.title = 'Pérdidas MT'
     hoja.append(['Alimentador', 'Sistema eléctrico', '% reconocido (kW)', '% reconocido (kWh)', 'Precio'])
-    hoja.append(['CA101', 'Chincha', 6.11, 5.02, 0.30])
+    hoja.append(['CA191', 'Chincha', 6.11, 5.02, 0.30])
     ruta = tmp_path / 'p.xlsx'
     wb.save(ruta)
     perfil = json.loads(json.dumps(PERFIL))
     perfil['informes']['libro_perdidas']['precio_compra'] = {'columna': 'Precio'}
-    datos = leer_libro_perdidas(ruta, 'CA101', ColumnasPerdidas.de_perfil(perfil))
+    datos = leer_libro_perdidas(ruta, 'CA191', ColumnasPerdidas.de_perfil(perfil))
     assert datos.precio_compra == pytest.approx(0.30)
 
 
@@ -97,10 +97,10 @@ def test_hoja_o_columna_que_no_estan_se_nombran(tmp_path):
     perfil = json.loads(json.dumps(PERFIL))
     perfil['informes']['libro_perdidas']['columnas']['sistema_electrico'] = 'Sistema'
     with pytest.raises(LibroError, match=r"'Sistema'.*Sistema  eléctrico"):
-        leer_libro_perdidas(_libro(tmp_path), 'CA101', ColumnasPerdidas.de_perfil(perfil))
+        leer_libro_perdidas(_libro(tmp_path), 'CA191', ColumnasPerdidas.de_perfil(perfil))
     perfil['informes']['libro_perdidas']['hoja'] = 'Otra'
     with pytest.raises(LibroError, match=r"'Otra'.*Pérdidas MT"):
-        leer_libro_perdidas(_libro(tmp_path), 'CA101', ColumnasPerdidas.de_perfil(perfil))
+        leer_libro_perdidas(_libro(tmp_path), 'CA191', ColumnasPerdidas.de_perfil(perfil))
 
 
 def test_sin_libro_en_el_perfil_no_se_supone_nada():
@@ -116,17 +116,17 @@ def test_sin_libro_en_el_perfil_no_se_supone_nada():
 # --------------------------------------------------------------------------- RF-64
 def test_alimentador_que_no_esta_deja_el_hueco(tmp_path):
     """017:RF-64 — sin el alimentador no hay error: lo reconocido queda señalado con su motivo."""
-    datos = leer_libro_perdidas(_libro(tmp_path), 'TA225', ColumnasPerdidas.de_perfil(PERFIL))
+    datos = leer_libro_perdidas(_libro(tmp_path), 'TA295', ColumnasPerdidas.de_perfil(PERFIL))
     assert datos.sistema_electrico is None
     assert datos.reconocido_kwh_pct is None
     assert datos.precio_compra == pytest.approx(0.2715)
-    assert any('TA225' in m for m in datos.faltan)
+    assert any('TA295' in m for m in datos.faltan)
 
 
 def test_celda_vacia_es_un_hueco(tmp_path):
     """017:RF-64 — un % reconocido en blanco queda en None y se dice cuál."""
-    ruta = _libro(tmp_path, filas=[(1, 'CA101', 'Chincha', None, 0.05)])
-    datos = leer_libro_perdidas(ruta, 'CA101', ColumnasPerdidas.de_perfil(PERFIL))
+    ruta = _libro(tmp_path, filas=[(1, 'CA191', 'Chincha', None, 0.05)])
+    datos = leer_libro_perdidas(ruta, 'CA191', ColumnasPerdidas.de_perfil(PERFIL))
     assert datos.reconocido_kw_pct is None
     assert datos.reconocido_kwh_pct == pytest.approx(5.0)
     assert any('% reconocido (kW)' in m for m in datos.faltan)

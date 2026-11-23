@@ -50,7 +50,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: el usuario lo confirma, y la lista de caracteres no admitidos queda
       comprobada.
       Hecho el 2026-11-05 por la web (espacio de prueba 35ff5dab8b2b46a6), por orden del usuario, con el proyecto de prueba
-      `PRUEBA_005` (SL141 y SL142), borrado al terminar: tres importaciones en `sistemaeletricoELD`, con el flujo convergido y la
+      `PRUEBA_005` (SL191 y SL192), borrado al terminar: tres importaciones en `sistemaeletricoELD`, con el flujo convergido y la
       calibración válida; la primera movida a una subcarpeta nueva se lee como `PRUEBA_005_SUB/<sello>_CSG_TXT_PRUEBA_005` con sus
       dos alimentadores (RF-11, RF-12, RF-17); una nueva importación no la borra ni la mueve (RF-8, RF-22 solo en su carpeta) y sí
       borra la versión anterior de la raíz (RF-22). Caracteres: DIgSILENT rechaza `" * : ? \ |`, todos en `NO_ADMITIDOS`; acepta
@@ -67,10 +67,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T15. [DIgSILENT] Verificar identidad por ruta y restitución durante la relectura. (RF-23)
       Hecho cuando: regresiones de `tests/test_carpeta_pf.py` y
       `tests/test_powerfactory_binding.py` en verde, y la relectura nativa de
-      CA101/PE104 produce huella sin aviso y permite continuar el plan de calibración.
+      CA191/PE194 produce huella sin aviso y permite continuar el plan de calibración.
       Verificado el 2026-11-07 en `9042ec98`, espacio de prueba `dd45e057a0c04430`:
       relectura `f81b7d6770c7` sin aviso, huella idéntica a la importación;
-      plan y aplicación `17a7799780e6` terminan `done`, CA101 −0,02 % y PE104 −0,39 %,
+      plan y aplicación `17a7799780e6` terminan `done`, CA191 −0,02 % y PE194 −0,39 %,
       ambos VALIDO con avisos de reactiva conservados. Regresiones 138/138 y trazabilidad
       22/22. Evidencia externa de implementación: `p07_relectura_resultado.json`,
       `p07_calibracion_resultado.json`, `p07_binding_green.xml` y `p07_continuacion.log`.

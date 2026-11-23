@@ -138,7 +138,7 @@ def test_destinatarios_que_no_son_correos_se_rechazan(tmp_path, correo):
 
 
 def test_datos_crudos_renombrados_impiden_compartir_y_se_nombran(tmp_path):
-    """109:RF-20 — TXT de CYMDIST, MDB y VNR renombrados dentro del expediente: se nombran y no se concede nada."""
+    """109:RF-20 — TXT, MDB y VNR renombrados dentro del expediente: se nombran y no se concede nada."""
     s = _salida()
     Rechazo, compartir, leer_paquete = s.Rechazo, s.compartir, s.leer_paquete
 

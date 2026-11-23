@@ -107,7 +107,7 @@ export function pasoDeTrabajo(kind: string): PasoId | null {
 
 /**
  * 086:RF-73: el ámbito de un trabajo. El servidor escribe en el título el proyecto y los alimentadores
- * («Recalibrar · PROYECTO · AL209»); el reintento del vigilante añade « (reintento)» al mismo título.
+ * («Recalibrar · PROYECTO · AL299»); el reintento del vigilante añade « (reintento)» al mismo título.
  */
 export function ambitoDe(j: Job): string {
   return `${j.workspace_id}\u0000${j.kind}\u0000${j.title.replace(/ \(reintento\)$/, '')}`;

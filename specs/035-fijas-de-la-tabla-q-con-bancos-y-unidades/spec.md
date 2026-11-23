@@ -5,7 +5,7 @@ SED coincida en la misma fecha del valor de cabecera seleccionada y los valores 
 de Pot (kW) y Q (kvar) de la misma tabla se carguen a DIgSILENT con escala 1, fijas, y los SED que
 no están en la tabla se escalan para cuadrar al valor de la cabecera más fijas; además debe
 considerar los bancos si existen en la red; si existen, también se debe cuadrar los Q (kvar);
-verifica que las unidades sean las correctas en DIgSILENT»; prueba real con SM218).
+verifica que las unidades sean las correctas en DIgSILENT»; prueba real con SM298).
 
 ## Por qué
 
@@ -16,11 +16,11 @@ Revisado el 2026-10-29, tres cosas no cuadraban con lo pedido:
   en cambio, escribe en las fijas la P y la Q del registro del instante de la máxima de su
   alimentador (004:RF-67). Lo que el operador veía no era lo que iba a DIgSILENT.
 - La Q de cabecera no se cuadraba nunca: 006:RF-12 y RF-14 la dejaban como resultado de la red y
-  solo se informaba. SM218 tiene siete bancos de 450 kvar en servicio (3 150 kvar): con las
+  solo se informaba. SM298 tiene siete bancos de 450 kvar en servicio (3 150 kvar): con las
   escaladas a FP 0,98 la Q de cabecera queda lejos de la medida sin que nada la corrija.
 - Todo se escribía dando por hecho MW y Mvar (`plini = kW / 1000`). La unidad de las cargas es un
   ajuste del proyecto de DIgSILENT (`SetPrj.cspqexp`): en un proyecto en kW las demandas
-  quedarían mil veces menores sin ningún aviso. SM218 está en MW y Mvar (sonda del 2026-10-29).
+  quedarían mil veces menores sin ningún aviso. SM298 está en MW y Mvar (sonda del 2026-10-29).
 
 ## Requisitos
 
@@ -125,7 +125,7 @@ Q en toda recalibración (usuario, 2026-10-29: «en recalibración ya debes cuad
 los factores de potencia de los SED que no están como fijas; la precisión debe ser 1 %», «en la
 recalibración ya debes ver que existan bancos y considerar todos los bancos en su operación
 máxima» y «no debería quedar nada por encima en kvar si vas a ajustar el factor de potencia de
-los SED no fijas, pero las SED fijas se mantienen con P y Q fijos a escala 1»). SM218
+los SED no fijas, pero las SED fijas se mantienen con P y Q fijos a escala 1»). SM298
 (2026-10-29), recalibración n.º 7: con sus tres bancos de 450 kvar al máximo y las escaladas sin
 reactiva, la cabecera daba 3 053 kvar frente a 2 903 y se aceptaba por kW (RF-8).
 
@@ -146,8 +146,8 @@ reactiva, la cabecera daba 3 053 kvar frente a 2 903 y se aceptaba por kW (RF-8)
 
 Medida de cabecera coherente o no (usuario, 2026-10-31: «la recalibración de Q debe ser el
 resultado real de DIgSILENT, no cuadrar a la medición de cabecera … esto debe ser en las
-mediciones en cabecera que no sean coherentes como de NA203; en los que sí tienen coherencia se
-debe hacer cuadre; esto debe ser dable y robusto»). NA203: con sus escaladas a FP 1 la red daba
+mediciones en cabecera que no sean coherentes como de NA293; en los que sí tienen coherencia se
+debe hacer cuadre; esto debe ser dable y robusto»). NA293: con sus escaladas a FP 1 la red daba
 3 447 kvar frente a 1 711 medidos; para cuadrar le hacía falta reactiva negativa.
 
 - RF-28: EL SISTEMA dará por coherente la Q de cabecera medida SI la red la alcanza con las

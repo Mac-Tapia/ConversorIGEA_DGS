@@ -143,7 +143,7 @@ def powerfactory_elegir(carpeta_api: str | None) -> dict[str, Any]:
 def sin_conexion_digsilent() -> UserError:
     """091:RF-1 a RF-3: el error de una acción sin DIgSILENT, con su causa y lo que hay que hacer.
 
-    Las seis acciones pedían abrirlo, y con DIgSILENT abierto a mano había que cerrarlo (TM102, 2026-11-05).
+    Las seis acciones pedían abrirlo, y con DIgSILENT abierto a mano había que cerrarlo (TM192, 2026-11-05).
     """
     from ...adaptadores.pf_arnes import causa_sin_conexion
 
@@ -219,7 +219,7 @@ def usar_ejecucion_del_vinculo(ws: Workspace, project: str, binding: Any, pedido
     aceptado (018:RF-15); devuelve el aviso, o None si no hizo falta.
 
     Nasca, 2026-10-24: tras importar ``SISTEMA_NASCA`` se volvió a cargar la misma fuente y la
-    verificación del «Caso base» pedía ``CH101.dgs`` y los demás de la ejecución nueva.
+    verificación del «Caso base» pedía ``CH191.dgs`` y los demás de la ejecución nueva.
     """
     activa = ws.active_run()
     if activa is None or not getattr(binding, 'source_run_id', None):
@@ -261,7 +261,7 @@ def native_action_context(
         # 018:RF-19, regla del usuario (2026-11-13): «se recalibra cualquier proyecto que esté en DIgSILENT, haya sido
         # convertido o no por el conversor; no hay reglas ni restricciones para eso». Sin vínculo, o con uno que no se
         # puede usar, la acción sigue con el vínculo guardado si lo hay o con uno armado con el propio proyecto, y la
-        # causa queda como aviso. La web bloqueaba 20261109-152654_CSG_TXT_CA101_CHN102, aceptado el día 9.
+        # causa queda como aviso. La web bloqueaba 20261109-152654_CSG_TXT_CA191_CHN192, aceptado el día 9.
         binding = vinculo_del_proyecto(ws, project, normalized)
         warnings = [{'code': getattr(exc, 'code', 'PROJECT_BINDING_AVISO'), 'elements': [],
                      'message': aviso_sin_vinculo(binding, exc)}]
@@ -838,7 +838,7 @@ def powerfactory_targets(ws: Workspace, feeders: list[str]) -> list[str]:
     from ...adaptadores.powerfactory_binding import alimentadores_de_rotulos
 
     # Pisco (092 T2, 2026-11-08): el «Caso base» pide los rótulos del vínculo, con los de barra de
-    # SET («AL104 + AL105 + …»), y el grupo guarda los alimentadores sueltos: nunca coincidía y se
+    # SET («AL194 + AL195 + …»), y el grupo guarda los alimentadores sueltos: nunca coincidía y se
     # pedía un DGS por rótulo. Se compara con los alimentadores de los rótulos (022:RF-52).
     selected = alimentadores_de_rotulos(feeders)
     if len(selected) < 2:
@@ -1482,7 +1482,7 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
                 # El guion crea el proyecto pero no adjunta vínculo cuando la importación
                 # no quedó ok o la evidencia de la fuente no se verificó antes de mutar.
                 # Sin este aviso, el proyecto aparece en DIgSILENT y la web lo bloquea sin
-                # que nadie sepa por qué (caso CA101, 2026-10-14).
+                # que nadie sepa por qué (caso CA191, 2026-10-14).
                 ctx.log(f'  AVISO: {proyecto} existe en DIgSILENT pero el informe no trae '
                         'vínculo; este proyecto no se podrá calibrar desde esta web.')
             with ws.lock:
@@ -2006,7 +2006,7 @@ def pf_projects(ws: Workspace, ctx: JobContext) -> dict:
         if rc != TIEMPO_AGOTADO or intento == 2:
             break
         # 019:RF-18: con el límite pedido aquí, ``run_process`` no reintenta solo como con
-        # los demás guiones. 2026-10-19: tras importar CA101_PE104, el servidor que arrancó
+        # los demás guiones. 2026-10-19: tras importar CA191_PE194, el servidor que arrancó
         # 11 s después no conectó en 180 s; el siguiente conectó en 20 s.
         ctx.log('Se reintenta una vez: DIgSILENT a veces no entrega el usuario a la primera.')
         ctx.check_cancel()
@@ -2126,7 +2126,7 @@ def _espacio_que_acepto(ws: Workspace, project: str, run_id: str) -> Path | None
 def adoptar_fuente_del_vinculo(ws: Workspace, project: str) -> dict[str, Any]:
     """Hace activa en el espacio la ejecución fuente con la que se aceptó el proyecto.
 
-    Spec 018, RF-10. Caso real (CA101, 2026-10-15): el navegador abrió un espacio nuevo,
+    Spec 018, RF-10. Caso real (CA191, 2026-10-15): el navegador abrió un espacio nuevo,
     sin fuente, y el proyecto quedó bloqueado aunque su ejecución seguía en disco en el
     espacio que lo aceptó y su «Caso base» estaba verificado. Se copia la ejecución (es
     inmutable; copiar, y no enlazar, evita que una reescritura en el origen cambie esta),
@@ -2208,7 +2208,7 @@ def pf_proyectos_guardados(ws: Workspace) -> dict[str, Any]:
     volver a leerla abre DIgSILENT y cada proyecto (231 s con 32 proyectos, 2026-10-15).
     La carpeta de DIgSILENT es común a los espacios: manda la lectura más reciente, sea de
     este espacio o de otro. Con la propia del 8 de noviembre, el espacio ofrecía
-    20261105-124711_CSG_TXT_CA101_CHN102, ya borrado al importar la versión del día 9, y el
+    20261105-124711_CSG_TXT_CA191_CHN192, ya borrado al importar la versión del día 9, y el
     ajuste fallaba con «no existe el proyecto» (2026-11-13).
     """
     otra = _lectura_mas_reciente_de_la_carpeta(ws)
@@ -2481,7 +2481,7 @@ def cargas_plan(
             carpeta=carpeta_de(ws, project), base=base, minima_m=minima_m,
         )
         plan['native_action_context'] = action_context
-        # 004:RF-72 a RF-74: antes de ir a DIgSILENT, cada punto frente a la zona de su alimentador. SE0001 (PA217,
+        # 004:RF-72 a RF-74: antes de ir a DIgSILENT, cada punto frente a la zona de su alimentador. SE0001 (PA297,
         # 2026-11-12) llegó con un dígito de menos en Y, se conectó con una línea de miles de km y no convergió.
         _verificar_ubicaciones_del_plan(ws, plan, crs)
         # 099:RF-8: lo repetido no va a DIgSILENT; de las repetidas solo viaja
@@ -3075,7 +3075,7 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
                   if p == proyecto and (todos or (ws.groups.get(n) or {}).get('tipo') == 'sistema')), None)
     if grupo is None:
         return None
-    # Un alimentador solo se guarda con su código y sin grupo (CA101 → su proyecto).
+    # Un alimentador solo se guarda con su código y sin grupo (CA191 → su proyecto).
     alimentadores = list((ws.groups.get(grupo) or {}).get('feeders') or [grupo])
     medidores = medidores_por_alimentador(ws, alimentadores)
     return {'grupo': grupo, 'alimentadores': alimentadores, 'medidores': medidores,
@@ -3136,7 +3136,7 @@ def es_orden_de_cancelar(texto: str) -> bool:
 
 def _grafias(ws: Workspace) -> Callable[[str], list[str]]:
     """Las otras grafías de un alimentador según la estructura del espacio, leída una vez
-    (022:RF-81): la red trae CN101 y el libro de medidores, CHN101. Sin estructura, ninguna."""
+    (022:RF-81): la red trae CN191 y el libro de medidores, CHN191. Sin estructura, ninguna."""
     try:
         e = estructura_del_espacio(ws)
     except UserError:
@@ -3383,7 +3383,7 @@ def demanda_centrales_de_barra(ws: Workspace) -> dict:
     """Las centrales térmicas (medidores CT…) del libro de medidores, con su SET, su tensión
     y los alimentadores de esa SET, para que el operador diga si están en la barra o en el
     tramo de un alimentador (022:RF-88). La propuesta: en el tramo, las del perfil
-    (``centrales_termicas``, la de Nasca en NA205); en la barra, las demás (CT_PEDREG)."""
+    (``centrales_termicas``, la de Nasca en NA295); en la barra, las demás (CT_PEDREG)."""
     from ...aplicacion.demanda_medida import DemandaError, clave_codigo, leer_medidores_de_barra
     from ...dominio.perfil_empresa import PerfilError, centrales_termicas, datos_perfil
 
@@ -3450,11 +3450,11 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         return a[len('Central '):].strip() if a.lower().startswith('central ') else a
 
     # 022:RF-88: las centrales en el tramo de un alimentador, las que dice el operador y las
-    # del formulario de la central de un alimentador (pares «Central NA205»); se miden con
+    # del formulario de la central de un alimentador (pares «Central NA295»); se miden con
     # él, en su instante, y no van a la barra.
     en_tramo = {m: duenio(a).upper() for a, m in pares if a.lower().startswith('central ')}
-    # Solo las de los alimentadores pedidos: la de Nasca (perfil, NA205) entraba en Chincha
-    # y traía la SET 51 a su calibración (DIgSILENT, 2026-10-28).
+    # Solo las de los alimentadores pedidos: la de Nasca (perfil, NA295) entraba en Chincha
+    # y traía la SET 91 a su calibración (DIgSILENT, 2026-10-28).
     del_sistema = {duenio(a).upper() for a, _m in pares if a}
     en_tramo.update({m.strip(): a.strip().upper() for m, a in (centrales_tramo or {}).items()
                      if m.strip() and a.strip().upper() in del_sistema})
@@ -3483,9 +3483,9 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         raise UserError(str(exc)) from exc
     _tension_en_pu(ws, res)                                                     # 021:RF-74 a RF-76
     if sistema_60kv:
-        # 028:RF-31: CHN101, CHN102 y CHN201 no tienen el registro del instante de Chincha: no se
+        # 028:RF-31: CHN191, CHN192 y CHN291 no tienen el registro del instante de Chincha: no se
         # les da otra fecha (el sistema tiene una sola), y el operador lo tiene que ver.
-        # Si su medición empieza después (CHN101, desde el 24 de julio), se dice: no es un hueco.
+        # Si su medición empieza después (CHN191, desde el 24 de julio), se dice: no es un hueco.
         def _sin_registro(r) -> str:
             fechas = [f for f, kw, _q in r.curva or [] if f is not None and kw is not None]
             t = instantes.get(duenio(r.alimentador).upper())
@@ -4263,7 +4263,7 @@ def comparar_criterios_fijas(ws: Workspace, ctx: JobContext, project: str,
                              periodo: str | None = None) -> dict:
     """Las fijas con los dos criterios, frente a la cabecera y a la red simulada (039:RF-5).
 
-    NA203 (2026-10-31): con la POT de cada fija las 15 sumaban 3 725,5 kvar y la cabecera
+    NA293 (2026-10-31): con la POT de cada fija las 15 sumaban 3 725,5 kvar y la cabecera
     medía 1 711; en un mismo instante, 3 061 frente a 1 717. La red y los bancos ponen su P y su
     Q, las de la última simulación en DIgSILENT (cabecera simulada menos lo que consumen sus
     cargas). Con cada criterio se dice entre qué Q de cabecera puede quedar la red con las
@@ -4322,7 +4322,7 @@ def comparar_criterios_fijas(ws: Workspace, ctx: JobContext, project: str,
                    'red_kw': cab_sim['kw'] - p_cargas, 'bancos_kvar': previa.get('bancos_kvar')}
         elif previa and en_disco:
             # Las calibraciones guardadas antes del 2026-10-31 no llevan la cabecera simulada;
-            # su informe en disco sí (NA203: sin esto la comparación no descontaba la red).
+            # su informe en disco sí (NA293: sin esto la comparación no descontaba la red).
             inf, nombre = next(((i, n) for i, n in zip(en_disco.get('informes') or [],
                                                          en_disco.get('reports') or [])
                                 if i.get('feeder') == f and i.get('caso') == previa.get('caso')),
@@ -4383,8 +4383,8 @@ def _kva_reconstruido(ws: Workspace, project: str, alimentador: str,
                       kva: dict[str, float]) -> tuple[dict[str, float], set[str]]:
     """El kVA de un alimentador como quedó en el DGS por sistema reconstruido (022:RF-63).
 
-    La reconstrucción por medida pasa SED de un alimentador a otro (TM106 recibió las de
-    TM104 en Chincha, 2026-10-18); el kVA de la entrada original seguía dando a TM106 sus
+    La reconstrucción por medida pasa SED de un alimentador a otro (TM196 recibió las de
+    TM194 en Chincha, 2026-10-18); el kVA de la entrada original seguía dando a TM196 sus
     339 kW y no se calibraba. Las SED salen de la metadata del DGS; el kVA de cada una, de
     los alimentadores que intervinieron. Sin reconstrucción, el de la entrada tal cual.
     Devuelve también los alimentadores que intervinieron (vacío si ninguno): entonces un
@@ -4424,13 +4424,13 @@ def _capacidad_de_la_red(kva_entrada: dict[str, float], fijas: dict, fp: float |
                          reconstruido: bool = False) -> float | None:
     """Lo más que puede dar la red de un alimentador en kW (022:RF-55): sus fijas con su
     medida y las demás SED con su kVA instalado por el factor de potencia. ``None`` sin kVA
-    de la entrada, para no rechazar sin saber; reconstruido, vacío es cero: TM104 cedió toda
-    su red a TM106 y su medidor de 31 kW quedaba en el plan sin ninguna carga."""
+    de la entrada, para no rechazar sin saber; reconstruido, vacío es cero: TM194 cedió toda
+    su red a TM196 y su medidor de 31 kW quedaba en el plan sin ninguna carga."""
     if not kva_entrada and not reconstruido:
         return None
     if reconstruido:
         # Las fijas del libro de suministros van por su RADIAL de siempre: si su SED pasó a
-        # otro alimentador, ya no son de esta red (las de TM104 seguían sumando tras cederla).
+        # otro alimentador, ya no son de esta red (las de TM194 seguían sumando tras cederla).
         fijas = {sed: f for sed, f in fijas.items() if sed in kva_entrada}
     escaladas = sum(kva for sed, kva in kva_entrada.items() if sed not in fijas)
     return sum(f.kw for f in fijas.values()) + escaladas * (fp or 1.0)
@@ -4441,8 +4441,8 @@ def _feeder_de_la_entrada(ws: Workspace, alimentador: str) -> str | None:
     from ...aplicacion.demanda_medida import clave_codigo
 
     clave = clave_codigo(alimentador)
-    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN111»), que nunca coincidía
-    # con el código del libro: IN111 y TA225 (2026-10-14) se calibraban sin el kVA de la
+    # ``feeder_ids`` da el NetworkID entero («NET_2030_142_IN191»), que nunca coincidía
+    # con el código del libro: IN191 y TA295 (2026-10-14) se calibraban sin el kVA de la
     # entrada con un aviso falso de «no está en la entrada cargada».
     return next((f for f in ws.dataset.feeder_ids()
                  if clave_codigo(feeder_short_name(f)) == clave or clave_codigo(f) == clave), None)
@@ -4467,7 +4467,7 @@ def _kva_de_la_entrada(ws: Workspace, alimentador: str) -> tuple[dict[str, float
 
     Es el mismo modelo que da el DGS, con sus reglas: el kVA que DIgSILENT debería tener.
     El código del libro de medidores puede venir escrito de otra forma que el de la
-    entrada («PA217» y «pa-217»): se compara con ``clave_codigo``.
+    entrada («PA297» y «pa-217»): se compara con ``clave_codigo``.
     """
     if ws.dataset is None:
         return {}, ('Sin fuente canónica activa cargada: las SED sin transformador en '
@@ -4517,7 +4517,7 @@ def periodo_clientes_activo(ws: Workspace, periodo: str | None = None):
     anterior_de = None
     if periodo and source.is_dir() and len(active) > 1 and not any(
             str(item.get('mes') or '').strip() == periodo for item in active):
-        # 035:RF-17: una carpeta de libros mensuales sin el del mes de la máxima. SM218
+        # 035:RF-17: una carpeta de libros mensuales sin el del mes de la máxima. SM298
         # (2026-10-29) tiene su máxima de 2026 el 23 de octubre y el último libro de clientes
         # es el de septiembre; el usuario: «si no existe el mismo mes de la cabecera, usa el
         # mes anterior». Se toma el más cercano anterior que exista y se dice.
@@ -4773,7 +4773,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         pre = f'{alimentador}: ' if varios and alimentador else ''
         # Spec 021: con central, el objetivo es por zonas y en el registro de la máxima de
         # demanda (RF-33) o en el coincidente (RF-50); el mes de los clientes, el de ese
-        # registro. La cabecera puede ser negativa (NA205 el 2026-07-23 10:00: −1 520,8 kW,
+        # registro. La cabecera puede ser negativa (NA295 el 2026-07-23 10:00: −1 520,8 kW,
         # la central exporta hacia la SET): el objetivo del plan es la demanda del
         # alimentador, aguas arriba + aguas abajo, y la cabecera queda como dato.
         central = (_central_del_plan(ws, job_id, alimentador, str(fila.get('medidor') or ''),
@@ -4874,7 +4874,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             if implicados:
                 # 022:RF-63: el libro de suministros dice el alimentador de siempre (RADIAL);
                 # en una red reconstruida, los clientes son los de sus SED en el DGS: los
-                # fijos de TM104 pasan con su SED a TM106.
+                # fijos de TM194 pasan con su SED a TM196.
                 clientes = [c for c in clientes if str(c.get('sed') or '').strip() in kva_entrada]
         elif not paths:
             avisos.append('Sin libros de suministros y de clientes: todas las SED se reparten por kVA.')
@@ -4917,7 +4917,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             avisos.extend(pre + warning for warning in item.avisos if pre + warning not in avisos)
         capacidad = _capacidad_de_la_red(kva_entrada, fixed, fp_cargas, bool(implicados))
         if not central and capacidad is not None and objetivo.kw > capacidad:
-            # 022:RF-55: Chincha (2026-10-18), TM106 medía 3 133 kW con unos 230 kVA: su
+            # 022:RF-55: Chincha (2026-10-18), TM196 medía 3 133 kW con unos 230 kVA: su
             # factor de escala de 13,7 hundía la tensión y el sistema entero no convergía.
             motivo = (f'{alimentador}: su medidor da {objetivo.kw:,.0f} kW y su red puede dar '
                       f'{capacidad:,.0f} kW (fijas más kVA instalado de las escaladas por el FP); '
@@ -5025,7 +5025,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         calibrados = {f.upper() for f in feeders}
         sistema['calibrados'] = feeders
         # 028:RF-41: los que ya tienen calibración y no se eligieron no se escriben: conservan la suya. Pisco
-        # (2026-11-05, solo AL209 y PA217) decía de los otros 20 «sin medidor… con la demanda del archivo».
+        # (2026-11-05, solo AL299 y PA297) decía de los otros 20 «sin medidor… con la demanda del archivo».
         previas = {a.upper() for a in (ws.calibraciones.get(clave_calibracion(project, anio_casos)) or {})}
         sistema['conservan'] = [a for a in sistema['alimentadores']
                                 if a.upper() not in calibrados and a.upper() in previas]
@@ -5098,7 +5098,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
 
     Sin error y sin revertir: una calibración que no quedó en el escenario no es con la
     que comparar lo que cambie el operador. Solo cuenta si el guion guardó el escenario
-    (``escenarios``) o lo encontró ya calibrado: en NA205 (2026-10-17) se registró una que
+    (``escenarios``) o lo encontró ya calibrado: en NA295 (2026-10-17) se registró una que
     no pasó la validación física y no se guardó, y en la siguiente las 93 cargas salían
     «cambiadas a mano», fijas, y ninguna zona de la central quedaba para escalar.
     """
@@ -5109,7 +5109,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
     sed = {x['sed']: [(x.get('despues') or {}).get('kw'), (x.get('despues') or {}).get('kvar')]
            for x in informe['sed'] if (x.get('despues') or {}).get('kw') is not None}
     # 014:RF-10: lo que quedó en DIgSILENT, releído tras escribir, y no el reparto calculado.
-    # SM218 (2026-10-28): se guardaba el reparto, que no coincide con lo escrito (SE42227
+    # SM298 (2026-10-28): se guardaba el reparto, que no coincide con lo escrito (SE42227
     # 1,718 kW guardados, 1,584 kW en DIgSILENT); la siguiente veía las 306 cargas «cambiadas
     # a mano», las dejaba fijas sin escribirlas, tapaba a los 15 clientes importantes y
     # volvía a guardar el reparto: el error se repetía en cada calibración.
@@ -5117,7 +5117,7 @@ def _guardar_calibracion(ws: Workspace, project: str, feeder: str, informe: dict
     sed.update({x['sed']: [x.get('p_kw'), x.get('q_kvar')] for x in releidas
                 if x.get('sed') in sed and x.get('p_kw') is not None})
     # 014:RF-10: también la P y la Q escritas, sin el factor de escala, que es lo que cambia el
-    # operador. SM218 (2026-10-28): entre dos calibraciones el scale0 de las escaladas pasó
+    # operador. SM298 (2026-10-28): entre dos calibraciones el scale0 de las escaladas pasó
     # de 0,10214 a 0,10305 sin que nadie tocara la red, y 257 cargas salían «a mano».
     escrita = {x['sed']: [(x.get('escrita') or {}).get('p_kw'), (x.get('escrita') or {}).get('q_kvar')]
                for x in releidas if x.get('sed') in sed and (x.get('escrita') or {}).get('p_kw') is not None}
@@ -5330,7 +5330,7 @@ def cambios_automaticos(informes: list[dict], hechos: Mapping[tuple[str, str], t
 def _transformadores_hasta_converger(ws: Workspace, ctx: JobContext, token: str, resultado: dict) -> dict:
     """Cambia los transformadores que impiden calibrar y recalibra, sin esperar al operador (spec 101).
 
-    CA101 + CHN102 (2026-11-09): SE20701 pedía 1 506 kVA con 50 kVA y la calibración quedaba sin
+    CA191 + CHN192 (2026-11-09): SE20701 pedía 1 506 kVA con 50 kVA y la calibración quedaba sin
     validar hasta pulsar «Implementar transformadores». El usuario: «no se acepta que no converge».
     """
     rondas: list[dict] = []
@@ -5443,7 +5443,7 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
                                   cambios_por: dict[str, list[dict]]) -> dict:
     """Los transformadores de varios alimentadores y una sola recalibración (022:RF-62).
 
-    En Chincha (2026-10-18) las fijas sobre su transformador de CA101, PE102 y PN103 hundían
+    En Chincha (2026-10-18) las fijas sobre su transformador de CA191, PE192 y PN193 hundían
     la tensión de su barra de BT; uno a uno, cada alimentador recalibraba el sistema entero.
     """
     plan = ws.cargas_planes.get(token)
@@ -5564,7 +5564,7 @@ def ajuste_aplicado_en_disco(ws: Workspace, project: str | None,
 
 def _informe_del_token(path: Path, token: str) -> bool:
     """Si ``path`` es un informe de la calibración ``token``: ``…_<token>_<n>.json`` con
-    varios alimentadores, ``…_<token>.json`` con uno solo (CA101, 2026-10-24)."""
+    varios alimentadores, ``…_<token>.json`` con uno solo (CA191, 2026-10-24)."""
     resto = path.stem.removeprefix('ajuste_cabecera_aplicacion_')
     return resto == token or resto.startswith(f'{token}_')
 
@@ -6003,10 +6003,10 @@ def _gemelo(ws: Workspace, ctx: JobContext, plan: dict, informe: dict, *, caso: 
     job = getattr(ctx, 'job', None)
     if job is not None and job.cancel.is_set():
         # 024:RF-9: cancelado el trabajo, la lectura se lanzaba igual y se cortaba al empezar;
-        # el Registro decía «la lectura nativa falló: » sin causa (CA101 + CHN102, 2026-11-09).
+        # el Registro decía «la lectura nativa falló: » sin causa (CA191 + CHN192, 2026-11-09).
         ctx.log('Gemelo digital: no se relee el proyecto porque el trabajo se canceló.')
         return None
-    # La captura nunca retiene al operador: con PA217 (2026-10-22) la lectura esperó 26 min a
+    # La captura nunca retiene al operador: con PA297 (2026-10-22) la lectura esperó 26 min a
     # DIgSILENT con el límite de un estudio. Pasado el suyo, el episodio va a cuarentena.
     limite = float(ajustes.get('lectura_s') or LIMITE_GEMELO_S)
     contexto = plan.get('native_action_context') or {}
@@ -6515,7 +6515,7 @@ def _crecimiento_de_la_cabecera(ws: Workspace, ctx: JobContext, project: str, fe
     Sin sistema, sin medidores o sin dos años, ``None`` y el aviso: el PIDE sigue con el año 00.
 
     Con ``todos``, también de un proyecto de uno o varios alimentadores (042:RF-7): la SET nueva de
-    NA203 + NA205 (2026-10-31) no tenía tasa porque su proyecto no es de un sistema entero, y la
+    NA293 + NA295 (2026-10-31) no tenía tasa porque su proyecto no es de un sistema entero, y la
     medición de cabecera de 2025 y 2026 estaba en la carpeta del espacio."""
     from ...aplicacion.crecimiento import curvas_por_anio, tasas_por_alimentador
     from ...aplicacion.demanda_medida import DemandaError
@@ -6643,7 +6643,7 @@ def _pronostico_primero(ws: Workspace, ctx: JobContext, project: str, feeders: l
 
 def _en_proceso_con_reintento(ctx: JobContext, avisos: list[str], que: str, fn, *args, **kwargs):
     """098:RF-49: ``ctx.en_proceso`` con un reintento; si el proceso que lee los libros vuelve a caer, el estudio sigue
-    sin ese dato y lo dice. CA101 + CHN102 (2026-11-07): el lector de Excel (python-calamine) abortó tres veces con
+    sin ese dato y lo dice. CA191 + CHN192 (2026-11-07): el lector de Excel (python-calamine) abortó tres veces con
     0xC0000409 al leer los libros con 1,4 GB libres, y tumbaba el trabajo entero tras horas de escalera."""
     for intento in (1, 2):
         try:
@@ -6915,7 +6915,7 @@ def gemelo_entrenar(ws: Workspace, ctx: JobContext, *, forzar: bool = False, est
     """Entrena el oráculo en otro proceso (``tools/digital_twin_entrenar.py``, RF-39).
 
     Un fallo de memoria o de la GPU cae ese proceso, no la web: el 2026-10-22, entrenando
-    dentro de la web con IN111–TA225 y 1,3 GB de RAM libre, la web se cayó.
+    dentro de la web con IN191–TA295 y 1,3 GB de RAM libre, la web se cayó.
     Con ``estricto`` (el trabajo es solo entrenar), sin GPU o con error el trabajo falla con su motivo (086:RF-129);
     sin él (dentro del aprendizaje activo) se devuelve el informe y quien llama lo dice.
     """
@@ -7312,7 +7312,7 @@ def _transferencias_como_alternativa(ws, ctx: JobContext, project: str, feeders:
     """098:RF-44: las transferencias del operador entre los alimentadores marcados, deshechas en «Con proyecto» para que
     la escalera del que cede las mida como una alternativa más; por alimentador que cede, su zona. Sin la red de la
     fuente o sin transferencias, nada. Usuario (2026-11-07): «para obras se propone la transferencia de carga y se
-    analiza si da solución a la mala calidad de producto en la cola de CA101»."""
+    analiza si da solución a la mala calidad de producto en la cola de CA191»."""
     fuente = _red_de_la_fuente_para_obras(ws, project)
     if not (fuente.get('dgs_fuente') or fuente.get('tramos_dgs')):
         return {}
@@ -7356,7 +7356,7 @@ def _red_de_la_fuente_del_plan(ws: Workspace, project: str) -> dict[str, Any]:
     guion no llama «nuevo» a ningún tramo y no toca la red.
 
     La fecha es la del sello del nombre del proyecto, el de la importación (``20261105-124711_CSG_…``), o la del DGS
-    si no lo tiene. No ``accepted_at``: cambia al volver a verificar el vínculo (CA101_CHN102 daba 2026-11-07 por una
+    si no lo tiene. No ``accepted_at``: cambia al volver a verificar el vínculo (CA191_CHN192 daba 2026-11-07 por una
     aceptación del 2026-11-05)."""
     from ...adaptadores.carpeta_pf import SELLO
     from ...adaptadores.dgs import DGS_ENCODING
@@ -7658,7 +7658,7 @@ def _variante_por_perfil(ws: Workspace, ctx: JobContext, ora, grafo: Mapping[str
     hasta el objetivo, como una variante más que DIgSILENT mide y confirma (RF-7).
 
     El perfil es el de «Con proyecto» que da el oráculo leído de DIgSILENT, con cargas y obras: ahí no se cuadra nada
-    (RF-12). AL209 (2026-11-06): la búsqueda amontonaba los bancos en el extremo; con el perfil, por caída igual, la
+    (RF-12). AL299 (2026-11-06): la búsqueda amontonaba los bancos en el extremo; con el perfil, por caída igual, la
     misma tensión mínima con menos pérdidas.
     """
     from ...aplicacion import escalera_optima as eo
@@ -7767,7 +7767,7 @@ def _previas_con_oraculo(ws: Workspace, ctx: JobContext, comun: dict, f: str, vs
     """087:RF-48: de las variantes de la obra del déficit previo, solo las que el oráculo da por buenas y una tanda de las
     más cercanas; las que no sabe calcular (el paso a 22,9 kV, RF-41), todas.
 
-    Pisco (2026-11-04): la de las 80 barras bajas de PA217 medía en DIgSILENT sus 55 variantes una a una, a 46 s cada
+    Pisco (2026-11-04): la de las 80 barras bajas de PA297 medía en DIgSILENT sus 55 variantes una a una, a 46 s cada
     una, y las 22 primeras (bancos y regulador) se quedaban en 0,935 a 0,942 p.u. El grafo se lee de nuevo aquí: el de
     la selección es de antes de aplicar la obra de la carga, y el déficit se mide con ella puesta.
     """
@@ -7962,7 +7962,7 @@ def _medida_segura(x: Mapping[str, Any]) -> str | None:
 def _medidas_ya_hechas(ctx: JobContext, f: str, plan_ev: dict, memo: dict | None) -> tuple[dict, list]:
     """098:RF-32: las variantes del plan ya medidas con la misma huella, y las que hay que medir.
 
-    La sección de 50 mm² de CA101 se midió dos veces con la misma red (2026-11-07, 0,901/0,866/0,897/0,846 las dos).
+    La sección de 50 mm² de CA191 se midió dos veces con la misma red (2026-11-07, 0,901/0,866/0,897/0,846 las dos).
     Usuario: se vuelve a medir «si es necesario y no está seguro»: con otra huella (otra ronda con otras cargas u
     obras activas, 087:RF-47), sin huella comprobable o con un resultado sospechoso."""
     variantes = list(plan_ev.get('variantes') or [])
@@ -8078,7 +8078,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
     sin_medida = [f for f in feeders if f not in medidos]
     # 042: la bisección de cuántas cargas caben llama a la escalera varias veces en el mismo
     # trabajo; la curva, los sorteos, el CAPEX y los tipos no cambian entre llamadas y se leen
-    # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA203 + NA205).
+    # una vez (las bibliotecas de tipos tardaban 2 min 14 s por llamada en NA293 + NA295).
     config_capex = deepcopy((perfil.get('planificacion') or {}).get('capex') or {})
     contexto_capex = {'moneda': p.moneda, 'escala_aplicada': p.escala_capex, 'tipo_cambio': tipo_cambio}
     identidad_capex = json.dumps({'ruta': str(Path(capex.strip().strip('"')).resolve()) if capex and capex.strip() else None,
@@ -8182,7 +8182,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                 'elegida': None, 'mas_cercana': None, 'tabla': [], 'aplicada': None}
         if datos.get('error'):
             # 052: un error de lectura no es «ninguna variante cumple». El 2026-11-01, «falta Con
-            # proyecto» en NA203 + NA205 mandó las 35 cargas a la SET nueva sin probar nada.
+            # proyecto» en NA293 + NA295 mandó las 35 cargas a la SET nueva sin probar nada.
             raise UserError(f"{f}: {datos['error']}")
         if rc or not d:
             fila['avisos'].append(f'{f}: no se pudo leer su troncal en DIgSILENT.')
@@ -8263,7 +8263,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         a_medir = [{'nombre': v.nombre, 'obras': v.obras, 'costo_base': costo_base(v), 'escalones': list(v.escalones)}
                    for v in vs]
         if por_alternativas and not (variantes_de and f in variantes_de) and not (solo and f in solo) and not objetivo_previo:
-            # 042:RF-95: PE102 midió 34 variantes en el orden de la escalera; de la más barata a la más cara,
+            # 042:RF-95: PE192 midió 34 variantes en el orden de la escalera; de la más barata a la más cara,
             # las primeras 3 que cumplen ya son las alternativas y RF-92 para antes.
             a_medir = eo.por_costo(a_medir)
         plan_ev = {
@@ -8477,7 +8477,7 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                                   'y no se aplica nada.')
             if basta_una:
                 # 042:RF-2: con un alimentador sin obra ya se sabe que no caben; los demás no se
-                # prueban (NA205 tardaba 40 min más tras fallar NA203).
+                # prueban (NA295 tardaba 40 min más tras fallar NA293).
                 resultado.append(fila)
                 break
         resultado.append(fila)
@@ -8581,8 +8581,8 @@ def _evidencia_de_escalera(ws, project: str, f: str, registro: Mapping[str, Any]
     variación o por su contenido; ``None`` sin ella (una elegida de una evaluación que no aplicó nada no cuenta).
 
     De antes de guardarlo en la elegida, vale el plan con que la escalera aplicó su elegida (``aplicando_elegida``), con
-    la variante del mismo nombre que la elegida guardada y una obra igual a la del registro. CHN102 (2026-11-07):
-    «Obra_tension_CHN102» y «cambio a 22.9 kV con su fuente (29.30 km, 50 SED)» en ``escalera_evaluar_9665744fe586``."""
+    la variante del mismo nombre que la elegida guardada y una obra igual a la del registro. CHN192 (2026-11-07):
+    «Obra_tension_CHN192» y «cambio a 22.9 kV con su fuente (29.30 km, 50 SED)» en ``escalera_evaluar_9665744fe586``."""
     obra = registro.get('obra') or {}
     escalon = ESCALON_DE_CLASE.get(str(obra.get('clase')))
     if not escalon:
@@ -8936,7 +8936,7 @@ def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: li
                 f"{100 * float(c.get('fraccion') if c.get('fraccion') is not None else 1.0):.0f} %, valle "
                 f"{'bien' if c.get('valle') is not False else 'no'}, sin barras aisladas) (087:RF-45).")
     else:
-        # CA101 + CHN102 (2026-11-07): cumplía en la máxima y solo fallaba la fracción de sorteos
+        # CA191 + CHN192 (2026-11-07): cumplía en la máxima y solo fallaba la fracción de sorteos
         # (81 %); el aviso salía vacío («no cumple: (087:RF-46)»). Se dice lo que falló (087:RF-46).
         motivos = list(c.get('motivos') or [])
         if not motivos and c.get('fraccion') is not None:
@@ -8981,7 +8981,7 @@ def _escalera_sin_cargas(ws: Workspace, ctx: JobContext, project: str, feeders: 
                          memo: dict, opciones: dict, comparar: dict | None = None) -> dict[str, dict]:
     """098:RF-29: el alimentador del proyecto que viola límites en «Con proyecto» sin cargas nuevas sube su escalera.
 
-    CA101 + CHN102 (2026-11-07): CHN102 quedó en 0,73 p.u. en la zona que recibió y solo se trabajó CA101, que tenía
+    CA191 + CHN192 (2026-11-07): CHN192 quedó en 0,73 p.u. en la zona que recibió y solo se trabajó CA191, que tenía
     las cargas nuevas. «Obras solo si hay problemas»: aquí los hay. Primero la transferencia (de vuelta o por un enlace
     que ya existe, 098:RF-21), después la escalera de siempre desde los bancos, con sus barras bajas como objetivo
     (042:RF-64) y todas las cargas nuevas del proyecto activas. Lo que se elige se aplica.
@@ -9341,7 +9341,7 @@ def optimizar_con_proyecto(ws: Workspace, ctx: JobContext, project: str, feeders
     De mayor a menor potencia (usuario, 2026-10-31), se busca por bisección el mayor número k de
     cargas con el que la escalera de la 025 encuentra obra para todos los alimentadores, midiendo
     sin aplicar; después se aplica la escalera de esas k, con las demás apartadas. Las que quedan
-    van a la SET nueva (RF-3, RF-5 en adelante). En NA203 + NA205 (2026-10-31) la escalera con
+    van a la SET nueva (RF-3, RF-5 en adelante). En NA293 + NA295 (2026-10-31) la escalera con
     las 37 a la vez no encontraba ninguna variante y no quedaba nada aplicado.
     """
     CRECIMIENTO_DEL_TRABAJO.clear()             # 098:RF-49: una vez por corrida, nunca de otra anterior
@@ -9502,7 +9502,7 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
         # 063:RF-25: el banco de una carga en un NODE_T_ va en la barra existente de su tramo.
         con_banco = sorted({x['barra'] for x in cargas_f if x['existe']})
         # 087:RF-55 a RF-57: la bayesiana y el NSGA-II prueban bancos en todo el alimentador, no solo en la barra de
-        # la carga (AL209, 2026-11-06); el valle y la escalera de siempre siguen con la de la carga.
+        # la carga (AL299, 2026-11-06); el valle y la escalera de siempre siguen con la de la carga.
         en_todo = con_banco
         if banco and d.get('barras_media'):
             cand = oo.barras_candidatas(ora, f, len(nuevas), con_banco, d['barras_media'], banco,
@@ -10030,7 +10030,7 @@ def set_nueva_proponer(ws: Workspace, ctx: JobContext, project: str, feeders: li
     nuevas_todas = {nombre_pf(str(c.get('sed') or '')) for c in _cargas_nuevas_aplicadas(ws, project)}
 
     def es_nueva(nombre: str) -> bool:
-        # DIgSILENT pone sufijos («SU_PACKING…(2)»): por el nombre exacto, en NA203 + NA205
+        # DIgSILENT pone sufijos («SU_PACKING…(2)»): por el nombre exacto, en NA293 + NA295
         # (2026-11-01) las cargas nuevas se contaban como demanda existente trasladada y crecían.
         return any(str(nombre).startswith(n[:36]) for n in nuevas_todas if n)
     avisos = list(datos.get('avisos') or [])
@@ -10239,7 +10239,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     total_kw = sum(float(c.get('kw') or 0) for c in evaluadas)
     if not directo_set_nueva and not escalera_primero and umbral is not None and total_kw > float(umbral):   # 042:RF-17
         # 063:RF-34: con tanta carga nueva, bancos, secciones y ternas no la resuelven; la alternativa
-        # es una SET nueva (NA203 + NA205, 2026-11-01: 35 cargas, unos 29 MW).
+        # es una SET nueva (NA293 + NA295, 2026-11-01: 35 cargas, unos 29 MW).
         directo_set_nueva = True
         ctx.log(f'Las cargas nuevas suman {total_kw / 1000:.1f} MW, más que el umbral del perfil '
                 f'({float(umbral) / 1000:g} MW): la solución es una SET nueva (063:RF-34).')
@@ -10248,7 +10248,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
 
         todas = sn.orden_de_cargas(evaluadas)
         # 087:RF-54: como la escalera (042:RF-32), con las cargas nuevas puestas: una evaluación cortada antes pudo dejarlas
-        # apartadas, y la de CHI201 (Pisco, 2026-11-04) quedaba «sin camino cerrado desde la cabecera».
+        # apartadas, y la de CHI291 (Pisco, 2026-11-04) quedaba «sin camino cerrado desde la cabecera».
         _reponer_cargas_nuevas(ws, ctx, project, feeders, anio_casos, [str(c['variacion']) for c in todas if c.get('variacion')])
         ctx.log(f'{len(todas)} cargas nuevas directo a la SET nueva {set_nueva_nombre}, sin escalera.')
         campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
@@ -10266,7 +10266,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
         escalera = optimizar_con_proyecto(ws, ctx, project, feeders, anio_casos=anio_casos,
                                           tipo_cambio=tipo_cambio, capex=capex, cargas=cargas)
     # La escalera ya se midió (y aplicó lo que cabe): si falta un dato de la SET nueva (042:RF-8),
-    # se dice sin perder lo hecho. NA203 + NA205 (2026-10-31): una hora de escalera y el trabajo
+    # se dice sin perder lo hecho. NA293 + NA295 (2026-10-31): una hora de escalera y el trabajo
     # salía «fallido» sin decir cuántas cargas cabían.
     # 042:RF-21, RF-22: por zona geográfica; SET nueva solo donde la zona la justifica.
     from ...aplicacion import set_nueva as sn
@@ -10281,7 +10281,7 @@ def con_proyecto_optimizar(ws: Workspace, ctx: JobContext, project: str, feeders
     for n, zona in enumerate(zonas, 1):
         kw = sum(float(c.get('kw') or 0) for c in zona)
         # 087:RF-54: una zona que no llega al umbral de la SET nueva va a un alimentador nuevo aunque sea la única. Pisco
-        # (2026-11-04): los 0,66 MW de CHI201, solos, iban a una SET nueva entera.
+        # (2026-11-04): los 0,66 MW de CHI291, solos, iban a una SET nueva entera.
         expreso = umbral_set is not None and kw < float(umbral_set)
         nombre_z = set_nueva_nombre if len(zonas) == 1 else f'{set_nueva_nombre or "SET NUEVA"} {n}'
         ctx.log(f"Zona {n}: {kw / 1000:.2f} MW ({', '.join(str(c.get('sed'))[:30] for c in zona)}): "
@@ -10319,7 +10319,7 @@ VIGENCIA_EVALUACION_S = 24 * 3600
 def revision_de_la_escalera() -> str:
     """087:RF-50: la huella del código que mide una variante: el guion, la planificación de las obras y el criterio.
 
-    Pisco (2026-11-04): corregido el traslado a la misma tensión, la web reutilizó la evaluación de CHI201 hecha con el
+    Pisco (2026-11-04): corregido el traslado a la misma tensión, la web reutilizó la evaluación de CHI291 hecha con el
     código anterior (025:RF-73), porque el plan era el mismo, y devolvió otra vez su error.
     """
     raiz = Path(__file__).resolve().parents[4]
@@ -10338,7 +10338,7 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
     El contexto firmado cambia en cada petición y no cuenta; el resto del plan es lo que se
     midió, con las variaciones activas en «Con proyecto». Solo vale un informe terminado (sin
     error ni cancelación), con variantes y de las últimas 24 h. (Pisco, 2026-10-24: se
-    reutilizó para PA217 una evaluación cancelada y medida con la obra de SI213 inactiva.)
+    reutilizó para PA297 una evaluación cancelada y medida con la obra de SI293 inactiva.)
     """
     def clave(p: dict) -> str:
         # 098:RF-32: lo ya medido que se le pasó al guion no cambia qué se mide: no cuenta.
@@ -10357,7 +10357,7 @@ def _evaluacion_hecha(ws: Workspace, plan: dict) -> dict | None:
             datos = json.loads(informe.read_text(encoding='utf-8'))
         except (OSError, ValueError):
             continue
-        # 087:RF-50: una variante con error no se midió: no se reutiliza (CHI201, Pisco, 2026-11-04).
+        # 087:RF-50: una variante con error no se midió: no se reutiliza (CHI291, Pisco, 2026-11-04).
         if (isinstance(datos, dict) and datos.get('variantes') and not datos.get('error')
                 and not datos.get('cancelado') and not any(v.get('error') for v in datos['variantes'])):
             return datos
@@ -10381,7 +10381,7 @@ def _anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_corto, m
 
     El oráculo corregido con lo medido (RF-30) lo busca año a año hasta el horizonte; DIgSILENT lo confirma solo en ese
     año y en el anterior. Sin oráculo, o si DIgSILENT no lo confirma, DIgSILENT lo busca por bisección. La obra de ese
-    año no se busca aquí: la plantea el PIDE partiendo de la de corto plazo (072). CA101 (2026-11-07): «terna en 62
+    año no se busca aquí: la plantea el PIDE partiendo de la de corto plazo (072). CA191 (2026-11-07): «terna en 62
     tramos + 240 mm² en 9 tramos en 3 caminos» cumplía hoy y fallaba en el año 7 de los tres que se probaban."""
     try:
         return _buscar_anio_de_problemas(ws, ctx, project, f, obras_corto, memo, opciones, nombre)
@@ -10515,7 +10515,7 @@ def registrar_obra_aplicada(ws: Workspace, project: str, variacion: str, obra: d
     """Una obra aplicada en DIgSILENT, con su proyecto y su variación (017:RF-35).
 
     Al aplicarse sale de ``ws.obras``; sin este registro el informe de estudio no veía
-    ninguna obra de «Con proyecto» (CA101, 2026-10-15: salió solo el estado actual).
+    ninguna obra de «Con proyecto» (CA191, 2026-10-15: salió solo el estado actual).
     """
     ws.obras_aplicadas = [o for o in ws.obras_aplicadas
                           if not (o.get('project') == project.strip()
@@ -10989,7 +10989,7 @@ def faltan_recalibrar(ajuste: dict, pedidos: Sequence[str]) -> tuple[list[str], 
 def avisos_de_recalibracion(ajuste: dict, pedidos: Sequence[str]) -> list[str]:
     """091:RF-20, RF-22: el orden es calibración, recalibración y estudio; lo que no lo sigue se avisa.
 
-    La calibración solo cuadra la P: estudiar sobre ella es estudiar una red sin la revisión de la Q (TM102,
+    La calibración solo cuadra la P: estudiar sobre ella es estudiar una red sin la revisión de la Q (TM192,
     2026-11-05). No se rechaza: nada bloquea salvo la red vacía, y el operador decide con el aviso a la vista.
     """
     faltan, sin_tipo = faltan_recalibrar(ajuste, pedidos)
@@ -11687,7 +11687,7 @@ def ultimo_estudio(ws: Workspace, rol: str, project: str | None = None, alimenta
     el flujo de la corrida anterior. Solo los flujos guardados sin registro, de antes de esta spec, se
     buscan por fecha; quien los use lo dice con :func:`_avisos_de_la_corrida`.
 
-    063:RF-45: el desequilibrado solo vale si su cabecera cuadra con la del equilibrado. En SM218
+    063:RF-45: el desequilibrado solo vale si su cabecera cuadra con la del equilibrado. En SM298
     (2026-11-02) daba 11 873 kW frente a los 9 284 kW medidos, y el informe salía con cuellos del
     185 % que no existen; entonces se usa el equilibrado y lo dice ``_aviso_flujo``.
     """
@@ -12036,7 +12036,7 @@ def _utm(lat_lon) -> list[float] | None:
 def _sed_cercana(gps, geo: dict) -> list | None:
     """La SED más cercana a un banco y su distancia en m (017:RF-135).
 
-    En CA101 dos bancos existentes están en el nodo «14717», un número de sección que no
+    En CA191 dos bancos existentes están en el nodo «14717», un número de sección que no
     dice nada al lector: a 18 m está SE20730. Las SED son las barras de baja tensión de la
     geografía, con el nombre que les da el conversor («<SED>_BT»).
     """
@@ -12101,7 +12101,7 @@ def _cargas_nuevas_aplicadas(ws: Workspace, project: str) -> list[dict]:
 
     vistas: dict[tuple[str, str], dict] = {}
     # 042:RF-1 (con 040:RF-6, RF-11): los informes de todas las ejecuciones del espacio, por fecha.
-    # Con solo la activa, NA203 + NA205 (2026-10-31) daba 4 cargas en vez de 36: las otras 31 se
+    # Con solo la activa, NA293 + NA295 (2026-10-31) daba 4 cargas en vez de 36: las otras 31 se
     # crearon el 29-10 en otra ejecución y hoy solo se reutilizaron, con su variación renombrada.
     carpetas = [ws.root / 'salida', *sorted((ws.root / 'runs').glob('*/salida')), ws.out_dir]
     informes = sorted({p.resolve(): p for c in carpetas if c.is_dir()
@@ -12180,7 +12180,7 @@ def _factor_de_carga_cabecera(ws: Workspace, job_id: str | None) -> dict[str, di
 def avance_en_disco(ws: Workspace, project: str) -> dict:
     """Lo ya hecho en el proyecto según lo guardado en disco, no según los trabajos de la sesión (072:RF-33).
 
-    Los trabajos viven en memoria: tras reiniciar la web, CA101_CHN102 (2026-11-13), calibrado, recalibrado y con
+    Los trabajos viven en memoria: tras reiniciar la web, CA191_CHN192 (2026-11-13), calibrado, recalibrado y con
     su carga nueva aplicada, salía con todos los pasos «pendiente» y sin camino directo al estudio y al informe.
     """
     from ...aplicacion.demanda_medida import clave_codigo
@@ -12290,8 +12290,8 @@ def informes_contexto(ws: Workspace, project: str, feeders: list[str], job_id: s
         if clave_codigo(o.get('alimentador')) in claves and CON_PROYECTO in (o.get('casos') or []):
             obras[o['alimentador']] = obras.get(o['alimentador'], 0) + 1
     # 017:RF-35: y las ya aplicadas activas en el último flujo de «Con proyecto», como las
-    # cuenta el informe: el formulario decía «0 obras» con cuatro aplicadas en TA225 e
-    # IN111 (2026-10-15).
+    # cuenta el informe: el formulario decía «0 obras» con cuatro aplicadas en TA295 e
+    # IN191 (2026-10-15).
     for a in ws.obras_aplicadas or []:
         f = a['obra'].get('alimentador')
         if a.get('variacion') in activas and a.get('project') == project.strip()                 and clave_codigo(f) in claves:
@@ -12325,7 +12325,7 @@ def _kv_de_barras(flujos: dict, alimentador: str) -> dict[str, float]:
 
 def _set_y_tension_de_cargas(ws: Workspace, cargas: list[dict], kv_de_barras: dict[str, dict[str, float]]) -> None:
     """La SET del alimentador y la tensión de la barra de cada carga, para proponerlas en la solicitud
-    (017:RF-91). Con CA101 (2026-11-13) el operador había escrito la carga en 3.2 y el informe le volvía a
+    (017:RF-91). Con CA191 (2026-11-13) el operador había escrito la carga en 3.2 y el informe le volvía a
     pedir cliente, ubicación, SET y tensión. Lo que no se sabe queda en ``None`` y se pide.
     """
     try:
@@ -12917,7 +12917,7 @@ def _imagenes_para_la_web(ws: Workspace, imagenes: dict[str, dict[str, Any]]) ->
 def _obras_del_informe(ws: Workspace, project: str, alimentador: str, sin: dict, con: dict) -> tuple[dict, ...]:
     """Las obras activas en el flujo de «Con proyecto» de ese alimentador (063:RF-53).
 
-    T7 en SM218: el informe concluía «factible con las obras evaluadas» sin decir cuáles: el banco de
+    T7 en SM298: el informe concluía «factible con las obras evaluadas» sin decir cuáles: el banco de
     450 kvar en 8904 y los 25 tramos a 120 mm² solo estaban en el informe hecho a mano.
     """
     from ...adaptadores.informes import obra_para_informe
@@ -13069,7 +13069,7 @@ def asistente_grupos(ws: Workspace) -> list[str]:
 def _alimentadores_del_vocabulario(filas: list[dict]) -> list[str]:
     """El código del alimentador, como en la tabla de la web y en las rutas (026:RF-6).
 
-    Con el NetworkID de la fuente («NET_2030_179_PA217»), «convierte el PA217» decía que faltaban alimentadores
+    Con el NetworkID de la fuente («NET_2030_179_PA297»), «convierte el PA297» decía que faltaban alimentadores
     (auditor, 2026-11-14). Un código que llevan dos redes (el mismo en dos SET, o repetido en la fuente) no
     identifica a ninguna: van sus NetworkID, y el plan pregunta cuál en vez de tomar uno en silencio.
     """
@@ -13094,7 +13094,7 @@ def asistente_vocabulario(ws: Workspace) -> dict[str, list[str]]:
     vocab['set'] = sorted(e.sets) if e is not None else []                     # 070:RF-17
     if not vocab['alimentadores'] and e is not None:
         # Sin fuente cargada, los de la estructura de la empresa: tras reiniciar la web ningún
-        # espacio tenía su inventario en memoria y el asistente no reconocía ni IN111 (2026-10-24).
+        # espacio tenía su inventario en memoria y el asistente no reconocía ni IN191 (2026-10-24).
         vocab['alimentadores'] = sorted(a.codigo for a in e.alimentadores.values())
     from ...aplicacion.asistente.clasificador import subtipos_del_perfil
 
@@ -14168,7 +14168,7 @@ def recalibrar_datos(ws: Workspace, project: str) -> dict:
     # 070:RF-59: ``SISTEMA_<zonal>_<set>`` no casaba arriba y el proyecto de una SET se calibraba como alimentadores
     # sueltos, sin su máxima de barra.
     de_set = _set_del_grupo(ws, grupo) if grupo is not None and (ws.groups.get(grupo) or {}).get('tipo') == 'sistema' else None
-    # 028:RF-40: los alimentadores del sistema, para elegir cuáles se recalibran (Pisco, 2026-11-05: solo AL209 y PA217).
+    # 028:RF-40: los alimentadores del sistema, para elegir cuáles se recalibran (Pisco, 2026-11-05: solo AL299 y PA297).
     del_sistema = ({'del_sistema': list((ws.groups.get(grupo) or {}).get('feeders') or [])}
                    if grupo is not None and (ws.groups.get(grupo) or {}).get('feeders') else {})
     if de_set is not None:

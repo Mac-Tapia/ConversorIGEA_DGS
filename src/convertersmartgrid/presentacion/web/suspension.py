@@ -1,6 +1,6 @@
 """Suspensión del equipo durante un trabajo de la web (spec 096).
 
-Pisco (2026-11-05): una recalibración de AL209 y PA217 tardaba más de media hora en DIgSILENT y el operador quería
+Pisco (2026-11-05): una recalibración de AL299 y PA297 tardaba más de media hora en DIgSILENT y el operador quería
 suspender el equipo. Suspendido, todo se congela; al despertar la orden de DIgSILENT puede fallar (licencia de red,
 conexión) y el trabajo quedaba fallido sin que nadie lo repitiera.
 """

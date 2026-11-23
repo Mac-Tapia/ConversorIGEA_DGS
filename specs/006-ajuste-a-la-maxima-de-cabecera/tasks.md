@@ -43,8 +43,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T8. [DIgSILENT] Prueba real en DIgSILENT con un alimentador, a cargo del usuario: comprobar el
       signo y el lado de lo medido en la cabecera y que cuadra al 1 %. Y que, con el
       «Operation Scenario» activo, «Verificar la convergencia» da la cabecera ajustada
-      (RF-27): SI213 daba 229,2 kW antes del cambio, con el ajuste en 1.621,8 kW.
-      Hecho el 2026-10-22 con CA101 desde cero por la web (espacio 66fdc0868df54784): máxima de
+      (RF-27): SI293 daba 229,2 kW antes del cambio, con el ajuste en 1.621,8 kW.
+      Hecho el 2026-10-22 con CA191 desde cero por la web (espacio 66fdc0868df54784): máxima de
       septiembre 4994 kW (L-CA131), calibrado tras los transformadores NTP de 4 SED fijas (spec 020),
       cuadrado a −0,00015 kW; «Verificar la convergencia» con «Sin proyecto» activo da 4993,2 kW.
       Hecho cuando: en DIgSILENT la cabecera ajustada cuadra al 1 % con el signo y el lado de lo medido.

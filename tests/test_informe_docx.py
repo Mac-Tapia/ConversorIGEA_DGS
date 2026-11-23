@@ -212,7 +212,7 @@ def _factibilidad_con_baja(tmp_path, bajas, **extra):
 
 
 def test_factibilidad_lista_el_deficit_previo_con_su_barra_y_tension(tmp_path):
-    """086:RF-48, 086:RF-50 — SI112: la obra basta para la carga, y el ramal figura como déficit previo."""
+    """086:RF-48, 086:RF-50 — SI192: la obra basta para la carga, y el ramal figura como déficit previo."""
     from convertersmartgrid.adaptadores.libro_informe import conclusiones_del_word
 
     destino, resumen = _factibilidad_con_baja(tmp_path, BAJA_PREVIA)
@@ -309,11 +309,11 @@ def test_factibilidad_perdidas_medidas_no_inventa_anualizacion(tmp_path):
     """017:RF-54, 063:RF-7: se comparan los tres balances medidos sin imputar una curva anual."""
     destino = tmp_path / 'perdidas_medidas.docx'
     datos = _factibilidad(tmp_path, cargas=_caso('Cargas nuevas', 0.92), perdidas_actual=None, perdidas_proyectado=None,
-                          perdidas_instantaneas=True, observaciones=['Red completa NA203–NA205.'])
+                          perdidas_instantaneas=True, observaciones=['Red completa NA293–NA295.'])
     escribir_informe_factibilidad(_config(tmp_path), destino, datos)
     texto = _texto(destino)
     assert 'Pérdidas activas (kW)' in texto and 'Pérdidas reactivas (kvar)' in texto
-    assert 'No se anualizan' in texto and 'Red completa NA203–NA205.' in texto
+    assert 'No se anualizan' in texto and 'Red completa NA293–NA295.' in texto
     assert 'MD kWh' not in texto
 
 
@@ -619,7 +619,7 @@ def test_clientes_fijos_con_fp_real_y_corregido(tmp_path):
 
 
 def test_factibilidad_con_obras_dice_cuales_y_donde(tmp_path):
-    """063:RF-53, 063:RF-31 — T7 en SM218: concluía «con las obras evaluadas» sin nombrarlas."""
+    """063:RF-53, 063:RF-31 — T7 en SM298: concluía «con las obras evaluadas» sin nombrarlas."""
     destino = tmp_path / 'conexion.docx'
     obras = ({'tipo': 'banco', 'kvar': 450, 'nodo': 'N8904'},
              {'tipo': 'conductor', 'conductor': 'AA120', 'trechos': [
@@ -757,7 +757,7 @@ def test_resumen_ejecutivo_en_una_hoja_con_la_cabecera_del_modelo(tmp_path, semi
 def test_factibilidad_recoge_lo_que_ocasiona_la_carga_y_si_las_obras_lo_corrigen(tmp_path):
     """017:RF-106 ampliada — 2.3.5 compara «Sin proyecto», con las cargas sin obras y «Con proyecto»: las barras que la
     carga deja bajo el límite, los trechos sobrecargados de nodo a nodo y su estado con las obras; y las conclusiones lo
-    resumen (CA101 con SECA001, 2026-11-13)."""
+    resumen (CA191 con SECA001, 2026-11-13)."""
     from convertersmartgrid.aplicacion.estudios_pf import Limites
     from convertersmartgrid.adaptadores.informes import diagnostico_de_cargas
     from test_diagnostico_cargas import CARGAS, GEO, SIN, _medida

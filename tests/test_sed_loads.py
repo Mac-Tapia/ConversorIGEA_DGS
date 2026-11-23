@@ -1,6 +1,6 @@
 """Cargas de SED por libro Excel/CSV, en el formato real de la empresa.
 
-Formato nativo (``referencia/PA217.xlsx``): **una hoja por alimentador**, el nombre de la
+Formato nativo (``referencia/PA297.xlsx``): **una hoja por alimentador**, el nombre de la
 hoja es el alimentador, y las columnas son ``SED · Kw · Kvar · (kVA) · FP``.
 
 Lo que se fija aquí:

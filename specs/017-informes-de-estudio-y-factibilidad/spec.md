@@ -17,7 +17,7 @@ cuestan frente a lo que reconoce el regulador.
 La empresa usa dos informes, y el usuario dio un modelo de cada uno (2026-10-14):
 
 - **Factibilidad y punto de diseño** (`InformeModelo.docx`, el caso EMAPICA de 430 kW en
-  IC106). Se hace para **una** carga nueva, la que se ingresa sola. Las que entran en
+  IC196). Se hace para **una** carga nueva, la que se ingresa sola. Las que entran en
   bloque solo actualizan solicitudes ya analizadas, con punto de diseño ya dado, y en el
   informe cuentan como «cargas de solicitudes vigentes». Lleva el estado actual y el
   proyectado del alimentador, los datos en el punto de diseño, las pérdidas técnicas
@@ -25,12 +25,12 @@ La empresa usa dos informes, y el usuario dio un modelo de cada uno (2026-10-14)
   `informeModeloperdidas.xlsx`, cuyas fórmulas se reconstruyen aquí) y la cargabilidad
   del transformador de la SET, que sale de un proyecto de transmisión de DIgSILENT
   («AD8 V4»).
-- **Estudio eléctrico** (`IT.CASA_BLANCA.doc`, en realidad un `.docx`: caída de tensión de
-  un cliente en CA101 y PE104). Se hace cuando el problema es la calidad de tensión o la
+- **Estudio eléctrico** (`IT.CLIENTE L.doc`, en realidad un `.docx`: caída de tensión de
+  un cliente en CA191 y PE194). Se hace cuando el problema es la calidad de tensión o la
   cargabilidad, no una carga nueva. Lleva el estado actual, el proyectado con las obras
   de mejora, el detalle de las obras y las conclusiones.
 
-El caso de prueba es CA101, evaluado por caída de tensión (informe de estudio, sin carga
+El caso de prueba es CA191, evaluado por caída de tensión (informe de estudio, sin carga
 nueva), ejecutado desde cero: conversión, importación, «Caso base» verificado, «Sin
 proyecto» calibrado y «Con proyecto» con las obras. Para ese caso el usuario fija el
 orden de las obras: primero los bancos de condensadores que el alimentador ya tiene en
@@ -158,20 +158,20 @@ el modelo no se incluyen.
   propias variaciones, activas solo en «Con proyecto».
 - RF-36: EL SISTEMA leerá de DIgSILENT los bancos de condensadores del alimentador con su
   nodo, su potencia en kvar y su estado de servicio.
-- RF-36b: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+- RF-36b: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA191
   13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
   son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «DONDE el
-  operador indique un proyecto anterior de DIgSILENT del mismo alimentador (en CA101, «CA101
+  operador indique un proyecto anterior de DIgSILENT del mismo alimentador (en CA191, «CA191
   13»), EL SISTEMA leerá sus bancos de condensadores con su nodo, kvar, tipo y estado, los
   comparará por nodo con los del proyecto estudiado y dirá en el informe cuáles faltan o
   difieren. (El usuario, 2026-10-15: es un caso excepcional, no la regla.)»
-- RF-36c: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+- RF-36c: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA191
   13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
   son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «DONDE se
   dé ese proyecto anterior, EL SISTEMA creará en la etapa 1, en una variación activa solo en
   «Con proyecto», los bancos que faltan, en los mismos nodos y con las mismas
   características, y los dejará en servicio.»
-- RF-36d: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA101
+- RF-36d: no se usa desde el 2026-11-03 (el usuario cortó el 2026-10-15 la lectura de «CA191
   13»: no se extrae nada de otro proyecto ni de otro alimentador, y los bancos existentes
   son los del proyecto estudiado, en la calibración (015:RF-60, 015:RF-61)): era «SI el nodo
   de un banco del proyecto anterior no está en el proyecto estudiado, ENTONCES EL SISTEMA no
@@ -213,12 +213,12 @@ el modelo no se incluyen.
 - RF-40d: EL SISTEMA guardará los bancos y reguladores propuestos en variaciones propias,
   activas solo en «Con proyecto» (RF-35).
 - RF-41: EL SISTEMA modelará el cambio de conductor con la sección y el tipo que indique el
-  operador (120 mm² en CA101) en los tramos de la troncal que van de la cabecera a la SED
+  operador (120 mm² en CA191) en los tramos de la troncal que van de la cabecera a la SED
   que indique el operador.
 - RF-42: EL SISTEMA modelará la migración con la tensión que indique el operador (22,9 kV
-  en CA101) solo en los tramos de la troncal que van de la cabecera a la SED que indique el
+  en CA191) solo en los tramos de la troncal que van de la cabecera a la SED que indique el
   operador y en las SED de sus barras, y no en el alimentador entero. (El usuario, 2026-10-15:
-  «se está migrando según la troncal que va a Casa Blanca», es decir, hasta la SED SE20701;
+  «se está migrando según la troncal que va a Cliente L», es decir, hasta la SED SE20701;
   2026-11-04: lectura A de lo que cuelga, RF-42d.)
 - RF-42d: EL SISTEMA abrirá, en la variación de la obra, los ramales que cuelgan de esos tramos.
 - RF-42e: SI la migración no se puede aplicar entera, ENTONCES EL SISTEMA no dejará nada de ella
@@ -299,7 +299,7 @@ el modelo no se incluyen.
   del alimentador migrada a otra tensión.
   > Cambio del 2026-10-15 (el usuario, tras la sonda de AD08): el proyecto de transmisión no
   > tiene una carga por alimentador sino por barra de SET (`LElCarmen10` en `CAR10A` lleva
-  > CA101 y los demás de 10 kV de El Carmen). RF-67 y RF-67c quedan así: el operador elige
+  > CA191 y los demás de 10 kV de El Carmen). RF-67 y RF-67c quedan así: el operador elige
   > la carga de la barra de la SET; sin proyecto se calcula el caso tal cual y con proyecto
   > se suma a esa carga el Δ P/Q de cabecera «Con − Sin proyecto» de los flujos ya
   > guardados en 4.2, sin volver a simular el proyecto del alimentador. El caso por
@@ -319,7 +319,7 @@ el modelo no se incluyen.
 
 #### Estructura y figuras del informe de factibilidad
 
-El modelo (`InformeModelo.docx`, EMAPICA en IC106, leído entero el 2026-10-15) tiene
+El modelo (`InformeModelo.docx`, EMAPICA en IC196, leído entero el 2026-10-15) tiene
 este orden, y cada figura sale de DIgSILENT salvo la ubicación, que en el modelo es una
 captura de Google Earth.
 
@@ -434,7 +434,7 @@ Apartado 5.1 · Conexión de un cliente nuevo
   solicitud. También propondrá, solo en los campos vacíos, lo ya escrito en «Una carga
   nueva» (el nombre como cliente y sus UTM como ubicación y punto) y la SET de su
   alimentador según la estructura; la tensión es la nominal de la barra de la carga en el
-  flujo guardado. La fecha de la solicitud no se propone: es la de la carta (CA101,
+  flujo guardado. La fecha de la solicitud no se propone: es la de la carta (CA191,
   2026-11-13).
 - RF-92: EL SISTEMA mostrará el factor de carga calculado de la medición de cabecera (RF-60)
   con el mes del que sale, y pedirá el factor de carga solo si no hay medición (RF-61).
@@ -468,7 +468,7 @@ Apartado 5.1 · Conexión de un cliente nuevo
 - RF-127: EL SISTEMA describirá en el informe la terna con sus tramos y el enlace con su
   largo, su conductor y sus dos extremos.
 
-Alternativas de obras (usuario, 2026-10-16, sobre el informe de CA101: «primero con la
+Alternativas de obras (usuario, 2026-10-16, sobre el informe de CA191: «primero con la
 primera alternativa solo conectando los bancos y como segunda alternativa cambiando la
 sección del conductor; indicar en qué tramo va a ser el cambio, desde qué punto hasta qué
 punto, y se debe ver el plano modificado»). Hasta entonces el informe mostraba una sola
@@ -479,7 +479,7 @@ etapa con todas las obras juntas y no se sabía qué lograban los bancos solos.
   por etapa con obras, en el orden de RF-32, cada una sumada a las anteriores (RF-32).
 - RF-129: EL SISTEMA no hará de la consigna de cabecera una alternativa propia: es un
   ajuste de operación y entra en la alternativa siguiente, o en la última si no hay
-  siguiente. (En CA101: alternativa 1, los bancos; alternativa 2, el cambio de sección con
+  siguiente. (En CA191: alternativa 1, los bancos; alternativa 2, el cambio de sección con
   los bancos y la consigna.)
 - RF-130: CUANDO se ejecute el flujo de «Con proyecto» con alternativas, EL SISTEMA medirá
   cada alternativa en esa misma ejecución con solo las variaciones de sus obras activas,
@@ -639,7 +639,7 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   adecuar los transformadores (RF-24 y RF-34).
 - Alimentador sin bancos de condensadores en DIgSILENT: la etapa 1 se omite con aviso.
 - Estado actual que ya cumple (RF-31).
-- Informe de estudio de varios alimentadores, como Casa Blanca con CA101 y PE104.
+- Informe de estudio de varios alimentadores, como Cliente L con CA191 y PE194.
 - Carga nueva sin variación en «Con proyecto» (no se conectó): el informe de factibilidad
   no se genera y se dice por qué.
 - Proyecto de transmisión abierto por otro usuario o que no converge (RF-70).
@@ -656,7 +656,7 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
 - Comparar varios alimentadores candidatos para una misma carga (la conclusión b del
   modelo EMAPICA): el operador genera un informe por alimentador.
 - La transferencia de tramos a otro alimentador y la fuente desde una SET nueva, como en
-  Casa Blanca (PE104 hacia Chincha Nueva). La migración por la troncal sí entra (RF-42),
+  Cliente L (PE194 hacia Chincha Nueva). La migración por la troncal sí entra (RF-42),
   con las obras de la spec 016.
 - PDF, firma y envío del informe.
 - Valorizar la inversión de las obras (VNR): la hoja `INVERSION_VNR_LINEA` del libro está
@@ -669,7 +669,7 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   `tests/test_web_api.py` por cada endpoint nuevo.
 - `npx tsc --noEmit -p frontend` sin errores y `npm run build` correcto; el paso 5 revisado
   con la checklist del skill `convertersmartgrid-frontend` (modo claro y oscuro, sin `localStorage`).
-- Prueba en DIgSILENT con CA101 desde cero: conversión, importación, «Caso base»
+- Prueba en DIgSILENT con CA191 desde cero: conversión, importación, «Caso base»
   verificado, calibración en «Sin proyecto», etapas de obras en «Con proyecto» e informe
   de estudio generado, con las imágenes de DIgSILENT, revisado por el usuario.
 - Prueba en DIgSILENT de un informe de factibilidad con una carga nueva real del libro de
@@ -683,12 +683,12 @@ Resueltas el 2026-10-15:
   satélite de la vista previa, con la salida de las teselas encendida, RF-111.)
 - Bancos nuevos y reguladores: con los módulos nativos `ComCapo` y `ComPlaceopt`, costes de
   mercado como referencia (RF-39 a RF-40d).
-- Bancos de CA101: hoy en servicio; la etapa 1 coincide con el estado actual (RF-38).
+- Bancos de CA191: hoy en servicio; la etapa 1 coincide con el estado actual (RF-38).
 - AD08: solo transmisión, alimentadores como cargas concentradas (RF-65 a RF-67e).
-- SED de Casa Blanca: SE20701 (NIS 381000372), radial CA101.
+- SED de Cliente L: SE20701 (NIS 381000372), radial CA191.
 
 - Bancos de «otro modelo ya considerado» (RF-36b a RF-36d): el proyecto anterior de
-  DIgSILENT «CA101 13»; se copian a los mismos nodos con las mismas características.
+  DIgSILENT «CA191 13»; se copian a los mismos nodos con las mismas características.
 
 Resueltas el 2026-11-04 por el usuario («has lo recomendado»):
 

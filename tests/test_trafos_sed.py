@@ -27,8 +27,8 @@ def fichas():
     ('SE30642', 976.0115103061227, 630, 2),
     ('SE30424', 373.7713031632653, 500, 1),
 ])
-def test_las_sed_de_pa217(fichas, sed, kva_carga, kva, unidades):
-    """020:RF-6 / 020:RF-7 / 020:RF-8 — PA217 (22,9 kV, Tabla 7), 2026-10-16: lo que se hizo a
+def test_las_sed_de_pa297(fichas, sed, kva_carga, kva, unidades):
+    """020:RF-6 / 020:RF-7 / 020:RF-8 — PA297 (22,9 kV, Tabla 7), 2026-10-16: lo que se hizo a
     mano en la T26 de la 015 sale de la regla."""
     p = proponer(kva_carga, 22.9, fichas['tablas'], fichas['umbral_carga_pct'])
     assert (p['kva'], p['unidades']) == (kva, unidades), sed
@@ -78,9 +78,9 @@ def test_sin_tablas_no_hay_propuesta():
     assert p['kva'] is None and 'perfil' in p['motivo']
 
 
-def test_nombre_del_tipo_propio_como_en_pa217():
+def test_nombre_del_tipo_propio_como_en_pa297():
     """020:RF-19 / 020:RF-21 — el nombre lleva potencia, norma, tensiones y grupo, y redondea
-    los 22,899999618 kV con que DIgSILENT guarda 22,9: así sale el tipo creado en PA217."""
+    los 22,899999618 kV con que DIgSILENT guarda 22,9: así sale el tipo creado en PA297."""
     from convertersmartgrid.aplicacion.trafos_sed import nombre_tipo
 
     assert (nombre_tipo(630, 'NTP370400', 22.899999618530273, 219.9999988079071, 'DYN5')

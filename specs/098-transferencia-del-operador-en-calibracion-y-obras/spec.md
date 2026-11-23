@@ -1,21 +1,21 @@
 # Spec 098 — La transferencia de carga del operador, en la calibración y en las obras
 
-Estado: cumplida (2026-11-08: T6 en DIgSILENT con CA101 + CHN102) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, proyecto `20261105-124711_CSG_TXT_CA101_CHN102`:
+Estado: cumplida (2026-11-08: T6 en DIgSILENT con CA191 + CHN192) · Fecha: 2026-11-07 · Origen: usuario, 2026-11-07, proyecto `20261105-124711_CSG_TXT_CA191_CHN192`:
 «para la recalibración y la calibración se debe desactivar la transferencia y hacerla con sus alimentadores completos»,
-y «todo esto debe servir para cualquier estudio parecido, no solo para el proyecto CA101_CHN102».
+y «todo esto debe servir para cualquier estudio parecido, no solo para el proyecto CA191_CHN192».
 
 ## Contexto y objetivo
 
-En el proyecto de CA101 y CHN102 unidos, el operador hizo a mano en DIgSILENT una transferencia de carga de CA101 a
-CHN102: dos tramos nuevos (SEC_1091_1082263_a y SEC_1091_1082269_c, sin variación) y el punto que unía esa parte a CA101
-abierto. Con ella pasaron a CHN102 tres bancos de 300 kvar de CA101 (EBC_1, EBC_2 y EBC_3). Las SED transferidas
-conservan su etiqueta de la fuente, `p:alimentador=CA101` (la del TXT exportado), pero las alimenta CHN102.
+En el proyecto de CA191 y CHN192 unidos, el operador hizo a mano en DIgSILENT una transferencia de carga de CA191 a
+CHN192: dos tramos nuevos (SEC_1091_1082263_a y SEC_1091_1082269_c, sin variación) y el punto que unía esa parte a CA191
+abierto. Con ella pasaron a CHN192 tres bancos de 300 kvar de CA191 (EBC_1, EBC_2 y EBC_3). Las SED transferidas
+conservan su etiqueta de la fuente, `p:alimentador=CA191` (la del TXT exportado), pero las alimenta CHN192.
 
 La recalibración por la web, con el mes 2026-07 y medidas de cabecera anteriores a la transferencia, terminó en
-`VIOLACION_FISICA`: «pérdidas activas negativas en CA101 (-1 271,2 kW)». Último flujo: CA101 5 340 kW en cabecera,
-CHN102 2 722 kW (objetivo 2 728 kW, 2026-07-27 08:45). La causa: las cargas de cada alimentador se toman por topología y
-por etiqueta (`tools/ajuste_cabecera_pf.py::cargas_sed`), así que las transferidas cuentan en CA101 aunque su potencia
-entra por la cabecera de CHN102.
+`VIOLACION_FISICA`: «pérdidas activas negativas en CA191 (-1 271,2 kW)». Último flujo: CA191 5 340 kW en cabecera,
+CHN192 2 722 kW (objetivo 2 728 kW, 2026-07-27 08:45). La causa: las cargas de cada alimentador se toman por topología y
+por etiqueta (`tools/ajuste_cabecera_pf.py::cargas_sed`), así que las transferidas cuentan en CA191 aunque su potencia
+entra por la cabecera de CHN192.
 
 La medida es de la red de la fuente. La calibración se hace con la red de la fuente: mientras se calibra, la
 transferencia del operador se desactiva y cada alimentador queda completo, como cuando se midió; al terminar se deja
@@ -25,7 +25,7 @@ la escalera se hacen donde ya hay una maniobra que abrir, como hizo el operador.
 Vale para cualquier proyecto unido o sistema con cualquier número de alimentadores, para varias transferencias a la
 vez (también en cadena, X→Y e Y→Z, y en los dos sentidos), para cualquier fuente (TXT, MDB, VNR-GIS) y para cualquier
 distribuidora, y para cualquier cambio de topología del operador que pase SED de un alimentador a otro, con o sin
-bancos o generadores en la parte que pasa. CA101_CHN102 es el caso que lo motiva y la prueba en DIgSILENT.
+bancos o generadores en la parte que pasa. CA191_CHN192 es el caso que lo motiva y la prueba en DIgSILENT.
 
 ## Requisitos funcionales (EARS)
 
@@ -99,8 +99,8 @@ bancos o generadores en la parte que pasa. CA101_CHN102 es el caso que lo motiva
 La primera prueba real siguió con las pérdidas negativas: el informe dio dos zonas sin tocar («unida_en_la_fuente» y
 «sin_punto»). Las sondas de solo lectura mostraron lo que hizo el operador: partió SEC_1091_1082263 con una mitad nueva
 (SEC_1091_1082263_a) y una barra nueva con dos bancos, sin cambio de topología; partió SEC_1091_1082269 con un acoplador
-nuevo ABIERTO («Breaker/Switch») y una línea nueva (SEC_1091_1082269_c), el punto que separa la zona de CA101; y creó un
-acoplador nuevo CERRADO («Breaker/Switch(1)») entre dos barras del DGS que el DGS no une, el enlace por el que CHN102
+nuevo ABIERTO («Breaker/Switch») y una línea nueva (SEC_1091_1082269_c), el punto que separa la zona de CA191; y creó un
+acoplador nuevo CERRADO («Breaker/Switch(1)») entre dos barras del DGS que el DGS no une, el enlace por el que CHN192
 alimenta la zona. El DGS del conversor no trae las maniobras abiertas (90 en este), así que `abiertos_dgs` venía vacío.
 
 - RF-16: DONDE el plan trae el DGS aceptado, EL SISTEMA comparará cada rama de la red (tramos, acopladores,
@@ -117,11 +117,11 @@ alimenta la zona. El DGS del conversor no trae las maniobras abiertas (90 en est
 
 ### Transferir por el enlace que ya existe, en la escalera (2026-11-07)
 
-«Con proyecto» de CA101_CHN102 (job 7fcaf05e4edb): la escalera de CA101 probó primero «cambio a 22.9 kV con su fuente
+«Con proyecto» de CA191_CHN192 (job 7fcaf05e4edb): la escalera de CA191 probó primero «cambio a 22.9 kV con su fuente
 (107 km, 156 SED)», que no cumple (mínima 0,807 p.u.), y fue a la obra integral. La búsqueda de vecinos salió vacía
 porque 12333, 11969 y NODE_T_SU_empresa_Danper_Trujillo_SAC no tenían coordenadas, y concluyó «ni transferir o trasladar
 a un vecino bastan» sin haber probado ninguna transferencia. El usuario: «¿ya probó la transferencia de carga antes de
-ir a la migración a 22,9 kV?», «ya existe el punto de enlace con CHN102», «una vez transferido, debería probar con
+ir a la migración a 22,9 kV?», «ya existe el punto de enlace con CHN192», «una vez transferido, debería probar con
 bancos de nuevo», y que el oráculo decida y DIgSILENT confirme, sin cálculos de relleno.
 
 - RF-20: SI una barra desde la que se busca un vecino no tiene coordenadas, ENTONCES EL SISTEMA tomará las de la barra
@@ -150,11 +150,11 @@ bancos de nuevo», y que el oráculo decida y DIgSILENT confirme, sin cálculos 
 
 ### Lo que dejó ver la T6 de «Con proyecto» (2026-11-07, job 11469a95f83e)
 
-La sonda de solo lectura del 2026-11-07 dio: las barras en T de las cargas nuevas de CA101 (Danper y Buganvilla) cuelgan
-de la segunda troncal de CA101, que sale de la misma barra de cabecera por otro cubículo y queda fuera de su
-`ElmFeeder` (305 barras, 75 cargas; 063:RF-39); el conversor sí las cuenta en CA101 (`ElmCompleto`) y midió sus
+La sonda de solo lectura del 2026-11-07 dio: las barras en T de las cargas nuevas de CA191 (Danper y Buganvilla) cuelgan
+de la segunda troncal de CA191, que sale de la misma barra de cabecera por otro cubículo y queda fuera de su
+`ElmFeeder` (305 barras, 75 cargas; 063:RF-39); el conversor sí las cuenta en CA191 (`ElmCompleto`) y midió sus
 tensiones. El paso a 22,9 kV dio las tensiones de sin obra al 1e-8 porque su flujo no convergía, la obra quedaba
-inactiva (011:RF-66) y se medía sin ella; se presentaba como «no cumple». CHN102, sin cargas nuevas, quedó en 0,73 p.u.
+inactiva (011:RF-66) y se medía sin ella; se presentaba como «no cumple». CHN192, sin cargas nuevas, quedó en 0,73 p.u.
 en la zona que recibió y no se trató. Y el oráculo, equilibrado, daba 0,888 p.u. en 12431 y 0,817 en 12020, donde
 DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 
@@ -170,11 +170,11 @@ DIgSILENT, con su flujo desequilibrado (`iopt_net=1`), medía 0,829 y 0,730.
 
 ### Segunda corrida de «Con proyecto» (2026-11-07, job 3ded64ef7a44)
 
-CHN102 subió su escalera y CA101 no se resolvió: tiene dos caminos con cargas en problemas (la cola de CH_23 hasta
+CHN192 subió su escalera y CA191 no se resolvió: tiene dos caminos con cargas en problemas (la cola de CH_23 hasta
 SEC_1091_1080932 y la rama de CH_10 y CH_18 hasta SEC_1091_1081392) y ninguna variante juntaba la obra de los dos; cada
 una arreglaba su camino (0,991 en la cola y 0,917 en Buganvilla, o 0,922 en la cola y 0,962 en Buganvilla). Sin libro
 CAPEX, la sección y la terna no tenían costo: el oráculo no podía dar ninguna por buena ni la bayesiana encontrarla, la
-primera pasada mandó a DIgSILENT una sección de 50 mm², y CHN102 eligió el paso a 22,9 kV (29,3 km, 50 SED, que no
+primera pasada mandó a DIgSILENT una sección de 50 mm², y CHN192 eligió el paso a 22,9 kV (29,3 km, 50 SED, que no
 aguanta ni un año) porque era la única con costo de referencia. Los reguladores no cambiaban nada (`ComLdf.iopt_at =
 0`) y contaban como «cumple». La ronda 087:RF-47 volvió a medir variantes ya medidas con la misma red.
 
@@ -227,8 +227,8 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   el año cero»).
 - RF-38: CUANDO una obra de la escalera nombra la mitad «(n)» que dejó una carga nueva al partir un tramo, y esa mitad no
   existe en la red sobre la que se graba la obra (las cargas nuevas apartadas), EL SISTEMA tomará el tramo entero, una
-  sola vez, y no dará la obra por ajena al alimentador. CA101 (2026-11-07): «El tramo 'SEC_1091_1081392(1)' no es del
-  alimentador CA101» en toda terna o sección de varios caminos, que salía «no cumple» sin medirse.
+  sola vez, y no dará la obra por ajena al alimentador. CA191 (2026-11-07): «El tramo 'SEC_1091_1081392(1)' no es del
+  alimentador CA191» en toda terna o sección de varios caminos, que salía «no cumple» sin medirse.
 
 - RF-39: EL SISTEMA buscará en qué año el alimentador, con la alternativa de corto plazo puesta, vuelve a salir de
   límites con la demanda proyectada (las cargas nuevas, constantes, 030:RF-9): el oráculo corregido (RF-30) busca el
@@ -239,10 +239,10 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   ni medirá en este estudio ninguna obra de ese año.
 - RF-41: CUANDO a una variante le falta tensión, EL SISTEMA probará más módulos de banco (3, 4, …, del tamaño del
   perfil), solos y con las obras de línea de varios caminos, mientras el oráculo corregido vea que mejora la barra peor
-  y el valle no pase del límite, y dirá hasta cuántos módulos probó y por qué se paró. CA101 (2026-11-07), con su
+  y el valle no pase del límite, y dirá hasta cuántos módulos probó y por qué se paró. CA191 (2026-11-07), con su
   transferencia: 1×300 kvar dejaba la cola en 0,874 p.u. y 2×300 kvar con refuerzo en 0,922; no se probaba un tercero.
 - RF-42: EL SISTEMA no propondrá una transferencia por un enlace que une barras de tensiones distintas sin un
-  transformador, y lo dirá. CA101 y CHN102 (2026-11-07): tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con
+  transformador, y lo dirá. CA191 y CHN192 (2026-11-07): tras pasar CHN192 a 22,9 kV, «Breaker/Switch» unía 10 kV con
   22,9 kV.
 
 - RF-43: CUANDO el alimentador que recibe una transferencia del operador queda fuera de límites en «Con proyecto»,
@@ -256,7 +256,7 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   los dos alimentadores (RF-25) y del año 0 al del periodo (RF-37), y competirá por costo con las demás; SI no se
   elige, ENTONCES la escalera seguirá sin ella; el que la recibe se trabaja después del que cede, y el informe da una
   fila propia con sus cifras, con ella y sin ella, y si se eligió. Usuario (2026-11-07): «para obras se propone la
-  transferencia de carga y se analiza si da solución a la mala calidad de producto en la cola de CA101».
+  transferencia de carga y se analiza si da solución a la mala calidad de producto en la cola de CA191».
 
 - RF-45: EL SISTEMA evaluará en «Con proyecto» los escalones en orden fijo, cada uno entero antes del siguiente:
   bancos; cambio de sección; terna nueva; transferencia de carga (la del operador, otros cortes y enlaces); después, el
@@ -274,16 +274,16 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 
 - RF-47: EL SISTEMA medirá en DIgSILENT la transferencia del operador y la transferencia por un enlace que ya existe
   aunque el que recibe tenga poco margen o el oráculo vea que la red baja: el margen solo se avisa, y la medida de los
-  dos alimentadores decide. CA101 + CHN102 (2026-11-07): «CHN102 no conserva margen» dejó el escalón de transferencia
+  dos alimentadores decide. CA191 + CHN192 (2026-11-07): «CHN192 no conserva margen» dejó el escalón de transferencia
   sin medir nada y la transferencia del operador sin evaluar.
 
 - RF-48: MIENTRAS la escalera tenga deshecha en «Con proyecto» la transferencia del operador como alternativa no
-  elegida, EL SISTEMA no volverá a copiar sus elementos desde «Sin proyecto» al aplicar una obra (014:RF-31). CA101 +
-  CHN102 (2026-11-07): la copia la reponía tras aplicar la obra de CA101 y CHN102 volvía a cargar la zona (0,703 p.u.).
+  elegida, EL SISTEMA no volverá a copiar sus elementos desde «Sin proyecto» al aplicar una obra (014:RF-31). CA191 +
+  CHN192 (2026-11-07): la copia la reponía tras aplicar la obra de CA191 y CHN192 volvía a cargar la zona (0,703 p.u.).
 
 - RF-49: EL SISTEMA calculará el crecimiento por alimentador una vez por proyecto y corrida de «Con proyecto», y lo
   reutilizará en las rondas siguientes sin volver a leer los libros. SI el proceso que lee los libros cae, ENTONCES lo
-  reintentará una vez y, si vuelve a caer, seguirá sin ese dato y lo avisará, sin tumbar el trabajo. CA101 + CHN102
+  reintentará una vez y, si vuelve a caer, seguirá sin ese dato y lo avisará, sin tumbar el trabajo. CA191 + CHN192
   (2026-11-07): el lector de Excel abortó tres veces (0xC0000409) con 1,4 GB de memoria libre, tras horas de escalera.
 - RF-50: EL SISTEMA clasificará cada obra por su plazo: de corto plazo, de implementación inmediata, los bancos, el cambio
   de sección, la nueva terna, la transferencia o el traslado de carga y el regulador; de largo plazo, el proyecto de
@@ -323,5 +323,5 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
 ## Criterios de finalización
 
 - `grep -rnoE "098:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-45.
-- Recalibrado por la web el proyecto CA101_CHN102 (mes 2026-07), sin pérdidas negativas y con la transferencia del
+- Recalibrado por la web el proyecto CA191_CHN192 (mes 2026-07), sin pérdidas negativas y con la transferencia del
   operador como la dejó; «Con proyecto» corrido con la transferencia puesta.

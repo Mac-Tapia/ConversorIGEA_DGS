@@ -1,6 +1,6 @@
 """Universal naming helpers for CYMDIST NetworkIDs and selectors.
 
-Feeder IDs vary by utility (e.g. ``NET_2030_142_IN111``, ``ALIMENTADOR-12``,
+Feeder IDs vary by utility (e.g. ``NET_2030_142_IN191``, ``ALIMENTADOR-12``,
 ``Feeder.A1``). Short names and selectors must not assume one company's pattern.
 """
 
@@ -24,8 +24,8 @@ def feeder_short_name(network_id: str) -> str:
     """Display / output basename for a NetworkID (last path-like token).
 
     Con las siglas canónicas del perfil (022:RF-90): la SET nueva Chincha Nueva viene en la
-    red de RED_231026 como CN101 a CN201 y la empresa la llama CHN101 a CHN201; la
-    estructura declara ``"siglas": ["CHN", "CN"]`` y desde la carga del TXT se llama CHN101
+    red de RED_231026 como CN191 a CN291 y la empresa la llama CHN191 a CHN291; la
+    estructura declara ``"siglas": ["CHN", "CN"]`` y desde la carga del TXT se llama CHN191
     en el inventario, el DGS y la calibración. Sin perfil, el nombre de la red tal cual.
     """
     parts = feeder_tokens(network_id)
@@ -61,8 +61,8 @@ _TROZO = re.compile(r'(?<![A-Za-z0-9])([A-Za-z]+)(\d+)(?![A-Za-z0-9])')
 def nombre_canonico(nombre: str, canonicas: dict[str, str] | None = None) -> str:
     """El nombre con la sigla canónica en cada trozo «sigla + número» (022:RF-90, 027:T23).
 
-    El nodo de cabecera de Chincha Nueva llegaba al DGS como ``NODE_2030_1192582_CN101``
-    aunque el alimentador ya se llamaba CHN101: ``NODE_2030_1192582_CHN101``. Solo cambia las
+    El nodo de cabecera de Chincha Nueva llegaba al DGS como ``NODE_2030_1192582_CN191``
+    aunque el alimentador ya se llamaba CHN191: ``NODE_2030_1192582_CHN191``. Solo cambia las
     siglas alternativas de la estructura del perfil; sin perfil, el nombre tal cual.
     """
     canonicas = siglas_canonicas() if canonicas is None else canonicas

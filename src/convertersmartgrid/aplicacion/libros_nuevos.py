@@ -126,7 +126,7 @@ def fraccion_repetida(nueva, otra) -> tuple[float, int] | None:
     """
     k1, p1, q1 = _arreglos(nueva)
     k2, p2, q2 = _arreglos(otra)
-    # Solo los registros en que la P cambia: un medidor congelado repite su valor todos los meses (IN216 de Ica en 2026)
+    # Solo los registros en que la P cambia: un medidor congelado repite su valor todos los meses (IN296 de Ica en 2026)
     # y no es un libro copiado; uno apagado, tampoco.
     cambia = np.r_[True, p1[1:] != p1[:-1]] if len(p1) else np.zeros(0, dtype=bool)
     validos = ~np.isnan(p1) & ~((p1 == 0) & (np.isnan(q1) | (q1 == 0))) & cambia

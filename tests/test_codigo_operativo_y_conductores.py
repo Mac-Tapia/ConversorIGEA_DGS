@@ -1,7 +1,7 @@
 """Código operativo del alimentador (056:RF-7) y conductores reconstruidos al cargar (053:RF-9).
 
 El 2026-11-01, con la copia VNR-GIS de una distribuidora real, la web listaba <código> y <código> (códigos
-internos de VNR-GIS) en lugar de NJA202 y 0205, y dejaba 22 alimentadores «incompletos» porque
+internos de VNR-GIS) en lugar de NJA292 y 0205, y dejaba 22 alimentadores «incompletos» porque
 sus conductores venían sin impedancia y la reconstrucción esperaba a convertir.
 """
 
@@ -18,16 +18,16 @@ from test_vnr_sqlserver import _datos, _tablas
 def test_el_alimentador_lleva_su_codigo_operativo():
     """056:RF-7: el modelo usa EtiquetaSalida; el código de VNR-GIS queda en los metadatos."""
     tablas = _tablas()
-    tablas['mtSalida'][0]['EtiquetaSalida'] = 'NJA202'
+    tablas['mtSalida'][0]['EtiquetaSalida'] = 'NJA292'
     datos, _motor = _datos(tablas)
     modelo, _avisos = sv.modelo_canonico(datos)
-    assert {s.feeder_id for s in modelo.sections} == {'NJA202'}
-    assert {c.feeder_id for c in modelo.loads} == {'NJA202'}
-    assert {f.feeder_id for f in modelo.sources} == {'NJA202'}
-    assert modelo.metadata['codigo_vnr'] == {'NJA202': 'F1'}
+    assert {s.feeder_id for s in modelo.sections} == {'NJA292'}
+    assert {c.feeder_id for c in modelo.loads} == {'NJA292'}
+    assert {f.feeder_id for f in modelo.sources} == {'NJA292'}
+    assert modelo.metadata['codigo_vnr'] == {'NJA292': 'F1'}
     # Se puede pedir por cualquiera de los dos códigos.
     assert sv.modelo_canonico(datos, ['F1'])[0].sections
-    assert sv.modelo_canonico(datos, ['NJA202'])[0].sections
+    assert sv.modelo_canonico(datos, ['NJA292'])[0].sections
 
 
 def test_sin_etiqueta_o_repetida_conserva_el_codigo_y_se_anota():
@@ -37,9 +37,9 @@ def test_sin_etiqueta_o_repetida_conserva_el_codigo_y_se_anota():
         {'CodSalidaMT': 'A1', 'EtiquetaSalida': 'R5'},
         {'CodSalidaMT': 'A2', 'EtiquetaSalida': 'R5'},
         {'CodSalidaMT': 'A3', 'EtiquetaSalida': ''},
-        {'CodSalidaMT': 'A4', 'EtiquetaSalida': 'NJA202 '},
+        {'CodSalidaMT': 'A4', 'EtiquetaSalida': 'NJA292 '},
     ], avisos)
-    assert codigos == {'A1': 'A1', 'A2': 'A2', 'A3': 'A3', 'A4': 'NJA202'}
+    assert codigos == {'A1': 'A1', 'A2': 'A2', 'A3': 'A3', 'A4': 'NJA292'}
     assert {a['code'] for a in avisos} == {'ETIQUETA_REPETIDA', 'SALIDA_SIN_ETIQUETA'}
 
 

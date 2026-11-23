@@ -43,19 +43,19 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       «sistema»; unir vuelve a no usar la estructura.
       Hecho cuando: pruebas del lote, la API, el CLI y el front en verde; `npm run build`.
 - [x] T11. DIgSILENT: la entrega de Empresa A con su estructura, importada como un
-      proyecto; zonas, SET, flujo; NA203 + NA205 calibrados juntos en SET 51. (todos)
+      proyecto; zonas, SET, flujo; NA293 + NA295 calibrados juntos en SET 91. (todos)
       Hecho cuando: importa, converge y el ajuste del proyecto cuadra.
       2026-10-18: la entrega de Empresa A (93 alimentadores) importada como
       «EMPRESAA_POR_SET_4»: 4 zonales, 19 SET, 20 zonas, 35 fuentes (una por barra y una
-      por «Sin SET»: PA219, COH101, SC215), 52 aperturas; el flujo converge y el «Caso base»
+      por «Sin SET»: PA219, COH191, SC215), 52 aperturas; el flujo converge y el «Caso base»
       sale verificado, con todos los conteos iguales. Arreglado por el camino: la red del
       zonal en la metadata y en las cargas sin SED, la aceptación con varias redes y el DGS
-      en cp1252. Falta el ajuste de NA203 + NA205 en ese proyecto.
+      en cp1252. Falta el ajuste de NA293 + NA295 en ese proyecto.
       2026-10-18: cerrada con el sistema Nasca desde la base Access («20261018-034959_CSG_
-      SISTEMA_NASCA», 17 alimentadores) calibrado entero desde la web: NA203 9 190,9 kW frente
-      a 9 244 (−0,57 %, aviso de kVAR: la red da más que lo medido) y NA205 por zonas
+      SISTEMA_NASCA», 17 alimentadores) calibrado entero desde la web: NA293 9 190,9 kW frente
+      a 9 244 (−0,57 %, aviso de kVAR: la red da más que lo medido) y NA295 por zonas
       (1 110,5/1 117,4 kW y 9 043,1/9 114,1 kW), ambos VÁLIDOS en 2 flujos y sin remedios. Por
-      el camino: la etapa de «Central_NA205» guardaba 167 cargas que DIgSILENT no borra con la
+      el camino: la etapa de «Central_NA295» guardaba 167 cargas que DIgSILENT no borra con la
       variación activa; se limpia desactivada y el reparto se escribe con las centrales
       apagadas.
 - [x] T11b. Calibración por sistema eléctrico: el plan del proyecto de tipo «sistema» con
@@ -64,39 +64,39 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       Hecho cuando: pruebas de la API y del front en verde; el sistema Nasca calibrado en
       DIgSILENT desde la web.
       2026-10-18: hecho; en Nasca no hay medidor de barra de SET (solo el de la central),
-      así que NA203 y NA205 van con su propia máxima (RF-42) y 15 sin medidor, dichos.
+      así que NA293 y NA295 van con su propia máxima (RF-42) y 15 sin medidor, dichos.
       2026-10-18, Pisco y después Ica, cada uno en su proyecto: «…_SISTEMA_PISCO» (20
       alimentadores; 6 barras de SET con medidor y sus alimentadores en el instante
-      coincidente) calibra 16 a la vez en 5 flujos, sin remedios, todos VÁLIDOS; AL107 (su
-      máxima no tiene kW positivo), CHI201, PI101 y SI114, sin medidor. «…_SISTEMA_ICA» (30)
-      calibra IN111 y TA225 en 3 flujos, VÁLIDOS; los otros 28 no tienen medidor en el libro.
+      coincidente) calibra 16 a la vez en 5 flujos, sin remedios, todos VÁLIDOS; AL197 (su
+      máxima no tiene kW positivo), CHI291, PI191 y SI194, sin medidor. «…_SISTEMA_ICA» (30)
+      calibra IN191 y TA295 en 3 flujos, VÁLIDOS; los otros 28 no tienen medidor en el libro.
       Arreglado: el vínculo reconoce cada alimentador del rótulo de su barra de SET.
 - [x] T11c. Un alimentador cuya medida supera lo que su red puede dar no se calibra y se
       dice; los bancos que faltan solo con una primera pasada sin remedios del flujo.
       (RF-55; 021:RF-70)
       Hecho cuando: pruebas de la API y del guion en verde; Chincha calibrado en DIgSILENT.
       2026-10-18: «…_SISTEMA_CHINCHA» (26) calibrado en DIgSILENT por la web con
-      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM106 reconstruido con
-      su medida (3 133 kW) y TM104 con la rama que conserva junto a su cabecera (RF-58b);
-      CA103 y TM101 miden 0 en su cabecera y PN208 no tiene medidor: los tres, dichos y con
+      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM196 reconstruido con
+      su medida (3 133 kW) y TM194 con la rama que conserva junto a su cabecera (RF-58b);
+      CA193 y TM191 miden 0 en su cabecera y PN298 no tiene medidor: los tres, dichos y con
       la demanda del archivo en los mismos flujos (RF-53).
 - [x] T11d. `tools/sistema_web.py`: la cadena de un sistema por la web, que retoma y
       reintenta. (RF-56)
       Hecho cuando: `pytest -q tests/test_sistema_web.py` en verde y Chincha calibrado con ella.
       2026-10-18: «…_SISTEMA_CHINCHA» (26) calibrado en DIgSILENT por la web con
-      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM106 reconstruido con
-      su medida (3 133 kW) y TM104 con la rama que conserva junto a su cabecera (RF-58b);
-      CA103 y TM101 miden 0 en su cabecera y PN208 no tiene medidor: los tres, dichos y con
+      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM196 reconstruido con
+      su medida (3 133 kW) y TM194 con la rama que conserva junto a su cabecera (RF-58b);
+      CA193 y TM191 miden 0 en su cabecera y PN298 no tiene medidor: los tres, dichos y con
       la demanda del archivo en los mismos flujos (RF-53).
 - [x] T11e. Reconstrucción por medida: tramo que falta, punto abierto por la proporción de
       las medidas, medida de barra para el que no tiene medidor; web y herramienta.
       (RF-57 a RF-61)
       Hecho cuando: pruebas de `enlaces`, del lote, de la API y de la herramienta en verde;
-      Chincha reconvertido con TM106 y TM101 reconstruidos, importado y calibrado.
+      Chincha reconvertido con TM196 y TM191 reconstruidos, importado y calibrado.
       2026-10-18: «…_SISTEMA_CHINCHA» (26) calibrado en DIgSILENT por la web con
-      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM106 reconstruido con
-      su medida (3 133 kW) y TM104 con la rama que conserva junto a su cabecera (RF-58b);
-      CA103 y TM101 miden 0 en su cabecera y PN208 no tiene medidor: los tres, dichos y con
+      `tools/sistema_web.py`: 23 VÁLIDOS en 3 flujos, sin remedios; TM196 reconstruido con
+      su medida (3 133 kW) y TM194 con la rama que conserva junto a su cabecera (RF-58b);
+      CA193 y TM191 miden 0 en su cabecera y PN298 no tiene medidor: los tres, dichos y con
       la demanda del archivo en los mismos flujos (RF-53).
 - [x] T12. Validación RF por RF e inventario. (todos)
       Hecho cuando: cada RF citado por una prueba y suite completa en verde.
@@ -104,7 +104,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       variables: 2413 pasan, ninguna omitida.
 - [x] T13. Una red por SET en un zonal marcado: marca en la estructura, red de cada barra
       de SET y alimentador, `ElmNet` y diagrama por red, enlaces en la red de menor SET,
-      Nasca marcado en el perfil. (RF-64 a RF-68, RF-70)
+      Nasca marcado en el perfil. (RF-64, RF-65, RF-66, RF-67, RF-68, RF-70)
       Hecho cuando: `pytest -q tests/test_estructura.py tests/test_dgs_por_set.py` en verde
       con una estructura sorteada que divide un zonal y otra que no; DGS idéntico con
       `workers=1` y `workers>1`.
@@ -116,22 +116,22 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       y calibrado por la web con `tools/sistema_web.py --zonal Nasca`. (RF-65, RF-69)
       Hecho cuando: una red y un diagrama por SET en el proyecto, cada hoja a la medida de
       su SET, y el sistema calibrado como con una red por zonal.
-      Hecho: el DGS del sistema Nasca (2026-10-24) trae una red y un diagrama por SET (SET 51 Nasca,
+      Hecho: el DGS del sistema Nasca (2026-10-24) trae una red y un diagrama por SET (SET 91 Nasca,
       52 Llipata, 53 Puquio, 55, 56 y COH); importado y calibrado desde la web el 2026-10-28 con
       `tools/sistema_web.py`: 7 válidos y 0 fallos (T19). Que cada hoja quede a la medida de su SET
       sigue en T16. Cerrada el 2026-10-29 con esa evidencia (usuario: no repetir en DIgSILENT lo ya probado).
 - [x] T15. SET y alimentadores nuevos: `completar` en la estructura, `cabecera_xy` en el
-      inventario, web y CLI con la estructura completada, aviso, Chincha Nueva y PO101 en el
+      inventario, web y CLI con la estructura completada, aviso, Chincha Nueva y PO191 en el
       perfil. (RF-71, RF-72, RF-73, RF-74, RF-75, RF-76, RF-77, RF-78, RF-79, RF-80)
       Hecho cuando: `pytest -q tests/test_estructura.py tests/test_estructura_nuevos.py` en
-      verde con entregas sorteadas, y con RED_231026 CN101 a CN201 en Chincha y PA219 en SET
+      verde con entregas sorteadas, y con RED_231026 CN191 a CN291 en Chincha y PA219 en SET
       32 Paracas en la conversión por sistema de la web.
       2026-10-23: 24 en verde, con cinco semillas. RED_231026 (101 alimentadores) por la
-      estructura del espacio: ninguno «Sin SET»; CN101 a CN201 en SET CHN Chincha Nueva
-      (SE0043), PA219 en SET 32 por sus siglas, SC215 en «SET SC» deducida en Pisco y COH101
+      estructura del espacio: ninguno «Sin SET»; CN191 a CN291 en SET QHN Chincha Nueva
+      (SE0043), PA219 en SET 72 por sus siglas, SC215 en «SET SC» deducida en Pisco y COH191
       en «SET COH» deducida en Nasca. `convertersmartgrid convert --por-sistema Chincha`: 27
       alimentadores en 5 SET, la CHN con barras de 10 y 22,9 kV, oráculo converge, 0 errores
-      (CN103 no tiene tramos y queda fuera, como todo alimentador sin red).
+      (CN193 no tiene tramos y queda fuera, como todo alimentador sin red).
 - [x] T16. Cada diagrama con su origen: gráficos y conectores de cada `IntGrfnet` desplazados
       al margen, la hoja del manifiesto desde (0, 0), y lo que dibujan los guiones situado
       con las barras de su diagrama; línea base de la 001 regenerada. (RF-65)
@@ -143,11 +143,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       (20261029-081235_CSG_SISTEMA_NASCA) y `tools/hojas_diagrama_pf.py` (T20) da las 6 hojas
       con todos sus gráficos dentro, la 52, la 53 y la 56 en vertical.
 - [x] T17. Siglas de una SET con dos grafías: `Estructura.alimentador` y `equivalentes`,
-      SET CHN con las siglas CN y CHN en el perfil, medidores del libro por cualquiera de
+      SET QHN con las siglas CN y CHN en el perfil, medidores del libro por cualquiera de
       las dos en la web. (RF-81)
       Hecho cuando: `pytest -q tests/test_estructura.py` en verde y, con el espacio de
-      RED_231026, CN101 a CN201 en SET CHN y CHN101 a CHN201 resueltos al mismo alimentador.
-      2026-10-27: en verde; CN103 sigue fuera de la red por no tener tramos.
+      RED_231026, CN191 a CN291 en SET QHN y CHN191 a CHN291 resueltos al mismo alimentador.
+      2026-10-27: en verde; CN193 sigue fuera de la red por no tener tramos.
 - [x] T18. Web: «Convertir sistema» y «Convertir SET» con sus desplegables; `sets` en
       `/convert/sistema` y `sets_detalle` en el resumen; la estructura se pide al cargar la
       entrega. (RF-82, RF-83)
@@ -165,9 +165,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]` y pa
       verde (2026-10-27) y, en DIgSILENT, un sistema con medidores de 60 kV calibrado desde
       la web con todos sus alimentadores en el instante de su barra de 60 kV.
       2026-10-28, en DIgSILENT desde la web (`tools/sistema_web.py`, julio de 2026): Nasca 7
-      válidos y 0 fallos (SET 51, 52 y 53 en el instante de su barra de 60 kV, la central de
-      Nasca en el tramo de NA205); Chincha 26 válidos y 0 fallos con `--transformadores` y
-      `--reconstruir TM106 TM104` (CT_PEDREG en la barra de 10 kV, CHN101, CHN102 y CHN201
+      válidos y 0 fallos (SET 91, 52 y 53 en el instante de su barra de 60 kV, la central de
+      Nasca en el tramo de NA295); Chincha 26 válidos y 0 fallos con `--transformadores` y
+      `--reconstruir TM196 TM194` (CT_PEDREG en la barra de 10 kV, CHN191, CHN192 y CHN291
       con su medidor en el instante de CHNB6T1 con registro en todos).
 - [x] T20. Herramienta `tools/hojas_diagrama_pf.py`, de solo lectura, que compara en DIgSILENT
       la hoja de cada `IntGrfnet` con sus gráficos y conectores. (RF-93)

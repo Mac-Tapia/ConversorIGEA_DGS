@@ -2,7 +2,7 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Regenerar el modelo unido NA203–NA205 a escala geográfica de referencia, sin hoja fija por defecto, y dejar en PowerFactory 2024 una columna `Alimentador` verificable para cada carga y fuente, sin perder Trafomix, interruptores, SED ni trazabilidad de origen.
+**Goal:** Regenerar el modelo unido NA293–NA295 a escala geográfica de referencia, sin hoja fija por defecto, y dejar en PowerFactory 2024 una columna `Alimentador` verificable para cada carga y fuente, sin perder Trafomix, interruptores, SED ni trazabilidad de origen.
 
 **Architecture:** La identidad del alimentador se origina una sola vez al construir cada `FeederModel`, sobrevive a la combinación y se materializa en un manifiesto JSON enlazado por SHA-256 al DGS. Tras importar el DGS, la compuerta de PowerFactory crea de forma idempotente una Data Extension `p:alimentador`, resuelve cada objeto por una identidad eléctrica compuesta y solo escribe los valores si todos los objetos esperados se resuelven sin ambigüedad. El lienzo adaptativo es el valor predeterminado en backend, CLI y web; A0–A4 siguen disponibles únicamente como modo explícito de impresión.
 
@@ -14,12 +14,12 @@
 
 - Ejecutar este plan de forma nativa y secuencial, como pidió el usuario; no delegar tareas.
 - Aplicar TDD en cada cambio: prueba roja observada, implementación mínima, prueba verde y commit acotado.
-- No modificar ni sobrescribir `referencia/NA205.dgs` ni las bases MDB fuente.
+- No modificar ni sobrescribir `referencia/NA295.dgs` ni las bases MDB fuente.
 - Publicar DGS, manifiesto de alimentadores e informes de validación de forma atómica.
 - `NetworkID` es la única fuente de verdad de la pertenencia; no inferir por nombre `SE...`, coordenada, cercanía o conectividad posterior.
-- El valor visible será la denominación corta (`NA203`, `NA205`); el `NetworkID` completo se conservará en el manifiesto de auditoría.
+- El valor visible será la denominación corta (`NA293`, `NA295`); el `NetworkID` completo se conservará en el manifiesto de auditoría.
 - La Data Extension debe llamarse internamente `alimentador`, describirse como `Alimentador` y aparecer como `p:alimentador` en la API.
-- Clases objetivo: `ElmLod`, `ElmSym` y `ElmXnet`. La aceptación real principal se hace sobre `ElmLod` y `ElmXnet`; `ElmSym` se prueba sintéticamente mientras no exista en NA203–NA205.
+- Clases objetivo: `ElmLod`, `ElmSym` y `ElmXnet`. La aceptación real principal se hace sobre `ElmLod` y `ElmXnet`; `ElmSym` se prueba sintéticamente mientras no exista en NA293–NA295.
 - La creación de Data Extensions se ejecutará únicamente con proyecto activo y siempre cerrará con `EndDataExtensionModification`, incluso ante error.
 - Antes de tocar Data Extensions, comprobar que el proyecto activo es exactamente el proyecto nuevo creado por la importación del DGS; nunca modificar por accidente otro proyecto abierto.
 - `EndDataExtensionModification` puede desactivar el caso de estudio; reactivar caso y escenario antes de ejecutar `ComLdf`.
@@ -61,7 +61,7 @@
 
 - Consumes: `Reglas.hoja`, opción CLI/web `hoja`, `FeederModel.diagram_sheet`.
 - Produces: `None`/`AUTO` para escala adaptativa, o `A0`–`A4` solo cuando el operador lo solicita.
-- Invariant: `_diagram_mapper()` sigue usando `NA205_DIAGRAM_UNITS_PER_METER = 2.08` cuando `diagram_sheet is None`.
+- Invariant: `_diagram_mapper()` sigue usando `NA295_DIAGRAM_UNITS_PER_METER = 2.08` cuando `diagram_sheet is None`.
 
 - [ ] **Step 1: Escribir las pruebas rojas del nuevo valor predeterminado**
 
@@ -151,13 +151,13 @@ git commit -m "fix: usar grid adaptativo por defecto"
 Agregar aserciones equivalentes a:
 
 ```python
-assert {load.feeder for load in model.loads} == {'NA203'}
-assert {load.network_id for load in model.loads} == {network_id_na203}
+assert {load.feeder for load in model.loads} == {'NA293'}
+assert {load.network_id for load in model.loads} == {network_id_na293}
 
-combined, _ = combine_models([na203, na205], name='NA203_NA205')
-assert {load.feeder for load in combined.loads} == {'NA203', 'NA205'}
-assert all(sed.feeder in {'NA203', 'NA205'} for sed in combined.seds)
-assert all(dev.feeder in {'NA203', 'NA205'} for dev in combined.devices)
+combined, _ = combine_models([na293, na295], name='NA293_NA295')
+assert {load.feeder for load in combined.loads} == {'NA293', 'NA295'}
+assert all(sed.feeder in {'NA293', 'NA295'} for sed in combined.seds)
+assert all(dev.feeder in {'NA293', 'NA295'} for dev in combined.devices)
 ```
 
 Para puentes fundidos, comprobar que el `Coupler` hereda ambos campos del `SwitchingDevice` que lo originó.
@@ -237,8 +237,8 @@ class FeederAssignment:
 
 Cubrir:
 
-- una carga NA203 genera `ElmLod -> NA203`;
-- una carga NA205 genera `ElmLod -> NA205`;
+- una carga NA293 genera `ElmLod -> NA293`;
+- una carga NA295 genera `ElmLod -> NA295`;
 - cada `ElmXnet` obtiene el alimentador de `CombinedInfo.feeders`;
 - dos cargas con el mismo `loc_name` pero distinta SED/terminal permanecen distinguibles;
 - el SHA-256 cambia si cambia el DGS;
@@ -397,7 +397,7 @@ git commit -m "feat: crear data extension de alimentador"
 **Interfaces:**
 
 - Consumes: `<nombre>_feeder_metadata.json`, objetos PowerFactory importados y `p:alimentador` ya disponible.
-- Produces: valores `NA203`/`NA205` en objetos `ElmLod`, `ElmSym`, `ElmXnet`, más reporte de resolución y escritura.
+- Produces: valores `NA293`/`NA295` en objetos `ElmLod`, `ElmSym`, `ElmXnet`, más reporte de resolución y escritura.
 - Identidad de emparejamiento exacta:
 
 ```python
@@ -504,9 +504,9 @@ git commit -m "feat: asignar alimentador en powerfactory"
 
 - [ ] **Step 1: Escribir pruebas rojas del cableado web**
 
-Probar que `dgs_jobs()` retorna `dgs`, `geography` y `feeder_metadata`; que `powerfactory_flow()` pasa la bandera; y que la respuesta/log contiene conteos por `NA203`/`NA205`.
+Probar que `dgs_jobs()` retorna `dgs`, `geography` y `feeder_metadata`; que `powerfactory_flow()` pasa la bandera; y que la respuesta/log contiene conteos por `NA293`/`NA295`.
 
-Agregar caso de grupo unido: `NA203_NA205.dgs` debe usar `NA203_NA205_feeder_metadata.json`, no metadata individual.
+Agregar caso de grupo unido: `NA293_NA295.dgs` debe usar `NA293_NA295_feeder_metadata.json`, no metadata individual.
 
 - [ ] **Step 2: Ejecutar pruebas y observar el fallo de firma**
 
@@ -546,12 +546,12 @@ git add src/convertersmartgrid/web/services.py src/convertersmartgrid/web/worksp
 git commit -m "feat: cablear columna alimentador en la web"
 ```
 
-## Task 7: Formalizar la regresión eléctrica NA203–NA205
+## Task 7: Formalizar la regresión eléctrica NA293–NA295
 
 **Files:**
 
-- Create: `tests/test_na203_na205_acceptance.py`
-- Create: `tools/verify_na203_na205.py`
+- Create: `tests/test_na293_na295_acceptance.py`
+- Create: `tools/verify_na293_na295.py`
 - Modify: `docs/POWERFACTORY_ACCEPTANCE.md`
 - Modify: `pytest.ini`
 
@@ -566,12 +566,12 @@ git commit -m "feat: cablear columna alimentador en la web"
 El verificador debe exigir como mínimo:
 
 ```text
-feeders == [NA203, NA205]
+feeders == [NA293, NA295]
 trafomix_excluded == 92
 trafomix_m_present == 0
 ElmLod assignments == ElmLod rows
 ElmXnet assignments == 2
-feeders in assignments == {NA203, NA205}
+feeders in assignments == {NA293, NA295}
 SED internal topology complete
 switch source/output reconciliation has no loss
 diagram scale == 2.08 u/m (within tolerance)
@@ -586,7 +586,7 @@ No fijar a ciegas el total de interruptores: compararlo con el inventario fuente
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_na203_na205_acceptance.py
+.\.venv\Scripts\python.exe -m pytest -q tests\test_na293_na295_acceptance.py
 ```
 
 - [ ] **Step 3: Implementar el verificador de artefactos**
@@ -613,14 +613,14 @@ En `docs/POWERFACTORY_ACCEPTANCE.md` añadir:
 3. intentar `Basic Data` y seleccionar `Alimentador` después de `Grid`;
 4. si no aparece ahí, abrir `Flexible Data`, selección de variables, `Data Extension > Alimentador`, y arrastrarla después de `Grid`;
 5. repetir para `Synchronous Machine` y `External Grid`;
-6. guardar evidencia de al menos una carga NA203, una NA205 y ambas fuentes.
+6. guardar evidencia de al menos una carga NA293, una NA295 y ambas fuentes.
 
 - [ ] **Step 5: Ejecutar pruebas enfocadas**
 
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe -m pytest -q tests\test_na203_na205_acceptance.py tests\test_graphics_sed.py tests\test_diagram_topology_coverage.py tests\test_load_data_extraction.py tests\test_puentes.py
+.\.venv\Scripts\python.exe -m pytest -q tests\test_na293_na295_acceptance.py tests\test_graphics_sed.py tests\test_diagram_topology_coverage.py tests\test_load_data_extraction.py tests\test_puentes.py
 ```
 
 Expected: verdes; las pruebas sintéticas prueban los contratos aunque la MDB real no esté presente.
@@ -628,21 +628,21 @@ Expected: verdes; las pruebas sintéticas prueban los contratos aunque la MDB re
 - [ ] **Step 6: Commit**
 
 ```powershell
-git add tests/test_na203_na205_acceptance.py tools/verify_na203_na205.py docs/POWERFACTORY_ACCEPTANCE.md pytest.ini
-git commit -m "test: cubrir aceptacion na203 na205"
+git add tests/test_na293_na295_acceptance.py tools/verify_na293_na295.py docs/POWERFACTORY_ACCEPTANCE.md pytest.ini
+git commit -m "test: cubrir aceptacion na293 na295"
 ```
 
 ## Task 8: Regenerar y validar los dos alimentadores reales
 
 **Files:**
 
-- Read only: `referencia/NA205.dgs`
+- Read only: `referencia/NA295.dgs`
 - Read only: MDB de red y catálogo configurados en el entorno
 - Generate, do not commit: `output/acceptance_20260927/*`
 
 **Interfaces:**
 
-- Consumes: datos reales NA203/NA205.
+- Consumes: datos reales NA293/NA295.
 - Produces: DGS unido, metadata, manifiesto, validaciones, hashes y comparación con referencia.
 
 - [ ] **Step 1: Resolver rutas exactas y registrar hashes de entrada**
@@ -650,7 +650,7 @@ git commit -m "test: cubrir aceptacion na203 na205"
 Run:
 
 ```powershell
-Get-FileHash referencia\NA205.dgs -Algorithm SHA256
+Get-FileHash referencia\NA295.dgs -Algorithm SHA256
 Get-FileHash <RED_MDB> -Algorithm SHA256
 Get-FileHash <CATALOGO_XLSX> -Algorithm SHA256
 ```
@@ -662,17 +662,17 @@ No continuar si hay más de una MDB candidata y el manifiesto previo no permite 
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe tools\convertir_grupos_mdb.py --mdb <RED_MDB> --catalogo <CATALOGO_XLSX> --grupo NA203_NA205=NA203,NA205 --out-dir output\acceptance_20260927 --hoja AUTO
+.\.venv\Scripts\python.exe tools\convertir_grupos_mdb.py --mdb <RED_MDB> --catalogo <CATALOGO_XLSX> --grupo NA293_NA295=NA293,NA295 --out-dir output\acceptance_20260927 --hoja AUTO
 ```
 
-Expected: `NA203_NA205.dgs`, `_manifest.json`, `_validation.*`, `_geography.json` y `_feeder_metadata.json` publicados; estado `ok`.
+Expected: `NA293_NA295.dgs`, `_manifest.json`, `_validation.*`, `_geography.json` y `_feeder_metadata.json` publicados; estado `ok`.
 
 - [ ] **Step 3: Ejecutar verificación de artefactos**
 
 Run:
 
 ```powershell
-.\.venv\Scripts\python.exe tools\verify_na203_na205.py --dgs output\acceptance_20260927\NA203_NA205.dgs --manifest output\acceptance_20260927\NA203_NA205_manifest.json --feeder-metadata output\acceptance_20260927\NA203_NA205_feeder_metadata.json --validation output\acceptance_20260927\NA203_NA205_validation.json --output-json output\acceptance_20260927\NA203_NA205_artifact_acceptance.json --output-txt output\acceptance_20260927\NA203_NA205_artifact_acceptance.txt
+.\.venv\Scripts\python.exe tools\verify_na293_na295.py --dgs output\acceptance_20260927\NA293_NA295.dgs --manifest output\acceptance_20260927\NA293_NA295_manifest.json --feeder-metadata output\acceptance_20260927\NA293_NA295_feeder_metadata.json --validation output\acceptance_20260927\NA293_NA295_validation.json --output-json output\acceptance_20260927\NA293_NA295_artifact_acceptance.json --output-txt output\acceptance_20260927\NA293_NA295_artifact_acceptance.txt
 ```
 
 Expected: código 0 y todas las compuertas en `PASS`.
@@ -684,7 +684,7 @@ Registrar en el informe:
 - unidades por metro y escala equivalente;
 - ancho/alto del lienzo;
 - cantidad de `ElmLod`, `ElmSubstat`, `ElmTr2`, `ElmCoup`, `StaSwitch`, `ElmXnet`;
-- distribución de cargas por NA203/NA205;
+- distribución de cargas por NA293/NA295;
 - diferencia entre el DGS nuevo y la referencia sin asumir igualdad byte a byte.
 
 - [ ] **Step 5: No hacer commit de datos operativos**
@@ -695,8 +695,8 @@ Confirmar que `git status --short` no incluye MDB, DGS reales ni informes con da
 
 **Files:**
 
-- Generate, do not commit: `output/acceptance_20260927/NA203_NA205_powerfactory_acceptance.json`
-- Generate, do not commit: `output/acceptance_20260927/NA203_NA205_powerfactory_acceptance.txt`
+- Generate, do not commit: `output/acceptance_20260927/NA293_NA295_powerfactory_acceptance.json`
+- Generate, do not commit: `output/acceptance_20260927/NA293_NA295_powerfactory_acceptance.txt`
 - Generate, do not commit: capturas de Grid y Network Model Manager
 
 **Interfaces:**
@@ -709,7 +709,7 @@ Confirmar que `git status --short` no incluye MDB, DGS reales ni informes con da
 Run:
 
 ```powershell
-<PF_PYTHON> tools\powerfactory_acceptance.py --import-dgs output\acceptance_20260927\NA203_NA205.dgs --manifest output\acceptance_20260927\NA203_NA205_geography.json --feeder-metadata output\acceptance_20260927\NA203_NA205_feeder_metadata.json --ensure-scenario --run-load-flow --require-diagram --output-json output\acceptance_20260927\NA203_NA205_powerfactory_acceptance.json --output-txt output\acceptance_20260927\NA203_NA205_powerfactory_acceptance.txt
+<PF_PYTHON> tools\powerfactory_acceptance.py --import-dgs output\acceptance_20260927\NA293_NA295.dgs --manifest output\acceptance_20260927\NA293_NA295_geography.json --feeder-metadata output\acceptance_20260927\NA293_NA295_feeder_metadata.json --ensure-scenario --run-load-flow --require-diagram --output-json output\acceptance_20260927\NA293_NA295_powerfactory_acceptance.json --output-txt output\acceptance_20260927\NA293_NA295_powerfactory_acceptance.txt
 ```
 
 Expected:
@@ -724,10 +724,10 @@ Expected:
 
 Abrir el diagrama, ejecutar `Zoom All` y guardar captura. Confirmar que:
 
-- el lienzo abarca la extensión de NA203–NA205;
+- el lienzo abarca la extensión de NA293–NA295;
 - no está limitado a A0;
 - las SED y etiquetas no forman la nube comprimida de la captura inicial;
-- los símbolos mantienen proporción coherente con `referencia/NA205.dgs`.
+- los símbolos mantienen proporción coherente con `referencia/NA295.dgs`.
 
 - [ ] **Step 3: Verificar la columna de cargas**
 
@@ -735,13 +735,13 @@ En `Network Model Manager > Generators, Loads, and Sources > General Load`:
 
 - configurar `Alimentador` después de `Grid` en `Basic Data` si está disponible;
 - de lo contrario configurar `Flexible Data` con el mismo orden lógico;
-- comprobar una fila `SE...` de NA203 y una de NA205;
+- comprobar una fila `SE...` de NA293 y una de NA295;
 - filtrar/ordenar por `Alimentador` y comprobar que los conteos coinciden con metadata.
 
 - [ ] **Step 4: Verificar máquinas y fuentes**
 
 - `Synchronous Machine`: columna creada/configurada aunque la tabla real esté vacía.
-- `External Grid`: dos filas, una `NA203` y otra `NA205`.
+- `External Grid`: dos filas, una `NA293` y otra `NA295`.
 
 - [ ] **Step 5: Guardar evidencia sin sobreafirmar**
 
@@ -829,7 +829,7 @@ git commit -m "docs: documentar grid adaptativo y alimentador"
 
 - [ ] **Step 7: Aplicar verificación antes de completar**
 
-Invocar `superpowers:verification-before-completion`, revisar salidas frescas de pytest, frontend, verificador NA203–NA205 y PowerFactory, y solo entonces declarar la implementación terminada.
+Invocar `superpowers:verification-before-completion`, revisar salidas frescas de pytest, frontend, verificador NA293–NA295 y PowerFactory, y solo entonces declarar la implementación terminada.
 
 ## Base científica y oficial que gobierna la implementación
 

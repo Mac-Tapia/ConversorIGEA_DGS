@@ -27,7 +27,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Hecho cuando: `.venv/Scripts/python.exe -m pytest -q tests/test_verificacion_top_k_nativa.py` pasa
       y están guardadas las evidencias adicionales descritas en T4 del plan, con motor real, reapertura y relectura; no se admiten dobles para cerrar esta tarea.
       Hecho el 2026-11-07 con DIgSILENT 24.0.2 en el proyecto de prueba `20261106-233549_CSG_TXT_8fc733e4_01_PE10`
-      (CA101 + PE104): ver «T4, 2026-11-07» abajo. `CSG_EVIDENCIA_NATIVA=D:/converter/evidencia_nativa/20261107_PE10_t4c
+      (CA191 + PE194): ver «T4, 2026-11-07» abajo. `CSG_EVIDENCIA_NATIVA=D:/converter/evidencia_nativa/20261107_PE10_t4c
       pytest -q -rs tests/test_verificacion_top_k_nativa.py`: 3 passed, 0 omitidas.
 
 ## Evidencia de ejecución
@@ -65,21 +65,21 @@ Medirlo en DIgSILENT es de T4.
 
 T4 (RF-9), 2026-11-07, rama `worktree-agent-a578852c96aa94605` sobre `main` `7e81450c`. Sin GPU.
 - Cómo: `tools/aceptacion_nativa.py obras --barra 14932 --q-kvar 300 --guion-local` (banco de 300 kvar en «Con proyecto»
-  de CA101, el escalón de 10 kV del perfil). Cada relectura es un proceso nuevo de `digital_twin_snapshot_pf.py` (sesión
+  de CA191, el escalón de 10 kV del perfil). Cada relectura es un proceso nuevo de `digital_twin_snapshot_pf.py` (sesión
   nueva por el arnés, con el plan que firmó la web); la obra se aplica con `tools/obras_pf.py` de esta rama y el plan firmado
   por la web, porque la web ejecuta los guiones de su copia y sin el arreglo de abajo la obra quedaba inactiva. Evidencia
   fuera de git: `D:/converter/evidencia_nativa/20261107_PE10_t4c/` (31 ficheros con SHA-256 en `aceptacion_nativa.json`,
   huella del manifiesto `e582c7c3a660f79b…`); las pruebas comprueban las huellas y recalculan los veredictos.
-- Medido: tras reabrir en otra sesión, «Con proyecto» tiene `Obra_condensador_CA101` activa y `Banco_14932` con 0,300 Mvar;
+- Medido: tras reabrir en otra sesión, «Con proyecto» tiene `Obra_condensador_CA191` activa y `Banco_14932` con 0,300 Mvar;
   converge, tensión mínima de media 0,8033 p.u. y pérdidas 2 448,9 kW. La evaluación nativa (`evaluar`, la de
   `verificar_top_k`) da `converged_with_violations` (p. ej. 0,9361 p.u. en la barra 14502, fuera de 0,95–1,05 NTCSE): no se
   acepta. `verificar_top_k` la descarta antes, por dominio (045:RF-9): el flujo de DIgSILENT es desequilibrado
   (`iopt_net=1`) y el gemelo físico es equilibrado (error medio 0,0067 p.u., máximo 0,129 p.u. en 1 065 barras).
 - Fallos reales hallados y corregidos (cada uno con su prueba): (1) `digital_twin_snapshot_pf.resultados` restaba de la
-  cabecera de CA101 las cargas de todo el proyecto (pérdidas −4 690 kW, la medición se rechazaba por negativa):
+  cabecera de CA191 las cargas de todo el proyecto (pérdidas −4 690 kW, la medición se rechazaba por negativa):
   `test_perdidas_de_un_alimentador_en_proyecto_de_varios`. (2) «Con proyecto» recién creado, y luego la etapa de la obra,
   quedaban un segundo antes de las etapas de fichas (707 tramos) y de SED NTP (7 transformadores): «activas» sin aplicar,
-  687 barras de CA101 sin tensión, `Newton algorithm stagnated` y la obra inactiva (evidencias `…_t4` y `…_t4b`).
+  687 barras de CA191 sin tensión, `Newton algorithm stagnated` y la obra inactiva (evidencias `…_t4` y `…_t4b`).
   `casos_pf.crear_con_proyecto` y `cargas_pf.crear_variacion` llaman ahora a `etapas_al_dia` (081:RF-78), porque subir la hora
   del caso no se mantiene (se midió: volvió a …149): `test_con_proyecto_nuevo_ve_las_etapas_de_sin_proyecto`. (3) Las lecturas
   salían sin `pf_version` (PF 2024 no tiene `GetVersion`): se toma de `powerfactory.__version__`.

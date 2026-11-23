@@ -5,11 +5,11 @@
       Hecho el 2026-11-01: 7 pruebas con libros sintéticos de la forma de los de Empresa B.
 - [x] T2. Herramienta `tools/cabecera_ancha.py`. (RF-8)
       Hecho cuando: responde a `--help` y escribe los libros de un perfil sintético.
-      Hecho el 2026-11-01. Con los reales: NJA202, 35 136 registros de 2024, máxima 6 512 kW y
+      Hecho el 2026-11-01. Con los reales: NJA292, 35 136 registros de 2024, máxima 6 512 kW y
       2 136 kVAR el 2024-11-08 15:30; R5, 7 máximas mensuales (2021-04 a 2022-01), la mayor
-      5 040 kW. El lector de la calibración los lee sin cambios (NJA202 6 512 kW en 2024; R205,
+      5 040 kW. El lector de la calibración los lee sin cambios (NJA292 6 512 kW en 2024; R295,
       por R5, 4 920 kW en 2022-01).
-- [x] T3. [DIgSILENT] NJA202 y R205 de Empresa B convertidos, importados y calibrados por
+- [x] T3. [DIgSILENT] NJA292 y R295 de Empresa B convertidos, importados y calibrados por
       la web, en un espacio propio. (Todos)
-      Hecho cuando: cada uno con su cabecera dentro del 1 % (R205 solo en activa).
+      Hecho cuando: cada uno con su cabecera dentro del 1 % (R295 solo en activa).
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

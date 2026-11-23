@@ -1,6 +1,6 @@
 # Spec 040 — Cargas del bloque sin duplicados, y ampliaciones de clientes existentes
 
-Estado: cumplida · Fecha: 2026-10-31 · Origen: revisión de NA203 + NA205 en DIgSILENT con el
+Estado: cumplida · Fecha: 2026-10-31 · Origen: revisión de NA293 + NA295 en DIgSILENT con el
 usuario, 2026-10-31 («antes de implementar las nuevas cargas en digsilent primero debes revisar y
 verificar si existe o no existe esa carga nueva en físico digsilent ya sea por ubicación, nombre o
 siglas»; «las cargas nuevas son algunas ampliación de potencia en el mismo punto del cliente
@@ -8,7 +8,7 @@ existente … esos casos no se debe considerar duplicado, eliminar los duplicado
 
 ## Contexto y objetivo
 
-El libro de cargas nuevas de NA203 + NA205 (29-10, 36 filas de esos alimentadores) se insertó
+El libro de cargas nuevas de NA293 + NA295 (29-10, 36 filas de esos alimentadores) se insertó
 sin que nada detectara:
 
 - Filas repetidas en el mismo alimentador: «Fundo Luciana» y «SU Fundo Luciana…», «YANACA» y
@@ -36,7 +36,7 @@ Filas repetidas en el libro
   demás y el informe dirá de cada una de cuál es duplicada.
 - RF-2: Dos filas en el mismo punto con alimentadores distintos en el libro no son duplicadas:
   cada una va al alimentador que dice el libro (usuario, 2026-10-31: «según el libro a qué
-  alimentador pertenece»; MINERA PECAN en NA203 y en NA205).
+  alimentador pertenece»; MINERA PECAN en NA293 y en NA295).
 
 Ampliaciones de clientes existentes
 
@@ -73,14 +73,14 @@ Variaciones que reconocer por su alimentador
 
 - RF-10: EL SISTEMA nombrará la variación de una carga nueva `Carga_<SED>_<alimentador>_<sello>`
   recortando el nombre de la SED, nunca el alimentador ni el sello, para no pasar de 40
-  caracteres (simulación de NA203 + NA205, 2026-10-31: «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20»
-  había perdido NA203, y 13 cargas ya creadas se iban a crear otra vez).
+  caracteres (simulación de NA293 + NA295, 2026-10-31: «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20»
+  había perdido NA293, y 13 cargas ya creadas se iban a crear otra vez).
 - RF-11: SI el nombre de una variación de carga nueva ya no dice su alimentador, ENTONCES EL
   SISTEMA la tomará como del alimentador de la SED existente más cercana a su carga y, al
   reutilizarla, la renombrará como en RF-10 y lo dirá en un aviso.
 - RF-12: EL SISTEMA reconocerá por su nombre una carga nueva que DIgSILENT guardó recortada para
   añadirle el sufijo «(n)» (amplía 014:RF-29): «Cesar_Alberto_Monge_Marquez_SE5032(2)» es la
-  fila «Cesar Alberto Monge Marquez SE50324» (NA203, 2026-10-31); sin esto se buscaba por el
+  fila «Cesar Alberto Monge Marquez SE50324» (NA293, 2026-10-31); sin esto se buscaba por el
   punto y se tomaba la variación de otra fila del mismo sitio.
 
 ## Relación con otras specs
@@ -101,6 +101,6 @@ Variaciones que reconocer por su alimentador
 ## Criterios de finalización
 
 - `grep -rnoE "040:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-12.
-- NA203 + NA205 cargado de nuevo desde la web: sin la segunda Fundo Luciana ni la segunda
+- NA293 + NA295 cargado de nuevo desde la web: sin la segunda Fundo Luciana ni la segunda
   YANACA; Cesar Monge, HONGWEN y AGROPEX como ampliaciones de SE50324, SE50323 y SE50150; las
   variaciones que sobraban, eliminadas.

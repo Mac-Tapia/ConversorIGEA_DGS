@@ -35,8 +35,8 @@ function palabras(nombre: string): Set<string> {
 }
 
 /**
- * 063:RF-49: el cliente de la solicitud no comparte ningún nombre con la carga elegida. T7 en SM218:
- * «AMPC INKA'S BERRIES S.A.C.» salió con el cliente, el NIS y la potencia de Minera Santa María. Una
+ * 063:RF-49: el cliente de la solicitud no comparte ningún nombre con la carga elegida. T7 en SM298:
+ * «AMPC KANTU'S BERRIES S.A.C.» salió con el cliente, el NIS y la potencia de otra minera. Una
  * carga con solo un código («SN1») no dice de quién es, y entonces no se afirma nada.
  */
 export function clienteAjeno(carga: string, cliente: string): boolean {
@@ -53,7 +53,7 @@ export function esOtraCarga(previa: string, nueva: string): boolean {
 
 /**
  * 063:RF-51: la potencia del campo es solo la propuesta de la carga, y lo que dice la carta manda. T7 en
- * SM218: la carga vale 1100 kW (el incremento) y la carta dice 900 a 2000 kW; quedaba «incremento de 200 kW».
+ * SM298: la carga vale 1100 kW (el incremento) y la carta dice 900 a 2000 kW; quedaba «incremento de 200 kW».
  */
 export function esPotenciaPropuesta(valor: string, kwCarga: number | null | undefined): boolean {
   return kwCarga != null && Number(valor) === kwCarga;
@@ -78,7 +78,7 @@ export interface DatosDeCarga {
 /**
  * 017:RF-91: la solicitud y el punto con lo que ya se escribió de la carga en «Una carga nueva» y lo
  * que se sabe de su alimentador; solo en los campos vacíos: lo escrito o leído de la carta no se pisa.
- * Con CA101 (2026-11-13) el operador había escrito TierraLarga, sus UTM y CA101 en 3.2, y el informe
+ * Con CA191 (2026-11-13) el operador había escrito TierraLarga, sus UTM y CA191 en 3.2, y el informe
  * le volvía a pedir cliente, ubicación, SET y tensión.
  */
 export function propuestaDeCarga<S extends Record<string, string>, P extends Record<string, string>>(

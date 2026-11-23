@@ -276,11 +276,11 @@ def test_el_plan_lleva_la_ruta_y_la_carpeta(client):
     from convertersmartgrid.adaptadores.powerfactory_binding import vinculo_guardado
 
     wid = _wid(client)
-    r = _plan(client, wid, project='Oct/SI213', demandas=DEMANDAS)
+    r = _plan(client, wid, project='Oct/SI293', demandas=DEMANDAS)
     assert r.status_code == 200, r.text
     body = r.json()
-    vinculo = vinculo_guardado(client.app.state.store.get(wid), 'Oct/SI213')
-    assert body['project'] == 'Oct/SI213' and body['folder'] == vinculo['folder']
+    vinculo = vinculo_guardado(client.app.state.store.get(wid), 'Oct/SI293')
+    assert body['project'] == 'Oct/SI293' and body['folder'] == vinculo['folder']
 
 
 def test_el_plan_lleva_las_fichas_de_transformador_del_perfil(client, monkeypatch):

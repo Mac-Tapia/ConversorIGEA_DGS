@@ -6,7 +6,7 @@ renombran ``E1…En`` por el orden de su huella (``seudonimos_de_empresa`` de la
 - Conversión VNR: la subcarpeta tiene ``red_vnr.json``, los tramos (código de conductor y longitud) y las fichas que
   ``red_de_modelo`` saca del modelo canónico de la copia de SQL Server del paquete público de esa empresa
   (``cargar_copia``, spec 023; ``tools/interempresa_loco.py preparar-vnr``), sin pasar por un export CYMDIST (112:RF-22).
-  También vale un trío TXT de CYMDIST: del RED se toman los tramos y del BD_Equipo sus fichas. Una carpeta sin tramos es
+  También vale un trío TXT: del RED se toman los tramos y del BD_Equipo sus fichas. Una carpeta sin tramos es
   un error, nunca un pliegue que no pasa.
 - Pronóstico: la subcarpeta es un benchmark de series de la 112 (``series.csv`` y ``series_objetivos.csv``). Lo que se
   ajusta con las demás es la forma semanal normalizada (cada serie por su media, mediana por día y cuarto de hora), y en la

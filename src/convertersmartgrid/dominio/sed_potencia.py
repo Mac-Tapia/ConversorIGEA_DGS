@@ -3,7 +3,7 @@
 Por qué hace falta. En CYMDIST la carga de una SED es una carga puntual de media
 tensión: el transformador no existe en el cálculo, y el ``ConnectedKVA`` es un dato
 para repartir carga, no una impedancia. Este conversor sí modela el transformador
-(el triángulo SED de NA205), y ahí un kVA inconsistente con la carga deja de ser
+(el triángulo SED de NA295), y ahí un kVA inconsistente con la carga deja de ser
 inofensivo. En 260924.mdb, ``SE50111`` declara 1.197 kW sobre 50 kVA: su barra de
 baja cae a 0,6 p.u. y el Newton de toda la red se estanca.
 

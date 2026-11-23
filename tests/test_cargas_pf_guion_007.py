@@ -2,7 +2,7 @@
 
 ``tools/cargas_pf.py`` contra el DIgSILENT simulado (``fake_pf``): lo creado con la
 etapa de una variación inactiva sale de la red, así que el flujo de la carga *i* solo ve
-la base y esa carga. La prueba real, con SI213, la hace el usuario (T11).
+la base y esa carga. La prueba real, con SI293, la hace el usuario (T11).
 """
 from __future__ import annotations
 
@@ -527,7 +527,7 @@ def test_con_proyecto_recibe_lo_del_operador_en_sin_proyecto(guion):
 def test_la_carga_con_sufijo_de_la_etapa_se_reutiliza(guion):
     """014:RF-29 — DIgSILENT guarda la carga en la etapa como «N1(2)» (la SED y su barra ya
     se llaman N1 y N1(1)); repetir la inserción la reconoce y reutiliza su variación, no
-    crea otra que parta de nuevo el tramo (PN107, CH_9, 2026-10-16)."""
+    crea otra que parta de nuevo el tramo (PN197, CH_9, 2026-10-16)."""
     app = _app()
     primero, rc = guion.ejecutar(app, _plan(['F1'], nuevas=[_nueva('N1', **_cerca(app, 'F1_B2'))]),
                                  simular=False)
@@ -571,7 +571,7 @@ def test_la_carga_en_el_mismo_punto_con_otro_nombre_se_reutiliza(guion):
 
 
 def test_007_rf41_las_perdidas_restan_lo_que_consumen_las_cargas(guion):
-    """007:RF-41 — PRUEBA_007 (2026-11-05): TM105 daba −4 573 kW de pérdidas en «Sin proyecto»
+    """007:RF-41 — PRUEBA_007 (2026-11-05): TM195 daba −4 573 kW de pérdidas en «Sin proyecto»
     porque restaba la ``plini`` escrita de las escaladas, que consumen ``plini × scale0``."""
     app = _app()
     for o in app.proyecto.GetContents('*.ElmLod', 1):

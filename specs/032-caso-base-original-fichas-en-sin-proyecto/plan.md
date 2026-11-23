@@ -48,7 +48,7 @@ Lee: `docs/constitution.md` y `specs/032-caso-base-original-fichas-en-sin-proyec
 - **Dos variaciones por proyecto (`Fichas_<proyecto>`, `SED_NTP_<proyecto>`)**, por orden
   del usuario, aunque compartan fecha. Descartado: una sola variación del catálogo, porque
   el usuario la pidió por clase de cambio. Si DIgSILENT no deja grabar con tres etapas de
-  la misma fecha (SI213, 2026-10-12), `crear_variacion` ya lo comprueba al crear; la
+  la misma fecha (SI293, 2026-10-12), `crear_variacion` ya lo comprueba al crear; la
   prueba en DIgSILENT (T9) lo confirma.
 - **Tipos propios en vez de editar los `TypLne`.** Los tipos están en la biblioteca y una
   variación no graba sus cambios: editar el tipo cambiaría el «Caso base». Se reasigna el

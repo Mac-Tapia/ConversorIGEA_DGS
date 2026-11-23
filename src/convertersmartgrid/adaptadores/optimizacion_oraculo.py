@@ -1,8 +1,8 @@
 """Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT (spec 052).
 
-La escalera de la 025 probaba cada variante en DIgSILENT (de 20 a 85 s cada una): en NA203 +
-NA205 (2026-11-01) unas 3 horas por optimización. Aquí cada variante se calcula con el flujo
-físico del gemelo (``digital_twin.flujo``, 0,003 p.u. frente a DIgSILENT en IN111–TA225) sobre
+La escalera de la 025 probaba cada variante en DIgSILENT (de 20 a 85 s cada una): en NA293 +
+NA295 (2026-11-01) unas 3 horas por optimización. Aquí cada variante se calcula con el flujo
+físico del gemelo (``digital_twin.flujo``, 0,003 p.u. frente a DIgSILENT en IN191–TA295) sobre
 el grafo leído una vez de «Con proyecto», en milisegundos, y DIgSILENT solo confirma lo
 elegido (RF-5).
 
@@ -100,7 +100,7 @@ class Oraculo:
     def _corregir_con_lo_medido(self) -> None:
         """098:RF-30: la caída de cada barra, llevada a la que midió DIgSILENT en la misma lectura.
 
-        CA101 + CHN102 (2026-11-07): el oráculo, equilibrado, daba 0,888 p.u. en 12431 y 0,817 en 12020 donde
+        CA191 + CHN192 (2026-11-07): el oráculo, equilibrado, daba 0,888 p.u. en 12431 y 0,817 en 12020 donde
         DIgSILENT (flujo desequilibrado, ``iopt_net=1``) medía 0,829 y 0,730, y daba por cercanas variantes que
         DIgSILENT dejaba muy lejos. El grafo se lee con todas las cargas nuevas activas y con el flujo hecho: por barra,
         ``k = (1 − u_medida) / (1 − u_oráculo)``, acotado, y cada medida después da ``1 − k·(1 − u)``. Sin
@@ -246,7 +246,7 @@ class Oraculo:
                 aproximada = self._regulador(o, m, v) or aproximada
         # Lo mismo que mide la escalera en DIgSILENT (025:RF-50): la tensión de las barras de media
         # y la carga de los tramos de línea. Con las de baja de cada SED y los transformadores, en
-        # NA203 + NA205 (2026-11-01) el oráculo rechazaba hasta la carga mayor sola por su propio
+        # NA293 + NA295 (2026-11-01) el oráculo rechazaba hasta la carga mayor sola por su propio
         # transformador al 104 % y por una barra de baja ya fuera de límites.
         media = np.array([float(self._nodos[n].get('kv') or 0.0) >= KV_MEDIA_MIN for n in m.ids])
         energ = m.alimentado & ~m.fuente & media
@@ -548,7 +548,7 @@ def barras_candidatas(oraculo: Oraculo, alimentador: str, k: int, base: Sequence
                       banco_kvar: float | None, maximo: int = CANDIDATAS_BANCO) -> dict[str, Any]:
     """Las barras de media del alimentador donde la búsqueda prueba bancos (087:RF-55, RF-56).
 
-    AL209 (2026-11-06): la bayesiana y el NSGA-II solo veían la barra de la carga nueva; el usuario pidió la
+    AL299 (2026-11-06): la bayesiana y el NSGA-II solo veían la barra de la carga nueva; el usuario pidió la
     ubicación óptima en todo el alimentador. ``base`` (la barra de banco de cada carga) va siempre; de ``media``
     (las de media que existen sin las cargas nuevas), si no caben todas, las que más suben con un módulo la
     tensión de las barras de sus cargas y, a igualdad, más bajan las pérdidas. Una barra que el grafo no tiene o
@@ -720,7 +720,7 @@ def modulos_por_mejora(oraculo: Oraculo, barras: Sequence[str], banco_kvar: floa
                        tope: int | None = None) -> dict[str, Any]:
     """098:RF-41: cuántos módulos de banco en cada barra tiene sentido probar: se sube de uno en uno mientras el oráculo
     corregido (RF-30) ve que mejora la barra peor del alimentador con la máxima y, si hay valle, el valle no pasa del
-    límite. Dice hasta cuántos y por qué se paró. CA101 (2026-11-07): con la transferencia, 1×300 kvar dejaba la cola en
+    límite. Dice hasta cuántos y por qué se paró. CA191 (2026-11-07): con la transferencia, 1×300 kvar dejaba la cola en
     0,874 p.u. y 2×300 kvar con refuerzo en 0,922; la escalera no probaba un tercero."""
     tope = int(tope) if tope is not None else MODULOS_MAX_DE_SEGURIDAD
     out: dict[str, Any] = {'modulos': 0, 'motivo': '', 'tabla': []}
@@ -866,7 +866,7 @@ def modelable(v: Variante) -> bool:
 def a_confirmar(eleccion: Mapping[str, Any], tanda: int) -> list[Variante]:
     """087:RF-39: lo que DIgSILENT confirma de un alimentador: las que el oráculo da por cumplidoras y una sola tanda
     de las más cercanas, por si el oráculo se equivoca. El resto no se mide: si ninguna de estas cumple, no la va a
-    cumplir otra de menos (Pisco, 2026-11-04: AL209 medía en DIgSILENT sus 150 variantes, una por minuto, cuando la
+    cumplir otra de menos (Pisco, 2026-11-04: AL299 medía en DIgSILENT sus 150 variantes, una por minuto, cuando la
     primera que cumplía era la 12.ª y las de bancos se quedaban a 0,93 p.u.)."""
     orden = list(eleccion.get('orden') or [])
     buenas = sum(1 for t in eleccion.get('tabla') or [] if t.get('cumple') and t.get('costo_anual') is not None)
@@ -897,7 +897,7 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
     campos = ('maxima', 'fraccion', 'motivos', 'perdidas_kw', 'v_min', 'aproximada', 'valle', 'valle_motivos',
               'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar', 'valle_casos')   # 073:RF-30
     # Explorar (bayesiana, frente, Shapley) con el flujo físico, en milisegundos; el PINN juzga solo
-    # las candidatas (RF-17). Con el PINN en cada combinación, NA203 + NA205 (2026-11-01) pasaba de 7 min.
+    # las candidatas (RF-17). Con el PINN en cada combinación, NA293 + NA295 (2026-11-01) pasaba de 7 min.
     rapido = _con_solo(oraculo, frozenset(str(c.get('variacion')) for c in oraculo.nuevas))
     rapido.pinn = None
     out: dict[str, dict[str, Any]] = {}
@@ -913,7 +913,7 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
         bayes = None
         if a.espacio is not None and evaluaciones_bayes > 0:
             # Con la máxima, que descarta casi todo; los sorteos, solo a lo que la cumple (abajo).
-            # Con los 200 sorteos en cada combinación, NA203 + NA205 (2026-11-01) pasaba de 15 min.
+            # Con los 200 sorteos en cada combinación, NA293 + NA295 (2026-11-01) pasaba de 15 min.
             def valorar(v: Variante, a=a):
                 e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)                 # 073:RF-21
                 return a.costo(v, e.get('perdidas_kw')), _cumple_en(e, p), e
@@ -1022,7 +1022,7 @@ def transferencias_con_oraculo(oraculo: Oraculo, a: Alimentador, candidatas: Seq
             continue
         # 098:RF-47: la transferencia del operador se mide siempre en DIgSILENT: el usuario pide que se evalúe y que el
         # informe diga si resuelve (098:RF-44), aunque el oráculo vea que la red baja.
-        # También toda transferencia por un enlace que ya existe (obra «maniobra»): CA101 + CHN102 (2026-11-07), las dos
+        # También toda transferencia por un enlace que ya existe (obra «maniobra»): CA191 + CHN192 (2026-11-07), las dos
         # por «Breaker/Switch(1)», el mismo corte del operador entre ellas, se descartaban por bajar de 0,803 a 0,793.
         del_operador = (v.nombre.startswith('la transferencia del operador')
                         or any(o.get('clase') == 'maniobra' for o in v.obras))

@@ -15,7 +15,7 @@ async function cargar(rel) {
 
 const logica = () => cargar('../src/features/powerfactory/puntosDeDiseno.ts');
 
-// Como SECA001 de CA101 (2026-11-13): la web la tiene en un nodo y en DIgSILENT el enlace llega a otro.
+// Como SECA001 de CA191 (2026-11-13): la web la tiene en un nodo y en DIgSILENT el enlace llega a otro.
 const CAMBIADA = {
   sed: 'SE1', alimentador: 'AL1', variacion: 'Carga_SE1_AL1_1', estado: 'cambiada', error: null,
   guardado: { barra: 'N1' }, leido: { barra: 'N9', enlace: { nombre: 'LNE_SE1', km: 1.2 } },
@@ -68,7 +68,7 @@ test('017:RF-109: rótulo con SED y kW, y coordenadas UTM solo si el perfil da s
 
 test('017:RF-124: la consulta del mapa lleva el proyecto y cada alimentador, codificados', async () => {
   const { consultaMapa, mapaCargas } = await cargar('../src/api/mapaCargas.ts');
-  assert.equal(consultaMapa('20261109 CA101&X', ['CA101', '', 'CHN102']),
-    'project=20261109+CA101%26X&alimentador=CA101&alimentador=CHN102');
+  assert.equal(consultaMapa('20261109 CA191&X', ['CA191', '', 'CHN192']),
+    'project=20261109+CA191%26X&alimentador=CA191&alimentador=CHN192');
   assert.equal(mapaCargas.paginaUrl('w 1', 'P'), '/api/workspaces/w%201/mapa-cargas/pagina?project=P');
 });

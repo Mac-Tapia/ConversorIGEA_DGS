@@ -1,4 +1,4 @@
-"""Lector de los TXT de CYMDIST (RED, CARGA y BD_Equipo) en un dataset reutilizable.
+"""Lector de los TXT (RED, CARGA y BD_Equipo) en un dataset reutilizable.
 
 Acepta las dos disposiciones del export, la reducida y la completa (constitución P3).
 """
@@ -103,7 +103,7 @@ class CymdistDataset(estructura.CymdistDataset):
         section: str | None = None
         columns: list[str] | None = None
         # El FORMAT de cada tabla se recuerda por tabla. Hace falta porque los dos
-        # exports de CYMDIST que se han visto lo colocan al revés: uno declara
+        # TXT que se han visto lo colocan al revés: uno declara
         # FORMAT_SECTION *antes* del primer FEEDER= y no lo repite; el otro lo declara
         # después de cada FEEDER=. Con una sola variable, el primero perdía las columnas
         # al llegar el FEEDER= y descartaba en silencio los 38.753 tramos, dejando
@@ -229,14 +229,14 @@ class CymdistDataset(estructura.CymdistDataset):
             raise ValueError(
                 f'{red_path.name}: el RED no contiene filas en '
                 + ' ni '.join(f'[{name}]' for name in missing)
-                + '. Ningún export CYMDIST válido puede omitirlas. Revise que el '
+                + '. Ningún TXT válido puede omitirlas. Revise que el '
                 'fichero esté completo y que sea el RED (no CARGA ni BD_Equipo).'
             )
         if not feeder_rows:
             raise ValueError(
                 f'{red_path.name}: no se encontró ninguna cabecera FEEDER= en [SECTION]. '
                 'Sin alimentadores no hay nada que convertir; el fichero puede estar '
-                'truncado o no ser un export CYMDIST.'
+                'truncado o no ser un TXT.'
             )
 
         return cls(

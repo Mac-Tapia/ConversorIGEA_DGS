@@ -23,9 +23,9 @@ from pathlib import Path
 def _argumentos(argv: list[str] | None) -> argparse.Namespace:
     p = argparse.ArgumentParser(prog='benchmark_anonimo',
                                 description='Benchmark anonimizado y reproducible de una red, en local (spec 112).')
-    p.add_argument('--red', type=Path, required=True, help='RED del export CYMDIST')
-    p.add_argument('--carga', type=Path, required=True, help='CARGA del export CYMDIST')
-    p.add_argument('--equipo', type=Path, required=True, help='BD_Equipo del export CYMDIST')
+    p.add_argument('--red', type=Path, required=True, help='RED de los TXT')
+    p.add_argument('--carga', type=Path, required=True, help='CARGA de los TXT')
+    p.add_argument('--equipo', type=Path, required=True, help='BD_Equipo de los TXT')
     p.add_argument('--destino', type=Path, required=True, help='carpeta nueva donde se emite el benchmark')
     p.add_argument('--dataset-089', type=Path, help='carpeta del dataset de pronóstico del 089, si se quieren series')
     p.add_argument('--perfil', type=Path, help='perfil de empresa (JSON); por defecto, el perfil activo')

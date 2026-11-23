@@ -1,15 +1,15 @@
 # Spec 094 — Perfil de tensión en la calibración y bancos ubicados según el perfil
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-11-06: falta T5 en DIgSILENT) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209 con Cemento Inka: «los perfiles de tensión se
+Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (2026-11-06: falta T5 en DIgSILENT) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL299 con Cemento Cliente K: «los perfiles de tensión se
 deben evaluar en la calibración y recalibración; en base de ese perfil se deben plantear las ubicaciones óptimas, viendo
 todo el alimentador, o los alimentadores si es por sistema».
 
 ## Contexto y objetivo
 
-En AL209 (2026-11-06) la escalera ponía el banco en la barra de la carga o en la más baja, y la búsqueda del oráculo
+En AL299 (2026-11-06) la escalera ponía el banco en la barra de la carga o en la más baja, y la búsqueda del oráculo
 (087:RF-55) amontonaba los bancos en el extremo del alimentador: barras que eléctricamente son el mismo punto. El
 perfil de tensión (tensión de cada barra de media frente a su distancia a la cabecera) no se calculaba ni se guardaba
-con la calibración, y nadie lo usaba para ubicar bancos. Con el perfil de AL209 (de 0,9998 a 0,9498 p.u. en 20,85 km),
+con la calibración, y nadie lo usaba para ubicar bancos. Con el perfil de AL299 (de 0,9998 a 0,9498 p.u. en 20,85 km),
 tres bancos de 450 kvar en las barras donde la caída llega a 1/3, 2/3 y el total dejan la misma tensión mínima con
 menos pérdidas (359 kW frente a 363 kW de la regla 2/7-4/7-6/7).
 
@@ -35,14 +35,14 @@ menos pérdidas (359 kW frente a 363 kW de la regla 2/7-4/7-6/7).
   no lo da). Usuario, 2026-11-06: «hasta una tensión objetivo».
 - RF-9: SI un módulo más sube la tensión mínima menos de `escalera.mejora_minima_pu` (0,001 p.u. si el perfil no lo
   da), o lleva alguna barra del valle por encima del límite (073), ENTONCES EL SISTEMA se detendrá ahí y dirá cuál de
-  las dos razones lo detuvo y qué tensión alcanzó frente al objetivo. (AL209: con bancos se estanca hacia 0,977 p.u.)
+  las dos razones lo detuvo y qué tensión alcanzó frente al objetivo. (AL299: con bancos se estanca hacia 0,977 p.u.)
 
 - RF-10: EL SISTEMA calculará el perfil de RF-1 al final del flujo de calibración del conversor, sin pasos propios:
   primero el cuadre de P y después la recalibración de P y Q (035), con los bancos existentes del alimentador en
   servicio; guardará con él la P y la Q de cabecera medidas y simuladas. Usuario, 2026-11-06: «primero se hace el
   cuadre de P y después se recalibra la P y Q; debe seguir el flujo del conversor».
 - RF-11: SI la Q de cabecera no queda cuadrada (AVISO_KVAR), ENTONCES EL SISTEMA marcará el perfil y las ubicaciones de
-  bancos que salgan de él con ese aviso y el desvío de Q. (AL209, 2026-11-06: 2 833 kvar simulados frente a 2 668
+  bancos que salgan de él con ese aviso y el desvío de Q. (AL299, 2026-11-06: 2 833 kvar simulados frente a 2 668
   medidos, +6 %.)
 - RF-12: EL SISTEMA no cuadrará P ni Q en «Con proyecto»: la cabecera ahí es la que da DIgSILENT al integrar las cargas
   nuevas y las obras, y con ese resultado se juzgan los bancos propuestos y su perfil. El cuadre de P y Q es solo de la
@@ -64,11 +64,11 @@ menos pérdidas (359 kW frente a 363 kW de la regla 2/7-4/7-6/7).
   si el perfil no lo da); cada banco más irá al eje donde más suba la tensión mínima de todo el alimentador. Usuario,
   2026-11-06: «el camino debe ser solo por la troncal y troncales de las ramas largas».
 - RF-17: EL SISTEMA calculará el camino de cada barra a la cabecera sin ciclos, también con ramas de largo cero
-  (acopladores, transformadores). AL209 (2026-11-06): la calibración quedó en un bucle sin fin.
+  (acopladores, transformadores). AL299 (2026-11-06): la calibración quedó en un bucle sin fin.
 
 - RF-18: SI la variante de bancos según el perfil cumple en DIgSILENT (máxima, sorteos y valle), ENTONCES EL SISTEMA la
   elegirá aunque otra cueste menos, y dejará las de menor costo como alternativas del informe. Usuario, 2026-11-06,
-  AL209: entre 2 bancos (lo más barato que llega a 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), «los del perfil».
+  AL299: entre 2 bancos (lo más barato que llega a 0,95 p.u.) y los 4 del perfil (~0,977 p.u.), «los del perfil».
 
 ## Fuera de alcance
 
@@ -77,5 +77,5 @@ al objetivo, el sistema lo dice (RF-9), pero no los propone desde esta spec.
 
 ## Criterios de finalización
 
-Cada RF citado por una prueba, suite enfocada en verde y AL209 recalibrado desde la web con su perfil guardado y los
+Cada RF citado por una prueba, suite enfocada en verde y AL299 recalibrado desde la web con su perfil guardado y los
 bancos propuestos desde él, confirmados en DIgSILENT.

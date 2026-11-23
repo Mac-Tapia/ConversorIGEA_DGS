@@ -1,6 +1,6 @@
 """Spec 086, T37: la obra basta para la carga, y lo que ya estaba bajo el límite se dice aparte.
 
-Caso real: SI112 con su obra dejó la carga nueva a 0,963 p.u. y un ramal a 0,9449 p.u., con límite 0,95. La
+Caso real: SI192 con su obra dejó la carga nueva a 0,963 p.u. y un ramal a 0,9449 p.u., con límite 0,95. La
 escalera (025:RF-50) lo da por bueno porque ese ramal no empeora, y el informe decía «obras insuficientes».
 """
 from __future__ import annotations
@@ -41,7 +41,7 @@ def _casos(sin, con, cargas=None):
 
 
 def test_barra_baja_que_no_empeora_es_deficit_previo_con_su_barra_y_tension():
-    """086:RF-48 — la de SI112: el ramal ya estaba bajo el límite y la obra no lo empeora."""
+    """086:RF-48 — la de SI192: el ramal ya estaba bajo el límite y la obra no lo empeora."""
     d = clasificar_bajo_limite({'R1': 0.9452, 'C': 0.97}, {'R1': 0.9449, 'C': 0.963, 'NUEVA': 0.963}, ['NUEVA'], 0.95, TOL)
     assert d['previo'] == [{'barra': 'R1', 'u': 0.9449, 'sin': 0.9452}]
     assert d['causado'] == [] and d['sin_comparacion'] == []
@@ -83,7 +83,7 @@ def test_la_barra_de_la_carga_nueva_nunca_es_deficit_previo():
 
 
 def test_una_isla_sin_tension_no_es_un_deficit():
-    """086:RF-48 — 063:RF-43: 8674 y 8675 de SM218 estaban a 0 p.u.: no es caída, es que no tienen fuente."""
+    """086:RF-48 — 063:RF-43: 8674 y 8675 de SM298 estaban a 0 p.u.: no es caída, es que no tienen fuente."""
     d = clasificar_bajo_limite({'I': 0.0, 'V': 0.0}, {'I': 0.0, 'V': 0.94}, [], 0.95, TOL)
     assert d['previo'] == [] and d['causado'] == []
     assert d['sin_comparacion'] == [{'barra': 'V', 'u': 0.94, 'sin': None}]
@@ -118,7 +118,7 @@ def test_bajo_limite_sin_flujo_previo_no_afirma_nada():
 
 
 def test_conclusion_factible_con_barra_baja_que_no_empeora():
-    """086:RF-48, 086:RF-50 — la reproducción de SI112: antes, «obras insuficientes»; la obra basta para la carga."""
+    """086:RF-48, 086:RF-50 — la reproducción de SI192: antes, «obras insuficientes»; la obra basta para la carga."""
     sin, con = {'R1': 0.9452, 'C': 0.97}, {'R1': 0.9449, 'C': 0.97, 'NUEVA': 0.963}
     actual, cargas, proyectado = _casos(sin, con, {'R1': 0.92, 'C': 0.95, 'NUEVA': 0.93})
     d = bajo_limite(_medida(sin), _medida(con), LIM, barras_cargas=['NUEVA'], tolerancia_pu=TOL)

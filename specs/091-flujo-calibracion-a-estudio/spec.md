@@ -9,12 +9,12 @@ la RF-19 cambia 025:RF-10.
 
 ## Contexto y objetivo
 
-El usuario, el 2026-11-05, tras una comprobación real de la web con TM102: «no puede hacer lo que tú quieres, debe
+El usuario, el 2026-11-05, tras una comprobación real de la web con TM192: «no puede hacer lo que tú quieres, debe
 hacer lo correcto según el flujo correcto, trabajar con los archivos originales»; «verifica que siga el flujo:
 calibración, después recalibración y [el] caso de estudio»; y «corrige los fallos, debe estar bien hecho, no debe haber
 fallos para que puedan hacer estudios».
 
-Lo que la comprobación encontró, reproducido en el navegador sobre TM102:
+Lo que la comprobación encontró, reproducido en el navegador sobre TM192:
 
 - Con DIgSILENT abierto a mano, la web decía «Ábralo y reintente» (el arnés exige lo contrario, 019:RF-13), y el aviso
   previo a importar lo pedía «preferiblemente abierto». El Registro solo decía «terminó al arrancar (código ?)».

@@ -9,9 +9,9 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
       7 (12 filas) en `config/perfiles/electro_dunas.json`, heredadas por el perfil local;
       44 pruebas en verde.
 - [x] T2. Regla de dimensionado pura en `trafos_sed.py`. (RF-6, RF-7, RF-8, RF-11)
-      Hecho cuando: `pytest -q tests/test_trafos_sed.py` en verde, con los casos de PA217 y
+      Hecho cuando: `pytest -q tests/test_trafos_sed.py` en verde, con los casos de PA297 y
       los sorteados.
-      Resultado del 2026-10-16: `tabla_para` y `proponer`; las cuatro SED de PA217 salen
+      Resultado del 2026-10-16: `tabla_para` y `proponer`; las cuatro SED de PA297 salen
       como en la T26 de la 015 (8, 3 y 2 × 630 kVA y 1 × 500 kVA, Tabla 7) y 500 demandas
       sorteadas cumplen que es la mínima; 7 pruebas en verde. En `CODIGO_FUENTE.md`.
 - [x] T3. Detección con los transformadores de cada SED y la propuesta en el informe del
@@ -65,12 +65,12 @@ Plan: `specs/020-sed-sobrecargadas/plan.md`. Una tarea cada vez, pruebas primero
       Hecho cuando: `grep -rnoE "020:RF-[0-9]+" tests | sort -u` lista los 32 RF.
       Resultado del 2026-10-16: los 32 RF citados; suite sintética 2220 pruebas en verde
       (43 omitidas, las de datos reales: no se toca el lector ni el modelo).
-- [x] T10. Prueba en DIgSILENT desde la web con PA217 importado de nuevo: aviso, propuesta,
+- [x] T10. Prueba en DIgSILENT desde la web con PA297 importado de nuevo: aviso, propuesta,
       implementación y recalibración válida sin adaptar el modelo.
       Hecho cuando: el informe del trabajo dice APLICADO_Y_VALIDADO y está en
       `output/spec020/`.
-      Cerrada el 2026-10-29 con SM218 y CA101 de la entrega 231026 (032 T9), no con PA217, que el usuario
-      ya trabajó («PA217 no deberías hacer nada»): aviso, propuesta e «Implementar transformadores»
+      Cerrada el 2026-10-29 con SM298 y CA191 de la entrega 231026 (032 T9), no con PA297, que el usuario
+      ya trabajó («PA297 no deberías hacer nada»): aviso, propuesta e «Implementar transformadores»
       desde la web, 5 SED cada uno en «SED_NTP_», recalibrados VÁLIDOS (−0,29 % y −0,01 %).
 - [x] T11. Retro (033, 2026-10-29): RF-60 a RF-62, añadidos a la spec como cambio después de
       escribir las tareas e implementados con su prueba sin tarea propia. (RF-60 a RF-62)

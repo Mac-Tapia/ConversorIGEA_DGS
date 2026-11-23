@@ -20,7 +20,7 @@ export function estadoVinculoProyecto(project: PfProject | null): EstadoVinculoP
 
 /**
  * Spec 018, RF-11: cómo usar la ejecución fuente con la que se aceptó el proyecto.
- * Sin fuente activa se usa sola, porque el espacio no tiene nada que perder (CA101,
+ * Sin fuente activa se usa sola, porque el espacio no tiene nada que perder (CA191,
  * 2026-10-15: un espacio nuevo dejaba bloqueado un proyecto ya verificado); con otra
  * fuente activa lo decide el operador.
  */

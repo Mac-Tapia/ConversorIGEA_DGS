@@ -65,7 +65,7 @@ Lee: `docs/constitution.md` y `specs/026-asistente-ordenes/spec.md`.
 - Mejoras en un repositorio git temporal; internet con un transporte falso que comprueba el
   filtro y el registro.
 - Aceptación: una orden real de cada tarea de RF-11 desde la consola, con DIgSILENT (Pisco o
-  IN111–TA225), y la medida de los dos modelos de Ollama.
+  IN191–TA295), y la medida de los dos modelos de Ollama.
 
 ## Riesgos
 

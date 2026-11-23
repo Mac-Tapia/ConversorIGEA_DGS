@@ -1675,7 +1675,7 @@ def create_app(
             if slot is None or slot in taken:
                 reason = ('tipo repetido' if slot else
                           f'es {otra[f.fuente]}' if f.fuente in otra else
-                          'no declara tablas conocidas de CYMDIST')
+                          'no declara tablas conocidas de los TXT (RED, CARGA o BD_Equipo)')
                 unassigned.append({'name': tmp.name, 'reason': reason})
                 tmp.unlink(missing_ok=True)
                 continue

@@ -93,11 +93,11 @@ def test_bancos_hasta_el_objetivo_o_hasta_que_no_mejora_o_el_valle():
 
 def test_ramas_de_largo_cero_no_cuelgan_el_camino():
     """094:RF-4, 094:RF-17 — transformadores y acopladores sin largo (0 km) dejan nodos a la misma distancia; el camino a la barra
-    más baja termina igual. AL209 (2026-11-06): la calibración quedó en un bucle sin fin al buscar el camino."""
+    más baja termina igual. AL299 (2026-11-06): la calibración quedó en un bucle sin fin al buscar el camino."""
     import threading
     nodos = {_id('S'): {'kv': 22.9, 'fuente': True}, _id('A'): {'kv': 22.9}, _id('A2'): {'kv': 22.9},
              _id('B'): {'kv': 22.9}, _id('B_BT'): {'kv': 0.38}}
-    # El acoplador va antes que la línea que llega desde la fuente: así lo leía DIgSILENT en AL209.
+    # El acoplador va antes que la línea que llega desde la fuente: así lo leía DIgSILENT en AL299.
     ramas = [{'id': 'C1', 'desde': _id('A'), 'hasta': _id('A2')},                       # acoplador, 0 km
              {'id': 'L1', 'desde': _id('S'), 'hasta': _id('A'), 'largo_km': 1.0},
              {'id': 'L2', 'desde': _id('A2'), 'hasta': _id('B'), 'largo_km': 2.0},

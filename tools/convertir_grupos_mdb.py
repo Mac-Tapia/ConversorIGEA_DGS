@@ -2,7 +2,7 @@
 
     python tools\\convertir_grupos_mdb.py --mdb D:\\...\\260924.mdb ^
         --catalogo input\\catalogo_parametros.xlsx ^
-        --grupo CA101_PE104=CA101,PE104 --grupo NA203_NA205=NA203,NA205 ^
+        --grupo CA191_PE194=CA191,PE194 --grupo NA293_NA295=NA293,NA295 ^
         --out-dir output\\grupos_260924 --importar
 
 Qué hace con cada grupo:
@@ -339,7 +339,7 @@ def main(argv: list[str] | None = None) -> int:
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
                         'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
     # A escala real por defecto, como la web y las reglas del proyecto: con A0, un tramo
-    # de 18 m quedaba más corto que dos símbolos en el centro de NA203 + NA205 y el
+    # de 18 m quedaba más corto que dos símbolos en el centro de NA293 + NA295 y el
     # diagrama se amontonaba (2026-10-17).
     p.add_argument('--hoja', default='medida',
                    help='Hoja del diagrama: «medida» (defecto), a escala real; A0 … A4 solo si '

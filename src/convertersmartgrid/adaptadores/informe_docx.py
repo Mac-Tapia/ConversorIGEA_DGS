@@ -102,7 +102,7 @@ def exportar_pdf(docx: Path, *, ejecutar=None) -> tuple[Path | None, str]:
         hecho = correr(orden)
     except (OSError, subprocess.SubprocessError) as exc:
         return None, f'no se pudo abrir Word: {exc}'
-    # 063:RF-50: T7 en SM218: Word guardó el PDF y cayó al cerrarse (RPC 0x800706BE): el PDF está hecho.
+    # 063:RF-50: T7 en SM298: Word guardó el PDF y cayó al cerrarse (RPC 0x800706BE): el PDF está hecho.
     if pdf.is_file() and pdf.stat().st_mtime >= inicio and pdf.stat().st_size > 0:
         return pdf, ''
     return None, (str(getattr(hecho, 'stderr', '') or 'Word no generó el PDF').strip()[:300])
@@ -461,7 +461,7 @@ class _Escritor:
 
     def vinieta(self, texto: str) -> None:
         # El modelo de <sitio> no trae «List Bullet»: sin él, las obras salían como
-        # párrafos sueltos, sin marca de lista (revisión de CA101, 2026-10-16).
+        # párrafos sueltos, sin marca de lista (revisión de CA191, 2026-10-16).
         if self.estilo_lista:
             self.d.add_paragraph(texto, style=self.estilo_lista)
         else:
@@ -969,7 +969,7 @@ def _bancos(e: _Escritor, bancos: Sequence[Mapping[str, Any]], lista: str) -> No
               _f(b.get('kvar'), 0), _utm_texto(b.get('utm')),
               'En servicio' if b.get('en_servicio') else 'Fuera de servicio'] for b in bancos])
     # RF-38: los bancos existentes van en la calibración («Sin proyecto», 015:RF-60), así que
-    # la etapa de bancos existentes no es una obra: coincide con el estado actual. En CA101
+    # la etapa de bancos existentes no es una obra: coincide con el estado actual. En CA191
     # (2026-10-15) los tres bancos ya estaban en servicio.
     fuera = len(bancos) - len(servicio)
     if not fuera:
@@ -986,7 +986,7 @@ def _fijas(e: _Escritor, fijas: Sequence[Mapping[str, Any]], lista: str) -> None
     """Clientes fijos con su FP real (EA/ERI) y el corregido de la calibración (015:RF-65).
 
     El usuario, 2026-10-15: «poner factor de potencia real y el corregido en el informe
-    modelo». En CA101 los clientes iban de 0,43 a 0,98 y se escribieron a 0,98 por su banco
+    modelo». En CA191 los clientes iban de 0,43 a 0,98 y se escribieron a 0,98 por su banco
     propio; el lector tiene que ver los dos valores.
     """
     if not fijas:
@@ -1016,7 +1016,7 @@ _FILAS_PERFIL = 15
 def _perfil_tension(e: _Escritor, perfil: Mapping[str, Any] | None, lista: str) -> None:
     """El perfil de tensión de la calibración, con el límite del perfil de la empresa (094:RF-3).
 
-    AL209 (2026-11-06): el usuario pidió ver todo el perfil del alimentador para juzgar los bancos; el informe dice de
+    AL299 (2026-11-06): el usuario pidió ver todo el perfil del alimentador para juzgar los bancos; el informe dice de
     dónde a dónde va la troncal, cuál es la mínima y cuántas barras de media quedan bajo el límite.
     """
     puntos = [p for p in (perfil or {}).get('puntos') or [] if p.get('u') is not None]

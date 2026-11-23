@@ -4,10 +4,10 @@
 Build a deterministic, strict and scalable converter that reads RED, CARGA and BD_Equipo once and can export one, many, or all feeders to DIgSILENT DGS without requiring any reference DGS file at runtime.
 
 ## Core rule
-`NA205.dgs` is a development reference only. It is not packaged, embedded, copied, parsed, or required by production code. Production compatibility is expressed through a versioned schema profile containing only DGS table definitions and field types.
+`NA295.dgs` is a development reference only. It is not packaged, embedded, copied, parsed, or required by production code. Production compatibility is expressed through a versioned schema profile containing only DGS table definitions and field types.
 
 ## Architecture
-1. `dataset.py`: parse the three CYMDIST TXT exports once into typed tables, preserving feeder ownership, load locations, switching devices and intermediate coordinates.
+1. `dataset.py`: parse the three TXT files once into typed tables, preserving feeder ownership, load locations, switching devices and intermediate coordinates.
 2. `schema.py`: load a packaged DGS compatibility profile from JSON; no electrical/topological data is stored in the profile.
 3. `model.py`: build an isolated feeder model from the parsed dataset. Missing equipment types are fatal in strict mode unless an explicit external alias file resolves them.
 4. `dgs.py`: serialize deterministic FIDs and exact table headers from the selected schema profile. Connections are represented through `StaCubic`; explicit switching settings attach to the corresponding section terminal cubicle as `StaSwitch`.
@@ -24,7 +24,7 @@ Build a deterministic, strict and scalable converter that reads RED, CARGA and B
 
 ## Strictness
 - No implicit use of `DEFAULT` for unknown line types.
-- No hard-coded alias derived from NA205.
+- No hard-coded alias derived from NA295.
 - Aliases may only come from an external JSON supplied by the user.
 - No missing node, source, line configuration, duplicated section, duplicated FID, dangling pointer, or wrong cubicle cardinality is tolerated.
 - Generated files are deterministic for identical input/profile/alias configuration.

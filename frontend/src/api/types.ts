@@ -434,7 +434,7 @@ export interface OutputFile {
 
 export interface PfProject {
   name: string;
-  /** Ruta dentro de la carpeta de importación (spec 005), p. ej. «2026-10/SI213». Las
+  /** Ruta dentro de la carpeta de importación (spec 005), p. ej. «2026-10/SI293». Las
    *  lecturas anteriores a la spec 005 no la traen: entonces vale el nombre. */
   path?: string;
   feeders: string[];

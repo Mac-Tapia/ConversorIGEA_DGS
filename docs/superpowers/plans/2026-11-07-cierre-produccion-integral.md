@@ -314,7 +314,7 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 008:T7, 011:T19, 012:T13, 013:T7, 028:T11, 037:T4, 086:T24.
 
-- [ ] **Paso 1.** Crear espacio/proyecto de prueba nuevo CA101+PE104 por la web con TXT custodiados; registrar comando, espacio y selección.
+- [ ] **Paso 1.** Crear espacio/proyecto de prueba nuevo CA191+PE194 por la web con TXT custodiados; registrar comando, espacio y selección.
   Conciliación 2026-11-08 (P07.1, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
 - [ ] **Paso 2.** Convertir/importar/calibrar/recalibrar; cabecera al mismo instante, tolerancia R1 de 086 del 1 %, pertenencia de cargas y lecturas m:Psum.
   Conciliación 2026-11-08 (P07.2, parcial): calibracion_y_reapertura_verificadas_r1_parcial Pendiente: R1 parcial; falta cláusula completa de dos alimentadores/cargas/obras/transferencia/informes/revisión. Usar recibos de cada proyecto y no heredar aceptación por nombre. Responsable: Integrador /root; P07.
@@ -346,13 +346,13 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 **Tareas abiertas que administra:** 016:T18, 081:T20, 086:T25.
 
 - [ ] **Paso 1.** Verificar driver Access y bases de red/equipos declaradas; sus funciones y hashes son independientes del TXT.
-  Conciliación 2026-11-08 (P08.1, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Cláusula completa todavía sin recibo de ejecución/aceptación final; mantener abierta y revisar su criterio íntegro. Responsable: Integrador /root; P08.
-- [ ] **Paso 2.** Importar SI213 y PN107 de prueba por web; aplicar cargas con/sin cable según distancia real al nodo.
-  Conciliación 2026-11-08 (P08.2, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Ensayos SI213/PN107 y cargas PN107 con/sin cable acreditados; el texto incluye ambos importados por web y cobertura conjunta, falta prueba íntegra de esa conjunción. Responsable: Integrador /root; P08.
+  Conciliación 2026-11-08 (P08.1, parcial): si293_y_pn197_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Cláusula completa todavía sin recibo de ejecución/aceptación final; mantener abierta y revisar su criterio íntegro. Responsable: Integrador /root; P08.
+- [ ] **Paso 2.** Importar SI293 y PN197 de prueba por web; aplicar cargas con/sin cable según distancia real al nodo.
+  Conciliación 2026-11-08 (P08.2, parcial): si293_y_pn197_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Ensayos SI293/PN197 y cargas PN197 con/sin cable acreditados; el texto incluye ambos importados por web y cobertura conjunta, falta prueba íntegra de esa conjunción. Responsable: Integrador /root; P08.
 - [ ] **Paso 3.** Probar ramal monofásico, fase servida, barra de baja y aviso cuantificado; no confundir convergencia con servicio de la carga.
-  Conciliación 2026-11-08 (P08.3, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: 081T20 cerrado con ensayo mono TXT PE104. No atribuirlo al MDB del paqueteP08: ramal/fase/BT/aviso correctos en muestraTXT, falta ensayoMDB si se conserva esa modalidad como parte del paso. Responsable: Integrador /root; P08.
+  Conciliación 2026-11-08 (P08.3, parcial): si293_y_pn197_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: 081T20 cerrado con ensayo mono TXT PE194. No atribuirlo al MDB del paqueteP08: ramal/fase/BT/aviso correctos en muestraTXT, falta ensayoMDB si se conserva esa modalidad como parte del paso. Responsable: Integrador /root; P08.
 - [ ] **Paso 4.** Repetir aplicación, reabrir y comprobar variación por carga, idempotencia y caso base activo al terminar.
-  Conciliación 2026-11-08 (P08.4, parcial): si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Idempotencia/reapertura medidas para PN107 y monoTXT; falta cobertura completa de las dos entradasMDB y base activa de cada una. Responsable: Integrador /root; P08.
+  Conciliación 2026-11-08 (P08.4, parcial): si293_y_pn197_cargas_reapertura_conservacion_verificadas_r2_parcial Pendiente: Idempotencia/reapertura medidas para PN197 y monoTXT; falta cobertura completa de las dos entradasMDB y base activa de cada una. Responsable: Integrador /root; P08.
 
 **Verificación enfocada prevista:**
 
@@ -405,7 +405,7 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 028:T6, 039:T4, 042:T6, 052:T4, 073:T8, 086:T27.
 
-- [ ] **Paso 1.** Crear NA203+NA205 de prueba; registrar central/maniobras antes del escaneo sin deducir pertenencia por nombre.
+- [ ] **Paso 1.** Crear NA293+NA295 de prueba; registrar central/maniobras antes del escaneo sin deducir pertenencia por nombre.
   Conciliación 2026-11-08 (P10.1, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
 - [ ] **Paso 2.** Recalibrar coincidente y máximo del mes con libros y periodo de cada tarea; cifras históricas solo se comparan si las huellas corresponden.
   Conciliación 2026-11-08 (P10.2, parcial): preparacion_r4_julio2026_oraculo_historico_septiembre_no_transferible_proyecto_nuevo_pendiente Pendiente: R4 proyecto nuevo y periodo propio pendientes; evidencia histórica de otro periodo no sustituye central/maniobras/cargas/obras/valle/restauración. Responsable: Integrador /root; P10.
@@ -438,7 +438,7 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 - [ ] **Paso 1.** Custodiar paquete oficial y perfil propio: moneda, periodo, CRS, sistemas/SET y carpeta provenientes de la empresa real de prueba.
   Conciliación 2026-11-08 (P11.1, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoEMPB retirado como requisito global. Responsable: Integrador /root; P11.
-- [ ] **Paso 2.** Convertir/importar NJA202 y R205 solo si pertenecen al paquete; no equiparar R205/0205 por parecido.
+- [ ] **Paso 2.** Convertir/importar NJA292 y R295 solo si pertenecen al paquete; no equiparar R295/0205 por parecido.
   Conciliación 2026-11-08 (P11.2, parcial): campo_empresa_frontend_verificado_no_aceptacion_visual_host_chrome_no_puede_identificar_url Pendiente: Empresa/frontend terminados; falta recorrido universal real VNR con fuente propia, empresa/CRS/moneda/pertenencia y medidas. CatálogoEMPB retirado como requisito global. Responsable: Integrador /root; P11.
 - [x] **Paso 3.** Completar campo de empresa faltante de 081 T16 en frontend, con contrato y negativa de empresa no declarada; conservar opciones previas.
   Cierre local 2026-11-08 (P11.3): Campo empresa para tres modalidades, null/omisión y persistencia, bloqueo durante motor y render; selectores originales conservados. Evidencia y criterio conservados en el acta de conciliación; no cierra las aceptaciones superiores.
@@ -467,7 +467,7 @@ Ejecutar desde el worktree/candidato dueño, con temporal y evidencia externos. 
 
 **Tareas abiertas que administra:** 004:T20, 025:T21, 039:T8, 042:T42, 091:T7, 094:T5, 098:T6, 099:T3.
 
-- [ ] **Paso 1.** Crear copias nuevas de PE102, PA217/TM105, TM102, AL209 y CA101+CHN102; proteger proyectos originales y trabajo manual del operador.
+- [ ] **Paso 1.** Crear copias nuevas de PE192, PA297/TM195, TM192, AL299 y CA191+CHN192; proteger proyectos originales y trabajo manual del operador.
   Conciliación 2026-11-08 (P12.1, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.
 - [ ] **Paso 2.** Las copias son ensayo. Si el criterio original exige un proyecto nominal concreto (098/099), no cerrar con una copia distinta: coordinar la ejecución autorizada sobre ese proyecto o aprobar antes la aclaración del criterio, conservando trazabilidad entre original y copia.
   Conciliación 2026-11-08 (P12.2, parcial): 081_t20_monofasica_verificada_parcial Pendiente: Correctivos unitarios y recibos parciales disponibles; falta ensayo nativo exacto del proyecto nominal/cláusula operativa descrita. No cerrar con proyecto de nombre parecido. Responsable: Integrador /root; P12.

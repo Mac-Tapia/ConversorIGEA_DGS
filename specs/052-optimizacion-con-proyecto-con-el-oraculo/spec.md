@@ -1,7 +1,7 @@
 # Spec 052 — Optimización de «Con proyecto» con el oráculo y confirmación en DIgSILENT
 
 Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-11-01 · Origen: petición del usuario, 2026-11-01, al ver que la
-optimización de NA203 + NA205 tardaba unas 3 horas («esto debes modificar, no debería demorar
+optimización de NA293 + NA295 tardaba unas 3 horas («esto debes modificar, no debería demorar
 tanto»; «antes, siempre las convergencias deben pasar por el oráculo, después lanzarlo en
 DIgSILENT en cualquier caso»; «igual debes hacer la optimización junto con el oráculo; la
 escalera así pierde tiempo»; «no debería fallar la implementación; debe ser robusto, preciso y
@@ -12,11 +12,11 @@ los arneses bien hechos»).
 La optimización de la spec 042 busca cuántas cargas nuevas caben en la red existente y con qué
 obra, probando en DIgSILENT cada variante de la escalera (025) para cada número de cargas. Cada
 variante cuesta de 20 a 85 s en DIgSILENT (crear la variación, la obra, el flujo y borrarla); en
-NA203 + NA205 son 20 y 40 variantes por prueba, y una prueba que no cabe las recorre todas: unos
+NA293 + NA295 son 20 y 40 variantes por prueba, y una prueba que no cabe las recorre todas: unos
 60 min por prueba y unas 3 h por optimización.
 
 El gemelo digital (spec 024) ya tiene un flujo físico por matriz de admitancias
-(`digital_twin/flujo.py`, la base de la PINN; 0,003 pu frente a DIgSILENT en IN111–TA225) y lee
+(`digital_twin/flujo.py`, la base de la PINN; 0,003 pu frente a DIgSILENT en IN191–TA295) y lee
 de DIgSILENT el grafo eléctrico de la red. Con él, cada variante con cada número de cargas se
 calcula en milisegundos. La spec 024 ya lo pide (RF-35): el oráculo propone y DIgSILENT confirma
 antes de aceptar.
@@ -91,7 +91,7 @@ algoritmos avanzados de búsqueda y optimización; usa los módulos que ya se ti
   DIgSILENT la confirma al crearla (usuario, 2026-11-01: «el oráculo ya debió determinar esa
   solución»).
 - RF-19: EL SISTEMA nombrará la SET nueva y sus objetos en DIgSILENT con el nombre que dé el
-  operador (en NA203 + NA205, «SET COPARA»); sin nombre, «SET_NUEVA».
+  operador (en NA293 + NA295, «SET BOREALIS»); sin nombre, «SET_NUEVA».
 - Aclaración de RF-7: lo predicho y lo medido de cada variante confirmada va al informe y a
   `oraculo_con_proyecto_<fecha>.json` de la salida; el episodio del gemelo con relectura nativa
   sigue en la spec 024, que es la que hace esa relectura.
@@ -114,5 +114,5 @@ algoritmos avanzados de búsqueda y optimización; usa los módulos que ya se ti
 ## Criterios de finalización
 
 - `grep -rnoE "052:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-19.
-- NA203 + NA205 optimizado desde la web en menos de 20 min, con la elegida y el límite
+- NA293 + NA295 optimizado desde la web en menos de 20 min, con la elegida y el límite
   confirmados en DIgSILENT y la comparación oráculo–DIgSILENT en el informe.

@@ -1,4 +1,4 @@
-"""Benchmark de redes: el trío TXT de CYMDIST con una lista cerrada de secciones y columnas (112:RF-1, RF-2, RF-3, RF-10).
+"""Benchmark de redes: el trío TXT con una lista cerrada de secciones y columnas (112:RF-1, RF-2, RF-3, RF-10).
 
 El benchmark es un export que el conversor ya lee, así que prueba también el lector y las reglas (plan de la 112). Se
 escribe solo lo que figura en ``SECCIONES``: cada columna con su clase (identificador de un tipo, coordenada, número o
@@ -112,7 +112,7 @@ def _valores(linea: str) -> list[str]:
 
 
 def leer_fichero(ruta: Path | str, nombre: str) -> Fichero:
-    """Lee un TXT de CYMDIST como secuencia de secciones, formatos, cabeceras ``FEEDER=`` y filas, en su orden."""
+    """Lee un TXT como secuencia de secciones, formatos, cabeceras ``FEEDER=`` y filas, en su orden."""
     f = Fichero(nombre)
     seccion: str | None = None
     columnas: list[str] | None = None

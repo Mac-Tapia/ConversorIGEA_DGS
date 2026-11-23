@@ -33,8 +33,8 @@ Valverde et al. (<https://doi.org/10.1049/iet-gtd.2016.1560>).
 ```powershell
 python tools\accept_three_sources.py `
   --audit-dir AUDIT\three_source_YYYYMMDD_HHMMSS `
-  --feeder IN111 `
-  --meter IN111=MEDIDOR_CABECERA `
+  --feeder IN191 `
+  --meter IN191=MEDIDOR_CABECERA `
   --cabecera "ruta\medicion_cabecera" `
   --company "EMPRESA_EJEMPLO" `
   --period 2026 `

@@ -130,7 +130,7 @@ def test_cancelar_para_entre_escenarios(guion):
 
 def test_el_grafo_trae_los_acopladores_y_la_version(guion):
     """024:RF-11 — los acopladores cerrados son ramas del grafo: sin ellos la cabecera,
-    interruptor en su SET, dejaba la red sin fuente (IN111–TA225, 2026-10-22)."""
+    interruptor en su SET, dejaba la red sin fuente (IN191–TA295, 2026-10-22)."""
     from convertersmartgrid.adaptadores.digital_twin.oraculo import VERSION_GRAFO
 
     app = _app()

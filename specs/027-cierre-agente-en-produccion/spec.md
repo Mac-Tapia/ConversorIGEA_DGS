@@ -15,7 +15,7 @@ La revisión del 2026-10-28 (medida, no supuesta) encontró:
 
 - Gemelo (024): GNN de 8 pasos de mensaje, 64 ocultas, 3 miembros, Adam lr 3·10⁻³, 300
   épocas, peso físico 10⁻⁴; promovido con 0,00095 p.u. frente a DIgSILENT. Pero de 98
-  episodios del búfer solo 24 son entrenables y **todos son de IN111–TA225**: 20 de
+  episodios del búfer solo 24 son entrenables y **todos son de IN191–TA295**: 20 de
   entrenamiento, 2 de validación y 2 de prueba. Sin parada temprana, sin planificador de
   tasa, sin recorte de gradiente y con hiperparámetros fijos.
 - GRU de curvas: 1 capa de 32, 40 épocas, sin validación; con PyTorch ausente cae a un
@@ -69,7 +69,7 @@ Datos y episodios
 
 - RF-1: CUANDO termine una calibración, una obra o un estudio de cualquier sistema eléctrico
   desde la web, EL SISTEMA guardará su episodio en el búfer con el sistema, la SET, el caso y
-  la huella del proyecto, como ya hace la 024 con IN111–TA225.
+  la huella del proyecto, como ya hace la 024 con IN191–TA295.
 - RF-2: EL SISTEMA particionará los episodios por familia de red de modo que ningún sistema
   eléctrico esté a la vez en entrenamiento y en prueba (evaluación «un sistema fuera»).
 - RF-3: SI una familia tiene menos de 10 episodios de prueba,
@@ -180,7 +180,7 @@ por umbral y respuesta de Ollama con citas.
 
 Proyecto completo desde cero y PIDE (usuario, 2026-10-28: «el agente debe hacer desde cero y toda
 la norma PIDE ya implementada, debe saber ejecutar todo el proyecto, debe usar para el
-entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PIDEELOR»)
+entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PIDEEMPA»)
 
 - RF-43: CUANDO el operador lo pida, EL SISTEMA (el agente) ejecutará el proyecto entero desde
   un espacio vacío, por las rutas de la web: cargar las fuentes, convertir por sistema,
@@ -193,7 +193,7 @@ entrenamiento los archivos ya entregables de PIDE que están en la subcarpeta PI
   (`config/pide_universal_2017.json`: artículos 1 a 20, formatos F01 a F15 y alternativas),
   sin una segunda implementación de la norma.
 - RF-46: EL SISTEMA construirá el corpus de entrenamiento y de consulta desde
-  `referencia/PIDEELOR` con `pide_dataset` (manifiesto con custodia y huella de cada fichero,
+  `referencia/PIDEEMPA` con `pide_dataset` (manifiesto con custodia y huella de cada fichero,
   fragmentos de texto y tablas), local y fuera de git.
 - RF-47: EL SISTEMA tratará el corpus como contexto, nunca como norma: lo que dice un
   entregable ilustra cómo se hizo; lo que manda es el contrato de 2017.
@@ -261,7 +261,7 @@ implementar la técnica y metodología de destilación para el entrenamiento de 
   episodios de RF-53, EL SISTEMA lo entrenará y evaluará solo con ese sistema, con su reparto
   30/10/10 por la huella de cada episodio, y la prueba serán sus propios episodios no vistos
   (usuario, 2026-10-28: «el gemelo debe entrenar con todo un sistema»; con «un sistema fuera»
-  Chincha entero quedó de prueba de un modelo entrenado con IN111–TA225, 0,31 p.u.).
+  Chincha entero quedó de prueba de un modelo entrenado con IN191–TA295, 0,31 p.u.).
 - RF-69: EL SISTEMA no dará por convergida una curva de aprendizaje cuyo error de validación
   empeora más del 5 % al añadir un 20 % de episodios: la marcará inestable.
 - RF-62: EL SISTEMA guardará con el modelo destilado el maestro (nombre del modelo de Ollama),
@@ -325,7 +325,7 @@ Auditoría del dataset de cada modelo (antes de entrenar)
 - RF-32: SI una tensión objetivo cae fuera de un rango fijado en la configuración (por defecto
   0,8 a 1,2 p.u.), ENTONCES EL SISTEMA la marcará en el informe con su episodio, sin excluirla:
   la calculó DIgSILENT, que es la referencia (principio 1), y los escenarios de estrés la
-  producen (0,61 p.u. en IN111–TA225). (Cambiado el 2026-10-28: antes la excluía.)
+  producen (0,61 p.u. en IN191–TA295). (Cambiado el 2026-10-28: antes la excluía.)
 - RF-33: EL SISTEMA dirá en el informe la relación entre parámetros del modelo y etiquetas
   independientes (928 518 parámetros de la PINN frente a 58 707 tensiones de una sola red;
   567 088 del Transformer frente a 4055 órdenes, una real) y avisará cuando el número de redes
@@ -357,4 +357,4 @@ Aceptación
   episodios nuevos o un 20 % más para reentrenar (RF-23); cuántos episodios hacen falta, RF-53.
 - «Equipos» son los modelos que integran el agente (RF-54).
 - El GIS de Iquitos, solo como corpus (RF-52); la prueba desde cero, con un alimentador VNR-GIS (RF-55).
-- El nodo de cabecera de Chincha Nueva (`…_CN101` del TXT) también se nombra CHN (022:RF-90, T23).
+- El nodo de cabecera de Chincha Nueva (`…_CN191` del TXT) también se nombra CHN (022:RF-90, T23).

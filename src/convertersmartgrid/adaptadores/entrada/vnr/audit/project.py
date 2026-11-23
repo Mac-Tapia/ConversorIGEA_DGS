@@ -158,7 +158,7 @@ def _catalogs(self: AuditFindings) -> str:
 
 def _cymdist(self: AuditFindings) -> str:
     body = (
-        'Los TXT CYMDIST de entrada existen en `convertersmartgrid` (RED/CARGA/BD_Equipo) y el '
+        'Los TXT de entrada existen en `convertersmartgrid` (RED/CARGA/BD_Equipo) y el '
         'export CYMDIST de salida de `vnr_etl` queda bloqueado hasta aportar un '
         'contrato organizacional verificado (columnas/delimitador/unidades).'
     )

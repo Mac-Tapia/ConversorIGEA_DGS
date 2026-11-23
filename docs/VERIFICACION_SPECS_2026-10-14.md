@@ -35,8 +35,8 @@ los guiones de PowerFactory (005:RF-21).
 | 011 estudios y obras | 126/129 | 23/24 | T19 (DIgSILENT) | Implementada; RF-2, RF-54 y RF-55 sustituidos (ver abajo) |
 | 012 confiabilidad y capacidad | 12/72 | 2/13 | T3–T13 | **No cumplida**: en curso, sigue T3 |
 | 013 mes de análisis y transferencia | 6/29 | sin `tasks.md` | — | **Borrador**: plan escrito, sin tareas ni aprobación; RF-1 a RF-6 ya tienen prueba |
-| 014 calibración en «Sin proyecto» | 28/28 | 12/13 | T9 (DIgSILENT) | Implementada; falta la prueba con CA101 |
-| 015 «Caso base» verificado | 46/46 | 17/18 | T12 (DIgSILENT) | Implementada; falta la prueba con CA101 |
+| 014 calibración en «Sin proyecto» | 28/28 | 12/13 | T9 (DIgSILENT) | Implementada; falta la prueba con CA191 |
+| 015 «Caso base» verificado | 46/46 | 17/18 | T12 (DIgSILENT) | Implementada; falta la prueba con CA191 |
 
 ## Huecos y qué hacer con ellos
 
@@ -52,7 +52,7 @@ los guiones de PowerFactory (005:RF-21).
    de seguir implementándola.
 3. **Pruebas en DIgSILENT pendientes** (a cargo del usuario): 005 T12, 006 T8, 007 T11,
    008 T7, 011 T19, 012 T13, 014 T9 y 015 T12. La 014 T9 depende de la 015 T12, abierta
-   porque el «Caso base» del proyecto CA101 existente no converge.
+   porque el «Caso base» del proyecto CA191 existente no converge.
 4. **Spec 002**: aprobada el 2026-10-08, con plan y tareas pendientes de aprobar desde el
    2026-10-10. Las capas de hoy están descritas en `docs/ARQUITECTURA.md`.
 
@@ -72,7 +72,7 @@ los guiones de PowerFactory (005:RF-21).
   en el escenario de «Sin proyecto», paso 4; una ruta con un tabulador en lugar de `\t`),
   `CODIGO_FUENTE.md` y la tabla de estado de `CLAUDE.md`.
 - Retiradas las 18 pruebas que comparaban TXT con Access (`TestAccessMatchesTxt`, la
-  fase contra el TXT, y las clases «misma red» y «recuperación de conductores» de PA217
-  y SL143) y la fixture `both`. Ninguna citaba un RF. Con ellas se retiraron
+  fase contra el TXT, y las clases «misma red» y «recuperación de conductores» de PA297
+  y SL193) y la fixture `both`. Ninguna citaba un RF. Con ellas se retiraron
   `src/convertersmartgrid/huella.py` y `tools/emparejar_entradas.py`, que solo servían para
   emparejarlas.

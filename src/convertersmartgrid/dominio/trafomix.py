@@ -15,7 +15,7 @@ Si algún trafomix trajera carga, esa carga **no se pierde**: queda como carga d
 media tensión en su nodo, sin transformador, y se avisa.
 
 El fusible que llevaba al trafomix se queda sin destino: su barra no tiene nada más. En
-NA203 + NA205 (260924.mdb) eso dejaba 88 barras muertas con su ``ElmCoup``, como
+NA293 + NA295 (260924.mdb) eso dejaba 88 barras muertas con su ``ElmCoup``, como
 EQ_1080_320414 hacia M50226. No se escriben ni el fusible ni la barra, y el informe los
 nombra (spec 021, RF-7 y RF-8); la auditoría de completitud los descuenta (RF-9).
 

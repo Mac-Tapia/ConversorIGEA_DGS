@@ -326,7 +326,7 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
         d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_CSG_SISTEMA_CHINCHA'}).json()
         assert d == {'zonal': 'Chincha', 'demanda_dir': str(libros)}
         assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
-                      json={'project': 'P_CA101', 'periodo': '2026-07'}).status_code == 400
+                      json={'project': 'P_CA191', 'periodo': '2026-07'}).status_code == 400
         assert c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
                       json={'project': 'X_SISTEMA_CHINCHA', 'periodo': 'julio'}).status_code == 422
         job = c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
@@ -335,20 +335,20 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
         fin = esperar_trabajo(c, job)
         assert fin['status'] == 'done' and fin['result']['texto'] == 'recalibrado y válido'
         # 028:RF-24: el proyecto de dos alimentadores unidos, por su grupo y sin barra.
-        ws.pf_projects = {'IN111_TA225': '20261028_CSG_IN111_TA225', 'CA101': '20261028_CSG_CA101'}
-        ws.groups = {'IN111_TA225': {'tipo': 'unida', 'feeders': ['IN111', 'TA225']}}
-        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_CSG_IN111_TA225'}).json()
-        assert d['grupo'] == 'IN111_TA225' and d['alimentadores'] == ['IN111', 'TA225'] and d['zonal'] == ''
+        ws.pf_projects = {'IN191_TA295': '20261028_CSG_IN191_TA295', 'CA191': '20261028_CSG_CA191'}
+        ws.groups = {'IN191_TA295': {'tipo': 'unida', 'feeders': ['IN191', 'TA295']}}
+        d = c.get(f'/api/workspaces/{wid}/demanda/recalibrar', params={'project': '20261028_CSG_IN191_TA295'}).json()
+        assert d['grupo'] == 'IN191_TA295' and d['alimentadores'] == ['IN191', 'TA295'] and d['zonal'] == ''
         assert c.get(f'/api/workspaces/{wid}/demanda/recalibrar',
-                     params={'project': '20261028_CSG_CA101'}).json()['alimentadores'] == ['CA101']
+                     params={'project': '20261028_CSG_CA191'}).json()['alimentadores'] == ['CA191']
         fin = esperar_trabajo(c, c.post(f'/api/workspaces/{wid}/demanda/recalibrar',
-                                        json={'project': '20261028_CSG_IN111_TA225', 'periodo': '2026-07'}).json())
+                                        json={'project': '20261028_CSG_IN191_TA295', 'periodo': '2026-07'}).json())
         assert fin['status'] == 'done'
     cmd, cmd2 = ordenes
     assert Path(cmd[1]).name == 'sistema_web.py' and '--reconvertir' not in cmd
     assert cmd[cmd.index('--zonal') + 1] == 'Chincha' and cmd[cmd.index('--periodo') + 1] == '2026-07'
-    assert '--zonal' not in cmd2 and cmd2[cmd2.index('--red') + 1:cmd2.index('--grupo')] == ['IN111', 'TA225']
-    assert cmd2[cmd2.index('--grupo') + 1] == 'IN111_TA225'
+    assert '--zonal' not in cmd2 and cmd2[cmd2.index('--red') + 1:cmd2.index('--grupo')] == ['IN191', 'TA295']
+    assert cmd2[cmd2.index('--grupo') + 1] == 'IN191_TA295'
     # 039:RF-1: sin elegir, las fijas coincidentes con la cabecera.
     assert cmd[cmd.index('--criterio-fijas') + 1] == 'coincidente'
     demanda = (Path(__file__).resolve().parents[1] / 'frontend' / 'src' / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
@@ -356,8 +356,8 @@ def test_boton_recalibrar_y_su_ruta(tmp_path, monkeypatch):
 
 
 def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
-    """028:RF-40 / 028:RF-41 / 028:RF-42 / 039:RF-8 — en un sistema se eligen los que se recalibran (Pisco, 2026-11-05: AL209 y
-    PA217); van a ``--alimentadores`` con el instante del sistema (``--zonal``), y uno ajeno se rechaza antes de empezar."""
+    """028:RF-40 / 028:RF-41 / 028:RF-42 / 039:RF-8 — en un sistema se eligen los que se recalibran (Pisco, 2026-11-05: AL299 y
+    PA297); van a ``--alimentadores`` con el instante del sistema (``--zonal``), y uno ajeno se rechaza antes de empezar."""
     from pathlib import Path
 
     from apoyo import esperar_trabajo
@@ -401,7 +401,7 @@ def test_recalibrar_solo_unos_alimentadores_del_sistema(tmp_path, monkeypatch):
 
 def test_solo_unos_busca_la_maxima_con_todo_el_sistema(monkeypatch):
     """028:RF-41 / 039:RF-8 — con ``--alimentadores`` la máxima se busca con todos los medidores del sistema (el instante del sistema)
-    y el plan lleva solo los elegidos. Pisco (2026-11-05): con solo AL209 y PA217 el instante salió el 10-abr 12:00."""
+    y el plan lleva solo los elegidos. Pisco (2026-11-05): con solo AL299 y PA297 el instante salió el 10-abr 12:00."""
     from pathlib import Path
 
     from apoyo import cargar_herramienta
@@ -447,9 +447,9 @@ def test_solo_unos_busca_la_maxima_con_todo_el_sistema(monkeypatch):
 
 
 @pytest.mark.parametrize('grupo,feeders,project', [
-    ('CA101', None, 'P_CA101'),
-    ('RED', ['CA101', 'CA102'], 'P_RED'),
-    ('SISTEMA_PISCO', ['CA101', 'CA102'], 'P_SISTEMA_PISCO'),
+    ('CA191', None, 'P_CA191'),
+    ('RED', ['CA191', 'CA102'], 'P_RED'),
+    ('SISTEMA_PISCO', ['CA191', 'CA102'], 'P_SISTEMA_PISCO'),
 ])
 def test_recalibrar_alimentadores_usa_la_seleccion_guardada(tmp_path, monkeypatch, grupo, feeders, project):
     """RF-24: la pertenencia del espacio manda incluso si una red unida se llama SISTEMA_*."""
@@ -488,7 +488,7 @@ def test_las_variaciones_del_catalogo_son_del_conversor():
     """032:RF-27 — ``Fichas_`` y ``SED_NTP_`` son del conversor para el escaneo (028)."""
     from convertersmartgrid.aplicacion import escaneo as esc
 
-    for nombre in ('Fichas_CA101', 'SED_NTP_Chincha'):
+    for nombre in ('Fichas_CA191', 'SED_NTP_Chincha'):
         assert esc.origen_de('', nombre)['origen'] == 'conversor'
         assert nombre.startswith(esc.PREFIJOS_CATALOGO)
 

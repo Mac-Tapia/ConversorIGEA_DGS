@@ -16,7 +16,7 @@ from .equipo import ROLES_REVISION
 # 047:RF-48 a RF-55: qué contradicción cuenta lo decide ``contradicciones``; los nombres se reexportan.
 from .contradicciones import (  # noqa: F401
     CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, comprobar_coste, evaluar_cuenta, filtrar_contradicciones,
-    valores_coinciden)
+    filtrar_incertidumbres, valores_coinciden)
 
 PRESUPUESTO_S = 60.0
 #: 047:RF-47: con 512, una intervención del equipo que enumera varias contradicciones podía cortarse en el tope y salir
@@ -35,10 +35,17 @@ _ENCARGO = {
     'coste': ('los costes y cantidades de la propuesta frente a los precios y cantidades de la evidencia: el coste de '
               'la propuesta es el total de lo que, según la evidencia, necesita toda la acción.'),
     # «si la propuesta se aplica o falla» pedía imaginar un fallo, y toda obra que falla deja algo sin servicio (047 T8).
-    'riesgo': 'el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio.',
+    # 047:RF-82: con el 047f, ningún rol vio un trabajo en caliente que el procedimiento de seguridad prohibía: el
+    # encargo solo hablaba de cargas sin respaldo. Un riesgo no es una cifra distinta: va en incertidumbres.
+    'riesgo': ('el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio, o '
+               'si la evidencia prohíbe o limita la forma de hacer la acción (procedimiento de seguridad, trabajo en '
+               'caliente, maniobra no permitida). Cada riesgo que señala la evidencia va en incertidumbres, con el ID '
+               'y la frase de la evidencia.'),
     'unico': ('las fuentes (el mismo valor y del mismo elemento: alimentador, SET, tramo, poste, nodo o equipo), la '
               'consistencia física, los costes (el total de lo que necesita toda la acción) y el riesgo de operación '
-              'de la propuesta.'),
+              '(cargas sin respaldo o sin servicio, o una prohibición o límite de la evidencia para hacer la acción) '
+              'de la propuesta. Cada riesgo que señala la evidencia va en incertidumbres, con el ID y la frase de la '
+              'evidencia.'),
 }
 #: Cuándo es cada decisión, igual para todos los roles (047:RF-40). El encargo anterior solo decía cuándo bloquear
 #: («ante evidencia insuficiente usa bloqueada») y prohibía aprobar la física («no apruebes física por consenso
@@ -117,6 +124,9 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
     entrada = hashlib.sha256(_json([propuesta, evidencia, identidad]).encode()).hexdigest()
     dictamenes = []
     final = {}
+    # 047:RF-79: lo que el código ya comprobó y cuadra no lo vuelve a decidir el LLM.
+    comprobaciones = comprobar_coste(propuesta, evidencia)
+    comprobados = {c['campo'] for c in comprobaciones if c['coincide']}
     inicio = time.monotonic()
     ronda = 0
     cancelada = agotado = False
@@ -150,23 +160,29 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                     raise ValueError('dictamen sin evidencia verificable del contexto')
                 # 047:RF-48/RF-49: la medida del 047c (2026-11-21) traía como contradicciones comprobaciones que
                 # coinciden («coste_usd: 11200 vs 11200»); las decide el código comparando los dos valores.
-                contradicciones, descartadas = filtrar_contradicciones(raw['contradicciones'], propuesta, evidencia)
+                contradicciones, descartadas = filtrar_contradicciones(raw['contradicciones'], propuesta, evidencia,
+                                                                       comprobados)
+                # 047:RF-80: una incertidumbre que es solo un campo que la acción fija no es una duda.
+                incertidumbres, inc_descartadas = filtrar_incertidumbres(raw['incertidumbres'], propuesta)
                 decision = raw['decision']
-                if descartadas:
+                if descartadas or inc_descartadas:
                     # 047:RF-50: la decisión del modelo salía de unas listas que el código corrigió; la regla de RF-40
                     # se aplica a las que quedan, y la devuelta se guarda.
-                    decision = _decision_de_listas(raw['incertidumbres'], contradicciones)
-                if decision == 'favorable' and (raw['incertidumbres'] or contradicciones):
+                    decision = _decision_de_listas(incertidumbres, contradicciones)
+                if decision == 'favorable' and (incertidumbres or contradicciones):
                     raise ValueError('dictamen favorable con incertidumbres o contradicciones pendientes')
                 # 047:RF-38: bloquear sin decir qué está mal no es hallar un defecto; el informe de T8 contaba
                 # «6 de 6 hallados» con el mismo dictamen que bloqueaba las 6 sanas.
-                if decision != 'favorable' and not (raw['incertidumbres'] or contradicciones):
+                if decision != 'favorable' and not (incertidumbres or contradicciones):
                     raise ValueError(f"dictamen {decision} sin hallazgo: ninguna contradicción ni incertidumbre")
-                dato = {**deepcopy(raw), 'decision': decision, 'contradicciones': contradicciones}
+                dato = {**deepcopy(raw), 'decision': decision, 'contradicciones': contradicciones,
+                        'incertidumbres': incertidumbres}
                 if descartadas:
                     dato['contradicciones_descartadas'] = descartadas
-                    if decision != raw['decision']:
-                        dato['decision_devuelta'] = raw['decision']
+                if inc_descartadas:
+                    dato['incertidumbres_descartadas'] = inc_descartadas
+                if decision != raw['decision']:
+                    dato['decision_devuelta'] = raw['decision']
             except (ValueError, TypeError, KeyError, OSError, RuntimeError, TimeoutError) as exc:
                 # 047:RF-6: bloquea, pero marcado: «el revisor no respondió» no es haber hallado un defecto.
                 dato = {'decision': 'bloqueada', 'evidencia_ids': [],
@@ -182,7 +198,10 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
             final[rol] = dato
             if registrar is not None:
                 registrar(deepcopy(dato))
-        if cancelada or agotado or all(d['decision'] != 'revisar' for d in final.values()):
+        # 047:RF-81: un dictamen no válido de un revisor que sí respondió («bloqueada sin hallazgo», 047f) se pide de
+        # nuevo en la ronda siguiente, que le muestra el motivo; no se convierte en ninguna decisión.
+        if cancelada or agotado or all(d['decision'] != 'revisar' and not (d.get('fallo_revisor') and 'devuelto' in d)
+                                       for d in final.values()):
             break
     restricciones = propuesta.get('restricciones_deterministas')
     determinista = (isinstance(restricciones, dict) and bool(restricciones)
@@ -193,7 +212,6 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                  all(d['decision'] == 'favorable' for d in final.values()))
     agotado = agotado or time.monotonic() - inicio > presupuesto_s
     # 047:RF-77: lo que el código calcula solo (cantidad × precio, partidas) no depende de que el LLM lo vea.
-    comprobaciones = comprobar_coste(propuesta, evidencia)
     cuadra = all(c['coincide'] for c in comprobaciones)
     aprobada = favorable and determinista and verificadas and cuadra and not cancelada and not agotado
     return {'aprobada': aprobada, 'autoriza_ejecucion': False, 'dictamenes': dictamenes,
@@ -305,7 +323,8 @@ def _revision_por_modo(casos, fabrica, modo, roles, rondas, tope=None):
                                                                 'incertidumbres', 'contradicciones')},
                                       # 047:RF-50: lo que el código descartó por coincidir, y la decisión devuelta.
                                       **{k: d[k] for k in ('devuelto', 'contradicciones_descartadas',
-                                                           'decision_devuelta') if k in d}}
+                                                           'incertidumbres_descartadas', 'decision_devuelta')
+                                         if k in d}}
                                      for d in r['dictamenes']],
                       # 047:RF-77: lo que calculó el código sin el LLM, y si cuadra.
                       'comprobaciones_del_codigo': r.get('comprobaciones_del_codigo', []),
@@ -323,6 +342,8 @@ def _revision_por_modo(casos, fabrica, modo, roles, rondas, tope=None):
             'intervenciones': sum(f['intervenciones'] for f in filas),
             'contradicciones_descartadas': sum(len(d.get('contradicciones_descartadas', ()))
                                                for f in filas for d in f['dictamenes']),
+            'incertidumbres_descartadas': sum(len(d.get('incertidumbres_descartadas', ()))
+                                              for f in filas for d in f['dictamenes']),
             'decisiones_recalculadas': sum('decision_devuelta' in d for f in filas for d in f['dictamenes']),
             'comprobaciones_fallidas': sum(not c['coincide'] for f in filas for c in f['comprobaciones_del_codigo']),
             'tokens_entrada': tokens[0], 'tokens_salida': tokens[1],

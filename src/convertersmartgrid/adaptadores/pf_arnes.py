@@ -1,6 +1,6 @@
 """Arnés de DIgSILENT: un solo dueño del motor en la máquina y una conexión común (spec 019).
 
-El motor de PowerFactory solo admite un proceso a la vez. El 2026-10-15, con CA101, una
+El motor de PowerFactory solo admite un proceso a la vez. El 2026-10-15, con CA191, una
 sesión lanzaba guiones mientras otra tenía DIgSILENT y los suyos morían con «Exit with
 error code 4002» sin esperar ni decir quién lo tenía; la web solo ponía en fila los
 suyos. Aquí el turno es de la máquina: un fichero creado en exclusiva que dice qué
@@ -363,7 +363,7 @@ def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Pat
                        turno: Callable[[], dict | None] | None = None) -> str:
     """091:RF-1 a RF-3: por qué una acción no pudo usar DIgSILENT, y qué hacer.
 
-    La web decía «Ábralo y reintente» y lo que hacía falta era cerrarlo (019:RF-13): TM102, 2026-11-05.
+    La web decía «Ábralo y reintente» y lo que hacía falta era cerrarlo (019:RF-13): TM192, 2026-11-05.
     086:RF-130 (revisión de motores del 19-11): tras esperar diez minutos a que otra sesión soltase el motor, el guion
     sale con 3 y la web decía «compruebe su licencia»; ahora se mira antes quién tiene el turno. Con una ``cola``
     explícita (otra cola, una prueba) el turno se pasa también explícito: el de la máquina sería el de otra cola.
@@ -502,7 +502,7 @@ def soltar_turno(ruta: Path | None = None, *, al_salir: bool = False) -> None:
 
     Con ``al_salir`` (``atexit``, final del servidor) el motor de DIgSILENT aún se está
     cerrando dentro del proceso: se anota la hora y el turno sigue suyo hasta que muera
-    (019:RF-19). 2026-10-19: tras importar CA101_PE104 el turno quedó libre antes de que
+    (019:RF-19). 2026-10-19: tras importar CA191_PE194 el turno quedó libre antes de que
     el motor terminase de cerrarse, y el servidor que entró 11 s después no conectó en
     180 s; medido en DIgSILENT, un proceso sigue vivo tras soltarlo.
     """
@@ -668,7 +668,7 @@ VARIABLE_COLA = 'CSG_PF_COLA'
 #: Guiones que el servidor puede atender: los que conectan con :func:`conectar`. La
 #: aceptación (importa DGS y cambia de proyecto) sigue en su propio proceso.
 # Los de la spec 024 también: fuera de la lista, la lectura del gemelo tras cada acción
-# cerraba el servidor y abría DIgSILENT por su cuenta (AL105 + AL108, 2026-10-23: 2,5 min
+# cerraba el servidor y abría DIgSILENT por su cuenta (AL195 + AL198, 2026-10-23: 2,5 min
 # más por ajuste y 73 s de conexión en la acción siguiente).
 GUIONES_SERVIBLES = frozenset({
     'ajuste_cabecera_pf.py', 'cargas_pf.py', 'casos_pf.py', 'confiabilidad_pf.py',

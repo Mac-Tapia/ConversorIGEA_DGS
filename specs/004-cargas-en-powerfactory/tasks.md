@@ -62,7 +62,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       del kW máximo desde las hojas de una magnitud del medidor o de sus hermanas, y unir
       el canal sin hoja con el medidor que ya lo da. (RF-44, RF-45)
       Hecho cuando: `pytest tests/test_demanda_medida.py` en verde y, con
-      `CSG_DEMANDA_DIR`, IN111 de Ica sale con kW y kVAR en una sola fila.
+      `CSG_DEMANDA_DIR`, IN191 de Ica sale con kW y kVAR en una sola fila.
 - [x] T8. Validación: RF-1 a RF-41 citados, suite completa en verde, RF-14 de la 001
       igual; prueba real en DIgSILENT a cargo del usuario.
       2026-10-09: RF-1 a RF-41 citados; suite completa con las cinco variables `CSG_*` y
@@ -105,11 +105,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       `transformador_de_ficha` en `tools/cargas_pf.py` con `trafos_sed.proponer` y el tipo con la
       ficha del perfil, `ntnum` con las unidades. (RF-68, RF-69)
       Hecho cuando: `pytest -q tests/test_cargas_pf.py tests/test_cargas_pf_guion.py` en verde.
-- [x] T20. [DIgSILENT] PE102 con las cargas CH_13 y CH_22 aplicadas de nuevo por la web: sus
+- [x] T20. [DIgSILENT] PE192 con las cargas CH_13 y CH_22 aplicadas de nuevo por la web: sus
       transformadores con ficha y la máxima ≤ 80 % en «Con proyecto». (RF-68, RF-69)
       Hecho cuando: el estudio 4.2 de «Con proyecto» no tiene ningún transformador de carga
       nueva por encima del 80 %.
-      Hecho el 2026-11-08 en `20261103-142909_CSG_TXT_PE102` (espacio 3c689e86ecbf4e49), sobre 743e4506: cargas
+      Hecho el 2026-11-08 en `20261103-142909_CSG_TXT_PE192` (espacio 3c689e86ecbf4e49), sobre 743e4506: cargas
       del libro `NuevosclientesMayoresv3.xlsx` y «Con proyecto» por `tools/sistema_web.py` (trabajo 121a05dd0dc3,
       refuerzo de 2 tramos, 0,43 km; 19 órdenes, ninguna fallida) y 4.2 por la web (plan b876d84c4a11, trabajo
       05e7ff56127c, `estudios_resultados_b876d84c4a11.csv`). TR_CH_13, creado con la ficha y a la tensión mínima

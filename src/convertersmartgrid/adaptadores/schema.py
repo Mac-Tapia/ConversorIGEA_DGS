@@ -23,8 +23,8 @@ class DgsSchema:
     def con_puntos_por_conector(self, n: int) -> 'DgsSchema':
         """El mismo perfil con ``IntGrfcon`` declarando ``n`` puntos ``rX``/``rY``.
 
-        El perfil trae 4 columnas, como la referencia NA205, y el escritor recortaba cada
-        conector a 4 puntos: en IN111 + TA225 (2026-10-14) la grid dibujaba hasta 7
+        El perfil trae 4 columnas, como la referencia NA295, y el escritor recortaba cada
+        conector a 4 puntos: en IN191 + TA295 (2026-10-14) la grid dibujaba hasta 7
         vértices por línea donde el mapa geográfico, con el GPS completo, tenía 74, y las
         curvas se separaban hasta 257 m. La cabecera crece con el conector más largo.
         """

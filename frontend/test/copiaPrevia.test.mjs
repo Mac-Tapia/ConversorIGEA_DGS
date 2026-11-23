@@ -146,8 +146,8 @@ test('086:RF-110 el campo de la copia vale para cualquier carpeta, no supone Goo
 test('086:RF-110 el aviso de la casilla automática, sin «(s)», sin ceros de titular ni «por contenido»', async () => {
   const { resumenAuto } = await cargar();
   const casilla = () => 'RED';
-  const uno = resumenAuto({ assigned: [], unassigned: [{ name: 'entorno.txt', reason: 'no declara tablas conocidas de CYMDIST' }] }, casilla);
-  assert.deepEqual(uno, { tono: 'warn', titulo: 'entorno.txt no se reconoce', detalle: 'entorno.txt: no declara tablas conocidas de CYMDIST' });
+  const uno = resumenAuto({ assigned: [], unassigned: [{ name: 'entorno.txt', reason: 'no declara tablas conocidas de los TXT (RED, CARGA o BD_Equipo)' }] }, casilla);
+  assert.deepEqual(uno, { tono: 'warn', titulo: 'entorno.txt no se reconoce', detalle: 'entorno.txt: no declara tablas conocidas de los TXT (RED, CARGA o BD_Equipo)' });
   const dos = resumenAuto({ assigned: [], unassigned: [{ name: 'a.txt', reason: 'x' }, { name: 'b.txt', reason: 'y' }] }, casilla);
   assert.equal(dos.titulo, 'Ningún fichero reconocido');
   assert.equal(resumenAuto({ assigned: [{ slot: 'red', name: 'R.txt' }], unassigned: [] }, casilla).titulo, '1 fichero asignado');

@@ -413,7 +413,7 @@ def test_no_utility_data_is_tracked():
     assert not forbidden, f'Datos de distribuidora versionados: {forbidden}'
 ```
 
-Hoy este test pasaría, pero `referencia/audit_ternas_{backbone,classified,ug}.json` (56 KB con identificadores reales: `IN110`, `SEC_2010_1146990_SE42147`) están **sin ignorar**, de modo que un `git add -A` los versionaría. La `.gitignore` actual solo cubre los tres patrones de TXT.
+Hoy este test pasaría, pero `referencia/audit_ternas_{backbone,classified,ug}.json` (56 KB con identificadores reales: `IN190`, `SEC_2010_1146990_SE42147`) están **sin ignorar**, de modo que un `git add -A` los versionaría. La `.gitignore` actual solo cubre los tres patrones de TXT.
 
 - [ ] **Step 3: Endurecer `.gitignore`**
 
@@ -427,7 +427,7 @@ referencia/*
 
 - [ ] **Step 4: Anonimizar los *fixtures* de test**
 
-Los 84 tests dependen hoy de los TXT reales vía `CSG_RED`/`CSG_LOADS`/`CSG_EQUIPMENT` y hacen *skip* sin ellos. Un proyecto open source necesita un *fixture* sintético versionable: un generador que produzca un export CYMDIST pequeño (~50 secciones, 3 alimentadores, topología con doble circuito, un tramo monofásico, una SED) con identificadores inventados. Sin esto, ningún contribuyente externo puede ejecutar la suite útil, y CI solo prueba las 46 pruebas independientes de datos.
+Los 84 tests dependen hoy de los TXT reales vía `CSG_RED`/`CSG_LOADS`/`CSG_EQUIPMENT` y hacen *skip* sin ellos. Un proyecto open source necesita un *fixture* sintético versionable: un generador que produzca un TXT pequeño (~50 secciones, 3 alimentadores, topología con doble circuito, un tramo monofásico, una SED) con identificadores inventados. Sin esto, ningún contribuyente externo puede ejecutar la suite útil, y CI solo prueba las 46 pruebas independientes de datos.
 
 Es la tarea con más trabajo real de esta fase y la que decide si el proyecto es contribuible.
 
@@ -689,11 +689,11 @@ def test_profile_without_declared_lv_voltage_is_rejected():
 
 - [ ] **Step 2: Extraer las constantes**
 
-Hoy fijas en `dgs.py`: `frnom=60` (en `ElmNet`, `TypLne`, `TypTr2`), `NA205_SED_LV_KV=0.22`, `uktr=uk0tr=4.0`, `tr2cn_h='D'`/`tr2cn_l='YN'`/`nt2ag=5`, `NA205_DIAGRAM_UNITS_PER_METER=2.08`, `NA205_FEEDER_ICOLOR=11`.
+Hoy fijas en `dgs.py`: `frnom=60` (en `ElmNet`, `TypLne`, `TypTr2`), `NA295_SED_LV_KV=0.22`, `uktr=uk0tr=4.0`, `tr2cn_h='D'`/`tr2cn_l='YN'`/`nt2ag=5`, `NA295_DIAGRAM_UNITS_PER_METER=2.08`, `NA295_FEEDER_ICOLOR=11`.
 
 Regla: **sin valor por defecto silencioso**. Si el perfil no declara un parámetro físico, la conversión falla indicando qué falta. El perfil peruano actual se conserva como `pe_60hz_022kv.json` para no romper nada, declarado explícitamente.
 
-- [ ] **Step 3: Renombrar las constantes `NA205_*`**
+- [ ] **Step 3: Renombrar las constantes `NA295_*`**
 
 Son nombres de calibración interna que aparecen en la salida de un producto «universal». Renombrar a términos de dominio (`DIAGRAM_UNITS_PER_METER`, `FEEDER_COLOR`) manteniendo el valor y documentando su origen en el perfil.
 

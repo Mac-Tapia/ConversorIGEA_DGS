@@ -1,6 +1,6 @@
 """Spec 101: la calibración cambia sola los transformadores que impiden converger.
 
-CA101 + CHN102 (2026-11-09): SE20701 pedía 1 506 kVA con 50 kVA y la calibración quedaba en
+CA191 + CHN192 (2026-11-09): SE20701 pedía 1 506 kVA con 50 kVA y la calibración quedaba en
 FALLO_VALIDACION_NATIVA a la espera de que el operador pulsara «Implementar transformadores».
 """
 from __future__ import annotations
@@ -32,31 +32,31 @@ def _fija(sed, kva=630, unidades=3, transformadores=None):
 
 def test_se_cambian_las_sed_sobre_el_100_con_propuesta():
     """101:RF-1, 101:RF-12 — fijas y escaladas sobre el 100 %; las del umbral al 100 % quedan para el operador."""
-    informes = [_informe('CA101', fijas=[_fija('SE20701')],
+    informes = [_informe('CA191', fijas=[_fija('SE20701')],
                          umbral=[{**_fija('SE20701'), 'nivel': 'sobre_100'},
                                  {**_fija('SE30000', 400, 1), 'nivel': 'sobre_100', 'tipo': 'escalada'},
                                  {**_fija('SE20531', 400, 1), 'nivel': 'sobre_umbral'}]),
-                _informe('CHN102', fijas=[_fija('SE20049', 630, 6)])]
+                _informe('CHN192', fijas=[_fija('SE20049', 630, 6)])]
     cambios, sin = services.cambios_automaticos(informes, {})
     assert {f: [c['sed'] for c in cs] for f, cs in cambios.items()} == {
-        'CA101': ['SE20701', 'SE30000'], 'CHN102': ['SE20049']}
-    assert cambios['CA101'][0] == {'sed': 'SE20701', 'transformador': 'TR_SE20701',
+        'CA191': ['SE20701', 'SE30000'], 'CHN192': ['SE20049']}
+    assert cambios['CA191'][0] == {'sed': 'SE20701', 'transformador': 'TR_SE20701',
                                    'propuesta': _prop(630, 3)}
     assert sin == []
 
 
 def test_calibracion_valida_no_cambia_nada():
     """101:RF-1 — solo cuando la calibración no queda válida."""
-    ok = _informe('CA101', status='OK', cuadrado=True, fijas=[_fija('SE20701')])
+    ok = _informe('CA191', status='OK', cuadrado=True, fijas=[_fija('SE20701')])
     assert services.cambios_automaticos([ok], {}) == ({}, [])
 
 
 def test_no_se_repite_lo_ya_aplicado():
     """101:RF-4, 101:RF-6 — una propuesta igual a la aplicada no es un cambio nuevo; una mayor, sí."""
-    hechos = {('CA101', 'SE20701'): (630, 3)}
-    assert services.cambios_automaticos([_informe('CA101', fijas=[_fija('SE20701')])], hechos) == ({}, [])
-    cambios, _ = services.cambios_automaticos([_informe('CA101', fijas=[_fija('SE20701', 630, 4)])], hechos)
-    assert cambios['CA101'][0]['propuesta']['unidades'] == 4
+    hechos = {('CA191', 'SE20701'): (630, 3)}
+    assert services.cambios_automaticos([_informe('CA191', fijas=[_fija('SE20701')])], hechos) == ({}, [])
+    cambios, _ = services.cambios_automaticos([_informe('CA191', fijas=[_fija('SE20701', 630, 4)])], hechos)
+    assert cambios['CA191'][0]['propuesta']['unidades'] == 4
 
 
 def test_sin_propuesta_se_dice_por_que():
@@ -92,7 +92,7 @@ class _Ws:
         self.calibraciones = {}
         plan = self.plans_dir / 'ajuste_cabecera_t_1.json'
         plan.write_text('{}', encoding='utf-8')
-        self.cargas_planes = {'t': {'kind': 'ajuste_cabecera', 'project': 'P', 'feeders': ['CA101'],
+        self.cargas_planes = {'t': {'kind': 'ajuste_cabecera', 'project': 'P', 'feeders': ['CA191'],
                                     'path': str(plan), 'paths': [str(plan)]}}
 
 
@@ -118,13 +118,13 @@ def corrida(tmp_path, monkeypatch):
 def test_cambia_y_recalibra_hasta_quedar_valida(corrida):
     """101:RF-2, 101:RF-3, 101:RF-8, 101:RF-9 — sin pulsar nada: cambio, recalibración del proyecto y su resultado."""
     ws, ctx, secuencia, planes = corrida
-    secuencia += [[_informe('CA101', fijas=[_fija('SE20701')])],
-                  [_informe('CA101', status='OK', cuadrado=True)]]
+    secuencia += [[_informe('CA191', fijas=[_fija('SE20701')])],
+                  [_informe('CA191', status='OK', cuadrado=True)]]
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=False)
     assert out['estado_trabajo'] == 'done' and out['informe']['cuadrado']
     assert planes[1][0].endswith('_transformadores.json')
     assert out['transformadores_automaticos'] == [
-        {'ronda': 1, 'cambios': {'CA101': [{'sed': 'SE20701', 'antes_kva': 50.0, 'antes_unidades': 1,
+        {'ronda': 1, 'cambios': {'CA191': [{'sed': 'SE20701', 'antes_kva': 50.0, 'antes_unidades': 1,
                                             'kva': 630, 'unidades': 3}]}}]
     assert any('SE20701' in m and '50 kVA' in m and '3 × 630 kVA' in m for m in ctx.registro)
 
@@ -132,7 +132,7 @@ def test_cambia_y_recalibra_hasta_quedar_valida(corrida):
 def test_no_mas_de_tres_rondas(corrida):
     """101:RF-4, 101:RF-5 — cada ronda pide más potencia; a la tercera se para con el fallo."""
     ws, ctx, secuencia, _ = corrida
-    secuencia += [[_informe('CA101', fijas=[_fija('SE20701', 630, n)])] for n in (1, 2, 3, 4)]
+    secuencia += [[_informe('CA191', fijas=[_fija('SE20701', 630, n)])] for n in (1, 2, 3, 4)]
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=False)
     assert len(out['transformadores_automaticos']) == 3 and not secuencia
     assert out['estado_trabajo'] == 'parcial'
@@ -141,7 +141,7 @@ def test_no_mas_de_tres_rondas(corrida):
 def test_ronda_sin_cambio_nuevo_para(corrida):
     """101:RF-6 — la misma propuesta que ya se aplicó no abre otra ronda."""
     ws, ctx, secuencia, _ = corrida
-    secuencia += [[_informe('CA101', fijas=[_fija('SE20701')])], [_informe('CA101', fijas=[_fija('SE20701')])]]
+    secuencia += [[_informe('CA191', fijas=[_fija('SE20701')])], [_informe('CA191', fijas=[_fija('SE20701')])]]
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=False)
     assert len(out['transformadores_automaticos']) == 1 and not secuencia
 
@@ -149,7 +149,7 @@ def test_ronda_sin_cambio_nuevo_para(corrida):
 def test_cancelado_no_empieza_otra_ronda(corrida):
     """101:RF-10, 101:RF-11 — cancelar no deshace lo cambiado ni abre otra ronda."""
     ws, ctx, secuencia, _ = corrida
-    secuencia += [[_informe('CA101', fijas=[_fija('SE20701')])]]
+    secuencia += [[_informe('CA191', fijas=[_fija('SE20701')])]]
     ctx.job.cancel.set()
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=False)
     assert out['transformadores_automaticos'] == [] and not secuencia
@@ -159,7 +159,7 @@ def test_cancelado_no_empieza_otra_ronda(corrida):
 def test_simular_no_cambia_transformadores(corrida):
     """101:RF-13 — simulando no se escribe nada en DIgSILENT."""
     ws, ctx, secuencia, _ = corrida
-    secuencia += [[_informe('CA101', fijas=[_fija('SE20701')])]]
+    secuencia += [[_informe('CA191', fijas=[_fija('SE20701')])]]
     out = services.ajuste_ejecutar(ws, ctx, 't', simular=True)
     assert 'transformadores_automaticos' not in out and not secuencia
 
@@ -172,11 +172,11 @@ def test_los_transformadores_de_la_primera_pasada_quedan_en_el_informe_que_vale(
     aviso = '1 transformador de la ficha puesto antes de calibrar, en la misma pasada: SE20701.'
     primera = {'transformadores_implementados': {'cambios': [{'sed': 'SE20701', 'kva': 630, 'unidades': 3}]},
                'avisos': ['Primera pasada para medir lo que falta: no se guarda.', aviso]}
-    segunda = {'avisos': ['Calibrado a la vez que CHN102']}
+    segunda = {'avisos': ['Calibrado a la vez que CHN192']}
     guion.trasladar_transformadores_de_la_primera(primera, segunda)
     assert segunda['transformadores_implementados']['cambios'][0]['sed'] == 'SE20701'
     assert segunda['transformadores_implementados']['pasada'] == 'primera'
-    assert segunda['avisos'] == ['Calibrado a la vez que CHN102', aviso]
+    assert segunda['avisos'] == ['Calibrado a la vez que CHN192', aviso]
     guion.trasladar_transformadores_de_la_primera(primera, segunda)
     assert segunda['avisos'].count(aviso) == 1
     propia = {'transformadores_implementados': {'cambios': [{'sed': 'SE30000'}]}, 'avisos': []}

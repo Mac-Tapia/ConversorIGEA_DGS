@@ -567,7 +567,7 @@ seudónimos se queda en el equipo.
 
 **Deudas conocidas**
 
-1. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`: en SM218, 292 de 306 cargas no cuadran (+28 % en cabecera).
+1. El flujo desequilibrado no cuadra hasta conciliar las fases con `plini`: en SM298, 292 de 306 cargas no cuadran (+28 % en cabecera).
 2. Solo especificados, sin código: PNL y optimización mixta (048) y protecciones nativas (049).
 3. El intérprete de órdenes en uso no pasa sus puertas (085), y el dataset sigue sin sus 200 órdenes humanas.
 4. `web/services.py` sigue siendo un solo fichero enorme: su partición y la migración de paquetes siguen pendientes (002).

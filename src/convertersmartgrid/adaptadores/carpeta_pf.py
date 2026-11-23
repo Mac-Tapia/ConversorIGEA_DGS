@@ -30,7 +30,7 @@ CLAVE_PERFIL = 'carpeta_proyectos_pf'
 #: con otro nombre y la siguiente lectura no la encontraría.
 LARGO_MAXIMO = 40
 #: Los que Windows no admite en un nombre de fichero, más el punto, que DIgSILENT usa
-#: para separar el nombre de la clase («SI213.IntPrj»). Por comprobar en PF 2024 (T12).
+#: para separar el nombre de la clase («SI293.IntPrj»). Por comprobar en PF 2024 (T12).
 NO_ADMITIDOS = frozenset('\\/:*?"<>|.')
 
 
@@ -237,8 +237,8 @@ def proyectos_que_borraria(rutas: Iterable[str], red: str, fuente: str | None) -
 
     La misma regla de :func:`versiones_anteriores`, con el nombre que tendría la importación. Solo cuentan los de
     la propia carpeta: la 005:RF-22 no baja a las subcarpetas. Sin fuente conocida, cualquiera de las siglas, para
-    no dejar fuera uno que sí se borraría. Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, iba a
-    importar ``PA217`` y a borrar ``20261112-113130_CSG_TXT_PA217``, el que el usuario ya había trabajado.
+    no dejar fuera uno que sí se borraría. Copia de PA297 (2026-11-13): un espacio nuevo, sin vínculo, iba a
+    importar ``PA297`` y a borrar ``20261112-113130_CSG_TXT_PA297``, el que el usuario ya había trabajado.
     """
     nombres = [r for r in rutas if SEPARADOR not in r]
     siglas = (fuente.upper(),) if fuente else SIGLAS_DE_FUENTE
@@ -371,7 +371,7 @@ def activar_proyecto(app, ruta: str, carpeta: str):
     if proyecto is None:
         return None
     # 019:RF-7: en el proceso que se queda abierto, el proyecto de la orden anterior sigue
-    # activo; activarlo otra vez costaba minutos en CA101.
+    # activo; activarlo otra vez costaba minutos en CA191.
     activo = app.GetActiveProject() if hasattr(app, 'GetActiveProject') else None
     if activo is not None and activo.GetFullName() == proyecto.GetFullName():
         return proyecto

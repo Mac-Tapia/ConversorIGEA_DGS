@@ -263,7 +263,7 @@ class Caso:
     nodos_fuera: int = 0
     cargabilidad_max: Extremo | None = None
     tramos_sobre: int = 0
-    #: El transformador más cargado: en CA101 (2026-10-15) era TR_SE20701 al 518 % y el
+    #: El transformador más cargado: en CA191 (2026-10-15) era TR_SE20701 al 518 % y el
     #: informe lo llamaba «tramo» y «conductor». Va aparte de los tramos.
     trafo_max: Extremo | None = None
 
@@ -599,7 +599,7 @@ def clasificar_bajo_limite(u_sin: Mapping[str, float], u_con: Mapping[str, float
                            tension_min_pu: float, tolerancia_pu: float) -> dict[str, Any]:
     """Cada barra bajo el límite, según quién la dejó así (086:RF-48, RF-49).
 
-    SI112 (2026-11-04), con su obra: la carga nueva a 0,963 p.u. y un ramal a 0,9449 p.u., con límite 0,95. El
+    SI192 (2026-11-04), con su obra: la carga nueva a 0,963 p.u. y un ramal a 0,9449 p.u., con límite 0,95. El
     criterio de la escalera (``escalera_optima.cumple``, 025:RF-50) lo da por bueno porque el ramal no empeora: ese
     criterio no cambia, y esto usa su misma regla para decir qué queda. ``causado``: la barra de una carga nueva, la
     que entra bajo el límite o la que baja más que la tolerancia, lo que la escalera rechaza. ``previo``: ya estaba
@@ -902,7 +902,7 @@ def conclusion_factibilidad(actual: Caso, cargas: Caso, con: Caso | None, limite
     131 % y con la carga el punto de diseño bajaba a 0,934 p.u.
 
     086:RF-48: con ``bajo_limite``, una barra baja que la carga no causa no hace insuficiente la
-    obra. SI112 (2026-11-04) elegía su obra en la escalera, porque ese ramal no empeora, y este
+    obra. SI192 (2026-11-04) elegía su obra en la escalera, porque ese ramal no empeora, y este
     informe la declaraba insuficiente por el mismo ramal.
     """
     casos =[('estado actual', actual), ('con la carga', cargas)] + ([('con proyecto', con)] if con else [])
@@ -1233,7 +1233,7 @@ def alternativas_de_obras(aplicadas: list[Mapping[str, Any]]) -> list[dict[str, 
 
     ``aplicadas``: ``{'variacion', 'obra'}`` de cada obra. Una alternativa por etapa de
     RF-32 con obras, cada una sumada a las anteriores. La consigna de cabecera no es obra:
-    va con la etapa siguiente, o con la última. En CA101 (2026-10-16): 1, los dos bancos;
+    va con la etapa siguiente, o con la última. En CA191 (2026-10-16): 1, los dos bancos;
     2, el cambio de sección con los bancos y la consigna.
     """
     por_etapa: dict[str, list[str]] = {}
@@ -1697,7 +1697,7 @@ def demanda_antes_despues(antes: Sequence[FuenteMedida], despues: Sequence[Fuent
 def demanda_por_alimentador(filas: Sequence[Mapping[str, Any]]) -> tuple[list[list[str]], list[str]]:
     """Lo que atiende cada alimentador antes y después, por su cabecera y por la SET nueva (063:RF-55).
 
-    Tras trasladar ramas, la cabecera sola engaña: NA203 pasó de 10 061 kW a 341 kW por la suya,
+    Tras trasladar ramas, la cabecera sola engaña: NA293 pasó de 10 061 kW a 341 kW por la suya,
     pero su zona atiende más demanda que antes, por las salidas de <sitio> (2026-11-02).
     """
     tabla, textos = [], []

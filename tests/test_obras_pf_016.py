@@ -65,8 +65,8 @@ def test_lo_de_sin_proyecto_pasa_a_con_proyecto():
 
 
 @pytest.mark.parametrize('datos', [
-    {'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111', 'tipo': AAAC_120},
-    {'clase': 'migracion', 'alimentador': 'IN111', 'nodo': 'N7', 'kv_destino': 22.9},
+    {'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191', 'tipo': AAAC_120},
+    {'clase': 'migracion', 'alimentador': 'IN191', 'nodo': 'N7', 'kv_destino': 22.9},
 ])
 def test_enlace_y_migracion_solo_en_con_proyecto(datos):
     """016:RF-14, 016:RF-25, 016:RF-53 — las construcciones nuevas y la migración van solo
@@ -81,24 +81,24 @@ def test_las_obras_nuevas_vuelven_igual_del_espacio():
     obras = [
         _obra(clase='seccion', alimentador='A1', toda_troncal=True, tipo=AAAC_120,
               tipo_cable=CABLE_120),
-        _obra(clase='enlace', alimentador='TA225', cede='IN111', tipo=AAAC_120, minima_m=0,
+        _obra(clase='enlace', alimentador='TA295', cede='IN191', tipo=AAAC_120, minima_m=0,
               origen='-14.03, -75.77', destino='NODE_1', casos=CON),
-        _obra(clase='migracion', alimentador='IN111', nodo='N7', kv_destino=22.9, casos=CON),
+        _obra(clase='migracion', alimentador='IN191', nodo='N7', kv_destino=22.9, casos=CON),
     ]
     for obra in obras:
         assert op.validar_obra(obra.a_dict()) == obra
 
 
 @pytest.mark.parametrize('datos, falta', [
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'tipo': AAAC_120}, 'cede'),
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'TA225', 'tipo': AAAC_120}, 'distintos'),
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111'}, 'tipo'),
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111', 'tipo': AAAC_120,
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'tipo': AAAC_120}, 'cede'),
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'TA295', 'tipo': AAAC_120}, 'distintos'),
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191'}, 'tipo'),
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191', 'tipo': AAAC_120,
       'minima_m': -1}, 'negativa'),
-    ({'clase': 'enlace', 'alimentador': 'TA225', 'cede': 'IN111', 'tipo': AAAC_120,
+    ({'clase': 'enlace', 'alimentador': 'TA295', 'cede': 'IN191', 'tipo': AAAC_120,
       'origen': '95, 10'}, 'latitud'),
-    ({'clase': 'migracion', 'alimentador': 'IN111', 'kv_destino': 22.9}, 'nodo'),
-    ({'clase': 'migracion', 'alimentador': 'IN111', 'nodo': 'N7'}, 'tensión'),
+    ({'clase': 'migracion', 'alimentador': 'IN191', 'kv_destino': 22.9}, 'nodo'),
+    ({'clase': 'migracion', 'alimentador': 'IN191', 'nodo': 'N7'}, 'tensión'),
     ({'clase': 'seccion', 'alimentador': 'A1', 'toda_troncal': True, 'tramos': ['L1'],
       'tipo': AAAC_120}, 'solo una de las tres'),
 ])
@@ -157,7 +157,7 @@ def test_seccion_de_toda_la_troncal_sin_troncal():
 
 # --------------------------------------------------------------------------- enlace
 def _dos(rng, kv_recibe=22.9, kv_cede=10.0):
-    return {'TA225': _alimentador(rng, 'TA225', kv_recibe), 'IN111': _alimentador(rng, 'IN111', kv_cede)}
+    return {'TA295': _alimentador(rng, 'TA295', kv_recibe), 'IN191': _alimentador(rng, 'IN191', kv_cede)}
 
 
 @pytest.mark.parametrize('semilla', SEMILLAS)
@@ -169,17 +169,17 @@ def test_enlace_entre_tensiones_distintas(semilla):
     rng = random.Random(semilla)
     redes = _dos(rng)
     tipos = _tipos(10.0)                               # la biblioteca está a 10 kV
-    obra = _obra(clase='enlace', alimentador='TA225', cede='IN111', tipo=AAAC_120, minima_m=5,
+    obra = _obra(clase='enlace', alimentador='TA295', cede='IN191', tipo=AAAC_120, minima_m=5,
                  casos=CON)
     (fila,) = op.plan_simulacion([obra], redes, tipos)
     assert not fila['error'], fila
-    assert fila['variacion'] == 'Obra_enlace_TA225_IN111' and fila['casos'] == CON
+    assert fila['variacion'] == 'Obra_enlace_TA295_IN191' and fila['casos'] == CON
     assert fila['tipo'] == 'AAAC_120_22_9kV'
     assert fila['tipos'][0]['datos']['uline'] == 22.9
     linea, seccionador = fila['elementos']
     assert linea['clase'] == 'ElmLne' and linea['tipo'] == 'AAAC_120_22_9kV' and '5 m' in linea['cambio']
     assert seccionador['clase'] == 'StaSwitch' and 'abierto' in seccionador['cambio']
-    assert 'IN111' in seccionador['cambio']
+    assert 'IN191' in seccionador['cambio']
     assert any('22.9 kV' in a and '10 kV' in a and 'migrar' in a for a in fila['avisos'])
     assert fila['enlace']['kv_recibe'] == 22.9 and fila['enlace']['kv_cede'] == 10.0
 
@@ -187,7 +187,7 @@ def test_enlace_entre_tensiones_distintas(semilla):
 def test_enlace_a_la_misma_tension_no_avisa():
     """016:RF-61 — sin dos tensiones no hay aviso de migración."""
     redes = _dos(random.Random(5), 10.0, 10.0)
-    (fila,) = op.plan_simulacion([_obra(clase='enlace', alimentador='TA225', cede='IN111',
+    (fila,) = op.plan_simulacion([_obra(clase='enlace', alimentador='TA295', cede='IN191',
                                         tipo=AAAC_120, casos=CON)], redes, _tipos(10.0))
     assert not fila['error'] and not any('migrar' in a for a in fila['avisos'])
 
@@ -197,16 +197,16 @@ def test_enlace_repetido_o_con_extremos_que_no_son_suyos():
     barra que no es del alimentador o un alimentador que no está se rechazan."""
     redes = _dos(random.Random(6))
     tipos = _tipos(10.0)
-    base = dict(clase='enlace', alimentador='TA225', cede='IN111', tipo=AAAC_120, casos=CON)
-    (fila,) = op.plan_simulacion([_obra(**base)], redes, tipos, variaciones=['Obra_enlace_IN111_TA225'])
+    base = dict(clase='enlace', alimentador='TA295', cede='IN191', tipo=AAAC_120, casos=CON)
+    (fila,) = op.plan_simulacion([_obra(**base)], redes, tipos, variaciones=['Obra_enlace_IN191_TA295'])
     assert 'Ya hay una obra de enlace' in fila['error']
     primera, segunda = op.plan_simulacion([_obra(**base), _obra(**base)], redes, tipos)
     assert not primera['error'] and 'Ya hay' in segunda['error']
-    (fila,) = op.plan_simulacion([_obra(**base, origen='IN111_N1')], redes, tipos)
-    assert 'IN111_N1' in fila['error'] and 'TA225' in fila['error']
-    (fila,) = op.plan_simulacion([_obra(**base, origen='TA225_N1', destino='-14.0, -75.7')],
+    (fila,) = op.plan_simulacion([_obra(**base, origen='IN191_N1')], redes, tipos)
+    assert 'IN191_N1' in fila['error'] and 'TA295' in fila['error']
+    (fila,) = op.plan_simulacion([_obra(**base, origen='TA295_N1', destino='-14.0, -75.7')],
                                  redes, tipos)
-    assert not fila['error'] and 'TA225_N1' in fila['elementos'][0]['cambio']
+    assert not fila['error'] and 'TA295_N1' in fila['elementos'][0]['cambio']
     (fila,) = op.plan_simulacion([_obra(**{**base, 'cede': 'XX9'})], redes, tipos)
     assert 'XX9' in fila['error']
 
@@ -218,11 +218,11 @@ def test_migracion_de_lo_que_queda_aguas_abajo(semilla):
     la tensión de destino las barras, los tramos y las SED de aguas abajo del nodo, con
     copias de tipo; nada más cambia, y se abre el tramo que entra al nodo."""
     rng = random.Random(semilla)
-    red = _alimentador(rng, 'IN111', 10.0)
+    red = _alimentador(rng, 'IN191', 10.0)
     nodo = rng.choice(sorted(b for b in red.topologia.barras if b != red.cabecera))
     tipos = _tipos(10.0)
-    obra = _obra(clase='migracion', alimentador='IN111', nodo=nodo, kv_destino=22.9, casos=CON)
-    (fila,) = op.plan_simulacion([obra], {'IN111': red}, tipos)
+    obra = _obra(clase='migracion', alimentador='IN191', nodo=nodo, kv_destino=22.9, casos=CON)
+    (fila,) = op.plan_simulacion([obra], {'IN191': red}, tipos)
     assert not fila['error'], fila
     from convertersmartgrid.dominio.troncal import aguas_abajo
     parte = aguas_abajo(red.topologia, red.cabecera, nodo)
@@ -245,17 +245,17 @@ def test_migracion_de_lo_que_queda_aguas_abajo(semilla):
 def test_migracion_nodo_ajeno_cabecera_o_misma_tension():
     """016:RF-65 — un nodo de otro alimentador se dice con el nodo y el alimentador; la
     cabecera y la tensión que ya tiene, también se rechazan."""
-    red = _alimentador(random.Random(8), 'IN111', 10.0)
+    red = _alimentador(random.Random(8), 'IN191', 10.0)
     tipos = _tipos(10.0)
 
     def error(**datos):
-        datos = {'clase': 'migracion', 'alimentador': 'IN111', 'kv_destino': 22.9, 'casos': CON,
+        datos = {'clase': 'migracion', 'alimentador': 'IN191', 'kv_destino': 22.9, 'casos': CON,
                  **datos}
-        return op.plan_simulacion([op.validar_obra(datos)], {'IN111': red}, tipos)[0]['error']
+        return op.plan_simulacion([op.validar_obra(datos)], {'IN191': red}, tipos)[0]['error']
 
-    assert 'TA225_N3' in error(nodo='TA225_N3') and 'IN111' in error(nodo='TA225_N3')
+    assert 'TA295_N3' in error(nodo='TA295_N3') and 'IN191' in error(nodo='TA295_N3')
     assert 'cabecera' in error(nodo=red.cabecera)
-    assert 'ya está' in error(nodo='IN111_N1', kv_destino=10.0)
+    assert 'ya está' in error(nodo='IN191_N1', kv_destino=10.0)
 
 
 def test_migracion_avisa_si_el_enlace_no_queda_en_la_parte_que_pasa():
@@ -264,13 +264,13 @@ def test_migracion_avisa_si_el_enlace_no_queda_en_la_parte_que_pasa():
     barras = ['C', 'A', 'B', 'D']
     topo = red_de([Barra(b) for b in barras], [Tramo('L1', 'C', 'A', 10), Tramo('L2', 'A', 'B', 10),
                                               Tramo('L3', 'C', 'D', 10)])
-    red = op.RedAlimentador('IN111', 10.0, {b: 10.0 for b in barras},
+    red = op.RedAlimentador('IN191', 10.0, {b: 10.0 for b in barras},
                             {n: op.Tramo(n, 'AAAC_70') for n in ('L1', 'L2', 'L3')},
                             topologia=topo, cabecera='C')
-    obra = _obra(clase='migracion', alimentador='IN111', nodo='A', kv_destino=22.9, casos=CON)
-    (fila,) = op.plan_simulacion([obra], {'IN111': red}, _tipos(10.0), destinos_enlace={'IN111': 'D'})
+    obra = _obra(clase='migracion', alimentador='IN191', nodo='A', kv_destino=22.9, casos=CON)
+    (fila,) = op.plan_simulacion([obra], {'IN191': red}, _tipos(10.0), destinos_enlace={'IN191': 'D'})
     assert not fila['error'] and any('sin alimentación' in a for a in fila['avisos'])
-    (fila,) = op.plan_simulacion([obra], {'IN111': red}, _tipos(10.0), destinos_enlace={'IN111': 'B'})
+    (fila,) = op.plan_simulacion([obra], {'IN191': red}, _tipos(10.0), destinos_enlace={'IN191': 'B'})
     assert not any('sin alimentación' in a for a in fila['avisos'])
 
 
@@ -279,11 +279,11 @@ def test_migracion_avisa_de_un_anillo_que_une_las_dos_partes():
     barras = ['C', 'A', 'B', 'D']
     topo = red_de([Barra(b) for b in barras], [Tramo('L1', 'C', 'A', 10), Tramo('L2', 'A', 'B', 10),
                                               Tramo('L3', 'C', 'D', 10), Tramo('L4', 'D', 'B', 100)])
-    red = op.RedAlimentador('IN111', 10.0, {b: 10.0 for b in barras},
+    red = op.RedAlimentador('IN191', 10.0, {b: 10.0 for b in barras},
                             {n: op.Tramo(n, 'AAAC_70') for n in ('L1', 'L2', 'L3', 'L4')},
                             topologia=topo, cabecera='C')
-    obra = _obra(clase='migracion', alimentador='IN111', nodo='A', kv_destino=22.9, casos=CON)
-    (fila,) = op.plan_simulacion([obra], {'IN111': red}, _tipos(10.0))
+    obra = _obra(clase='migracion', alimentador='IN191', nodo='A', kv_destino=22.9, casos=CON)
+    (fila,) = op.plan_simulacion([obra], {'IN191': red}, _tipos(10.0))
     assert any('L4' in a and 'anillo' in a for a in fila['avisos'])
 
 

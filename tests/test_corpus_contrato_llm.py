@@ -279,8 +279,12 @@ def test_preparar_contrato_en_el_instalado_dice_que_falta_la_lista_de_la_entrega
     assert callable(nombres) and isinstance(origenes, list)
 
 
-def test_cli_preparar_contrato_mide_su_coste(base_v6, tmp_path, capsys):
+def test_cli_preparar_contrato_mide_su_coste(base_v6, tmp_path, capsys, monkeypatch):
     """047:RF-69: la herramienta prepara el v7 y deja medido lo que costó, sin GPU ni llamadas a modelos."""
+    # Con la lista local de la máquina de desarrollo, el propio tmp_path (bajo el perfil del usuario) es una «ruta del
+    # desarrollo»: el corpus sintético nunca saldría limpio (23-11: 56 828 hallazgos, todos la ruta de la temporal).
+    # Aquí se mide el coste; que un nombre real detenga el sellado lo prueba test_nombre_sin_seudonimo_no_se_prepara.
+    monkeypatch.delenv('CSG_TERMINOS_PROHIBIDOS', raising=False)
     herramienta = cargar_herramienta('llm_destilar.py', 'llm_destilar_mej34')
     destino = tmp_path / 'fuente_cli'
     assert herramienta.main(['preparar-contrato', '--base', str(base_v6), '--destino', str(destino), '--sin-almacen']) == 0

@@ -120,20 +120,20 @@
       ]
     },
     "P08": {
-      "state": "si213_y_pn107_cargas_reapertura_conservacion_verificadas_r2_parcial",
+      "state": "si293_y_pn197_cargas_reapertura_conservacion_verificadas_r2_parcial",
       "evidence": [
         "p08_fuentes_access.json",
         "p08_corrida_estado.json",
-        "p08_si213_calibracion.log",
-        "p08_si213_resumen.json",
-        "p08_si213_aceptacion_parcial.json",
-        "p08_si213_cierre_persistencia/resultado.json",
-        "p08_cargas_si213.json",
-        "p08_pn107_estado.json",
-        "p08_pn107_calibracion.log",
-        "p08_pn107_aceptacion_parcial.json",
-        "p08_pn107_cierre_persistencia/resultado.json",
-        "p08_cargas_pn107.json",
+        "p08_si293_calibracion.log",
+        "p08_si293_resumen.json",
+        "p08_si293_aceptacion_parcial.json",
+        "p08_si293_cierre_persistencia/resultado.json",
+        "p08_cargas_si293.json",
+        "p08_pn197_estado.json",
+        "p08_pn197_calibracion.log",
+        "p08_pn197_aceptacion_parcial.json",
+        "p08_pn197_cierre_persistencia/resultado.json",
+        "p08_cargas_pn197.json",
         "p08_cable_controlado_aceptacion.json"
       ]
     },

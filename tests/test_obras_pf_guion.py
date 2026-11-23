@@ -1028,8 +1028,8 @@ def test_migracion_con_la_cabecera_compartida_se_rechaza():
 def test_la_cabecera_compartida_se_reconoce_con_otro_envoltorio(monkeypatch):
     """011:RF-102 — DIgSILENT da un objeto Python nuevo en cada acceso: dos alimentadores que
     salen de la misma barra de SET por cubículos distintos la comparten aunque la barra no sea
-    el mismo objeto (Nasca por sistema, 2026-10-24: la migración de NA203 a 10 kV iba a pasar
-    también la barra de la SET 51, de la que salen NA205 y los demás)."""
+    el mismo objeto (Nasca por sistema, 2026-10-24: la migración de NA293 a 10 kV iba a pasar
+    también la barra de la SET 91, de la que salen NA295 y los demás)."""
     app, alims = _calibrada(random.Random(47))
     f, otro = alims[0], alims[1]
     barra = guion.cabecera_de(_elm(app, f))
@@ -1165,7 +1165,7 @@ def test_evaluar_variantes_sin_dejar_nada(semilla, monkeypatch):
 
 def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
     """086:RF-48 — la evaluación da, por variante y sin la ``u`` entera, cada barra baja con su tensión y la de
-    «Sin proyecto»: el ``escalera_evaluar_*.json`` de SI112 (2026-11-04) solo decía la mínima de media."""
+    «Sin proyecto»: el ``escalera_evaluar_*.json`` de SI192 (2026-11-04) solo decía la mínima de media."""
     app, alims = _calibrada_con_escenario(random.Random(43))
     _actual_no_cumple(monkeypatch)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
@@ -1203,7 +1203,7 @@ def test_evaluar_guarda_solo_las_barras_bajas_de_cada_variante(monkeypatch):
 def test_basta_una_variante_que_cumple_para_saber_si_caben(monkeypatch):
     """042:RF-2 — con ``basta_una``, la primera variante con costo que cumple con la máxima se
     sortea en seguida y, si cumple, no se prueba ninguna más; la que no tiene costo no cuenta.
-    Al terminar no queda ninguna obra y los casos siguen como estaban (NA203 + NA205,
+    Al terminar no queda ninguna obra y los casos siguen como estaban (NA293 + NA295,
     2026-11-01: cada prueba de la bisección recorría todas las variantes)."""
     app, alims = _calibrada_con_escenario(random.Random(43))
     _actual_no_cumple(monkeypatch)
@@ -1234,7 +1234,7 @@ def test_basta_una_variante_que_cumple_para_saber_si_caben(monkeypatch):
 def test_los_sorteos_escalan_solo_las_cargas_existentes_y_se_restituyen(monkeypatch):
     """025:RF-51, 025:RF-52, 063:RF-28 — en cada sorteo, la demanda de cada carga existente por
     el factor de su alimentador, en un escenario temporal; al terminar, la de siempre. Se escala
-    ``scale0`` (la calibración) y no ``plini``: en SM218 escribir ``plini`` dejaba la demanda
+    ``scale0`` (la calibración) y no ``plini``: en SM298 escribir ``plini`` dejaba la demanda
     fija con cualquier factor y todas las variantes salían al 94,5 %."""
     app, alims = _calibrada_con_escenario(random.Random(9))
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
@@ -1473,7 +1473,7 @@ def test_tipo_de_otro_proyecto_que_no_se_deja_pegar_se_copia_igual():
 
 def test_cada_variante_dice_la_tension_que_deja(monkeypatch):
     """063:RF-28 — la evaluación dice, de cada variante probada, la tensión que deja en cada barra
-    de carga nueva y la mínima de media, también si no basta (SM218, 2026-11-01: «primero debiste
+    de carga nueva y la mínima de media, también si no basta (SM298, 2026-11-01: «primero debiste
     probar con bancos, ver cuánto mejora»)."""
     app, alims = _calibrada_con_escenario(random.Random(13))
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
@@ -1493,7 +1493,7 @@ def test_cada_variante_dice_la_tension_que_deja(monkeypatch):
 
 def _segunda_troncal(app, f):
     """Una carga etiquetada del alimentador y una barra de MT en una segunda troncal, fuera de
-    lo que devuelve ``ElmFeeder.GetObjs``: SM218 tiene 64 de sus 306 cargas así."""
+    lo que devuelve ``ElmFeeder.GetObjs``: SM298 tiene 64 de sus 306 cargas así."""
     elm = next(x for x in app.proyecto.GetContents('*.ElmFeeder', 1) if x.loc_name == f)
     carga = next(iter(elm.GetObjs('ElmLod')))
     baja = carga.bus1.cterm
@@ -1508,7 +1508,7 @@ def _segunda_troncal(app, f):
 
 
 def test_los_sorteos_y_el_criterio_cubren_todas_las_troncales(monkeypatch):
-    """063:RF-39 — SM218 (2026-11-02): ``ElmFeeder.GetObjs`` veía 242 de 306 cargas; las 64 de la
+    """063:RF-39 — SM298 (2026-11-02): ``ElmFeeder.GetObjs`` veía 242 de 306 cargas; las 64 de la
     segunda troncal (1,698 MW) no se escalaban en los sorteos, sus barras no contaban en el
     criterio y las pérdidas salían en 2 126 kW en vez de 428 kW."""
     app, alims = _calibrada_con_escenario(random.Random(21))

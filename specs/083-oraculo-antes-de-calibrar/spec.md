@@ -37,7 +37,7 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
 - RF-14: CUANDO un libro de clientes no traiga «maestro_lib», EL SISTEMA hallará la hoja de cada cliente por su contenido (su código en la
   cabecera de la hoja) y leerá su registro en las dos disposiciones: «FECHA, HORA, EA, ERI, POT» y «día, hora» con el último grupo «EA, ERI,
   ERC, Pot», en la fecha y hora de la barra. En Pisco (2026-11-03) los libros de enero a mayo no lo traen: las fijas iban con la potencia del
-  mes, no con la coincidente, y en AL209 y PA217 sumaban más que la medida y pasaban todas a escaladas. Usuario: «la tabla cruzada de fijas
+  mes, no con la coincidente, y en AL299 y PA297 sumaban más que la medida y pasaban todas a escaladas. Usuario: «la tabla cruzada de fijas
   debe ser también en la máxima fecha de las barras SET».
 - RF-16: EL SISTEMA resolverá el oráculo con cualquiera de sus motores (Z-bus, Anderson, Newton con KLU, power-grid-model y OpenDSS) sobre la
   misma red ya factorizada, con la misma salida. Usuario, 2026-11-03: «estas opciones más debes implementar» y «debe adaptar lo ya existente».
@@ -63,7 +63,7 @@ oráculo propone el arranque, nunca da una calibración por buena (024, principi
   vengan de antes, en «Sin proyecto» y en «Con proyecto», y lo dirá; los remedios pueden volver a ponerlos. El caso del operador no se toca. En Pisco (2026-11-03) `iopt_lev=1` heredado hacía que 19 alimentadores cuadraran y
   ninguno quedara válido: SE30037 escribía 2 524 kW y consumía 1 578 kW.
 - RF-27: EL SISTEMA guardará, al terminar cada calibración aunque falle o se cancele, lo que escribió en cada carga; una carga que sigue con eso no es un
-  cambio manual (014:RF-10). En Pisco, lo escrito por corridas que no quedaron registradas salía «cambiado a mano» en 73 cargas de AL209 y tapaba a sus
+  cambio manual (014:RF-10). En Pisco, lo escrito por corridas que no quedaron registradas salía «cambiado a mano» en 73 cargas de AL299 y tapaba a sus
   clientes fijos.
 - RF-28: CUANDO el oráculo converge, EL SISTEMA arrancará DIgSILENT de sus factores aunque no cuadre algún alimentador, y nombrará el que no puede
   cuadrar porque sus fijas más sus pérdidas ya pasan de la medida, con las dos cifras. En Pisco (2026-11-03) PA219 (fija de 4 163 kW, medida 4 289 kW)

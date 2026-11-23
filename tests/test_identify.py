@@ -99,7 +99,7 @@ class TestLaConfusionQueNoFallaba:
     def test_un_fichero_ajeno_se_explica_como_tal(self, tmp_path):
         ruta = tmp_path / 'x.txt'
         ruta.write_text('hola\n', encoding='utf-8')
-        assert 'no parece un export' in comprobar_ranura(ruta, RED)
+        assert 'no parece un TXT' in comprobar_ranura(ruta, RED)
 
 
 class TestRepartoAutomatico:

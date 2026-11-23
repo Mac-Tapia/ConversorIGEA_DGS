@@ -11,7 +11,7 @@
 - [x] T4. `tools/pf_servidor.py` y su uso desde la web. (RF-7, RF-8, RF-9)
       Hecho cuando: `pytest -q tests/test_pf_servidor.py` y las de la web en verde.
 - [x] T5. [DIgSILENT] Prueba en DIgSILENT real: dos guiones a la vez, tres órdenes con una activación,
-      consigna de cabecera en CA101. (Todos)
+      consigna de cabecera en CA191. (Todos)
       Hecho cuando: en DIgSILENT real dos guiones esperan su turno y tres órdenes usan una sola activación.
 - [x] T6. Validación: cada RF citado por al menos una prueba. (Todos)
       Hecho cuando: `grep -rnoE "019:RF-[0-9]+" tests | sort -u` lista todos los RF.
@@ -31,15 +31,15 @@
       Hecho cuando: `pytest -q tests/test_pf_arnes.py tests/test_pf_servidor.py` en verde y,
       en DIgSILENT real, un proceso con DIgSILENT que sale y «Leer proyectos» seguidos
       desde la web sin error.
-      2026-10-19, DIgSILENT real: una sonda activó CA101_PE104 y salió; «Leer proyectos»
+      2026-10-19, DIgSILENT real: una sonda activó CA191_PE194 y salió; «Leer proyectos»
       lanzado al instante esperó a que muriera, conectó en 27 s y listó los 17 proyectos
       (255 s la lectura), con cada paso y su hora en `servidor.log`.
 
-Resultado de T5 (2026-10-15, DIgSILENT real con CA101): tres órdenes `verificar_pf.py`
+Resultado de T5 (2026-10-15, DIgSILENT real con CA191): tres órdenes `verificar_pf.py`
 por el servidor, 27 s la primera (conectar y activar) y 0 y 1 s las siguientes, sin volver
 a activar; un `verificar_pf.py` directo a la vez esperó diciendo «ocupado por
 pf_servidor.py» y entró cuando el servidor se cerró solo a los 120 s sin órdenes; la obra
-`consigna` 1,05 p.u. quedó en `Obra_consigna_CA101`, solo en «Con proyecto», converge y
+`consigna` 1,05 p.u. quedó en `Obra_consigna_CA191`, solo en «Con proyecto», converge y
 «Sin proyecto» sin diferencias.
 - [x] T10. Vigía de la conexión: plazo, código propio, turno suelto y reintento de la web.
       (RF-23, RF-24, RF-25)
@@ -66,5 +66,5 @@ con dobles. Las próximas ampliaciones de una spec cerrada deben abrir otra spec
 T11, 2026-11-01: 19 pruebas aprobadas, sin omisiones, en
 `output/correcciones_alumnos_20261101/arnes_trazabilidad.xml`. T12 continúa abierta;
 no se reinició el servidor con trabajos activos para fabricar esa evidencia.
-      Hecho el 2026-11-01: la calibración de NJA202 y 0205 usó el `cargas_pf` corregido sin reiniciar
+      Hecho el 2026-11-01: la calibración de NJA292 y 0205 usó el `cargas_pf` corregido sin reiniciar
       el proceso (`_olvidar_modulos_de_tools`).

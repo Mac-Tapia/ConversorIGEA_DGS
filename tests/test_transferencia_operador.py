@@ -1,9 +1,9 @@
 """Spec 098: la transferencia de carga que hizo el operador en DIgSILENT, en la calibración, el escaneo y las obras.
 
-Caso real (2026-11-07, ``20261105-124711_CSG_TXT_CA101_CHN102``): el operador pasó parte de CA101 a CHN102 con dos tramos
+Caso real (2026-11-07, ``20261105-124711_CSG_TXT_CA191_CHN192``): el operador pasó parte de CA191 a CHN192 con dos tramos
 nuevos y un punto abierto. La recalibración de julio, con medidas de antes de la transferencia, terminó con «pérdidas
-activas negativas en CA101 (-1 271,2 kW)». Aquí, con ``fake_pf`` y la topología viva de sus ``ElmFeeder``: X cede su
-última SED a Y por un tramo nuevo y abre el tramo que la unía. Las cifras se parecen a las de CA101: X medido en
+activas negativas en CA191 (-1 271,2 kW)». Aquí, con ``fake_pf`` y la topología viva de sus ``ElmFeeder``: X cede su
+última SED a Y por un tramo nuevo y abre el tramo que la unía. Las cifras se parecen a las de CA191: X medido en
 6 600 kW antes de la transferencia, Y en 2 728 kW.
 """
 from __future__ import annotations
@@ -89,7 +89,7 @@ def _planes(objetivos, tramos):
     return out
 
 
-def _caso_ca101(guion):
+def _caso_ca191(guion):
     """X (6 SED de ~1,1 MW) cede su SED del final a Y, con su banco; las medidas son de antes de la transferencia."""
     kw = {'F1': 1.06, 'F1_S6': 1.3, 'F2': 0.455}
     app = _red(kw=kw)
@@ -112,8 +112,8 @@ def _caso_ca101(guion):
 
 def test_sin_desactivar_da_las_perdidas_negativas_del_caso_real(guion, tpf, monkeypatch):
     """098:RF-3 — el control: con la transferencia puesta, X cuenta una SED que entra por Y y salen pérdidas
-    negativas, como CA101 el 2026-11-07. Sin el cambio de la 098, la calibración termina así."""
-    app, planes, _nuevo = _caso_ca101(guion)
+    negativas, como CA191 el 2026-11-07. Sin el cambio de la 098, la calibración termina así."""
+    app, planes, _nuevo = _caso_ca191(guion)
     monkeypatch.setattr(tpf.RedDeLaFuente, 'preparar', lambda self, *a, **k: None)
     (x, _rcx), (_y, _rcy) = guion.ejecutar_proyecto(app, planes)
     assert not x['cuadrado'] and 'pérdidas activas negativas en F1' in (x['motivo'] or ''), x.get('motivo')
@@ -123,7 +123,7 @@ def test_se_calibra_con_los_alimentadores_completos_y_la_transferencia_vuelve(gu
     """098:RF-1, 098:RF-2, 098:RF-3, 098:RF-5, 098:RF-6, 098:RF-7, 098:RF-10 — se abre el tramo nuevo y se cierra el
     que abrió el operador mientras se calibra: cada cabecera con todas sus SED por etiqueta, sin pérdidas negativas.
     Al terminar la transferencia está como la dejó, en «Sin proyecto» y en «Con proyecto», con la evidencia."""
-    app, planes, nuevo = _caso_ca101(guion)
+    app, planes, nuevo = _caso_ca191(guion)
     vistos = []
     antes = app.ldf.Execute
 
@@ -162,7 +162,7 @@ def tpf_fichero(guion, plan):
 
 def test_si_algo_revienta_la_transferencia_vuelve_igual(guion, monkeypatch):
     """098:RF-5 — una excepción a mitad de la calibración no deja la transferencia desactivada ni el registro."""
-    app, planes, nuevo = _caso_ca101(guion)
+    app, planes, nuevo = _caso_ca191(guion)
     durante = {}
 
     def revienta(app_, planes_, **k):
@@ -180,7 +180,7 @@ def test_si_algo_revienta_la_transferencia_vuelve_igual(guion, monkeypatch):
 
 def test_si_la_orden_muere_la_siguiente_la_restituye(guion, tpf):
     """098:RF-5 — lo anotado en disco antes de tocar se deshace al empezar la orden siguiente, y se dice."""
-    app, planes, nuevo = _caso_ca101(guion)
+    app, planes, nuevo = _caso_ca191(guion)
     proyecto = app.proyecto
     _caso(app, 'Sin proyecto').Activate()
     red = tpf.RedDeLaFuente(app, planes[0])
@@ -198,7 +198,7 @@ def test_si_la_orden_muere_la_siguiente_la_restituye(guion, tpf):
 def test_si_no_se_puede_desactivar_se_calibra_como_esta(guion, tpf, monkeypatch):
     """098:RF-8 — un fallo al reconocer o desactivar la transferencia no impide calibrar: se dice y la red queda como
     la dejó el operador."""
-    app, planes, nuevo = _caso_ca101(guion)
+    app, planes, nuevo = _caso_ca191(guion)
 
     def falla(self, *a, **k):
         raise RuntimeError('API ocupada')
@@ -332,7 +332,7 @@ def test_los_abiertos_del_dgs_por_su_cabecera():
 def test_aviso_de_la_medida_posterior_a_la_importacion(tpf):
     """098:RF-4 — con la medida del mes de la importación o después, no se sabe si ya incluye la transferencia."""
     plan = {'objetivo': {'fecha': '2026-07-27 08:45:00'}}
-    assert tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-11-05'}) is None      # CA101: de antes
+    assert tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-11-05'}) is None      # CA191: de antes
     assert 'no se sabe si ya incluye la transferencia del operador' in tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-06-30'})
     assert tpf.aviso_de_la_medida({**plan, 'fecha_importacion': '2026-07-02'}) is not None   # el mismo mes: no se sabe
     assert tpf.aviso_de_la_medida(plan) is None
@@ -342,7 +342,7 @@ def test_el_escaneo_dice_lo_que_paso_con_la_transferencia(guion):
     """098:RF-9 — el banco y el tramo nuevo que están en Y por la transferencia desde X salen como tales, para que no
     parezca que el operador los puso en Y."""
     escaneo = cargar_herramienta('escanear_alimentador_pf.py', 'escaneo_transferencia', tools_en_path=True)
-    app, planes, _nuevo = _caso_ca101(guion)
+    app, planes, _nuevo = _caso_ca191(guion)
     plan = {'project': 'P', 'feeders': ['F1', 'F2'], 'tramos_dgs': planes[0]['tramos_dgs'], 'abiertos_dgs': {}}
     informe, rc = escaneo.ejecutar(app, plan)
     assert rc == 0, informe
@@ -454,7 +454,7 @@ def test_la_migracion_abre_el_seccionador_del_tramo_y_se_restituye_solo_ese():
     assert seccionadores[0].on_off == 1 and seccionadores[1].on_off == 1
 
 
-# =========================================================================== la configuración real de CA101 y CHN102
+# =========================================================================== la configuración real de CA191 y CHN192
 def _dgs_de(app, ruta):
     """El DGS «aceptado» de la red tal como está, con sus cubículos: lo que la web pasa en ``dgs_fuente`` (098:RF-16).
 
@@ -510,7 +510,7 @@ def _rama(app, clase, nombre, a, b, **attrs):
     return o
 
 
-def _caso_ca101_real(guion, tmp_path):
+def _caso_ca191_real(guion, tmp_path):
     """Como en DIgSILENT el 2026-11-07 (sondas de solo lectura de la sesión de T6):
 
     1. ``X_L3`` partido: va de ``X_B3`` a «Terminal» y la mitad nueva ``X_L3_a`` de «Terminal» a ``X_B2``, con un banco
@@ -520,7 +520,7 @@ def _caso_ca101_real(guion, tmp_path):
     3. El acoplador nuevo «Breaker/Switch(1)», CERRADO, entre ``Y_B6`` y ``X_B6``, dos barras del DGS que el DGS no une
        (la conversión quita las maniobras abiertas): por él Y alimenta la zona.
     """
-    # Las escaladas se reparten por kVA (095): la zona, con transformadores menores, lleva una parte como la de CA101.
+    # Las escaladas se reparten por kVA (095): la zona, con transformadores menores, lleva una parte como la de CA191.
     app = _red(kw={'F1': 1.1, 'F1_S5': 0.3, 'F1_S6': 0.3, 'F2': 0.455},
                kva=lambda f, i: 600.0 if (f, i) in (('F1', 5), ('F1', 6)) else 3000.0)
     objetivos = {'F1': 6600.0, 'F2': 2728.0}
@@ -560,18 +560,18 @@ def _como_lo_dejo(app, el):
 
 
 def test_la_configuracion_real_da_perdidas_negativas_sin_la_098(guion, tpf, tmp_path, monkeypatch):
-    """098:RF-3, 098:RF-17 — el control: con la transferencia de CA101 y CHN102 puesta, pérdidas negativas en X."""
-    app, planes, _el = _caso_ca101_real(guion, tmp_path)
+    """098:RF-3, 098:RF-17 — el control: con la transferencia de CA191 y CHN192 puesta, pérdidas negativas en X."""
+    app, planes, _el = _caso_ca191_real(guion, tmp_path)
     monkeypatch.setattr(tpf.RedDeLaFuente, 'preparar', lambda self, *a, **k: None)
     (x, _rc), _ = guion.ejecutar_proyecto(app, planes)
     assert not x['cuadrado'] and 'pérdidas activas negativas en F1' in (x['motivo'] or '')
 
 
-def test_dos_particiones_y_dos_acopladores_nuevos_como_en_ca101(guion, tmp_path):
+def test_dos_particiones_y_dos_acopladores_nuevos_como_en_ca191(guion, tmp_path):
     """098:RF-16, 098:RF-17, 098:RF-18, 098:RF-19, 098:RF-3, 098:RF-5 — frente al DGS aceptado: las dos particiones son
     la red de la fuente, el acoplador abierto dentro de una es el punto del operador (se cierra) y el nuevo cerrado entre
     barras del DGS es su enlace (se abre). Se cuadra sin pérdidas negativas y todo vuelve a como lo dejó."""
-    app, planes, el = _caso_ca101_real(guion, tmp_path)
+    app, planes, el = _caso_ca191_real(guion, tmp_path)
     antes = _como_lo_dejo(app, el)
     assert antes == (0, 1, 0, 0)
     _caso(app, 'Caso base').Activate()
@@ -596,7 +596,7 @@ def test_dos_particiones_y_dos_acopladores_nuevos_como_en_ca101(guion, tmp_path)
 def test_el_registro_distingue_acopladores_de_nombre_parecido(guion, tpf, tmp_path):
     """098:RF-19, 098:RF-5 — si la orden muere con la transferencia desactivada, la siguiente restituye cada acoplador por
     su nombre completo: «Breaker/Switch» y «Breaker/Switch(1)» no se confunden."""
-    app, planes, el = _caso_ca101_real(guion, tmp_path)
+    app, planes, el = _caso_ca191_real(guion, tmp_path)
     _caso(app, 'Sin proyecto').Activate()
     red = tpf.RedDeLaFuente(app, planes[0])
     red.preparar(guion.Alimentadores(app, app.proyecto, ['F1', 'F2']), _caso(app, 'Sin proyecto'), ['F1', 'F2'])
@@ -634,7 +634,7 @@ def test_frente_a_la_fuente_puro():
 
 # =========================================================================== 098:RF-20 a RF-27: transferir por el enlace que ya existe
 def test_una_barra_sin_gps_toma_las_de_la_mas_cercana_por_la_red():
-    """098:RF-20 — CA101 + CHN102 (2026-11-07): sin coordenadas en 12333, 11969 y la barra nueva, la búsqueda de vecinos
+    """098:RF-20 — CA191 + CHN192 (2026-11-07): sin coordenadas en 12333, 11969 y la barra nueva, la búsqueda de vecinos
     salía vacía; ahora toma las de la barra con GPS más cercana por la red, y sin ninguna dice que no hay."""
     obras = cargar_herramienta('obras_pf.py', 'obras_gps_098', tools_en_path=True)
     app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=4, bt=True, flujo=True)
@@ -809,7 +809,7 @@ def test_la_lectura_da_el_enlace_existente_con_sus_maniobras():
 
 
 def test_un_enlace_entre_tensiones_distintas_no_se_propone():
-    """098:RF-42 — tras pasar CHN102 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: la lectura lo descarta y lo
+    """098:RF-42 — tras pasar CHN192 a 22,9 kV, «Breaker/Switch» unía 10 kV con 22,9 kV: la lectura lo descarta y lo
     dice; con la misma tensión, el enlace sigue."""
     from test_obras_pf_guion import _plan as _plan_obras
 
@@ -940,7 +940,7 @@ def test_al_evaluar_la_transferencia_se_mide_y_todo_vuelve(monkeypatch, tmp_path
 
 # =========================================================================== 098:RF-28 a RF-30 (T6 de «Con proyecto», 2026-11-07)
 def test_la_variante_que_no_queda_aplicada_no_se_cuenta_como_no_cumple(monkeypatch):
-    """098:RF-28 — CA101 (job 11469a95f83e): «cambio a 22.9 kV» dio las tensiones de sin obra: su flujo no convergía,
+    """098:RF-28 — CA191 (job 11469a95f83e): «cambio a 22.9 kV» dio las tensiones de sin obra: su flujo no convergía,
     la obra quedaba inactiva y se medía sin ella. Ahora se marca «no aplicada» con su causa."""
     from test_obras_pf_guion import (
         CON,
@@ -999,7 +999,7 @@ def test_la_lectura_da_las_barras_bajas_de_cada_alimentador():
 
 
 def test_el_alimentador_sin_cargas_que_viola_limites_lleva_su_escalera(monkeypatch, tmp_path):
-    """098:RF-29 — CHN102 (2026-11-07) en 0,73 p.u. sin cargas nuevas no se trataba: ahora, antes que los demás, sube su
+    """098:RF-29 — CHN192 (2026-11-07) en 0,73 p.u. sin cargas nuevas no se trataba: ahora, antes que los demás, sube su
     escalera con sus barras bajas, primero transfiriendo y después desde los bancos, y lo elegido se aplica."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
     from convertersmartgrid.presentacion.web import services
@@ -1043,7 +1043,7 @@ def test_el_alimentador_sin_cargas_que_viola_limites_lleva_su_escalera(monkeypat
 
 
 def test_el_oraculo_se_corrige_con_lo_que_midio_digsilent():
-    """098:RF-30 — CA101 + CHN102: el oráculo equilibrado daba 0,888 donde DIgSILENT medía 0,829. Con la tensión de
+    """098:RF-30 — CA191 + CHN192: el oráculo equilibrado daba 0,888 donde DIgSILENT medía 0,829. Con la tensión de
     DIgSILENT en el grafo, cada barra se lleva a lo medido y una obra mueve la caída en la misma proporción."""
     pytest.importorskip('scipy')
     from convertersmartgrid.adaptadores import optimizacion_oraculo as oo
@@ -1082,7 +1082,7 @@ def _tipo_eo(codigo, mm2):
 
 
 def test_las_obras_de_linea_de_dos_caminos_van_juntas():
-    """098:RF-31 — CA101 (2026-11-07): la cola de CH_23 y la rama de CH_10 y CH_18, cada una con su camino; ahora hay
+    """098:RF-31 — CA191 (2026-11-07): la cola de CH_23 y la rama de CH_10 y CH_18, cada una con su camino; ahora hay
     variantes que juntan la obra de línea de los dos, con y sin bancos, y el tramo común va una vez, con el conductor
     mayor; la de 50 mm² no se propone para la caída (098:RF-33)."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
@@ -1180,7 +1180,7 @@ def test_lo_medido_con_la_misma_red_se_reutiliza_y_lo_dudoso_se_mide():
 
 
 def test_el_regulador_activa_el_ajuste_de_tomas_y_vuelve_al_borrar_la_variante(monkeypatch):
-    """098:RF-34 — CHN102 (2026-11-07): con ``iopt_at = 0`` el regulador no cambiaba nada. La obra activa el ajuste de
+    """098:RF-34 — CHN192 (2026-11-07): con ``iopt_at = 0`` el regulador no cambiaba nada. La obra activa el ajuste de
     tomas del flujo del caso, lo anota y, al borrar la variante evaluada, el flujo vuelve a como estaba; y una variante
     con regulador igual a la misma sin él es «no aplicada»."""
     from test_obras_pf_guion import (
@@ -1238,7 +1238,7 @@ def _fila_eo(nombre, escalones, costo, horizonte=None, obras=()):
 
 
 def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
-    """098:RF-35 — CHN102 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ahora la
+    """098:RF-35 — CHN192 (2026-11-07): sin libro CAPEX, el paso a 22,9 kV tenía costo y la sección no; ahora la
     sección se costea con el km del cambio de nivel y la terna con ese km por su factor (1,5, del perfil si lo da)."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
 
@@ -1254,7 +1254,7 @@ def test_la_seccion_y_la_terna_tienen_costo_sin_libro_capex():
 
 def test_la_de_corto_plazo_tiene_que_llegar_al_anio_del_periodo():
     """098:RF-37 — usuario (2026-11-07): «el corto plazo debe ser solo para 4 años, considerando como año 0 el del
-    análisis». Una que cumple hoy y no llega al año 4 no es la de corto plazo; la más barata que llega, sí. CA101: la
+    análisis». Una que cumple hoy y no llega al año 4 no es la de corto plazo; la más barata que llega, sí. CA191: la
     terna con la sección de 240 mm² cumplía hoy y fallaba en el año 7."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
 
@@ -1383,7 +1383,7 @@ def _ws_con_obras(tmp_path, registros):
 def test_solo_se_compara_y_se_retira_lo_que_aplico_la_escalera(tmp_path, monkeypatch):
     """098:RF-36 — 040:RF-8, 014:RF-3: lo que el operador aplicó no se compara ni se retira; lo aplicado sin origen se
     compara (y «rehacer obras» lo retira) solo si la escalera aplicó esa misma obra: su elegida guardada con lo aplicado
-    o el plan con que aplicó su elegida, con una obra igual (M1: CHN102, «Obra_tension_CHN102» y la elegida «cambio a
+    o el plan con que aplicó su elegida, con una obra igual (M1: CHN192, «Obra_tension_CHN192» y la elegida «cambio a
     22.9 kV…»); sin esa evidencia, se avisa y no se toca."""
     from convertersmartgrid.presentacion.web import services
 
@@ -1398,7 +1398,7 @@ def test_solo_se_compara_y_se_retira_lo_que_aplico_la_escalera(tmp_path, monkeyp
     services._guardar_alternativas_escalera(ws, 'P', 'F1 · sin cargas nuevas, fuera de límites', [
         {'nombre': 'cambio a 22.9 kV con su fuente (29.30 km, 50 SED)', 'escalones': ['nivel'], 'elegida': True}])
     services._guardar_alternativas_escalera(ws, 'P', 'F2', [{'nombre': 'bancos', 'escalones': ['bancos'], 'elegida': True}])
-    # Como CHN102: el plan con que la escalera aplicó su elegida, con la obra del registro.
+    # Como CHN192: el plan con que la escalera aplicó su elegida, con la obra del registro.
     ws.plans_dir = tmp_path / 'planes'
     ws.plans_dir.mkdir()
     (ws.plans_dir / 'escalera_evaluar_x.json').write_text(__import__('json').dumps({
@@ -2315,9 +2315,9 @@ def test_la_sustitucion_fallida_no_deja_obras_pendientes_y_el_diario_recompone(t
 
 # =========================================================================== 098:RF-43 (otro corte de la transferencia)
 def test_el_que_recibe_la_transferencia_prueba_otro_corte_de_la_misma():
-    """098:RF-43 — CHN102 (2026-11-07) recibía la cola de CA101 y quedaba en 0,703 p.u.: su escalera empieza por mover el
-    corte de la misma transferencia (devolver parte a CA101 por el punto que abrió el operador, abriendo otra maniobra
-    de la zona), aunque CA101 no tenga margen ahora: se miden los dos (098:RF-25). Primero la que devuelve más."""
+    """098:RF-43 — CHN192 (2026-11-07) recibía la cola de CA191 y quedaba en 0,703 p.u.: su escalera empieza por mover el
+    corte de la misma transferencia (devolver parte a CA191 por el punto que abrió el operador, abriendo otra maniobra
+    de la zona), aunque CA191 no tenga margen ahora: se miden los dos (098:RF-25). Primero la que devuelve más."""
     from convertersmartgrid.aplicacion import obras_integrales as oi
 
     devolver = {**_enlace_x(), 'u_min': 0.90, 'devuelve_zona': True}
@@ -2336,16 +2336,16 @@ def test_la_lectura_marca_el_corte_del_operador_en_los_enlaces(monkeypatch):
     from convertersmartgrid.dominio.transferencia_operador import CargaRed, Rama, Zona
 
     obras = cargar_herramienta('obras_pf.py', 'obras_corte_operador_098', tools_en_path=True)
-    zona = Zona('CA101', 'CHN102', [CargaRed('k1', 'S1', 't1', 'CA101', 'CHN102', 900.0),
-                                    CargaRed('k2', 'S2', 't2', 'CA101', 'CHN102', 830.0)],
+    zona = Zona('CA191', 'CHN192', [CargaRed('k1', 'S1', 't1', 'CA191', 'CHN192', 900.0),
+                                    CargaRed('k2', 'S2', 't2', 'CA191', 'CHN192', 830.0)],
                 cerrar=[Rama('R\\ENL', 'ElmCoup', 'Breaker/Switch', ('a', 'b'), False)])
     falso = types.ModuleType('transferencia_operador_pf')
     falso.leer_transferencias = lambda app, alims, plan, interesan=None: ([zona], {}, {})
     monkeypatch.setitem(sys.modules, 'transferencia_operador_pf', falso)
-    enlaces = {'CHN102': [{'enlace': 'Breaker/Switch', 'ruta': 'R\\ENL', 'vecino': 'CA101', 'cerrado': False},
-                          {'enlace': 'OTRO', 'ruta': 'R\\OTRO', 'vecino': 'CA101', 'cerrado': False}]}
+    enlaces = {'CHN192': [{'enlace': 'Breaker/Switch', 'ruta': 'R\\ENL', 'vecino': 'CA191', 'cerrado': False},
+                          {'enlace': 'OTRO', 'ruta': 'R\\OTRO', 'vecino': 'CA191', 'cerrado': False}]}
     obras.marcar_cortes_del_operador(None, None, {'dgs_fuente': ['x.dgs']}, enlaces, [])
-    marcado, otro = enlaces['CHN102']
+    marcado, otro = enlaces['CHN192']
     assert marcado['devuelve_zona'] and marcado['zona_kw'] == 1730.0 and not otro.get('devuelve_zona')
 
 
@@ -2355,7 +2355,7 @@ def test_en_con_proyecto_la_transferencia_se_deshace_para_medirla_como_alternati
     una alternativa más; «Sin proyecto» no se toca; la zona dice su enlace y su corte."""
     import sys
 
-    app, planes, nuevo = _caso_ca101(guion)
+    app, planes, nuevo = _caso_ca191(guion)
     con = _caso(app, 'Con proyecto')
     con.Activate()
     _obj(app, 'ElmLne', 'F1_L6').outserv = 1                      # el operador, también en «Con proyecto»
@@ -2372,18 +2372,18 @@ def test_en_con_proyecto_la_transferencia_se_deshace_para_medirla_como_alternati
 
 
 def _zona_operador():
-    return {'desde': 'CA101', 'hacia': 'CHN102', 'n_sed': 50, 'kw': 1730.0, 'enlace': ['Breaker/Switch(1)'],
+    return {'desde': 'CA191', 'hacia': 'CHN192', 'n_sed': 50, 'kw': 1730.0, 'enlace': ['Breaker/Switch(1)'],
             'corte': ['SW_LA2A3']}
 
 
 def _tabla_con(transfer_cumple: bool, otro_corte_cumple: bool = False, bancos_cumplen: bool = False):
-    """Las filas de la escalera de CA101: la del operador, otro corte y unos bancos más caros."""
+    """Las filas de la escalera de CA191: la del operador, otro corte y unos bancos más caros."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
     from convertersmartgrid.presentacion.web import services
 
     vs = services.marcar_la_del_operador(
-        [eo.Variante(f'transferencia a CHN102 por Breaker/Switch(1) abriendo {m}', ('transferencia',),
-                     [{'clase': 'maniobra', 'maniobra': m, 'alimentador': 'CA101'}], {}) for m in ('SW_LA2A3', 'SW_LA1A2')],
+        [eo.Variante(f'transferencia a CHN192 por Breaker/Switch(1) abriendo {m}', ('transferencia',),
+                     [{'clase': 'maniobra', 'maniobra': m, 'alimentador': 'CA191'}], {}) for m in ('SW_LA2A3', 'SW_LA1A2')],
         _zona_operador())
     p = eo.parametros(_perfil_eo())
     filas = [_fila_eo(vs[0].nombre, ('transferencia',), 10.0, {'definitiva': True, 'aguanta_anios': 4}),
@@ -2392,7 +2392,7 @@ def _tabla_con(transfer_cumple: bool, otro_corte_cumple: bool = False, bancos_cu
              _fila_eo('cambio a 22.9 kV', ('nivel',), 900.0, {'definitiva': True, 'aguanta_anios': 4})]
     filas[2].update(maxima=bancos_cumplen, motivos=[] if bancos_cumplen else ['CH_23 a 0.874 p.u.'])
     filas[0].update(maxima=transfer_cumple, u_cargas={'CH_23': 0.95 if transfer_cumple else 0.861},
-                    motivos=[] if transfer_cumple else ['CHN102_X a 0.703 p.u.'])
+                    motivos=[] if transfer_cumple else ['CHN192_X a 0.703 p.u.'])
     filas[1].update(maxima=otro_corte_cumple, motivos=[] if otro_corte_cumple else ['CH_23 a 0.93 p.u.'])
     return eo.elegir(filas, p), vs
 
@@ -2414,7 +2414,7 @@ def test_la_transferencia_del_operador_que_resuelve_y_no_rompe_al_que_recibe_se_
 
 
 def test_la_que_no_resuelve_se_mide_se_informa_y_se_trabaja_sin_ella():
-    """098:RF-44 — no cumple (deja a CHN102 en 0,703 p.u.): se elige otra y la fila dice por qué, con las cifras."""
+    """098:RF-44 — no cumple (deja a CHN192 en 0,703 p.u.): se elige otra y la fila dice por qué, con las cifras."""
     from convertersmartgrid.presentacion.web import services
 
     d, vs = _tabla_con(False)
@@ -2513,7 +2513,7 @@ def test_la_transferencia_del_operador_siempre_va_a_digsilent():
 
 def test_el_espacio_con_obras_de_la_escalera_se_abre_en_la_web():
     """098:RF-36 — el registro de una obra aplicada lleva su operación, su origen y su elección, y la respuesta de la web
-    los admite: sin ellos, GET del espacio daba 500 (CA101 + CHN102, 2026-11-07)."""
+    los admite: sin ellos, GET del espacio daba 500 (CA191 + CHN192, 2026-11-07)."""
     from convertersmartgrid.presentacion.web.api_contract import ObraAplicadaRespuesta
     fila = {'project': 'P', 'variacion': 'Obra_seccion_F1', 'obra': {'clase': 'seccion', 'alimentador': 'F1', 'casos': ['Con proyecto']},
             'aplicada': 1.0, 'operacion': {'abiertos': []}, 'origen': 'escalera',

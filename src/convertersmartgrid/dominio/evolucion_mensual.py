@@ -1,7 +1,7 @@
 """Indicadores mensuales de una serie de 15 minutos y su evolución (105:RF-5 a RF-11).
 
 Cálculo puro, sin libros: lo mismo para un cliente fijo que para la suma de un alimentador. Las cifras son las del libro
-de AL209 hecho a mano el 2026-11-12, que se tomó como especificación: energía = suma de la potencia de 15 minutos / 4,
+de AL299 hecho a mano el 2026-11-12, que se tomó como especificación: energía = suma de la potencia de 15 minutos / 4,
 FP medio = energía activa / aparente del mes, factor de carga = P media / P máxima.
 """
 from __future__ import annotations

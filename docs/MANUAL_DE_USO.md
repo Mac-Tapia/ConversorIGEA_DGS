@@ -1,6 +1,6 @@
 # Manual de uso del ConverterSmartGrid
 
-**De la red exportada por CYMDIST, Access o VNR-GIS a un proyecto calibrado y estudiado en
+**De los TXT, la base Access o el paquete VNR-GIS a un proyecto calibrado y estudiado en
 DIgSILENT PowerFactory**
 
 > Este libro es para quien desarrolla o estudia el conversor. Si usa el programa instalado, lea `MANUAL_OPERADOR.md` y
@@ -350,7 +350,7 @@ flowchart TD
 - **Medida no coherente**: si ni con las escaladas en un extremo la cabecera alcanza la medida,
   no se fuerza nada. Quedan con su FP de perfil, la Q de cabecera es la que da DIgSILENT, se
   acepta por kW, y el informe dice el flujo que lo demostró y recomienda revisar bancos y
-  medición. Ejemplo real: NA203 daba 2 454 kvar con las escaladas a FP 1 frente a 1 777
+  medición. Ejemplo real: NA293 daba 2 454 kvar con las escaladas a FP 1 frente a 1 777
   medidos; para cuadrar le habría hecho falta reactiva negativa.
 
 ### 11.3 El reparto probabilístico de las escaladas
@@ -512,7 +512,7 @@ importa y calibra, y retoma lo ya hecho.
 
 ```bat
 > .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --zonal Pisco --demanda-dir D:\ruta\de\la\demanda --periodo 2026-09
-> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --red NA203 NA205 --grupo NA203_NA205 --demanda-dir D:\ruta\de\la\demanda --periodo 2026-09 --criterio-fijas coincidente
+> .venv\Scripts\python.exe tools\sistema_web.py --espacio <id> --red NA293 NA295 --grupo NA293_NA295 --demanda-dir D:\ruta\de\la\demanda --periodo 2026-09 --criterio-fijas coincidente
 ```
 
 Las opciones están en el [Manual de comandos](MANUAL_COMANDOS.md).

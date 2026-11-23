@@ -1,6 +1,6 @@
 """Spec 059: la fuente es la del fichero que se carga, nunca una por defecto.
 
-El 2026-11-01 la web abrió un espacio vacío como «Tres TXT de CYMDIST» cuando el operador
+El 2026-11-01 la web abrió un espacio vacío como «Tres TXT» cuando el operador
 trabajaba con el VNR-GIS de una distribuidora real. Estas pruebas fijan que ningún espacio nace con
 fuente, que la fuente sale de lo cargado y que cada fichero va a su casilla por su contenido.
 """
@@ -65,7 +65,7 @@ def test_el_fichero_dice_su_fuente(tmp_path):
     # Una base Access con extensión de texto sigue siendo Access: manda el contenido.
     assert fuente_de(_access(tmp_path / 'base.txt')).fuente == FUENTE_MDB
     assert fuente_de(_zip_vnr(tmp_path / 'vnr.zip')).fuente == FUENTE_VNR
-    # Un .txt que no es de CYMDIST no pasa por VNR-GIS por su extensión.
+    # Un .txt que no es uno de los tres TXT (RED, CARGA o BD_Equipo) no pasa por VNR-GIS por su extensión.
     (tmp_path / 'notas.txt').write_text('hola\n', encoding='utf-8')
     desconocido = fuente_de(tmp_path / 'notas.txt')
     assert desconocido.fuente == '' and 'notas.txt' in desconocido.motivo

@@ -91,7 +91,7 @@ Equipos (usuario, 2026-11-03: «debes modelar todos los equipos que existen en l
 - RF-40: EL SISTEMA conservará los seccionadores abiertos, porque definen dónde termina la red: Empresa C tiene 458 y, sin ellos, las ramas desconectadas quedarían conectadas.
 - RF-41: EL SISTEMA anotará como deducidos el rango y los pasos de un `BR`, que la leyenda no trae.
 
-Convergencia del «Caso base» (`TI01` de Empresa D: 508 km a 22,9 kV; sus 14,5 MW son la potencia instalada por un factor fijo y no convergen)
+Convergencia del «Caso base» (`TI09` de Empresa D: 508 km a 22,9 kV; sus 14,5 MW son la potencia instalada por un factor fijo y no convergen)
 
 - RF-42: EL SISTEMA tratará como demanda de relleno (057:RF-2) la de un alimentador cuyas SED tengan casi todas la misma proporción entre demanda y potencia instalada: seis razones o menos cubren el 90 % o más, con 20 SED o más (Empresa D: solo 56 valores de kW en 11 813 SED).
 - RF-43: EL SISTEMA buscará en la corrección de 057:RF-3 el mayor factor con el que el flujo converge sin tensiones imposibles, porque con ellas la importación se rechaza.
@@ -104,7 +104,7 @@ Convergencia del «Caso base» (`TI01` de Empresa D: 508 km a 22,9 kV; sus 14,5 
 - RF-47: SI varias SED comparten código operativo, ENTONCES EL SISTEMA añadirá un sufijo determinista a las siguientes y lo anotará; sin código operativo, conservará el de VNR-GIS y lo anotará.
 - RF-48: EL SISTEMA contará los reguladores en lo que espera encontrar en DIgSILENT.
 
-Sin mezclar empresas (usuario, 2026-11-03: «cada empresa debe ser con sus propios archivos, no debe mezclarse entre empresas»; `TI01` de Empresa D usaba en 508,3 de 508,5 km filas añadidas al aparecer en Empresa B). Cambia 053:RF-8 («uno y universal») para la entrada VNR-GIS.
+Sin mezclar empresas (usuario, 2026-11-03: «cada empresa debe ser con sus propios archivos, no debe mezclarse entre empresas»; `TI09` de Empresa D usaba en 508,3 de 508,5 km filas añadidas al aparecer en Empresa B). Cambia 053:RF-8 («uno y universal») para la entrada VNR-GIS.
 
 - RF-49: EN una copia VNR-GIS, EL SISTEMA leerá y ampliará el catálogo de conductores propio de la empresa que dice la fuente, y ningún fichero de catálogo llevará filas de dos empresas. Lo comprobará en cada carga: SI el fichero de la empresa trae filas añadidas al aparecer otra (un fichero copiado de otra carpeta, un código de empresa cambiado), ENTONCES EL SISTEMA lo dirá en los avisos y en la procedencia de la carga (`CATALOGO_CON_FILAS_DE_OTRA_EMPRESA`, con sus códigos) y en el registro del trabajo, sin bloquearla; la semilla no es de ninguna empresa.
 - RF-50: CUANDO una empresa no tenga catálogo, EL SISTEMA lo creará con una semilla que no lleve datos de ninguna empresa: R y amperios de la ficha del fabricante.

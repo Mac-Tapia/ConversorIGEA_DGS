@@ -27,7 +27,7 @@ El resultado debe:
 
 La regla del proyecto fija actualmente `Reglas.hoja = 'A0'`. Al aplicarse a cada
 modelo, selecciona `_diagram_mapper_hoja` y evita el mapeador adaptativo. En el ejemplar
-NA203–NA205 se observaron estas magnitudes:
+NA293–NA295 se observaron estas magnitudes:
 
 | Magnitud | Lienzo adaptativo | Hoja A0 actual |
 |---|---:|---:|
@@ -40,9 +40,9 @@ textos de PowerFactory no se reducen en la misma proporción y terminan superpue
 
 La comparación también comprobó que la conversión actual:
 
-- excluyó 92 Trafomix `M…` de NA203 y NA205;
+- excluyó 92 Trafomix `M…` de NA293 y NA295;
 - escribió 570 maniobras como `ElmCoup` cerrados;
-- escribió un enlace NA203–NA205 como `ElmCoup` abierto;
+- escribió un enlace NA293–NA295 como `ElmCoup` abierto;
 - escribió 187 acopladores internos de SED;
 - creó dos objetos `ElmFeeder`, uno por alimentador;
 - no conservó el alimentador como atributo textual de cada carga.
@@ -158,13 +158,13 @@ ejemplar fuente.
 
 ### 5.2 Valores esperados
 
-En la Grid conjunta `NA203_NA205`, una fila debe distinguir:
+En la Grid conjunta `NA293_NA295`, una fila debe distinguir:
 
 | Campo | Ejemplo |
 |---|---|
 | Name | `SE50033` |
-| Grid | `NA203_NA205` |
-| Alimentador | `NA203` o `NA205`, según la entrada |
+| Grid | `NA293_NA295` |
+| Alimentador | `NA293` o `NA295`, según la entrada |
 | Terminal Substation | `SE50033` |
 | Terminal | `SE50033_BT` |
 
@@ -201,7 +201,7 @@ programáticamente el atributo en la pestaña fija **Basic Data**:
 - si lo permite, se configurará allí;
 - si no lo permite, se creará o documentará una vista **Flexible Data** equivalente;
 - el desarrollo no se aceptará sin una captura real donde **Alimentador** aparezca
-  junto a **Grid** y los valores de NA203 y NA205 sean visibles.
+  junto a **Grid** y los valores de NA293 y NA295 sean visibles.
 
 No se reutilizarán `classif`, `chr_name`, `loc_name` ni otros atributos eléctricos para
 simular la columna.
@@ -244,8 +244,8 @@ aceptación de la importación.
 - Una red pequeña y otra grande conservan la misma escala adaptativa.
 - El lienzo contiene nodos, trazas intermedias y márgenes.
 - La unión de alimentadores conserva el propietario de cada carga.
-- Una carga NA203 produce `Alimentador=NA203`.
-- Una carga NA205 produce `Alimentador=NA205`.
+- Una carga NA293 produce `Alimentador=NA293`.
+- Una carga NA295 produce `Alimentador=NA295`.
 - Los nodos de enlace no vuelven ambigua una carga.
 - Los Trafomix `M…` no aparecen en el DGS ni en el manifiesto de cargas.
 - Los interruptores conservan conteo, extremos y estado.
@@ -257,18 +257,18 @@ aceptación de la importación.
 
 ### 7.2 Aceptación real
 
-La aceptación final exige una ejecución real en PowerFactory 2024 con NA203–NA205:
+La aceptación final exige una ejecución real en PowerFactory 2024 con NA293–NA295:
 
 1. DGS generado con lienzo adaptativo;
 2. importación sin errores bloqueantes;
 3. inventario y conectividad comparados con el manifiesto;
 4. cero Trafomix `M…` modelados;
 5. 570 maniobras de origen representadas, salvo diferencias justificadas por el lote;
-6. enlace NA203–NA205 normalmente abierto;
+6. enlace NA293–NA295 normalmente abierto;
 7. cargas conectadas a la barra BT de su SED cuando corresponda;
 8. cero cargas sin alimentador;
 9. cero cargas con alimentador ambiguo;
-10. muestras de NA203 y NA205 verificadas en la tabla;
+10. muestras de NA293 y NA295 verificadas en la tabla;
 11. columna **Alimentador** visible junto a **Grid**;
 12. captura de la tabla y captura del diagrama;
 13. informe JSON/TXT con versión de PowerFactory y resultado del flujo.
@@ -340,10 +340,10 @@ se añadirá una opción de usuario para desactivar la trazabilidad obligatoria.
 El trabajo estará completo solo cuando:
 
 - las pruebas locales y de interfaz estén en verde;
-- NA203–NA205 se convierta con lienzo adaptativo;
+- NA293–NA295 se convierta con lienzo adaptativo;
 - la importación real en PowerFactory 2024 sea satisfactoria;
 - la columna **Alimentador** sea visible en General Load;
-- cargas reales de NA203 y NA205 muestren el valor correcto;
+- cargas reales de NA293 y NA295 muestren el valor correcto;
 - Trafomix, interruptores y SED cumplan los conteos y reglas documentados;
 - las capturas y los informes de aceptación queden guardados;
 - no se presente una prueba sintética como sustituto de la validación real.

@@ -1,7 +1,7 @@
-"""Shared fixtures for CYMDIST TXT integration tests.
+"""Shared fixtures for TXT integration tests.
 
 Feeders and codes come only from the loaded TXT set — no company-specific names
-are required (IN111/TA121 etc. are optional samples when present).
+are required (IN191/TA191 etc. are optional samples when present).
 """
 
 from __future__ import annotations
@@ -703,7 +703,7 @@ def sample_model(ds, sample_feeder):
 # --- Un alimentador por las dos vías de entrada (test_feeder_*.py) -----------------
 #
 # Cada módulo que las usa declara ``FEEDER = '<nombre corto>'``. Estaban copiadas en
-# test_feeder_pa217.py y test_feeder_sl143.py. Cada fuente se prueba por su cuenta:
+# test_feeder_pa297.py y test_feeder_sl193.py. Cada fuente se prueba por su cuenta:
 # TXT y base son independientes y no se comparan entre sí (2026-10-14). Alcance
 # ``module``, como antes: convert_selection prepara el dataset en el sitio, y
 # compartirlo entre módulos cambiaría el aislamiento de las pruebas.
@@ -735,7 +735,10 @@ def mdb_dataset():
 @pytest.fixture(params=['txt', 'mdb'])
 def dataset_for(request, txt_dataset, mdb_dataset):
     """Parametriza cada prueba sobre las dos alternativas de entrada."""
-    feeder = request.module.FEEDER
+    from apoyo import codigo_real
+
+    # LIMPIEZA-CODIGOS: el módulo escribe la versión inventada del alimentador; la entrada real trae el suyo.
+    feeder = codigo_real(request.module.FEEDER)
     ds = txt_dataset if request.param == 'txt' else mdb_dataset
     try:
         ds.resolve_feeder(feeder)

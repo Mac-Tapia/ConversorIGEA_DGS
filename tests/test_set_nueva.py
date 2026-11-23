@@ -1,6 +1,6 @@
 """Spec 042: diseño, módulo PIT y ubicación de la SET nueva, sin DIgSILENT.
 
-El caso real es NA203 + NA205 (2026-10-31): 37 cargas nuevas sobre 11 MW calibrados; la SET nueva
+El caso real es NA293 + NA295 (2026-10-31): 37 cargas nuevas sobre 11 MW calibrados; la SET nueva
 es la <sitio> que una distribuidora real planifica en Nasca, con los módulos de su libro CAPEX (`PyOTx27`).
 Las redes y las cargas se sortean (``CSG_SCALE_SEED``).
 """
@@ -42,8 +42,8 @@ def _libro(tmp_path):
 def test_potencia_de_diseno_con_la_tasa_ponderada_y_el_factor():
     """042:RF-7 — (trasladado × (1 + g)^n + nuevas) × FS, con g de cada alimentador ponderada por
     la demanda que traslada; las cargas nuevas no crecen; cada término sale en el resultado."""
-    d = sn.potencia_de_diseno({'NA203': (3000.0, 1000.0), 'NA205': (1000.0, 0.0)},
-                              (8000.0, 2000.0), {'NA203': 0.03, 'NA205': 0.01},
+    d = sn.potencia_de_diseno({'NA293': (3000.0, 1000.0), 'NA295': (1000.0, 0.0)},
+                              (8000.0, 2000.0), {'NA293': 0.03, 'NA295': 0.01},
                               anios=30, factor_seguridad=1.25)
     trasladado = math.hypot(3000, 1000) + 1000.0
     g = (0.03 * math.hypot(3000, 1000) + 0.01 * 1000.0) / trasladado
@@ -56,9 +56,9 @@ def test_potencia_de_diseno_con_la_tasa_ponderada_y_el_factor():
 
 def test_sin_tasa_de_un_alimentador_no_se_supone():
     """042:RF-8 — un alimentador sin tasa de la 029 se dice y no se supone ninguna."""
-    with pytest.raises(sn.SetNuevaError, match='NA205'):
-        sn.potencia_de_diseno({'NA203': (1.0, 0.0), 'NA205': (1.0, 0.0)}, (1.0, 0.0),
-                              {'NA203': 0.02}, anios=30, factor_seguridad=1.25)
+    with pytest.raises(sn.SetNuevaError, match='NA295'):
+        sn.potencia_de_diseno({'NA293': (1.0, 0.0), 'NA295': (1.0, 0.0)}, (1.0, 0.0),
+                              {'NA293': 0.02}, anios=30, factor_seguridad=1.25)
 
 
 def test_parametros_del_perfil_dicen_lo_que_falta():
@@ -110,7 +110,7 @@ def test_se_elige_el_menor_modulo_que_cubre(tmp_path):
 def test_transformadores_en_paralelo_si_ninguno_cubre_solo(tmp_path):
     """042:RF-14 — si ningún módulo cubre solo la potencia y el perfil admite n en paralelo, la SET
     una vez y n − 1 transformadores de su potencia; sin módulo de SET que llegue, n
-    transformadores; sin el dato del perfil, uno solo. NA203 + NA205 (2026-10-31): 45,5 MVA y el
+    transformadores; sin el dato del perfil, uno solo. NA293 + NA295 (2026-10-31): 45,5 MVA y el
     mayor módulo de 22,9 kV era de 40."""
     mods = sn.leer_modulos_pit(_libro(tmp_path), CFG_PIT)
     set_mod = next((m for m in mods if m['tipo'] == 'set'), None)
@@ -139,7 +139,7 @@ def test_orden_de_mayor_a_menor_potencia():
 def test_cuantas_caben_por_biseccion():
     """042:RF-2, 042:RF-3 — el mayor k que cabe, el mismo que añadiéndolas una a una, galopando
     desde abajo y afinando por bisección: unas 2·log2(k) escaleras, ninguna dos veces, y como
-    mucho dos que no caben más que las de afinar (NA203 + NA205: caben 3 de 35)."""
+    mucho dos que no caben más que las de afinar (NA293 + NA295: caben 3 de 35)."""
     rng = random.Random(SEMILLA)
     for _ in range(50):
         n = rng.randint(0, 60)

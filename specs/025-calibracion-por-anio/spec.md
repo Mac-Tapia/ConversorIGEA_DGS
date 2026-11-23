@@ -1,6 +1,6 @@
 # Spec 025 — Calibración por año de medición
 
-Estado: cumplida (2026-11-22: T27 en DIgSILENT y T30; todas sus tareas cerradas) · antes implementada (2026-11-12: RF-79 a RF-83 por PA217, falta la prueba en DIgSILENT T27; T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
+Estado: cumplida (2026-11-22: T27 en DIgSILENT y T30; todas sus tareas cerradas) · antes implementada (2026-11-12: RF-79 a RF-83 por PA297, falta la prueba en DIgSILENT T27; T22 con la suite completa sin omitidas; RF-26 a RF-35 añadidos el 2026-10-23) · Fecha: 2026-10-23
 
 ## Contexto y objetivo
 
@@ -17,10 +17,10 @@ Lo que se vio en los libros reales (2026-10-23, solo estructura y recuentos):
 
 - Cabecera 2025: un solo libro (`MEDICIONES ALIMEN_MOD PIT_2025.xlsx`), una hoja por medidor
   y registros cada 15 min de enero a diciembre, como los de 2026. Trae 7 alimentadores
-  (TM105, PN107 de Chincha; AL209, PA217, SI213 de Pisco; IN111, TA225 de Ica), ninguno de
+  (TM195, PN197 de Chincha; AL299, PA297, SI293 de Pisco; IN191, TA295 de Ica), ninguno de
   Nasca y ningún medidor de barra de SET.
-- Cuatro de sus hojas se llaman como el alimentador (`L-PA217`) y no como el medidor que da
-  el libro de medidores (`L-PA235`); solo AL209, TA225 e IN111 casan por el medidor.
+- Cuatro de sus hojas se llaman como el alimentador (`L-PA297`) y no como el medidor que da
+  el libro de medidores (`L-PA235`); solo AL299, TA295 e IN191 casan por el medidor.
 - Clientes 2025: doce libros `MMAA Pulso[ e].xlsx|xlsb`, legibles, pero el patrón del perfil
   solo reconoce `MMAAclientesImportantes`; por contenido, 7 de los 12 quedan «sin mes».
 
@@ -81,8 +81,8 @@ Medidor y hoja
   Cambiado por 035:RF-17 (2026-10-29): antes de repartir por kVA, el libro del mes anterior más cercano.
 - RF-12: SI el medidor que da el libro de medidores no tiene hoja en los libros del año,
   ENTONCES EL SISTEMA buscará la hoja cuyo nombre es el código del alimentador, solo o tras
-  un prefijo separado por un guion, un espacio, un punto o un subrayado («L-PA217», «ALIM
-  PA217»), y lo avisará con el medidor y la hoja usada.
+  un prefijo separado por un guion, un espacio, un punto o un subrayado («L-PA297», «ALIM
+  PA297»), y lo avisará con el medidor y la hoja usada.
 - RF-12b: SI dos hojas del mismo libro casan con el código del alimentador por RF-12,
   ENTONCES EL SISTEMA no elegirá ninguna y lo dirá con las dos.
 - RF-13: SI ni el medidor ni el código del alimentador tienen hoja en los libros del año,
@@ -178,10 +178,10 @@ cambia el alcance: las cargas nuevas ya no quedan fuera)
 - RF-38: MIENTRAS se insertan cargas en los casos de un año, EL SISTEMA no tocará los casos
   ni las variaciones activas de los casos de otro año.
 
-Obras sobre los casos de un año (usuario, 2026-10-23: en el proyecto unido IN111 + TA225,
+Obras sobre los casos de un año (usuario, 2026-10-23: en el proyecto unido IN191 + TA295,
 «activar las mismas obras»; en Pisco y Chincha, «proponer obras para 2025»). Las cargas
-nuevas de PA217 (PI_1 con PI_8) y de TM105 (CH_3 con CH_5) no convergen juntas en «Con
-proyecto 2025»; cada una sola, sí. Las nueve de TA225 son las de 2026, creadas sobre su
+nuevas de PA297 (PI_1 con PI_8) y de TM195 (CH_3 con CH_5) no convergen juntas en «Con
+proyecto 2025»; cada una sola, sí. Las nueve de TA295 son las de 2026, creadas sobre su
 enlace, su migración y su terna.
 
 - RF-41: CUANDO el operador aplica obras con un año, EL SISTEMA las aplicará en «Sin
@@ -194,8 +194,8 @@ enlace, su migración y su terna.
   escenario los datos de operación (en servicio, estado de interruptores, escalones de
   bancos, tomas) que esas obras cambiaron en «Con proyecto» respecto de «Sin proyecto»,
   salvo los que el caso del año ya cambió por su cuenta, que se dejan y se avisan.
-  (Visto en DIgSILENT el 2026-10-23: en IN111 + TA225, el enlace seguía fuera de servicio
-  en «Con proyecto 2025» y cuatro cargas nuevas de TA225 quedaban sin tensión, aunque el
+  (Visto en DIgSILENT el 2026-10-23: en IN191 + TA295, el enlace seguía fuera de servicio
+  en «Con proyecto 2025» y cuatro cargas nuevas de TA295 quedaban sin tensión, aunque el
   flujo convergía.)
 - RF-43: SI «Con proyecto <año>» no converge con sus cargas nuevas, ENTONCES EL SISTEMA dirá
   qué cargas no convergen juntas (cada una sola sí), probando una a una sus variaciones, y
@@ -206,7 +206,7 @@ enlace, su migración y su terna.
   nueva terna y cambio de sección del conductor, cada obra en su variación. (Cambia el
   2026-10-24, usuario: «primero se debe probar bancos, después nueva terna, cambio de
   sección de cable»; antes, bancos, sección y terna, y se aplicaba la primera que
-  convergía. El regulador, tras analizar si hace falta: en «Sin proyecto 2025» PA217 tiene
+  convergía. El regulador, tras analizar si hace falta: en «Sin proyecto 2025» PA297 tiene
   403 de 550 barras de media bajo 0,95 sin ningún tramo sobre el 100 %, un problema solo de
   tensión.)
 - RF-44b: EL SISTEMA no corregirá nada en «Sin proyecto <año>»: allí solo se calibra y se
@@ -271,24 +271,24 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
 - RF-69: MIENTRAS evalúa la escalera de un alimentador, EL SISTEMA tendrá activas en «Con
   proyecto <año>» solo sus cargas nuevas y las de los alimentadores ya resueltos (con su obra
   aplicada), y apartará un momento las de los demás, para volver a activarlas al terminar.
-  (Pisco, 2026-10-24: con las cargas de PA217 activas «Con proyecto 2025» no convergía, y
-  todas las variantes de SI213 salían «no converge» aunque el problema no fuera suyo.)
+  (Pisco, 2026-10-24: con las cargas de PA297 activas «Con proyecto 2025» no convergía, y
+  todas las variantes de SI293 salían «no converge» aunque el problema no fuera suyo.)
   Lo mismo al aplicar la variante elegida: su flujo se comprueba con esas cargas apartadas, y
   un alimentador solo cuenta como resuelto si su obra quedó activa en «Con proyecto <año>».
-  (Pisco, 2026-10-24: la terna y la sección elegidas para SI213 quedaron inactivas porque la
-  aplicación normal comprobó el flujo con las cargas de PA217, y PA217 se evaluó como si SI213
+  (Pisco, 2026-10-24: la terna y la sección elegidas para SI293 quedaron inactivas porque la
+  aplicación normal comprobó el flujo con las cargas de PA297, y PA297 se evaluó como si SI293
   estuviera resuelto.)
 - RF-71: EL SISTEMA medirá primero todas las variantes con la máxima y sorteará solo las
   que cumplen y tienen costo, de la de menor costo anual a la de mayor, hasta la primera que
   cumple en la fracción de sorteos del perfil: las más caras ya no pueden ganar y se dicen
   sin sortear. (Pisco, 2026-10-24: con 200 sorteos para cada variante que cumplía con la
-  máxima, SI213 llevaba media hora y PA217 iba detrás; usuario: «sé eficiente».)
+  máxima, SI293 llevaba media hora y PA297 iba detrás; usuario: «sé eficiente».)
 - RF-72: EL SISTEMA dejará de sortear una variante en cuanto los sorteos que no cumplen
   pasen de los que admite la fracción del perfil, porque ya no puede alcanzarla.
 - RF-70: EL SISTEMA calculará las pérdidas de cada variante como lo que entra por la
   cabecera menos lo que consumen sus cargas en el flujo, no su potencia nominal. (Pisco,
   2026-10-24: con tensiones de 0,88 p.u. las cargas consumían menos que su nominal y las
-  pérdidas salían negativas, −2044 kW en SI213.)
+  pérdidas salían negativas, −2044 kW en SI293.)
 - RF-73: SI la evaluación de un alimentador ya terminó, sin cancelarse, con el mismo plan
   (proyecto, año, variantes, sorteos, cargas apartadas, parámetros y variaciones activas en
   «Con proyecto <año>») en las últimas 24 h, ENTONCES EL SISTEMA la reutilizará sin volver a
@@ -296,15 +296,15 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
 - RF-75: EL SISTEMA medirá en cada flujo las barras y los tramos que el alimentador tiene en
   ese caso y con esa variante, no los de «Sin proyecto»: la barra de una carga nueva y los
   tramos que crean las obras solo existen en «Con proyecto». (Chincha y Pisco, 2026-10-24:
-  NODE_T_CH_9 de PN107 y NODE_T_PI_1 de PA217 salían «a ? p.u.» y ninguna variante cumplía.)
+  NODE_T_CH_9 de PN197 y NODE_T_PI_1 de PA297 salían «a ? p.u.» y ninguna variante cumplía.)
 - RF-76: SI DIgSILENT no deja mover el cubículo del tramo a la barra nueva del regulador,
   ENTONCES EL SISTEMA conectará el tramo a un cubículo nuevo de esa barra, por el mismo lado.
-  (PN107 y SI213, 2026-10-24: grabando en la variación, todos los reguladores fallaban con
+  (PN197 y SI293, 2026-10-24: grabando en la variación, todos los reguladores fallaban con
   «DIgSILENT no dejó pasar el cubículo del tramo a la barra nueva».)
 - RF-77: EL SISTEMA pasará los costos del libro CAPEX a la moneda de trabajo con la escala
   del perfil (`escalera.escala_capex`); SI el libro trae costos y el perfil no da la escala,
   ENTONCES lo dirá y no costeará con ellos. (Empresa A, 2026-10-24: el libro está en miles
-  de dólares y se tomaba en dólares; la terna salía a 60,9 USD/km y en SI213 ganó terna y
+  de dólares y se tomaba en dólares; la terna salía a 60,9 USD/km y en SI293 ganó terna y
   sección solo por las pérdidas.) Vale para todo lo que costea con el libro, también el PIDE: la escala y la moneda del
   recibo son las del perfil, y cada costo se escala una sola vez (`pide_economia.costos_en_moneda_de_trabajo`).
   (Auditoría del 2026-11-14, hallazgo H1: el PIDE pasaba escala 1 y moneda None, y sus F07, F09 y F10 salían 1000
@@ -316,10 +316,10 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
 - RF-74: ANTES de probar las variantes de un alimentador, EL SISTEMA medirá «Con proyecto
   <año>» tal como está; SI ya cumple con la máxima y en los sorteos, ENTONCES no aplicará
   nada, lo dirá y lo dará por resuelto. (Pisco, 2026-10-24: volver a pedir la escalera con la
-  obra de SI213 ya aplicada habría creado otra obra encima.)
+  obra de SI293 ya aplicada habría creado otra obra encima.)
   (RF-73, Pisco, 2026-10-24: la web se
   reinició dos veces a mitad de la escalera y cada vez se repetían 20 min de evaluación de
-  SI213 que DIgSILENT ya había terminado.)
+  SI293 que DIgSILENT ya había terminado.)
 
 Caso de diagnóstico con las cargas nuevas (usuario, 2026-10-24: «debes hacer una copia al
 caso sin proyecto y su escenario de operación de sin proyecto y ahí debes integrar las
@@ -347,7 +347,7 @@ proyecto»; nombre «Cargas nuevas <año>»; si no converge, se deja y se dice)
   alimentador, su potencia, la tensión mínima y los tramos sobrecargados del alimentador
   justo antes de ella, y lo que informa DIgSILENT del flujo que no convergió.
 
-Copia fresca de «Sin proyecto» en cada inserción (usuario, 2026-11-12, PA217: en «Sin proyecto»
+Copia fresca de «Sin proyecto» en cada inserción (usuario, 2026-11-12, PA297: en «Sin proyecto»
 incluyó o actualizó a mano bancos y tramos con dos conductores de 120 mm², y «Cargas nuevas» no
 los tenía; «sí o sí debe hacer copia del caso Sin proyecto, y sobre ese caso, copiado con todas
 las modificaciones, se deben crear las nuevas cargas, ya sean unitarias o en bloques». El caso se
@@ -398,7 +398,7 @@ coordenadas, y alimentador; para toda inserción desde ahora, sin tocar las ya i
   motivo, y aplicará las demás.
 
 Cada carga nueva, independiente (usuario, 2026-10-23: «cada carga debe ser totalmente
-independiente»; CH_8 de TM105 colgaba de NODE_T_CH_3, el nodo que crea la variación de CH_3)
+independiente»; CH_8 de TM195 colgaba de NODE_T_CH_3, el nodo que crea la variación de CH_3)
 
 - RF-47: CUANDO el punto más cercano de una carga nueva cae en un tramo que ya parte otra
   carga nueva (de la misma tanda o de otra), EL SISTEMA la conectará en el extremo

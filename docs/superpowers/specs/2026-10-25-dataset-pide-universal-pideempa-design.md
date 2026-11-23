@@ -1,9 +1,9 @@
-# Dataset PIDE universal a partir del expediente PIDEELOR
+# Dataset PIDE universal a partir del expediente PIDEEMPA
 
 ## Intención
 
 Construir un dataset auditable que enseñe a ejecutar integralmente la metodología del Plan de
-Inversión en Distribución Eléctrica (PIDE) para cualquier empresa distribuidora. `PIDEELOR` será
+Inversión en Distribución Eléctrica (PIDE) para cualquier empresa distribuidora. `PIDEEMPA` será
 el primer caso empresarial completo: aporta entregables, cálculos, alternativas, observaciones,
 absoluciones, modelos y resultados reales, pero no fija la identidad ni los valores que deberá
 tener otra empresa.
@@ -29,7 +29,7 @@ archivo original, su empresa custodio y su huella SHA-256.
 
 ## Objetivos
 
-- Inventariar cada carpeta y archivo de `referencia/PIDEELOR` sin modificar los originales.
+- Inventariar cada carpeta y archivo de `referencia/PIDEEMPA` sin modificar los originales.
 - Representar todos los artículos PIDE mediante requisitos ejecutables y trazables.
 - Extraer contenido semántico y estructurado de PDF, DOCX, XLSX/CSV y GIS.
 - Registrar, sin fingir lectura, los formatos propietarios como SQL Server, DIgSILENT, Microsoft

@@ -42,7 +42,7 @@ _COPIA = re.compile(r'\(\d+\)$')
 def sin_copia(nombre: str) -> str:
     """El nombre sin el «(n)» de DIgSILENT.
 
-    CA101, 2026-11-13: la carga de SECA0001 se llama «SECA0001(1)» en la red y «SECA0001(2)» en su etapa, porque
+    CA191, 2026-11-13: la carga de SECA0001 se llama «SECA0001(1)» en la red y «SECA0001(2)» en su etapa, porque
     la barra de media de la SED ya se llama «SECA0001» en la misma SED; buscarla por su nombre no la encontraba.
     """
     return _COPIA.sub('', nombre)
@@ -185,7 +185,7 @@ def _de_variaciones(app, feeders: list[str]) -> dict[str, dict]:
         if not es_de_carga_nueva(v):
             continue
         objetos = objetos_de_variacion(v)
-        # La SED da el nombre: la carga puede llevar el «(n)» de DIgSILENT (CA101, 2026-11-13).
+        # La SED da el nombre: la carga puede llevar el «(n)» de DIgSILENT (CA191, 2026-11-13).
         cargas = sorted({nombre for clase, nombre in objetos if clase == 'ElmSubstat'}) or sorted(
             {sin_copia(nombre) for clase, nombre in objetos if clase == 'ElmLod'})
         out[v.loc_name] = {'variacion': v.loc_name, 'cargas': cargas,

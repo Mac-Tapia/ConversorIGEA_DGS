@@ -1,6 +1,6 @@
 """SET nueva para las cargas que la red existente ya no puede atender (spec 042).
 
-Por qué. En NA203 + NA205 (2026-10-31) las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
+Por qué. En NA293 + NA295 (2026-10-31) las 37 cargas nuevas del libro suman unos 30 MW sobre 11 MW
 calibrados: juntas dejan la red a 0,63 pu y ninguna variante de la escalera de la 025 cumple. Las
 que no caben pasan, con los tramos de <código> y <código> donde se conectan, a una SET nueva (la <sitio>
 que una distribuidora real ya planifica en Nasca). Aquí, sin DIgSILENT: su potencia de diseño a la vida
@@ -49,7 +49,7 @@ class Parametros:
         """086:RF-51: el margen es por el crecimiento que no se cuenta. Con la tasa, no se cobra dos veces.
 
         Usuario (2026-11-04): «debe ser 1.25 si no se considera la tasa de crecimiento». La SET de
-        NA203 + NA205 se diseña con la tasa medida y el 1,0 del perfil; sin tasa, ese 1,0 no dejaba margen.
+        NA293 + NA295 se diseña con la tasa medida y el 1,0 del perfil; sin tasa, ese 1,0 no dejaba margen.
         """
         if self.anios > 0 and tasa_ponderada > 0:
             return self.factor_seguridad
@@ -66,7 +66,7 @@ def parametros(perfil: Mapping[str, Any]) -> Parametros:
     # Sin el dato, un solo transformador: el paralelo es una decisión de la empresa (P13).
     unidades = int((plan.get('transformador_set') or {}).get('unidades_en_paralelo_max') or 1)
     # El horizonte de diseño de la SET, aparte de la vida útil del costeo: con 30 años y la tasa
-    # medida, la SET de NA203 + NA205 salía de 372 MVA (usuario, 2026-11-01: horizonte del PIDE).
+    # medida, la SET de NA293 + NA295 salía de 372 MVA (usuario, 2026-11-01: horizonte del PIDE).
     horizonte = plan.get('horizonte_set_anios') or plan['vida_util_anios']
     sin_tasa = plan.get('factor_seguridad_set_sin_tasa')
     return Parametros(int(horizonte), float(plan['factor_seguridad_set']),
@@ -177,7 +177,7 @@ def elegir_modulo(modulos: Sequence[Mapping[str, Any]], kva_diseno: float, kv_mt
     Primero un módulo de SET nueva (es lo que se construye); si ninguno cubre, el menor
     transformador, cuyo costo no incluye la SET. Si ninguno cubre solo y el perfil admite
     transformadores en paralelo (``max_unidades`` > 1), el de menor costo con n unidades
-    iguales: la SET una vez y n − 1 transformadores de su potencia (042:RF-14; NA203 + NA205,
+    iguales: la SET una vez y n − 1 transformadores de su potencia (042:RF-14; NA293 + NA295,
     2026-10-31: 45,5 MVA de diseño y el mayor módulo de 22,9 kV era de 40 MVA). Sin ninguno,
     ``modulo`` es ``None`` y ``motivo`` dice por qué. ``modulo['unidades']`` dice cuántos.
     """
@@ -283,8 +283,8 @@ def cuantas_caben(n: int, cabe) -> tuple[int, list[dict[str, Any]]]:
 
     Con más carga nunca es más fácil cumplir, así que basta buscar el límite. Se galopa desde
     abajo (1, 2, 4…) y se afina por bisección entre el último que cabe y el primero que no:
-    una prueba que no cabe recorre todas las variantes en DIgSILENT (en NA203 + NA205, 22 min
-    por alimentador) y una que cabe para en la primera que cumple. En NA203 + NA205
+    una prueba que no cabe recorre todas las variantes en DIgSILENT (en NA293 + NA295, 22 min
+    por alimentador) y una que cabe para en la primera que cumple. En NA293 + NA295
     (2026-11-01) cabían 3 de 35 y la bisección desde arriba hacía 4 pruebas que no cabían antes
     de llegar a ellas; galopando, una. Sin ninguna carga, k = 0 cabe sin probarlo.
     """
@@ -325,7 +325,7 @@ def ramas_a_trasladar(red, cabecera: str, destino: set[str], kw_por_barra: Mappi
     empieza por el menor número de ramas: el ancestro común más bajo de las cargas de cada salida
     de la cabecera. Con alimentadores nuevos de sobra (``max_ramas``), se parte la rama que más
     carga existente arrastra en sus subramas con cargas nuevas: el ancestro común de cargas
-    repartidas por NA205 podía estar junto a la cabecera y llevarse el alimentador entero.
+    repartidas por NA295 podía estar junto a la cabecera y llevarse el alimentador entero.
 
     ``existentes``: las barras de la red sin las cargas nuevas. La obra se lee y se graba con
     ellas apartadas, así que cada rama empieza en una de esas barras: la más cercana aguas

@@ -63,7 +63,7 @@ class DgsManifest:
     visible_pointterm_nodes: tuple[str, ...] = ()
     diagram_sheet: DiagramSheet | None = None
     diagram_grid_mm: float = 0.0
-    """Paso de cuadrícula elegido para la hoja (0 en la escala NA205)."""
+    """Paso de cuadrícula elegido para la hoja (0 en la escala NA295)."""
 
 
 class FidRegistry:
@@ -95,7 +95,7 @@ _CANONICAS: dict[str, str] = {}
 
 
 def _loc_name(value: str) -> str:
-    # 027:T23: «NODE_…_CN101» sale como «NODE_…_CHN101», como su alimentador (022:RF-90).
+    # 027:T23: «NODE_…_CN191» sale como «NODE_…_CHN191», como su alimentador (022:RF-90).
     texto = _fmt(value)
     return (nombre_canonico(texto, _CANONICAS) if _CANONICAS else texto)[:40]
 
@@ -318,8 +318,8 @@ def is_micro_service_stub_line(
     """True for ≤1 m tip sections that only hang a load/SED off the primary bus.
 
     These stay in ElmLne/StaCubic (electrical) but must not get IntGrf d_lin:
-    at NA205 scale (~2 u/m) they render as dust and look like loose fragments.
-    NA205 itself almost never draws such micro stubs (median span ~50 m).
+    at NA295 scale (~2 u/m) they render as dust and look like loose fragments.
+    NA295 itself almost never draws such micro stubs (median span ~50 m).
     """
     max_stub_m = _umbral_tramo_oculto(model, max_stub_m)
     if line.length_m > max_stub_m:
@@ -356,7 +356,7 @@ def diagram_line_rail_counts(
 ) -> tuple[int, int, int]:
     """Return ``(overhead_drawn, underground_drawn, d_lin_graphics)``.
 
-    One IntGrf ``d_lin`` per drawn ElmLne (NA205 pattern). Underground look in
+    One IntGrf ``d_lin`` per drawn ElmLne (NA295 pattern). Underground look in
     DIgSILENT comes from ``ElmLne.inAir=0``, not duplicate graphics.
     """
     if drawn is None:
@@ -406,7 +406,7 @@ def visible_pointterm_nodes(
 ) -> set[str]:
     """Black PointTerm symbols so drawn lines are not floating fragments.
 
-    Rules (aligned with NA205 density — most line ends sit on a PointTerm):
+    Rules (aligned with NA295 density — most line ends sit on a PointTerm):
     - every endpoint of a *drawn* ElmLne (``diagram_line_sections``)
     - feeder head / source node
     - graphic anchors of loads/SEDs (upstream bus when tip is a ≤1 m stub)
@@ -445,7 +445,7 @@ def visible_pointterm_nodes(
 class DiagramSymbolLayout:
     """Radios, desplazamientos y tamaños de símbolo en unidades de diagrama.
 
-    En la escala NA205 son los de la referencia. En una hoja normalizada salen de la
+    En la escala NA295 son los de la referencia. En una hoja normalizada salen de la
     cuadrícula (ver :func:`_diagram_symbol_layout`).
     """
 
@@ -456,9 +456,9 @@ class DiagramSymbolLayout:
     median_segment: float
     parallel_offset: float = 4.0
     grid: float = 0.0
-    """Paso de la cuadrícula de la hoja (mm); 0 en la escala NA205."""
+    """Paso de la cuadrícula de la hoja (mm); 0 en la escala NA295."""
     symbol_mm: float = 0.0
-    """Tamaño objetivo de un símbolo sobre la hoja (mm); 0 en la escala NA205."""
+    """Tamaño objetivo de un símbolo sobre la hoja (mm); 0 en la escala NA295."""
     sizes: tuple[tuple[str, float], ...] = ()
 
     def tam(self, simbolo: str) -> float:
@@ -467,18 +467,18 @@ class DiagramSymbolLayout:
             simbolo, REF_SED_SIZE if simbolo == 'SecSubProd' else REF_SYMBOL_SIZE)
 
 
-# Reference IntGrf conventions (Ica / Nazca geographic export NA205):
+# Reference IntGrf conventions (Ica / Nazca geographic export NA295):
 # PointTerm / d_lin / d_load / d_net → rSizeX=rSizeY=1
 # SecSubProd (SED triangle) → rSizeX=rSizeY=5
 REF_SYMBOL_SIZE = 1.0
 REF_SED_SIZE = 5.0
-# Offsets in diagram units at NA205 geographic scale (~2.08 u/m).
+# Offsets in diagram units at NA295 geographic scale (~2.08 u/m).
 REF_LOAD_RADIUS = 40.0
 REF_SED_RADIUS = 20.0
 REF_SOURCE_OFFSET = 40.0
-# Inside ElmSubstat (double-click triangle): LV bus like NA205 SE_*_2.
+# Inside ElmSubstat (double-click triangle): LV bus like NA295 SE_*_2.
 REF_SED_LV_KV = 0.22
-# DIgSILENT feeder colour (NA205 uses 10/11); one ElmFeeder per converted network.
+# DIgSILENT feeder colour (NA295 uses 10/11); one ElmFeeder per converted network.
 REF_FEEDER_ICOLOR = 11
 # Offset between true parallel circuits sharing the same From↔To endpoints.
 PARALLEL_CIRCUIT_OFFSET_DU = 4.0
@@ -543,11 +543,11 @@ def _diagram_symbol_layout(
     min_segment_m: float = 1.0,
     sheet: 'DiagramSheet | None' = None,
 ) -> DiagramSymbolLayout:
-    """Return NA205 symbol sizes/offsets (not density-adaptive).
+    """Return NA295 symbol sizes/offsets (not density-adaptive).
 
     Geographic placement still follows GPS via ``map_point``; only the graphic
     footprint of loads/SEDs/source matches the reference DGS so DIgSILENT
-    schematic and map views keep the same element scale as NA205.
+    schematic and map views keep the same element scale as NA295.
     """
     if sheet is not None and sheet.formato:
         # Hoja normalizada: los símbolos se miden en la cuadrícula de la hoja.
@@ -578,12 +578,12 @@ def _diagram_symbol_layout(
     )
 
 
-# Calibrated from referencia NA205 (Ica / Nazca GPS ≈ -14.9°, -75.0°):
+# Calibrated from referencia NA295 (Ica / Nazca GPS ≈ -14.9°, -75.0°):
 # IntGrf extent ≈ 54623 over ≈ 26283 m GPS span → ~2.08 diagram units per meter.
 # Same scale keeps schematic + DIgSILENT Geographic Diagram element sizes aligned
-# with NA205; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
+# with NA295; GPSlat/GPSlon on ElmTerm/ElmSubstat place points on the PF map.
 REF_DIAGRAM_UNITS_PER_METER = 2.08
-# Escala geográfica calibrada con NA205; el lienzo se dimensiona con la red y nunca
+# Escala geográfica calibrada con NA295; el lienzo se dimensiona con la red y nunca
 # reduce esta escala por el tamaño total del dibujo.
 # Margin so edge symbols (loads/SED/source) and parallel-circuit offsets stay on-sheet.
 DIAGRAM_SHEET_MARGIN_DU = max(
@@ -761,7 +761,7 @@ def ug_parallel_rail_paths(
 
 
 #: Puntos de un ``IntGrfcon`` que PowerFactory admite: guarda ``rX``/``rY`` en un vector
-#: de 20 y con más rechaza el DGS entero (``ComImport`` devuelve -10, IN111 + TA225,
+#: de 20 y con más rechaza el DGS entero (``ComImport`` devuelve -10, IN191 + TA295,
 #: 2026-10-14).
 PUNTOS_POR_CONECTOR_PF = 20
 
@@ -817,7 +817,7 @@ def _al_origen_de_cada_diagrama(graficos: list[dict[str, object]],
     DIgSILENT dimensiona la hoja de un diagrama importado desde (0, 0) hasta el mayor de sus
     gráficos: lo que cae en negativo queda fuera. Las coordenadas salen del centro del mapa
     de toda la red, y Pisco tenía un cuarto del dibujo fuera de su hoja; en Nasca por SET
-    (2026-10-24) cada diagrama seguía en el marco del zonal, la SET 51 se quedó en A4 y la
+    (2026-10-24) cada diagrama seguía en el marco del zonal, la SET 91 se quedó en A4 y la
     55 con una hoja de alto negativo (022:RF-65). Desplazar no cambia la escala ni el
     recorrido de las líneas, y el GPS de barras y líneas no se toca. Devuelve la hoja del
     diagrama principal.
@@ -869,7 +869,7 @@ def _sed_stype(sed: Sed) -> str:
 
 
 def tr2_strn_mva(design_kva: float) -> float:
-    """Transformer rated power in MVA (NA205 TypTr2.strn)."""
+    """Transformer rated power in MVA (NA295 TypTr2.strn)."""
     return max(float(design_kva), 1.0) / 1000.0
 
 
@@ -933,9 +933,9 @@ def tr2_curmg_pct(design_kva: float, pfe_kw: float) -> float:
 def seds_con_barra_propia(model) -> dict[tuple[str, str], str]:
     """SED cuya barra del alimentador pasa a ser su barra de MT: ``{clave: nodo}``.
 
-    Como en el NA205 que exporta PowerFactory (131 SED, sus líneas entran en la barra
+    Como en el NA295 que exporta PowerFactory (131 SED, sus líneas entran en la barra
     interior). Con una barra fuera y un ElmCoup «SW_SE…» dentro, el triángulo no tenía
-    conexión dibujada con su barra: al mover SE50195 a mano en NA203 + NA205, el cable y
+    conexión dibujada con su barra: al mover SE50195 a mano en NA293 + NA295, el cable y
     el fusible EQ_1080_875778 quedaban sueltos (021:RF-12). La barra conserva su nombre.
     Varias SED en una barra, o la barra de una fuente, siguen con su barra aparte y su
     acoplador: una barra no cabe en dos ElmSubstat.
@@ -951,8 +951,10 @@ def seds_con_barra_propia(model) -> dict[tuple[str, str], str]:
     }
 
 
-#: Lo que dice la cabecera del DGS según la fuente (056:RF-3): CYMDIST solo para sus TXT, que no cambian.
-_ORIGEN_DGS = {'txt': 'CYMDIST', 'mdb': 'Access (.mdb)', 'vnr': 'VNR-GIS'}
+#: Lo que dice la cabecera del DGS según la fuente (056:RF-3). Los TXT no los exporta CYMDIST (aclaración de 056:RF-8,
+#: orden del usuario del 2026-11-22): su cabecera dice «TXT». Los DGS escritos antes con «CYMDIST» se siguen leyendo
+#: como TXT (``tools/powerfactory_acceptance.py``) y la línea base de la 001 iguala esa línea al compararlos.
+_ORIGEN_DGS = {'txt': 'TXT', 'mdb': 'Access (.mdb)', 'vnr': 'VNR-GIS'}
 
 
 def write_dgs(
@@ -1068,7 +1070,7 @@ def write_dgs(
     sed_fids = {key: reg.new() for key in sed_keys}
     barra_propia = seds_con_barra_propia(model)
     sed_de_barra = {nodo: key for key, nodo in barra_propia.items()}
-    # NA205 triangle interior: MT bus + BT bus + Tr2 (+ coupler to feeder node).
+    # NA295 triangle interior: MT bus + BT bus + Tr2 (+ coupler to feeder node).
     sed_mt_fids = {key: node_fids[barra_propia[key]] if key in barra_propia else reg.new()
                    for key in sed_keys}
     sed_bt_fids = {key: reg.new() for key in sed_keys}
@@ -1287,7 +1289,7 @@ def write_dgs(
         # Trazado GPS de la línea (spec 010): sin él, la vista geográfica de PowerFactory
         # dibujaba cada línea como una recta entre sus barras. Va en la tabla normalizada
         # «Matrix» de DGS 7.0, una fila por punto y coordenada (columna 0 latitud,
-        # 1 longitud), comprobado al importar AL106 en PowerFactory 2024. El FID se deriva
+        # 1 longitud), comprobado al importar AL196 en PowerFactory 2024. El FID se deriva
         # del de la línea: pedirlo al registro renumeraría todo lo que viene después.
         gline = geography.lines.get(line.section_id) if geography is not None else None
         gps_fid = ''
@@ -1324,7 +1326,7 @@ def write_dgs(
             ))
 
     loads_by_key = {(x.section_id, x.device_number): x for x in model.loads}
-    # NA205 pattern: SED loads live *inside* ElmSubstat (module in the triangle),
+    # NA295 pattern: SED loads live *inside* ElmSubstat (module in the triangle),
     # not as sibling network objects with their own d_load symbol.
     nested_load_keys = {sed.load_key for sed in model.seds}
     for key in load_keys:
@@ -1443,7 +1445,7 @@ def write_dgs(
         load = loads_by_key[key]
         cubic_fid = reg.new()
         load_cubic_fids[key] = cubic_fid
-        # Nested SED load hangs on internal BT bus (NA205 SE_*_2), not feeder node.
+        # Nested SED load hangs on internal BT bus (NA295 SE_*_2), not feeder node.
         fold_term = sed_bt_fids[key] if key in nested_load_keys else node_fids[load.node_id]
         rows['StaCubic'].append(_make_row(
             schema, 'StaCubic', FID=cubic_fid, OP='C',
@@ -1567,7 +1569,7 @@ def write_dgs(
         ))
         if barras_set and nombre_fuente not in sin_set:
             continue        # la barra de SET: sus ElmFeeder van en sus cabeceras, abajo
-        # DIgSILENT ElmFeeder (NA205): colour/feeder tool anchored on a root StaCubic.
+        # DIgSILENT ElmFeeder (NA295): colour/feeder tool anchored on a root StaCubic.
         # Prefer the first outgoing line cubicle at the SOURCE bus; else ElmXnet cubic.
         feeder_cubic_fid = source_cubic_fid
         for line in lineas_ordenadas:
@@ -1647,7 +1649,7 @@ def write_dgs(
 
         # Skip micro service-stub d_lin (≤1 m tip→primary). Electrical ElmLne remains;
         # SED/load symbols already snap to the primary via diagram_anchor_node.
-        # One d_lin per ElmLne (NA205). Underground style = inAir=0 in DIgSILENT.
+        # One d_lin per ElmLne (NA295). Underground style = inAir=0 in DIgSILENT.
         # True doble circuito (2 SECTION same From↔To) → slight perpendicular offset.
         # drawn_line_sections was already computed above with the shared index.
         circuit_offsets = parallel_circuit_graphic_offsets(
@@ -1758,7 +1760,7 @@ def write_dgs(
                 ))
 
         # Free loads only (no SED): d_load on the sheet. SED-backed loads are
-        # modules inside SecSubProd — matching NA205, they get no IntGrf.
+        # modules inside SecSubProd — matching NA295, they get no IntGrf.
         free_load_keys = [key for key in load_keys if key not in nested_load_keys]
         loads_by_anchor: dict[str, list[tuple[str, str]]] = defaultdict(list)
         for key in free_load_keys:
@@ -1873,7 +1875,7 @@ def write_dgs(
         output.append(schema.header(table))
         output.extend(rows[table])
         output.extend(['', ''])
-    # DIgSILENT lee el DGS con la página de códigos ANSI (cp1252): en UTF-8, «SET 46 Señor de
+    # DIgSILENT lee el DGS con la página de códigos ANSI (cp1252): en UTF-8, «SET 86 Señor de
     # Luren» llegaba como «SeÃ±or» (una distribuidora real por SET, 2026-10-18). Con nombres ASCII el
     # fichero es el mismo byte a byte.
     path.write_text('\n'.join(output), encoding=DGS_ENCODING, errors='replace')

@@ -117,7 +117,7 @@ def test_el_servidor_solo_atiende_sus_guiones(servidor):
 def test_todo_guion_que_conecta_va_por_el_servidor():
     """019:RF-7 — un guion con ``conectar`` y ``main`` fuera de la lista cierra el servidor y
     abre DIgSILENT por su cuenta (2026-10-23: la lectura del gemelo tras cada ajuste de
-    AL105 + AL108 sumaba 2,5 min, y la acción siguiente volvía a esperar 73 s de conexión)."""
+    AL195 + AL198 sumaba 2,5 min, y la acción siguiente volvía a esperar 73 s de conexión)."""
     con_conexion = {p.name for p in (RAIZ / 'tools').glob('*.py')
                     if "conectar('" in (texto := p.read_text(encoding='utf-8'))
                     and 'def main(' in texto}
@@ -157,7 +157,7 @@ class _App:
     """Doble de la API con proyecto, caso (con hora), escenario y variaciones activos."""
 
     def __init__(self):
-        self.prj = _Obj(self, 'prj', 'SM218')
+        self.prj = _Obj(self, 'prj', 'SM298')
         self.casos = {n: _Obj(self, 'caso', n, iStudyTime=1000) for n in ('Sin', 'Con')}
         self.escs = {n: _Obj(self, 'esc', n) for n in ('Sin', 'Con')}
         self.vars = {n: _Obj(self, 'var', n) for n in ('Bancos', 'Obra')}
@@ -233,7 +233,7 @@ def test_una_orden_que_termina_bien_deja_lo_que_hizo(cola, servidor, monkeypatch
 def test_otro_proyecto_activo_no_se_toca(cola, servidor, monkeypatch):
     """064:RF-5 — si la orden fallida cambió de proyecto, su estado no es el de la foto."""
     app = _App()
-    otro = _Obj(app, 'prj', 'NA205')
+    otro = _Obj(app, 'prj', 'NA295')
 
     def main(argv):
         app.prj = otro

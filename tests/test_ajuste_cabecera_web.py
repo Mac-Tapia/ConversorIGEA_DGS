@@ -339,7 +339,7 @@ def test_ajuste_en_la_seccion_de_demanda_medida():
 
 
 def test_la_web_muestra_la_validacion_fisica_y_el_balance():
-    """015:RF-49 / 015:RF-50 / 015:RF-51 — CA101, 2026-10-15: con FALLO_VALIDACION_NATIVA la
+    """015:RF-49 / 015:RF-50 / 015:RF-51 — CA191, 2026-10-15: con FALLO_VALIDACION_NATIVA la
     caja decía «No cumple el 1 %: null. El escenario queda con el último reparto», cuando
     las cargas se habían revertido. Ahora dice que no se grabó nada y enseña el balance
     físico (escrito frente a consumido) y las cargas que no consumen lo suyo."""
@@ -600,7 +600,7 @@ def test_la_calibracion_guarda_las_fijas_con_fp_real_y_corregido(tmp_path):
 
 def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path):
     """014:RF-10 — se guarda lo que quedó escrito en DIgSILENT, releído, y no el reparto
-    calculado: en SM218 diferían (SE42227, 1,718 kW guardados y 1,584 en DIgSILENT) y la
+    calculado: en SM298 diferían (SE42227, 1,718 kW guardados y 1,584 en DIgSILENT) y la
     siguiente calibración veía todas las cargas «cambiadas a mano» y tapaba a los clientes."""
     import random
 
@@ -631,7 +631,7 @@ def test_la_calibracion_guarda_lo_releido_en_digsilent_y_no_el_reparto(tmp_path)
 # --------------------------------------------------------------------------- spec 020
 def test_el_plan_lleva_las_fichas_de_transformadores_del_perfil(client, tmp_path, monkeypatch):
     """020:RF-6 / 020:RF-10 / 020:RF-63 — con el perfil de una distribuidora real el plan lleva sus tablas de fichas;
-    sin perfil, las NTP 370.400 del conversor, con su origen (antes ninguna: CA101 no se calibraba sin perfil)."""
+    sin perfil, las NTP 370.400 del conversor, con su origen (antes ninguna: CA191 no se calibraba sin perfil)."""
     import json as _json
 
     from convertersmartgrid.dominio.perfil_empresa import VARIABLE_RUTA
@@ -709,7 +709,7 @@ def test_implementar_sin_ajuste_previo_se_rechaza(client):
 
 
 def test_la_web_avisa_de_las_sed_sobrecargadas_y_propone_transformadores():
-    """020:RF-3 / 020:RF-4 / 020:RF-9 / 020:RF-13 / 020:RF-14 — PA217, 2026-10-16: SE30940 al 955 % solo
+    """020:RF-3 / 020:RF-4 / 020:RF-9 / 020:RF-13 / 020:RF-14 — PA297, 2026-10-16: SE30940 al 955 % solo
     se veía en un desplegable. Ahora va al principio del resultado, dice si es la causa
     probable, enseña la propuesta por SED con su ficha y una casilla marcada, y el botón
     queda desactivado sin casillas."""
@@ -824,7 +824,7 @@ def test_sin_central_el_plan_no_cambia(client):
 
 def test_plan_coincidente_con_la_cabecera_negativa(client):
     """021:RF-50, 021:RF-51 — en el registro coincidente la cabecera de A1 es negativa (la
-    central exporta hacia la SET, como NA205 el 2026-07-23 10:00): el plan sigue, con la
+    central exporta hacia la SET, como NA295 el 2026-07-23 10:00): el plan sigue, con la
     demanda del alimentador como objetivo y las zonas de ese registro."""
     from test_demanda_medida_web import _libros_con_central
 
@@ -872,7 +872,7 @@ def test_poner_los_bancos_que_falten_va_en_el_plan(client, monkeypatch):
 
 def test_solo_se_registra_la_calibracion_guardada(tmp_path):
     """014:RF-10, 015:RF-49 — una calibración cuyo escenario no se guardó (no pasó la
-    validación física) no se registra: en NA205 (2026-10-17) dejó 93 cargas «cambiadas a
+    validación física) no se registra: en NA295 (2026-10-17) dejó 93 cargas «cambiadas a
     mano» en la siguiente."""
     from convertersmartgrid.presentacion.web.workspace import Workspace
 
@@ -955,7 +955,7 @@ def test_el_plan_lleva_el_criterio_de_cada_alimentador(client):
 
 def test_no_elegidos_ya_calibrados_conservan_su_calibracion(client):
     """028:RF-41 — al recalibrar solo unos, los ya calibrados que no se eligieron se dicen como «conservan su última
-    calibración», no como «sin medidor… con la demanda del archivo» (Pisco, 2026-11-05: AL209 y PA217)."""
+    calibración», no como «sin medidor… con la demanda del archivo» (Pisco, 2026-11-05: AL299 y PA297)."""
     wid, job = _maxima_dos(client)
     ws = client.app.state.store.get(wid)
     ws.groups['SISTEMA_X'] = {'tipo': 'sistema', 'feeders': ['A1', 'A2', 'B9', 'C7'], 'status': 'ok'}
@@ -972,7 +972,7 @@ def test_no_elegidos_ya_calibrados_conservan_su_calibracion(client):
 def test_medida_por_encima_de_lo_que_da_la_red_no_se_calibra(client, monkeypatch):
     """022:RF-55 — un alimentador cuyo medidor da más que sus fijas y su kVA instalado por el
     FP no se calibra; con varios, se dice y se calibran los demás (Chincha, 2026-10-18:
-    TM106, 3 133 kW con unos 230 kVA)."""
+    TM196, 3 133 kW con unos 230 kVA)."""
     def kva(_ws, alimentador):
         return ({'S1': 50.0}, '') if alimentador == 'A1' else ({'S2': 900.0}, '')
 
@@ -1005,8 +1005,8 @@ def test_transformadores_de_varios_alimentadores_en_un_trabajo(client):
 
 def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
     """022:RF-63 — en un proyecto por sistema reconstruido, el kVA de cada alimentador es el
-    de las SED que le asigna el DGS: A1 recibe S2 de A2 y ya puede dar su medida (TM106 y
-    TM104 en Chincha, 2026-10-18)."""
+    de las SED que le asigna el DGS: A1 recibe S2 de A2 y ya puede dar su medida (TM196 y
+    TM194 en Chincha, 2026-10-18)."""
     kva = {'A1': {'S1': 50.0}, 'A2': {'S2': 900.0, 'S3': 10.0}}
     monkeypatch.setattr(services, '_kva_de_la_entrada', lambda _ws, f: (dict(kva.get(f, {})), ''))
     wid, job = _maxima(client)
@@ -1024,7 +1024,7 @@ def test_kva_del_alimentador_reconstruido(client, monkeypatch, tmp_path):
         {'S1': 50.0, 'S2': 900.0}, {'A1', 'A2'})
     assert services._kva_reconstruido(ws, 'P', 'A2', kva['A2']) == ({'S3': 10.0}, {'A1', 'A2'})
     assert services._kva_reconstruido(ws, 'OTRO', 'A1', kva['A1']) == ({'S1': 50.0}, set())
-    # El donante que lo cedió todo no puede dar nada: su medida no se calibra (TM104).
+    # El donante que lo cedió todo no puede dar nada: su medida no se calibra (TM194).
     assert services._capacidad_de_la_red({}, {}, 0.98, reconstruido=True) == 0.0
     # Sus fijas del libro de suministros ya no son suyas si su SED pasó al otro.
     fija = type('F', (), {'kw': 500.0})()

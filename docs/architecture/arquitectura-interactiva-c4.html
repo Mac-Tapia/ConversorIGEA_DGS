@@ -287,7 +287,7 @@
       const common = {
         // Contexto
         operator: { label: 'Operador eléctrico', tech: 'Planifica y decide', path: 'http://127.0.0.1:8765/', kind: 'external', detail: 'Elige el alcance, confirma cada escritura y acepta o rechaza con evidencia.' },
-        sources: { label: 'Fuentes de la distribuidora', tech: 'TXT CYMDIST, Access y libros', path: 'src/convertersmartgrid/adaptadores/sources', kind: 'external', detail: 'Exportaciones de CYMDIST y libros de medición; cada fuente se carga por su ruta y nunca entra en git.' },
+        sources: { label: 'Fuentes de la distribuidora', tech: 'TXT, Access y libros', path: 'src/convertersmartgrid/adaptadores/sources', kind: 'external', detail: 'Los TXT y libros de medición; cada fuente se carga por su ruta y nunca entra en git.' },
         vnrSource: { label: 'Paquete VNR-GIS', tech: 'Osinergmin, copia .bak', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'external', detail: 'Base y capas del VNR; las copias .bak se restauran en SQL Server Express.' },
         regulator: { label: 'Osinergmin / COES / MINEM', tech: 'Normas, costos y formatos', path: 'specs/README.md', kind: 'external', detail: 'Normas técnicas, costos oficiales y formatos del PIDE, del PIT y del VAD.' },
         system: { label: 'ConverterSmartGrid', tech: 'Local y auditable', path: 'README.md', kind: 'engine', detail: 'Convierte, valida, calibra, estudia y documenta redes de distribución en la máquina del operador.' },

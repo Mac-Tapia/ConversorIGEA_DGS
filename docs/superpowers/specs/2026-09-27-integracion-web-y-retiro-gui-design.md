@@ -12,9 +12,9 @@ mantener los flujos actualmente operativos y retirar por completo la GUI Tkinter
 sus accesos antiguos.
 
 El resultado debe seguir funcionando con uno, dos o más alimentadores dentro de una
-misma Grid DGS. Cada carga debe indicar su alimentador real (`NA203`, `NA205`, `PE104`,
-`CA101` u otro detectado en la entrada), aunque la Grid conjunta tenga un nombre como
-`NA203_NA205`.
+misma Grid DGS. Cada carga debe indicar su alimentador real (`NA293`, `NA295`, `PE194`,
+`CA191` u otro detectado en la entrada), aunque la Grid conjunta tenga un nombre como
+`NA293_NA295`.
 
 ## 2. Alcance funcional que debe conservarse
 
@@ -270,7 +270,7 @@ convertersmartgrid list|convert|web
 ### 12.1 Automatizadas
 
 - pruebas unitarias del trazado carga–alimentador;
-- casos NA203, NA205, PE104, CA101 y alimentador desconocido;
+- casos NA293, NA295, PE194, CA191 y alimentador desconocido;
 - combinación de dos y varios alimentadores;
 - equivalencia MDB/TXT;
 - Trafomix, interruptores y estructura SED;
@@ -293,9 +293,9 @@ retirada de Tkinter no se aceptará hasta que ese recorrido esté en verde.
 
 La terminación exige ejecuciones reales con los ejemplares de referencia:
 
-1. NA203 y NA205, individualmente y en Grid conjunta;
-2. PE104;
-3. CA101;
+1. NA293 y NA295, individualmente y en Grid conjunta;
+2. PE194;
+3. CA191;
 4. importación en PowerFactory 2024;
 5. columna **Alimentador** visible y correcta en cargas reales;
 6. conteos de SED, cargas, líneas e interruptores conciliados;
@@ -318,7 +318,7 @@ pendiente y no como superada.
 7. crear `run_web.bat` y migrar documentación;
 8. eliminar GUI antigua y sus entry points;
 9. probar instalación limpia y ausencia de referencias antiguas;
-10. ejecutar aceptación NA203/NA205, PE104 y CA101;
+10. ejecutar aceptación NA293/NA295, PE194 y CA191;
 11. generar informe final con evidencia, limitaciones y artefactos.
 
 ## 14. Alternativas rechazadas

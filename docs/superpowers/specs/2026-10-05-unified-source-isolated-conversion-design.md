@@ -179,7 +179,7 @@ La implementación es TDD. Como mínimo debe demostrar:
 - build de frontend y suite completa de backend;
 - aceptación real MDB y TXT con el conjunto disponible;
 - aceptación real VNR solo cuando exista un paquete oficial/completo;
-- importación real en PowerFactory con relectura y `ComLdf` para IN111.
+- importación real en PowerFactory con relectura y `ComLdf` para IN191.
 
 Si el paquete oficial VNR no está disponible, el resultado correcto es
 `BLOCKED_MISSING_OFFICIAL_PACKAGE`, no una aceptación sintética.

@@ -1,7 +1,7 @@
 """Prueba de representación en PowerFactory: red, cargas y SED del TXT, en una hoja.
 
     python tools\\prueba_representacion.py --red R.txt --cargas C.txt --equipos E.txt ^
-        --hoja A0 --out-dir output\\representacion --importar PE104 --importar NA205
+        --hoja A0 --out-dir output\\representacion --importar PE194 --importar NA295
 
 Por cada alimentador:
 

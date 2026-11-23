@@ -1,7 +1,7 @@
 """Spec 022, T15: SET y alimentadores nuevos de la entrega (RF-71 a RF-78).
 
-La entrega RED_231026 de una distribuidora real trajo la SET Chincha Nueva (CN101 a CN201), PA219,
-COH101 y SC215, que la tabla de la empresa aún no tenía: quedaban «Sin SET» y la
+La entrega RED_231026 de una distribuidora real trajo la SET Chincha Nueva (CN191 a CN291), PA219,
+COH191 y SC215, que la tabla de la empresa aún no tenía: quedaban «Sin SET» y la
 conversión por zonal los dejaba fuera. Las estructuras y las entregas se sortean.
 """
 from __future__ import annotations
@@ -64,7 +64,7 @@ def test_nuevo_con_las_siglas_de_una_set_va_a_esa_set():
 
 
 def test_siglas_nuevas_forman_una_set_deducida_en_el_zonal_mas_cercano():
-    """022:RF-73, 022:RF-74, 022:RF-76 — CN101 a CN201: una SET deducida «SET CN» con los
+    """022:RF-73, 022:RF-74, 022:RF-76 — CN191 a CN291: una SET deducida «SET CN» con los
     cuatro, en el zonal de la cabecera conocida más cercana, sin sistema eléctrico."""
     rng = random.Random(SEMILLA)
     e, cab = _estructura(rng)
@@ -192,8 +192,8 @@ def test_el_informe_de_la_conversion_avisa_de_los_deducidos():
     assert es.aviso_deducidos(c, sorted(e.alimentadores)[:1]) == ''
 
 
-@pytest.mark.parametrize('codigo, siglas', [('PA219', 'PA'), ('CHI201', 'CHI'), ('cn101', 'CN'),
-                                            ('SI112', 'SI'), ('X', ''), ('123', '')])
+@pytest.mark.parametrize('codigo, siglas', [('PA219', 'PA'), ('CHI291', 'CHI'), ('cn191', 'CN'),
+                                            ('SI192', 'SI'), ('X', ''), ('123', '')])
 def test_siglas_de_un_codigo(codigo, siglas):
     """022:RF-71 — las siglas son las letras del código antes del número."""
     assert es.siglas_de(codigo) == siglas

@@ -277,6 +277,15 @@ lo calcula: una revisión cuyo coste no cuadra no se aprueba, igual que con una 
 defecto de coste no depende de que el LLM lo vea. Sin datos estructurados no se comprueba nada (conservador). La
 medida siguiente es con el conjunto 047f, declarado antes.
 
+**MEJ24e, 2026-11-22 (RF-79 a RF-83, T14).** La medida del 047f no pasó por tres clases de error, ninguna propia de un
+caso: el LLM volvía a decidir un coste que el código ya había comprobado (lo compara con una partida), dejaba como
+duda una cantidad que fija la acción, y un rol bloqueaba sin hallazgo sin otra ronda para corregirse. Se corrige en el
+código, siempre sobre lo comprobable: el campo que el código comprobó y cuadra lo decide el código; una duda que es
+solo un campo fijado por la acción no cuenta (si el valor solo está en una evidencia, sí, porque puede ser de otro
+elemento); un dictamen no válido se pide de nuevo. El riesgo por prohibición de la evidencia no lo puede comprobar el
+código: va al encargo, y como incertidumbre, porque no es una cifra distinta. RF-56 se aprieta: la frase de la acción
+no se lee como cifra. La medida siguiente es con el conjunto 047g, declarado antes.
+
 ### T4: Evaluación real y ajuste condicionado
 
 **Cubre:** RF-8, RF-9.

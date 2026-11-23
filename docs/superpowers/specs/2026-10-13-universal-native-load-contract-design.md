@@ -10,7 +10,7 @@ calibración y estudios nativos en DIgSILENT PowerFactory 2024.
 ## 1. Objetivo
 
 Aplicar una sola vez, en el núcleo común, las correcciones comprobadas durante el
-caso CA101. Cada carga de una fuente TXT, MDB o VNR-GIS debe evaluar el mismo
+caso CA191. Cada carga de una fuente TXT, MDB o VNR-GIS debe evaluar el mismo
 contrato y producir las mismas garantías. Ninguna regla de bancos, clientes,
 escalado, cuadre o aceptación puede tener una implementación por modalidad.
 
@@ -50,7 +50,7 @@ pruebas.
 
 ## 3. Invariantes universales
 
-- No se codifican `CA101`, nombres de empresa, rutas locales ni cantidades de
+- No se codifican `CA191`, nombres de empresa, rutas locales ni cantidades de
   equipos de una red concreta.
 - Cada artefacto pertenece a un único `source_run_id`, `source_mode` y
   `source_fingerprint`.

@@ -73,7 +73,7 @@ def test_cada_rf_tiene_su_tarea():
 
 def test_marca_de_digsilent():
     """033:RF-7 — la marca ``[DIgSILENT]`` reconoce las tareas que solo se hacen allí."""
-    t = ES.Tarea('T9', False, '[DIgSILENT] Prueba con CA101.\nHecho cuando: informe válido.')
+    t = ES.Tarea('T9', False, '[DIgSILENT] Prueba con CA191.\nHecho cuando: informe válido.')
     assert t.digsilent and not ES.Tarea('T1', False, 'Código.\nHecho cuando: x').digsilent
     # La marca vale solo en el título: una evidencia que nombre DIgSILENT no la vuelve una.
     assert not ES.Tarea('T2', True, 'Código.\n   probado en [DIgSILENT]').digsilent

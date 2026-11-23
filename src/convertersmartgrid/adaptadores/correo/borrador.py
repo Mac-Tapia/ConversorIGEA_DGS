@@ -190,7 +190,7 @@ def _comprobar_datos_crudos(ruta: Path) -> None:
     if fuente.fuente == FUENTE_MDB:
         raise AdjuntoProhibido(f'{ruta.name} es una base Access de la distribuidora: no se envía.')
     if fuente.fuente == FUENTE_TXT or identificar(ruta).tipo != DESCONOCIDO:
-        raise AdjuntoProhibido(f'{ruta.name} es un TXT de CYMDIST de la distribuidora: no se envía.')
+        raise AdjuntoProhibido(f'{ruta.name} es un TXT de la distribuidora: no se envía.')
     if fuente.fuente == FUENTE_VNR:
         raise AdjuntoProhibido(f'{ruta.name} es un paquete VNR-GIS de la distribuidora: no se envía.')
 

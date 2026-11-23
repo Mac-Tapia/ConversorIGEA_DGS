@@ -6,5 +6,5 @@
    por el elemento de más fases; `nphase` e `it2p1..3` de cada cubículo; trafo monofásico
    (`nt2ph` = 1) y carga monofásica en las SED monofásicas. Sin fases distintas de ABC, el DGS
    igual que antes (RF-6).
-3. Sonda de DIgSILENT en NJA202: flujo con `iopt_net` 0 y 1; tensión mínima, pérdidas y
+3. Sonda de DIgSILENT en NJA292: flujo con `iopt_net` 0 y 1; tensión mínima, pérdidas y
    cabecera en el informe (RF-7).

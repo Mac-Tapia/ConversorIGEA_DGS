@@ -52,7 +52,7 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
   opciones de cada espacio de la web, porque cada espacio nuevo volvería al nombre por
   defecto y los guiones no lo verían.
 - **El proyecto se identifica por su ruta relativa** con `/` como separador
-  (`2026-10/SI213`); la interfaz la muestra con « / ». Descartado el nombre solo, porque dos
+  (`2026-10/SI293`); la interfaz la muestra con « / ». Descartado el nombre solo, porque dos
   subcarpetas pueden tener un proyecto con el mismo nombre (RF-16).
 - **Alimentadores en los datos de red.** `alimentadores_de` toma las carpetas de modelo de
   red del proyecto (`IntPrjfolder` de tipo `netdat`) y busca `ElmFeeder` solo ahí,
@@ -97,7 +97,7 @@ Lee: `docs/constitution.md` y `specs/005-carpeta-de-proyectos-pf/spec.md`.
   restituye el proyecto previo en `finally`. La comprobación del retorno no sustituye
   la relectura de identidad. Las regresiones cubren wrappers distintos, retorno 0 sin
   activación, retorno 1 confirmado y restitución fallida. La corrida nativa se repite
-  antes de aceptar CA101/PE104; no basta el doble de PowerFactory.
+  antes de aceptar CA191/PE194; no basta el doble de PowerFactory.
 
 - `Move` sobre un proyecto recién importado puede fallar si DIgSILENT lo deja activo o
   bloqueado tras `ComImport`; se detecta en la prueba manual y el error nombra la carpeta.

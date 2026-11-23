@@ -37,8 +37,8 @@ No se sustituye una fuente oficial ausente. Sin paquete VNR-GIS, el estado corre
 ```powershell
 python tools\accept_three_sources.py `
   --audit-dir AUDIT\native_load_YYYYMMDD_HHMMSS `
-  --feeder CA101 `
-  --meter CA101=L-CA131 `
+  --feeder CA191 `
+  --meter CA191=L-CA131 `
   --cabecera "ruta\medicion_cabecera" `
   --suministros "ruta\suministros.xlsx" `
   --clientes "ruta\clientes_2026-04.xlsx" `

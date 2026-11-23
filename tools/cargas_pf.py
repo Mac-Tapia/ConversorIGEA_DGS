@@ -67,7 +67,7 @@ MAX_BT_KV = 1.0
 # 2026-10-16). Antes se tendía cable con cualquier distancia, de 1 m incluso.
 CABLE_MINIMO_M = 25.0
 # DIgSILENT guarda lo que crea la etapa en una sola carpeta y renombra lo que repite
-# nombre: la SED «CH_9», su barra «CH_9(1)» y la carga «CH_9(2)» (PN107, 2026-10-16).
+# nombre: la SED «CH_9», su barra «CH_9(1)» y la carga «CH_9(2)» (PN197, 2026-10-16).
 SUFIJO_PF = re.compile(r'\(\d+\)$')
 # 014:RF-30: a esta distancia o menos de una carga nueva ya creada, la fila del libro es
 # esa misma carga aunque traiga otro nombre (usuario, 2026-10-16: «por el nombre y el
@@ -75,10 +75,10 @@ SUFIJO_PF = re.compile(r'\(\d+\)$')
 MISMO_PUNTO_M = 1.0
 # 040:RF-12: con sufijo, DIgSILENT deja la base en 34 caracteres: «Cesar_Alberto_Monge_Marquez_
 # SE50324» se guardó como «…_SE5032(2)» y «SU_Fundo_Luciana__propiedad_de_Agricola_» como
-# «…_de_Agr(3)» (NA203, 2026-10-31). Una base de esta longitud o más pudo quedar recortada.
+# «…_de_Agr(3)» (NA293, 2026-10-31). Una base de esta longitud o más pudo quedar recortada.
 BASE_RECORTADA = 32
 # 040:RF-3: a esta distancia o menos de la barra de baja de una SED existente, la fila del
-# libro es una ampliación de ese cliente (usuario, 2026-10-31). En NA203 + NA205 «Cesar
+# libro es una ampliación de ese cliente (usuario, 2026-10-31). En NA293 + NA295 «Cesar
 # Alberto Monge Marquez SE50324» cayó a 3 m de SE50324, HONGWEN a 1 m de SE50323 y AGROPEX
 # «250 A 1000KW» a 26 m de SE50150, y se crearon como SED nuevas junto a las que ya había.
 AMPLIACION_M = 30.0
@@ -134,7 +134,7 @@ def clave_pf(obj) -> str:
 
     La API de PF 2024 devuelve un envoltorio de Python nuevo en cada acceso, así que ni
     ``id()`` ni ``is`` reconocen el mismo objeto: con ``id()``, los dos extremos de cada
-    línea de IN111 quedaron separados y la red salió sin tramos (copia de IN111_TA225,
+    línea de IN191 quedaron separados y la red salió sin tramos (copia de IN191_TA295,
     2026-10-15). El doble de las pruebas reutiliza el objeto y no lo notaba.
     """
     return obj.GetFullName()
@@ -296,7 +296,7 @@ class ElmCompleto:
     """El ``ElmFeeder`` con todas las troncales de su cabecera en ``GetObjs`` (063:RF-39).
 
     El ``ElmFeeder`` solo abarca lo que cuelga de su cubículo. Un medidor con dos salidas tiene
-    una troncal fuera: SM218 (2026-11-02), 242 de 306 cargas y 1,698 MW; CA101 (2026-10-15), 95
+    una troncal fuera: SM298 (2026-11-02), 242 de 306 cargas y 1,698 MW; CA191 (2026-10-15), 95
     de 168. Lo demás se delega en el objeto; a la API de DIgSILENT se le pasa ``crudo``.
     """
 
@@ -313,7 +313,7 @@ class ElmCompleto:
         setattr(self.crudo, nombre, valor)
 
     def GetObjs(self, clase):
-        # Sin comparar nombres aquí: ``GetFullName`` en cada medida de 200 sorteos pasó SM218 de 3 a
+        # Sin comparar nombres aquí: ``GetFullName`` en cada medida de 200 sorteos pasó SM298 de 3 a
         # más de 10 minutos. Lo repetido se descarta una vez, en ``_recorrer_fuera``.
         return list(self.crudo.GetObjs(clase)) + list(
             self._alims.fuera_del_elm(self.crudo.loc_name).get(clase) or [])
@@ -447,7 +447,7 @@ def potencia(obj) -> tuple[float, float]:
 
     En una carga desequilibrada (``i_sym=1``) las fases son dato de la red, que comparten
     los casos, y ``plini`` lo deriva DIgSILENT en el escenario activo al escribirlas. En
-    CA101 (2026-10-15) las fases valían lo calibrado en los tres casos, pero «Con proyecto»
+    CA191 (2026-10-15) las fases valían lo calibrado en los tres casos, pero «Con proyecto»
     conservaba en su escenario la ``plini`` del archivo (SE20250: 98 kW en fases, 32,4 kW
     en ``plini``) y el flujo usaba esa. Antes se sumaban las fases y no se veía. Solo sin
     ``plini`` se suman las fases.
@@ -543,7 +543,7 @@ def leer_cabecera(elm):
 
     cub, metodo, troncales, fuentes = _frontera_cabecera(elm)
     # Un ``ElmFeeder`` puede apuntar solo a una de varias troncales que salen de la
-    # misma barra (CA101: dos salidas y un solo medidor). Cuando hay una única fuente
+    # misma barra (CA191: dos salidas y un solo medidor). Cuando hay una única fuente
     # externa en esa barra, su cubículo es la frontera medida común y agrega todas las
     # troncales. PowerFactory no conserva la misma convención de signo del ElmXnet en
     # todos los proyectos; se elige la que coincide con la suma de salidas de la barra.
@@ -656,7 +656,7 @@ def unidades_del_proyecto(app) -> dict:
     """Las unidades de P y Q de las cargas y de los bancos del proyecto activo (035:RF-14).
 
     Todo el ajuste escribe ``kW / 1000``: en un proyecto con las cargas en kW quedarían mil
-    veces menores sin aviso. SM218 (sonda del 2026-10-29): ``cspqexp`` «M», MW y Mvar.
+    veces menores sin aviso. SM298 (sonda del 2026-10-29): ``cspqexp`` «M», MW y Mvar.
     """
     leidas: dict[str, str | None] = {}
     for clase, atributos in (('ElmLod', ('plini', 'qlini')), ('ElmShnt', ('qcapn',))):
@@ -709,7 +709,7 @@ def escribir_carga(obj, p_mw: float, q_mvar: float) -> None:
         # DIgSILENT guarda la fase sin carga como 8·10⁻¹¹, no como 0 (una SED de un alimentador real,
         # 2026-11-01): una fase cuenta si pasa de una millonésima de la mayor.
         # 054:RF-11: las tres fases con valor no la hacen trifásica: una SED monofásica con 0 kW en el archivo las
-        # recibe a partes iguales, y volviendo aquí no se escribía su modo: 194 de 228 de CHI201 sin carga (2026-11-03).
+        # recibe a partes iguales, y volviendo aquí no se escribía su modo: 194 de 228 de CHI291 sin carga (2026-11-03).
         tecnica = str(getattr(obj, 'phtech', '') or '')
         no_trifasica = bool(tecnica) and not tecnica.startswith('3PH')
         if not no_trifasica and sum(1 for x in p_old if abs(x) > 1e-6 * max(map(abs, p_old), default=0.0)) == 3:
@@ -751,7 +751,7 @@ def grabar_en_escenario(app, filas, apagar=()) -> dict | None:
     """Escribe las demandas también en el escenario activo y lo guarda (006:RF-27, 004:RF-54).
 
     La potencia de una carga es dato de operación: con un escenario activo, DIgSILENT usa
-    la que guarda él y no la de la variación. SI213 (2026-10-12) cuadró a 1.622 kW con el
+    la que guarda él y no la de la variación. SI293 (2026-10-12) cuadró a 1.622 kW con el
     escenario apagado y, al restaurarlo, la cabecera daba 229 kW, los de antes del ajuste.
     ``filas``: ``(nombre, carga, p_mw, q_mvar)``; ``apagar``: ``(nombre, carga)`` que
     quedan fuera de servicio. Sin escenario activo, ``None``.
@@ -895,7 +895,7 @@ def indice_de_cargas_nuevas(app, feeders, alims: Alimentadores | None = None) ->
                 # Por el nombre sin el sufijo que pone la etapa (014:RF-29): con «CH_9(2)»
                 # no se reconocía CH_9, se creaba otra que partía de nuevo el trozo de la
                 # primera y «Con proyecto» no ejecutaba el flujo («Cubicle/Feeder Not
-                # found» en NODE_T_CH_9, PN107, 2026-10-16).
+                # found» en NODE_T_CH_9, PN197, 2026-10-16).
                 nombre = SUFIJO_PF.sub('', carga.loc_name)
                 f = feeder if not sin_nombre else _alimentador_por_el_punto(carga, puntos or [])
                 if f is None:
@@ -965,7 +965,7 @@ def entradas_del_indice(indice: dict, candidatos: list[str], nombre: str) -> lis
     """Las cargas nuevas ya creadas con ``nombre`` en esos alimentadores (014:RF-27, RF-29).
 
     040:RF-12: si no hay ninguna con el nombre entero, la que DIgSILENT guardó recortada para
-    añadirle su sufijo: «Cesar_Alberto_Monge_Marquez_SE5032(2)» es «…_SE50324» (NA203,
+    añadirle su sufijo: «Cesar_Alberto_Monge_Marquez_SE5032(2)» es «…_SE50324» (NA293,
     2026-10-31), y sin esto se buscaba por el punto y se tomaba la variación de otra fila.
     """
     exactas = [indice[(f, nombre)] for f in candidatos if (f, nombre) in indice]
@@ -978,8 +978,8 @@ def entradas_del_indice(indice: dict, candidatos: list[str], nombre: str) -> lis
 def creadas_de_la_fila(fila: dict, candidatos: list[str], indice: dict) -> tuple[list[dict], str]:
     """Las cargas nuevas ya creadas para la fila: por su nombre (014:RF-27) o, si no, en su mismo punto (014:RF-30).
 
-    099:RF-5: también para borrar la de una fila repetida. CH_20 (CA101, 2026-11-07) se creó el 2026-11-05 con su
-    descripción, «Carga_SU-1770KW-Ti_CA101_…», y por la sigla no se hallaba: quedó activa y con CH_23 el flujo no
+    099:RF-5: también para borrar la de una fila repetida. CH_20 (CA191, 2026-11-07) se creó el 2026-11-05 con su
+    descripción, «Carga_SU-1770KW-Ti_CA191_…», y por la sigla no se hallaba: quedó activa y con CH_23 el flujo no
     convergía."""
     halladas = entradas_del_indice(indice, candidatos, nombre_pf(fila['sed']))
     criterio = 'ya existe'
@@ -1113,7 +1113,7 @@ def reemplazo_de(fila: dict, candidatos: list[str], ya: dict | None) -> dict | N
     """004:RF-76 (cambia 014:RF-24 y RF-28): la carga ya creada que difiere de la fila se reemplaza; sus variaciones van
     a eliminar, con la carga y la línea de conexión anteriores. Sin cambios, ``None``: se reutiliza (004:RF-77).
 
-    SE0001 (PA217, 2026-11-12) se creó con un dígito de menos en Y, cerca del Polo Sur; al corregirla se reutilizaba
+    SE0001 (PA297, 2026-11-12) se creó con un dígito de menos en Y, cerca del Polo Sur; al corregirla se reutilizaba
     la mal puesta por su nombre."""
     halladas, _criterio = creadas_de_la_fila(fila, candidatos, (ya or {}).get('indice') or {})
     variaciones = sorted({v for d in halladas for v in d['variaciones']})
@@ -1226,13 +1226,13 @@ def _troncales(alims: Alimentadores):
                 red = leer_red(elm, cabecera)
                 lineas = {ln.loc_name: ln for ln in elm.GetObjs('ElmLne')}
                 # 016:RF-78 (cambia RF-45): cualquier tramo de media, no solo la troncal.
-                # Con solo la troncal, IC_11, IC_12, IC_15 e IC_17 de TA225 caían en el
+                # Con solo la troncal, IC_11, IC_12, IC_15 e IC_17 de TA295 caían en el
                 # mismo punto de SEC_1091_815724, a 5-7 km de sus coordenadas (usuario,
                 # 2026-10-15: «ubicadas de acuerdo a su punto de coordenada»).
                 # Ni el enlace entre alimentadores (016, normalmente abierto): IC_13 caía en
-                # Enlace_TA225_IN111, a 720 m de su punto (2026-10-15).
+                # Enlace_TA295_IN191, a 720 m de su punto (2026-10-15).
                 # 016:RF-78: solo las líneas que son tramos de la red leída, con sus dos
-                # extremos en barras del alimentador (RF-2). En CA101_CHN102 (2026-11-13) el
+                # extremos en barras del alimentador (RF-2). En CA191_CHN192 (2026-11-13) el
                 # ElmFeeder traía SEC_1091_315216 con un extremo fuera, y aplicar las cargas
                 # acababa con «KeyError: 'SEC_1091_315216'».
                 en_red = red.por_nombre()
@@ -1363,12 +1363,12 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     Devuelve (resueltas por alimentador, no creadas, avisos). Solo se buscan barras en
     los alimentadores marcados (spec 007, RF-25). Una fila cuyo alimentador (TRONCAL) no
     está marcado no se crea (RF-29): el libro de planificación trae las cargas de todos
-    los alimentadores, y con SI213 marcado se colgaban de su barra más cercana las 27 de
+    los alimentadores, y con SI293 marcado se colgaban de su barra más cercana las 27 de
     otros alimentadores, una a 216 km (2026-10-13). Sin alimentador en la fila, el más
     cercano entre los marcados (RF-36).
 
     Spec 016: la carga con coordenadas y sin barra va al punto más cercano de la troncal
-    (016:RF-45), no a la barra existente más cercana: en SI213 esa barra era el nodo de una
+    (016:RF-45), no a la barra existente más cercana: en SI293 esa barra era el nodo de una
     SED, que solo tenía su seccionador (007:RF-39). Si el punto cae dentro de un tramo, la
     carga lo parte al crearse, en su variación (RF-46); a menos de ``minima_m`` de una
     barra, se engancha en ella (RF-20).
@@ -1397,14 +1397,14 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
     # RF-28: un alimentador sin barras con GPS se dice una vez, no carga por carga.
     sin_gps = {f for f in alims.elegidos if not cercanas[f]}
     avisados = set()
-    # El libro escribe la TRONCAL a mano: «si213 » es SI213.
+    # El libro escribe la TRONCAL a mano: «si293 » es SI293.
     marcados = {str(f).strip().upper(): f for f in alims.elegidos}
     de_otros: dict[str, int] = {}
     indice = (ya or {}).get('indice') or {}
     sed_de = sed_existentes(alims, ya)                   # 040:RF-3, una vez por trabajo
     vistas: dict[str, list[tuple[tuple[float, float], str]]] = {}   # 040:RF-1
     # 099:RF-1 a RF-4: el mismo cliente dos veces en el mismo alimentador del libro, por su nombre o por su punto:
-    # cuenta la última fila. CH_20 y CH_23 (Tierra Larga, CA101) estaban a 2,6 km y se creaban las dos.
+    # cuenta la última fila. CH_20 y CH_23 (Tierra Larga, CA191) estaban a 2,6 km y se creaban las dos.
     from convertersmartgrid.aplicacion.cargas_pf import duplicadas_por_cliente
     superadas = duplicadas_por_cliente(nuevas, MISMO_PUNTO_M)
     # 099:RF-8: las repetidas que la web ya quitó del plan no llegan como filas; solo se borra lo que se creó para ellas.
@@ -1436,7 +1436,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             candidatos = [marcados[suyo.upper()]]
         punto_fila = (float(fila['lat']), float(fila['lon'])) if fila.get('lat') is not None else None
         # 004:RF-75: sin la geografía de la red convertida la web no midió el punto; se mide aquí, con las barras de
-        # media con GPS del alimentador, antes de crear ni conectar nada. SE0001 (PA217, 2026-11-12) se conectó desde
+        # media con GPS del alimentador, antes de crear ni conectar nada. SE0001 (PA297, 2026-11-12) se conectó desde
         # cerca del Polo Sur con una línea de miles de km.
         # Solo con su TRONCAL: sin ella manda 007:RF-31 (la barra más cercana de los marcados, sin umbral).
         zona = _zona(candidatos[0]) if suyo else None
@@ -1450,7 +1450,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
         nombre = nombre_pf(sed)
         entrada = next(iter(entradas_del_indice(indice, candidatos, nombre)), None)
         # 040:RF-1, RF-2: el mismo punto en el mismo alimentador del libro es la misma carga
-        # («Fundo Luciana» y «SU Fundo Luciana…» en NA203); en otro alimentador, no.
+        # («Fundo Luciana» y «SU Fundo Luciana…» en NA293); en otro alimentador, no.
         clave = suyo.upper()
         primera = next((n for p, n in vistas.get(clave, [])
                         if punto_fila is not None and distancia_m(p, punto_fila) <= MISMO_PUNTO_M), None)
@@ -1528,7 +1528,7 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
                 motivo = (f"la barra {fila['barra']} no está en los alimentadores elegidos" if not halladas
                           else f"la barra {fila['barra']} está en varios alimentadores")
                 # RF-50: un libro de planificación llama «BARRA» a la de la subestación, no
-                # a una barra del proyecto (SI213, 2026-10-12); con coordenadas, se ubica por ellas.
+                # a una barra del proyecto (SI293, 2026-10-12); con coordenadas, se ubica por ellas.
                 if punto is None:
                     no_creadas.append({'sed': sed, 'motivo': motivo})
                     continue
@@ -1614,9 +1614,9 @@ def resolver_nuevas(alims: Alimentadores, proyecto, nuevas: list[dict], ya: dict
             else:
                 tipo, origen_tipo = _tipo_de_barra(barra), 'de la red'
             if tipo is None:
-                # RF-39: SI213, 2026-10-13: la barra más cercana a «SU Fundo El Eden» era el
+                # RF-39: SI293, 2026-10-13: la barra más cercana a «SU Fundo El Eden» era el
                 # nodo de una SED sin línea propia (solo su seccionador) y la única carga del
-                # libro para SI213 no se creó. Se toma el tipo más usado del alimentador.
+                # libro para SI293 no se creó. Se toma el tipo más usado del alimentador.
                 tipo = _tipo_del_alimentador(alims, feeder, barra)
                 origen_tipo = 'el más usado del alimentador' if tipo is not None else ''
             if tipo is None:
@@ -1724,7 +1724,7 @@ def crear_ampliacion(feeder, r) -> dict:
     """La carga de una ampliación, en la barra de baja de su SED, en la etapa que graba (040:RF-4).
 
     Sin SED, transformador, línea ni barra: el cliente ya existe, y crear otra SED a su lado
-    es lo que duplicaba a «Cesar Alberto Monge Marquez SE50324» en NA203 (2026-10-31). Se suma
+    es lo que duplicaba a «Cesar Alberto Monge Marquez SE50324» en NA293 (2026-10-31). Se suma
     al cliente como una carga más de su SED, y no cambiando la potencia de la que tiene: esa es
     dato del escenario calibrado y no se podría activar y desactivar carga a carga (007:RF-12).
     """
@@ -1790,7 +1790,7 @@ def transformador_de_la_ampliacion(plan: dict, r: dict, creada: dict) -> dict:
 def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int) -> tuple[dict | None, str]:
     """El transformador de una carga nueva con la ficha del perfil (004:RF-68, RF-69).
 
-    En PE102 (2026-11-06) el Vivero Los Viñeros pedía 245,5 kVA y, sin kVA en el libro, la
+    En PE192 (2026-11-06) el Vivero Los Viñeros pedía 245,5 kVA y, sin kVA en el libro, la
     serie R10 al 100 % le dio 250 kVA: DIgSILENT lo midió al 102,9 % y el informe pidió «obras
     adicionales» por un transformador del cliente. Con fichas manda la regla de las SED
     sobrecargadas (020:RF-6, RF-7): la menor potencia con la máxima en el umbral del perfil.
@@ -1811,7 +1811,7 @@ def transformador_de_ficha(plan: dict | None, fila: dict, mt: float, fases: int)
         return None, motivo or 'el perfil de empresa no trae fichas de transformadores'
     if fila.get('kva_deducido'):
         # Aclaración de 004:RF-68: DIgSILENT mide la cargabilidad por corriente; elegidos al 80 % a la
-        # nominal, en PE102 quedaron al 83,5 % y al 81,3 % con la baja a 0,96 p.u. Se cuenta a la mínima.
+        # nominal, en PE192 quedaron al 83,5 % y al 81,3 % con la baja a 0,96 p.u. Se cuenta a la mínima.
         u_min = float((plan or {}).get('tension_min_pu') or 1.0)
         demanda = math.hypot(float(fila['kw'] or 0.0), float(fila['kvar'] or 0.0)) / max(u_min, 0.5)
         p = proponer(demanda, mt, fichas['tablas'], float(fichas['umbral_carga_pct']))
@@ -1890,7 +1890,7 @@ def crear_carga(alims, proyecto, typ_folder, diagrama, feeder, r, plan=None) -> 
         linea.dline = max(r['distancia_m'] / 1000.0, 1e-6)
         linea.nlnum = 1
         # 016:RF-89: el cable con su trazado, del nodo al punto; sin él los cables de
-        # IN111 + TA225 tenían 0 vértices (2026-10-16).
+        # IN191 + TA295 tenían 0 vértices (2026-10-16).
         if gps_de(barra) is not None:
             linea.SetAttribute('GPScoords', [list(gps_de(barra)), [float(fila['lat']), float(fila['lon'])]])
         for extremo, (term, lado) in enumerate(((barra, 0), (nueva_barra, 1)), start=1):
@@ -1980,7 +1980,7 @@ class Diagrama:
                 obj = getattr(grf, 'pDataObj', None)
                 if obj is not None:
                     # Por la clave y no por id(): la API de DIgSILENT da un objeto Python
-                    # nuevo en cada llamada, y ninguna carga nueva de IN111 + TA225 se
+                    # nuevo en cada llamada, y ninguna carga nueva de IN191 + TA295 se
                     # dibujaba («no está en ningún diagrama», 2026-10-15).
                     self.por_obj[clave_pf(obj)] = (grf, grfnet, obj)
                 sym = getattr(grf, 'sSymNam', '')
@@ -2057,8 +2057,8 @@ class Diagrama:
     def completar(self, app, *, simular: bool = False) -> dict:
         """Dibuja lo que la red activa tiene con GPS y sin símbolo (016:RF-89).
 
-        ``SplitLine`` y la obra de enlace crean barras y líneas sin símbolo: en IN111 +
-        TA225 (2026-10-16) el enlace por la vía, de 6,3 km y 140 vértices, estaba en «Con
+        ``SplitLine`` y la obra de enlace crean barras y líneas sin símbolo: en IN191 +
+        TA295 (2026-10-16) el enlace por la vía, de 6,3 km y 140 vértices, estaba en «Con
         proyecto» y no se veía en el diagrama, ni la mitad nueva de cada tramo partido ni
         su nodo. Se dibujan como el DGS (spec 010): la barra en su punto y la línea por su
         trazado, con los extremos en sus barras. Los símbolos no van en la variación: en
@@ -2172,8 +2172,8 @@ def fecha_de_etapa_nueva(carpeta, hora_estudio: int) -> int:
     """La fecha de activación de una etapa nueva: la siguiente libre antes del estudio.
 
     Con tres o más etapas activas de la misma fecha, DIgSILENT no aplica ninguna, y sin
-    avisar: IN111 + TA225 (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas
-    de TA225 en la fecha del estudio, «Con proyecto» calculaba sin ninguna carga ni obra;
+    avisar: IN191 + TA295 (2026-10-15, sonda en el proyecto), con las nueve cargas nuevas
+    de TA295 en la fecha del estudio, «Con proyecto» calculaba sin ninguna carga ni obra;
     con dos, sí entraban. Cada etapa toma su segundo, en el orden en que se crea, de modo
     que la más nueva (una obra sobre las cargas) se aplica la última, y todas antes de la
     hora del estudio para que estén activas.
@@ -2197,7 +2197,7 @@ def etapas_al_dia(app) -> list[str]:
     """Que se apliquen las etapas de las variaciones activas fechadas justo después del estudio.
 
     Una etapa posterior a la hora del caso no se aplica aunque su variación esté activa, y
-    DIgSILENT no avisa. SM218 (2026-10-29, sonda en el proyecto): la etapa de SED_NTP_, con
+    DIgSILENT no avisa. SM298 (2026-10-29, sonda en el proyecto): la etapa de SED_NTP_, con
     los once transformadores nuevos, quedó un segundo después de la hora de «Sin proyecto»;
     la recalibración midió con las SED de 50 kVA y las fijas a 0,55 p.u. El usuario: la
     recalibración considera todos los cambios ya hechos en la red. Cada una se adelanta a la
@@ -2240,7 +2240,7 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     variacion.NewStage(nombre_etapa, instante, 1)
     # Y lleva la hora del caso a la de la etapa: con la fecha propia de RF-74, cada carga
     # nueva la retrasaba y las etapas anteriores quedaban después de la hora del estudio,
-    # inactivas aunque su variación lo estuviera (IN111 + TA225, 2026-10-15: 29 etapas
+    # inactivas aunque su variación lo estuviera (IN191 + TA295, 2026-10-15: 29 etapas
     # retrasaron «Con proyecto» 335 días y el nodo del enlace no existía).
     if caso is not None and int(getattr(caso, 'iStudyTime', 0) or 0) != hora:
         caso.iStudyTime = hora
@@ -2248,14 +2248,14 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         etapa.Activate(1)
     if caso is not None and int(getattr(caso, 'iStudyTime', 0) or 0) < hora:
-        # Volver a subir la hora no se mantiene (081:RF-78): CA101 + PE104 (2026-11-07), la obra nueva quedó
+        # Volver a subir la hora no se mantiene (081:RF-78): CA191 + PE194 (2026-11-07), la obra nueva quedó
         # en …149, «Con proyecto» bajó a esa hora y dejó sin aplicar las etapas de fichas (…150) y de SED NTP
         # (…151): 687 barras sin tensión y la obra inactiva (044 y 048, T4). Se adelantan esas etapas.
         etapas_al_dia(app)
     otras = []
     if etapa is not None and not _misma(app.GetRecordingStage(), etapa):
         # Con otras etapas activas de la misma fecha PF puede no dejar grabando ninguna, ni
-        # con Activate(1) (manual de PF 2024, 16.5). SI213, 2026-10-12, en una copia del
+        # con Activate(1) (manual de PF 2024, 16.5). SI293, 2026-10-12, en una copia del
         # proyecto: con sus cuatro ajustes activos no grababa; sola, la etapa nueva graba y
         # sigue grabando al reactivar las otras… hasta la cuarta. Qué combinación lo impide
         # no lo dice el manual: se prueba y se comprueba al final, sin suponerlo.
@@ -2268,7 +2268,7 @@ def crear_variacion(app, nombre_base: str, etiqueta_etapa: str):
     if etapa is None or not _misma(app.GetRecordingStage(), etapa):
         # Activa y vacía, se sumaría a las etapas de la misma fecha que ya impidieron grabar
         # y el siguiente intento fallaría igual. Inactiva tampoco sirve: la obra de enlace
-        # de IN111 + TA225 (2026-10-15) se negaba a repetirse porque «ya hay una» con ese
+        # de IN191 + TA295 (2026-10-15) se negaba a repetirse porque «ya hay una» con ese
         # nombre; vacía no guarda nada del operador y se borra.
         variacion.Deactivate()
         variacion.Delete()
@@ -2354,7 +2354,7 @@ def flujo_de_carga_con_mensajes(app) -> dict:
         except Exception:  # noqa: BLE001, S110
             lineas = []
     # DIgSILENT marca sus líneas con «err  -» y «warn -»; un flujo que no arranca (código 1,
-    # IC_11 de TA225 sin su obra, 2026-10-24) no dice «error» ni «converg». Primero las
+    # IC_11 de TA295 sin su obra, 2026-10-24) no dice «error» ni «converg». Primero las
     # marcadas: el Newton escribe una línea por iteración («Load flow iteration: 0 … 75»).
     marcadas = [x for x in lineas if re.match(r'(?i)(err|warn)\b', x)]
     utiles = marcadas or [x for x in lineas if re.search(r'(?i)error|converg|iteration|iteraci', x)]
@@ -2520,7 +2520,7 @@ def _a_cargas_nuevas(app, c011, casos, anio, alims, plan, informe, variaciones) 
     vistas = {v.loc_name for v in variaciones}
     variaciones += sorted((v for v in en_con if v.loc_name not in vistas), key=lambda v: v.loc_name)
     # 025:RF-79 a RF-83: copia fresca de «Sin proyecto» en cada inserción, comparada objeto a objeto en los
-    # alimentadores marcados antes de activar las cargas, y «Con proyecto» frente a «Sin proyecto» (PA217).
+    # alimentadores marcados antes de activar las cargas, y «Con proyecto» frente a «Sin proyecto» (PA297).
     out = c011.cargas_nuevas(app, casos['sin'], anio, variaciones, flujo_con_mensajes,
                              antes=antes, explicar=explicar, feeders=alims.elegidos, con=casos['con'])
     informe['cargas_nuevas'] = out
@@ -2576,7 +2576,7 @@ def nombre_de_carga(carpeta, sed: str, feeder: str, stamp: str, usados: set[str]
     y dos cargas no pueden anunciar el mismo nombre.
     """
     # 040:RF-10: se recorta la SED, nunca el alimentador ni el sello. Con todo recortado al
-    # final, «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20» perdió NA203 (2026-10-31): ni el índice
+    # final, «Carga_SU_Predio_3H_MINING_GROUP_SAC_NA20» perdió NA293 (2026-10-31): ni el índice
     # de las cargas creadas ni los casos la reconocían, y se habría creado otra vez.
     cola = nombre_pf(f'_{feeder}_{stamp}' if stamp else f'_{feeder}')
     base = nombre_pf(f'Carga_{sed}')[:max(MAX_NOMBRE - len(cola), len('Carga_') + 1)] + cola
@@ -2611,7 +2611,7 @@ def medir_estado(app, alims: Alimentadores, feeders: list[str]) -> dict:
             medida = leer_cabecera(elm)
             if medida.converge:
                 # 007:RF-41: lo que consume cada carga en el flujo, no su plini escrita. PRUEBA_007
-                # (2026-11-05): TM105 daba −4 573 kW; sus escaladas consumen plini × scale0.
+                # (2026-11-05): TM195 daba −4 573 kW; sus escaladas consumen plini × scale0.
                 kw_cargas = sum(consumo_kw(o) for o in elm.GetObjs('ElmLod')
                                 if not getattr(o, 'outserv', 0))
                 fila.update(cabecera={'kw': medida.kw, 'kvar': medida.kvar},
@@ -3031,7 +3031,7 @@ def ejecutar(app, plan: dict, *, simular: bool, cancelado=lambda: False) -> tupl
                     if amp and amp.get('propuesta'):
                         p = amp['propuesta']
                         # Por encima de la mayor ficha, unidades iguales en paralelo (020:RF-7):
-                        # «630 kVA» para los 1777 kVA de AGROPEX (NA203, 2026-10-31) no decía cuántas.
+                        # «630 kVA» para los 1777 kVA de AGROPEX (NA293, 2026-10-31) no decía cuántas.
                         unidades = int(p.get('unidades') or 1)
                         cuantas = f'{unidades} × ' if unidades > 1 else ''
                         informe['avisos'].append(
@@ -3176,7 +3176,7 @@ def _con_escenario(escenario):
     """Mide con el escenario de operación encendido y lo vuelve a apagar sin guardar.
 
     Se apaga para que lo escrito vaya a la variación, pero las demandas calibradas están
-    en él: sin él, «Con proyecto» de IN111 + TA225 sumaba 45,8 MW de datos del elemento en
+    en él: sin él, «Con proyecto» de IN191 + TA295 sumaba 45,8 MW de datos del elemento en
     vez de 13,7 calibrados y no convergía, y todas las medidas de las cargas salían sin
     flujo (2026-10-15).
     """
@@ -3193,10 +3193,10 @@ def _a_un_extremo(r: dict, quien: str) -> dict:
     """La conexión de ``r`` cuando otra carga nueva ya parte su tramo (025:RF-47).
 
     Usuario, 2026-10-23: «cada carga debe ser totalmente independiente». Antes se conectaba
-    en el nodo que dejó la otra carga (016:RF-77), y CH_8 de TM105 colgaba de NODE_T_CH_3:
+    en el nodo que dejó la otra carga (016:RF-77), y CH_8 de TM195 colgaba de NODE_T_CH_3:
     al desactivar CH_3, CH_8 se quedaba sin conexión. Partir otra vez el mismo tramo en otra
     variación tampoco vale: juntas lo dejaban partido dos veces sobre la misma línea y el
-    flujo no se ejecutaba (IN111 + TA225, 2026-10-15). Se conecta en la barra existente más
+    flujo no se ejecutaba (IN191 + TA295, 2026-10-15). Se conecta en la barra existente más
     cercana de los dos extremos del tramo original, con su propia línea hasta su punto: no
     toca nada que cree otra variación.
     """
@@ -3224,9 +3224,9 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
 
     025:RF-47 y RF-48 (cambian 016:RF-77): si otra carga nueva ya partió su tramo, esta va a
     un extremo existente (:func:`_a_un_extremo`) y se mide con las variaciones de las demás
-    cargas inactivas. Colgar del nodo de otra dejaba a CH_8 de TM105 sin red al desactivar
+    cargas inactivas. Colgar del nodo de otra dejaba a CH_8 de TM195 sin red al desactivar
     CH_3 (2026-10-23); partir otra vez el tramo original lo dejaba partido dos veces en
-    «Con proyecto» (IN111 + TA225, 2026-10-15) y el flujo no convergía.
+    «Con proyecto» (IN191 + TA295, 2026-10-15) y el flujo no convergía.
     """
     tramos = {} if tramos is None else tramos
     p = r.get('partir')
@@ -3287,7 +3287,7 @@ def _una_carga(app, plan, alims, proyecto, typ_folder, diagrama, feeder, r, nomb
 def deshacer(app, plan: dict, aplicado: dict, *, simular: bool) -> tuple[dict, int]:
     """Borra lo que creó una aplicación anterior, según su informe (spec 007, RF-38).
 
-    SI213 (2026-10-13) creó 28 cargas nuevas, 27 de otros alimentadores (RF-29). Cada
+    SI293 (2026-10-13) creó 28 cargas nuevas, 27 de otros alimentadores (RF-29). Cada
     carga vive en su variación y se va con ella; los símbolos del diagrama y los tipos
     de transformador nuevos no están en la variación y se borran aparte. Un tipo que use
     todavía algún transformador del proyecto se deja.
@@ -3396,7 +3396,7 @@ def main(argv=None) -> int:
         informe, codigo = ejecutar(app, plan, simular=args.simular,
                                    cancelado=lambda: bool(flag and flag.exists()))
     except Exception as exc:  # noqa: BLE001 - el informe dice el error en vez de perderse
-        # «Ajustar SI213 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
+        # «Ajustar SI293 a la máxima» (2026-10-10) acabó con el código 1 y sin informe: la
         # web solo podía decir «vea el Registro». La traza sigue yendo al Registro.
         traceback.print_exc()
         informe, codigo = error_inesperado(plan, args.simular, exc), 1

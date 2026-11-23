@@ -1,34 +1,34 @@
 # Spec 016 — Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo
 
 Estado: cumplida (016 T18 nativa verificada 2026-11-07; no aceptación eléctrica global) · implementada (revisión 033 del 2026-10-29) · aprobada (2026-10-14) · Fecha: 2026-10-14 · Origen: petición del usuario, 2026-10-14 (cambiar
-la troncal de IN111 a 120 mm² y transferir carga de IN111 a TA225)
+la troncal de IN191 a 120 mm² y transferir carga de IN191 a TA295)
 
 ## Contexto y objetivo
 
-El usuario pidió dos cosas sobre el proyecto de IN111 y TA225. La primera es pasar toda
-la troncal de IN111 a 120 mm² (AA12003D a 10 kV). La segunda es calcular la transferencia
-de carga de IN111 a TA225. Las dos chocaron con lo que hay:
+El usuario pidió dos cosas sobre el proyecto de IN191 y TA295. La primera es pasar toda
+la troncal de IN191 a 120 mm² (AA12003D a 10 kV). La segunda es calcular la transferencia
+de carga de IN191 a TA295. Las dos chocaron con lo que hay:
 
 - **La troncal** de la spec 011 es la que calcula DIgSILENT (`ComBbone`, 011:RF-108), y
-  `ComBbone` solo dibuja troncales entre alimentadores que tienen un enlace. IN111 no
+  `ComBbone` solo dibuja troncales entre alimentadores que tienen un enlace. IN191 no
   tiene ninguno, así que no tenía troncal. Para el usuario, la troncal de una obra es otra
-  cosa: «el conjunto de tramos continuos que hacen el más largo del alimentador». En IN111
+  cosa: «el conjunto de tramos continuos que hacen el más largo del alimentador». En IN191
   son 71 tramos y 13,58 km desde la cabecera. De ellos, 34 tramos aéreos, con 7.413 m, no
   son de 120 mm²: de aluminio de 70 mm² (1.807 m) y de 35 mm² (874 m), de cobre de 25 mm²
   (4.717 m) y nueve tramos `DEFAULT` de 1 a 2 m entre equipos. (Corregido en la T3: la
   primera medida, 72 tramos y 13,59 km, recorría la red en profundidad y en uno de sus
   tres anillos cerrados daba la vuelta por el lado largo.) Toda la troncal
   pasa a 120 mm². El N-1 y la transferencia siguen con la troncal de DIgSILENT.
-- **El enlace.** IN111 y TA225 no comparten ningún nodo ni interruptor, ni en el TXT ni
-  en las `.mdb`. El punto de la troncal de TA225 más cercano a IN111 está a 1.860 m. La
+- **El enlace.** IN191 y TA295 no comparten ningún nodo ni interruptor, ni en el TXT ni
+  en las `.mdb`. El punto de la troncal de TA295 más cercano a IN191 está a 1.860 m. La
   transferencia de la spec 011 no calcula nada sin un punto de enlace (011:RF-107). El
-  usuario pide un trazo nuevo «desde la troncal de TA225 más cercana a IN111», como obra y
+  usuario pide un trazo nuevo «desde la troncal de TA295 más cercana a IN191», como obra y
   en «Con proyecto».
 - **El punto de conexión.** El enlace no tiene que llegar a un nodo que ya exista. Se
   conecta en un tramo cerrado, creando un nodo nuevo, en un punto donde la caída de
-  tensión y la capacidad de TA225 lo permiten. Las cargas nuevas de la spec 007 se
+  tensión y la capacidad de TA295 lo permiten. Las cargas nuevas de la spec 007 se
   conectan igual: en el punto más cercano de la troncal, con un nodo nuevo. Hasta
-  ahora iban a la barra existente más cercana (007:RF-24). En SI213 esa barra era el nodo
+  ahora iban a la barra existente más cercana (007:RF-24). En SI293 esa barra era el nodo
   de una SED, que solo tenía su seccionador (007:RF-39).
 
 El usuario fijó además el orden de los casos: «lo que se modifica en Sin proyecto debe
@@ -176,8 +176,8 @@ Obra de enlace entre alimentadores
 
 Migración a la tensión del que recibe de las SED que se transfieren
 
-El caso que lo motivó: IN111 es de 10 kV y TA225 de 22,9 kV. Las SED de IN111 que pasan a
-TA225 cambian antes de nivel de tensión en «Con proyecto», en otra variación, y solo
+El caso que lo motivó: IN191 es de 10 kV y TA295 de 22,9 kV. Las SED de IN191 que pasan a
+TA295 cambian antes de nivel de tensión en «Con proyecto», en otra variación, y solo
 entonces se puede cerrar el enlace.
 
 - RF-51: DONDE el operador define una obra de migración de SED, EL SISTEMA pedirá el
@@ -245,13 +245,13 @@ Cargas nuevas en el tramo más cercano (cambia 007:RF-24 y 007:RF-31)
   EL SISTEMA no conectará por coordenadas ninguna carga y lo dirá una vez, con el
   alimentador (007:RF-28).
 
-Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
+Etapas de las variaciones (prueba en DIgSILENT con IN191 + TA295, 2026-10-15)
 
 - RF-74: CUANDO crea la etapa de una variación (carga nueva, ajuste u obra), EL SISTEMA le
   dará una fecha de activación propia, la siguiente libre antes de la hora del caso de
   estudio, de modo que la más nueva se aplique la última. Con tres o más etapas activas
   de la misma fecha DIgSILENT no aplica ninguna y no lo dice: «Con proyecto» calculaba
-  sin las nueve cargas nuevas de TA225 ni las obras (cambia 007:RF-3 y 006:RF-19).
+  sin las nueve cargas nuevas de TA295 ni las obras (cambia 007:RF-3 y 006:RF-19).
 - RF-75: CUANDO graba una obra de «Con proyecto», EL SISTEMA leerá la red y escribirá la
   obra con las variaciones de cargas nuevas apartadas, las devolverá antes de su flujo y
   avisará SI la obra y una carga graban el mismo objeto.
@@ -269,12 +269,12 @@ Etapas de las variaciones (prueba en DIgSILENT con IN111 + TA225, 2026-10-15)
 - Aclaración de RF-77 (033, 2026-10-29): 025:RF-47 y RF-48 la cambiaron el 2026-10-23. La
   carga que cae en un tramo ya partido sigue sin partirlo otra vez, pero va a un extremo
   existente del tramo y se mide con las variaciones de las demás cargas nuevas inactivas;
-  colgarla del nodo de otra dejaba a CH_8 de TM105 sin red al desactivar CH_3.
+  colgarla del nodo de otra dejaba a CH_8 de TM195 sin red al desactivar CH_3.
 - RF-78: CUANDO una carga nueva trae coordenadas y no trae barra, EL SISTEMA la conectará
   en el punto más cercano a sus coordenadas de cualquier tramo de media en servicio del
   alimentador, no solo de la troncal (solo los que son tramos de su red, con sus dos
   extremos en barras suyas, RF-2: una línea del alimentador con un extremo fuera no se
-  ofrece, CA101_CHN102, 2026-11-13); SI ese punto es el de otra carga de la misma
+  ofrece, CA191_CHN192, 2026-11-13); SI ese punto es el de otra carga de la misma
   aplicación, ENTONCES usará su nodo (cambia RF-45; usuario, 2026-10-15: «las cargas
   nuevas en bloque deben ser ubicadas de acuerdo a su punto de coordenada, no en el
   mismo punto»).
@@ -319,7 +319,7 @@ Cable hasta la carga nueva (usuario, 2026-10-16)
   con «Con proyecto» activo, cada barra de media y cada línea de más de 1 m de la red que
   tenga coordenadas y no tenga símbolo: la barra en su punto y la línea por su trazado,
   con los extremos en el símbolo de sus barras, y lo dirá en el informe. `SplitLine` y la
-  obra de enlace no dibujan: en IN111 + TA225 (2026-10-16) el enlace por la vía estaba en
+  obra de enlace no dibujan: en IN191 + TA295 (2026-10-16) el enlace por la vía estaba en
   «Con proyecto» y no se veía, ni la mitad nueva de cada tramo partido ni su nodo. El
   cable de RF-88 llevará como trazado su nodo y el punto de la carga.
 
@@ -362,10 +362,10 @@ Cable hasta la carga nueva (usuario, 2026-10-16)
 
 - Cada RF citado por al menos una prueba (`grep -rnoE "016:RF-[0-9]+" tests | sort -u`).
 - Suite en verde con los datos reales (las tres `CSG_*`).
-- Prueba en DIgSILENT con IN111 y TA225: la troncal de IN111 pasa a 120 mm² en «Sin
+- Prueba en DIgSILENT con IN191 y TA295: la troncal de IN191 pasa a 120 mm² en «Sin
   proyecto» y «Con proyecto», el enlace queda solo en «Con proyecto» partiendo un tramo de
-  cada alimentador y abierto (IN111 a 10 kV, TA225 a 22,9 kV); las SED de IN111 que
-  pasan, migradas a 22,9 kV en otra variación; y la transferencia de IN111 a TA225 se
+  cada alimentador y abierto (IN191 a 10 kV, TA295 a 22,9 kV); las SED de IN191 que
+  pasan, migradas a 22,9 kV en otra variación; y la transferencia de IN191 a TA295 se
   calcula por el enlace después de la migración.
 - 007:RF-24, RF-30 y RF-31 y 011:RF-57 anotados con el cambio de esta spec.
 

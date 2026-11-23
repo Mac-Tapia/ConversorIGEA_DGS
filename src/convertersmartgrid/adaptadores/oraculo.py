@@ -843,7 +843,7 @@ def validar_unida(model: FeederModel, consigna_pu: float = 1.0) -> InformeUnido:
 
     Se calcula una vez. Si no converge, cada isla sola: la que no converge se nombra, con
     la fracción de su carga con la que sí converge y, en ese punto, su barra más débil y
-    su transformador más cargado. En NA205 (2026-10-17) eso habría señalado SE50293: un
+    su transformador más cargado. En NA295 (2026-10-17) eso habría señalado SE50293: un
     cliente de 1 392 kW en 125 kVA que estancaba el Newton.
     """
     if not disponible():

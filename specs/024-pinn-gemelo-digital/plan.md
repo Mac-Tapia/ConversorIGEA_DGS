@@ -41,7 +41,7 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 | E. Lectura nativa | `tools/digital_twin_snapshot_pf.py`, `digital_twin/native_snapshot.py`, `tests/fake_pf.py` | RF-2, RF-3, RF-27, RF-28 |
 | F. Enganche web | `digital_twin/integration.py`, `web/services.py`, `web/jobs.py` | RF-1 |
 | G. Consulta | `web/app.py`, `web/services.py`, `tools/digital_twin_buffer.py` | RF-8 |
-| H. Caso dorado | `tools/accept_digital_twin_in111_ta225.py`, fixture saneado | RF-24 a RF-27 |
+| H. Caso dorado | `tools/accept_digital_twin_in191_ta295.py`, fixture saneado | RF-24 a RF-27 |
 
 ## Decisiones
 
@@ -82,7 +82,7 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 - `fake_pf` con dos alimentadores, una frontera abierta y un enlace manual para E.
 - Web con el cliente de pruebas de FastAPI para F y G.
 - Caso dorado: prueba sin licencia con el fixture, y aceptación nativa aparte en DIgSILENT con
-  el proyecto `20261015-170359_CSG_IN111_TA225`, en dos procesos (escribir y releer).
+  el proyecto `20261015-170359_CSG_IN191_TA295`, en dos procesos (escribir y releer).
 - Cada prueba cita `024:RF-n`; ficheros nuevos en `CODIGO_FUENTE.md` (spec 009); las
   herramientas responden a `--help`.
 - Suite completa con las siete variables y ninguna omitida al cerrar.
@@ -90,7 +90,7 @@ alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 ## Riesgos
 
 - El enganche tras cada acción alarga el turno de DIgSILENT: la lectura usa el servidor abierto
-  (019) y se mide en la prueba nativa; si pasa de 30 s en CA101 se anota y se decide.
+  (019) y se mide en la prueba nativa; si pasa de 30 s en CA191 se anota y se decide.
 - Un cambio en los estados de `native_action.py` rompería la puerta del proyecto nativo: solo se
   añaden helpers y `test_native_project_gate.py` corre en cada tarea que lo toque.
 - El búfer crece sin límite: retención sin borrado decidida en la spec; se informa el tamaño.

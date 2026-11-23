@@ -8,7 +8,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-31: `potencia_de_diseno`, `leer_modulos_pit`, `elegir_modulo` y
       `ubicacion_optima` (Weber con las potencias esperadas; los sorteos dan la dispersión);
       `factor_seguridad_set` y `modulos_pit` en el perfil. Con el libro real: hasta 25 MVA la Nueva
-      SET Copara (5,75 M USD), hasta 40 MVA el transformador de 40 MVA; 7 pruebas, 10 semillas.
+      SET Borealis (5,75 M USD), hasta 40 MVA el transformador de 40 MVA; 7 pruebas, 10 semillas.
 - [x] T2. Ramas que pasan a la SET nueva y su punto de corte. (RF-6)
       Hecho cuando: `pytest -q tests/test_set_nueva.py -k rama` en verde.
 - [x] T3. Carga a carga: orden, cargas apartadas en la escalera y bisección de cuántas caben. (RF-1 a RF-4)
@@ -30,7 +30,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-10-31: `elegir_modulo(max_unidades=)`, campo `unidades` de la obra y
       `ElmTr2.ntnum`; la barra de cada carga apartada se lleva a media desde la que dio la escalera
       (antes 29 de 32 quedaban fuera con «no está activa»). La primera corrida en DIgSILENT
-      (trabajo aaaccc63b7e1): caben 3 cargas con bancos 2×450 kvar y terna de 11,13 km en NA203;
+      (trabajo aaaccc63b7e1): caben 3 cargas con bancos 2×450 kvar y terna de 11,13 km en NA293;
       32 a la SET nueva, 45,5 MVA de diseño, sin módulo de 40 MVA que los cubra.
 - [x] T8. Ramas abiertas en barras de la red sin las cargas nuevas. (RF-15)
       Hecho cuando: `pytest -q tests/test_set_nueva.py tests/test_set_nueva_web.py` en verde, con la
@@ -128,7 +128,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T48. [DIgSILENT] El alcance medido en los alimentadores de Pisco. (RF-73, RF-74)
       Hecho cuando: la tabla de alternativas de Pisco trae su alcance medido, sin «sin medir».
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T44. [DIgSILENT] La obra del déficit previo de SI112, medida en el proyecto de prueba de Pisco. (RF-64)
+- [x] T44. [DIgSILENT] La obra del déficit previo de SI192, medida en el proyecto de prueba de Pisco. (RF-64)
       Hecho cuando: su mínima de media y su costo quedan anotados en esta tarea.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T37. [DIgSILENT] Un alimentador de 10 kV de Pisco pasa a 22,9 kV y converge. (RF-50, RF-51)
@@ -138,9 +138,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_escalera_optima.py tests/test_informe_factibilidad_un_paso.py` en verde.
 - [x] T39. Las alternativas en el informe de estudio, el plan y el PIDE. (RF-58)
       Hecho cuando: `pytest -q tests/test_informes_planeamiento.py tests/test_informe_alternativas.py` en verde.
-- [x] T6. [DIgSILENT] NA203 + NA205 optimizado desde la web. (Todos)
+- [x] T6. [DIgSILENT] NA293 + NA295 optimizado desde la web. (Todos)
       Hecho cuando: cada carga nueva con su destino, la red existente con obras que cumplen y la SET
-      Copara con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
+      Borealis con su punto, su módulo PIT y «Con proyecto» dentro de 0,94–1,06 pu.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T58. El refuerzo de los tramos sobrecargados sigue la escalera: sección normalizada antes que terna
       en los tramos aéreos. (RF-43, RF-94)
@@ -161,10 +161,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T65. [DIgSILENT] La regla de conductores en una escalera real. (RF-97, RF-98, RF-102)
       Hecho cuando: en «Con proyecto» de un proyecto de prueba, las ternas van en el conductor del perfil y ninguna variante
       junta sección y terna en el mismo tramo.
-      Hecho el 2026-11-07 en `20261107-043049_CSG_TXT_SISTEMA_PISCO` (AL209 y PA217 con sus 11 cargas nuevas del libro, FP del
+      Hecho el 2026-11-07 en `20261107-043049_CSG_TXT_SISTEMA_PISCO` (AL299 y PA297 con sus 11 cargas nuevas del libro, FP del
       perfil): 37 variantes medidas en DIgSILENT (`escalera_evaluar_*.json` del espacio 35ff5dab8b2b46a6); las 18 ternas en
       `AA12003D_22_9kV_FICHA` y `N212003D_22_9kV_FICHA`; secciones de un circuito solo con normalizadas (AA05003D, AA12003D);
-      0 variantes con sección y terna a la vez. Ninguna cumplía con la máxima (AL209 recibe 19,38 MW); la corrida se cortó por
+      0 variantes con sección y terna a la vez. Ninguna cumplía con la máxima (AL299 recibe 19,38 MW); la corrida se cortó por
       decisión del usuario antes de la obra integral, que no es parte de esta tarea.
 
 Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente de propuestas sin capacidades/tensiones elegidas; ver tests/test_universalidad_obras.py y docs/regresiones/2026-11-08-obras-sin-capacidades-de-muestra.md. Conserva los pendientes nativos anteriores; ninguna casilla se cierra con esta corrección.

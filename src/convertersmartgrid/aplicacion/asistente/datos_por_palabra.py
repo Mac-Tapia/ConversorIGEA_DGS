@@ -15,7 +15,7 @@ LARGO_MAX = 192
 ETIQUETAS = ('O',) + tuple(f'{p}-{t}' for t in TIPOS_DATO for p in ('B', 'I'))
 
 #: Palabras de unión que el etiquetado arrastra a los bordes de un dato («pisco con»,
-#: «en IN111 del proyecto», 2026-10-24); dentro de una lista («IN111 y TA225») se quedan.
+#: «en IN191 del proyecto», 2026-10-24); dentro de una lista («IN191 y TA295») se quedan.
 _UNION = {'de', 'del', 'en', 'con', 'para', 'la', 'el', 'los', 'las', 'y', 'a', 'al', 'proyecto',
           'alimentador', 'alimentadores', 'sistema', 'sed', 'desde', 'entre', 'por'}
 
@@ -32,8 +32,8 @@ def recortar_union(valor: str) -> str:
 def marcar_datos(texto: str, probabilidades, recortar: Callable[[str], str] = recortar_union) -> dict[str, list[dict]]:
     """Los datos, decididos por palabra: cada palabra toma el tipo que votan sus caracteres.
 
-    Los datos son palabras enteras (IN111, «CA101 13», «julio de 2026»). Etiquetando
-    carácter a carácter salían trozos como «C» y «101» de CA101 (F1 de 0,13 en la prueba
+    Los datos son palabras enteras (IN191, «CA191 13», «julio de 2026»). Etiquetando
+    carácter a carácter salían trozos como «C» y «101» de CA191 (F1 de 0,13 en la prueba
     fija, 2026-10-24); con el voto por palabra, el dato sale entero o no sale.
     """
     palabras = []

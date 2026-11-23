@@ -56,7 +56,7 @@ Para la spec 004 (RF-81 a RF-102, importar un ``.pfd``) imita ``ComPfdimport`` (
 
 Para el escenario de operación (spec 006, RF-27): con ``app.escenario_manda``, la
 potencia de una carga es dato de operación, como en DIgSILENT. Con un escenario activo
-se escribe en él y, si la guarda, se lee de él, no de la carga ni de su variación. SI213
+se escribe en él y, si la guarda, se lee de él, no de la carga ni de su variación. SI293
 (2026-10-12) cuadró a 1.622 kW con el escenario apagado y, al restaurarlo, la cabecera
 volvió a los 229 kW que el escenario guardaba. ``Escenario.fotografiar`` guarda las
 cargas que haya, como un escenario creado sobre la red importada.
@@ -237,7 +237,7 @@ class Obj:
         """Otra variación activa tiene una etapa de la misma fecha que esta.
 
         Manual de PF 2024, 16.5: con varias etapas activas de la misma fecha sigue grabando
-        la que ya grababa. SI213 (2026-10-12) tenía tres ajustes activos así y la etapa del
+        la que ya grababa. SI293 (2026-10-12) tenía tres ajustes activos así y la etapa del
         cuarto no llegó a grabar, ni con ``Activate(1)``.
         """
         app = self._app
@@ -502,7 +502,7 @@ class Variacion(Obj):
         etapa = self.CreateObject('IntSstage', nombre)
         etapa.tAcTime = _instante
         if activar:
-            # Como DIgSILENT (IN111 + TA225, 2026-10-15): activar la etapa nueva lleva la hora
+            # Como DIgSILENT (IN191 + TA295, 2026-10-15): activar la etapa nueva lleva la hora
             # del caso de estudio a su fecha.
             caso = getattr(self._app, 'caso', None)
             if caso is not None:
@@ -666,7 +666,7 @@ class Alimentador(Obj):
 
         Desde su cubículo de cabecera, por lo que está en servicio y sin un interruptor abierto, sin entrar por la
         cabecera de otro alimentador. Así una transferencia hecha a mano (un tramo nuevo y un punto abierto) pasa las
-        SED de un alimentador a otro, como en CA101 y CHN102 (2026-11-07).
+        SED de un alimentador a otro, como en CA191 y CHN192 (2026-11-07).
         """
         app, cub0 = self._app, self.obj_id
         prj = app.proyecto
@@ -1577,7 +1577,7 @@ class App:
     # ----------------------------------------------------------- spec 016
     def SplitLine(self, linea, percent=50, createSwitchSide0=0, createSwitchSide1=0,
                   graphicSplit=0):
-        """Como en DIgSILENT 2024 (sonda del 2026-10-14 sobre IN111_TA225, T1 de la 016).
+        """Como en DIgSILENT 2024 (sonda del 2026-10-14 sobre IN191_TA295, T1 de la 016).
 
         La línea conserva el nombre y va de su ``bus1`` a la barra nueva, con ``percent`` %
         de la longitud; la copia, ``<nombre>(1)``, va de la barra al otro extremo. Las dos
@@ -1650,7 +1650,7 @@ class App:
 def variacion_del_operador(app, nombre: str, cambios) -> Variacion:
     """Variación activa con cambios hechos a mano por el operador (spec 014).
 
-    ``cambios`` son ``(objeto, atributo, valor)``. Imita a CA101 (2026-10-14): el
+    ``cambios`` son ``(objeto, atributo, valor)``. Imita a CA191 (2026-10-14): el
     operador cambió el tipo de cuatro transformadores y quedaron en la etapa que grababa.
     """
     previa = app.grabando

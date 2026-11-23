@@ -18,8 +18,8 @@
       `npx tsc --noEmit -p .` y `npm run build` correctos, y probado en el navegador.
 - [x] T7. [DIgSILENT] Prueba real en DIgSILENT con un proyecto de dos alimentadores, a cargo del usuario.
       Hecho cuando: el usuario confirma en DIgSILENT los tres pasos con un proyecto de dos alimentadores.
-      Hecho el 2026-11-08: el usuario confirma los tres pasos de `20261106-065905_CSG_TXT_PRUEBA_007` (TM105 +
-      PN103, espacio 35ff5dab8b2b46a6): calibración, cargas del libro (planes `cargas_pf_7f5a264873c2` y
+      Hecho el 2026-11-08: el usuario confirma los tres pasos de `20261106-065905_CSG_TXT_PRUEBA_007` (TM195 +
+      PN193, espacio 35ff5dab8b2b46a6): calibración, cargas del libro (planes `cargas_pf_7f5a264873c2` y
       anteriores) y carga del formulario (`cargas_pf_d331a8d5cd79`). El proyecto de prueba se borra al cerrar.
 - [x] T9. La mínima y la máxima del flujo sin las barras sin tensión, con su lista aparte; los umbrales de 063 de una
       sola fuente (`cargas_pf.UMBRAL_SIN_TENSION` y `KV_MINIMO_MT`, que `estudios_pf` importa). (RF-29)

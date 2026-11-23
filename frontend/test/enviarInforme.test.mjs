@@ -98,7 +98,7 @@ test('110:RF-1, RF-4 la petición lleva los campos de la ventana, y cambiar uno 
 });
 
 const PREVIA = { borrador: '0'.repeat(32), firma: 'f'.repeat(64), cuenta: 'a@b.org', proveedor: 'google',
-  para: ['x@y.org', 'jaun@empresa.pe'], cc: [], cco: [], asunto: 'Factibilidad CA101', cuerpo: 'Adjunto el informe.',
+  para: ['x@y.org', 'jaun@empresa.pe'], cc: [], cco: [], asunto: 'Factibilidad CA191', cuerpo: 'Adjunto el informe.',
   enlace: null, adjuntos: [{ nombre: 'factibilidad.docx', tamano: 52000, sha256: 'a'.repeat(64) },
     { nombre: 'factibilidad.pdf', tamano: 1048576, sha256: 'b'.repeat(64) }],
   validez: { valido: true, motivo: '' }, avisos: {}, limite_bytes: 26214400, excede_limite: false, confirmado: false,
@@ -107,7 +107,7 @@ const PREVIA = { borrador: '0'.repeat(32), firma: 'f'.repeat(64), cuenta: 'a@b.o
 test('110:RF-1, RF-3 la vista previa enseña para quién, el asunto, el cuerpo y los adjuntos con su tamaño', async () => {
   const { pintarPrevia } = await cargar();
   const html = pintarPrevia({ previa: PREVIA, ocupado: false, onConfirmar: nada });
-  for (const t of ['x@y.org', 'Factibilidad CA101', 'Adjunto el informe.', 'factibilidad.docx', 'factibilidad.pdf', '1.0 MB'])
+  for (const t of ['x@y.org', 'Factibilidad CA191', 'Adjunto el informe.', 'factibilidad.docx', 'factibilidad.pdf', '1.0 MB'])
     assert.ok(html.includes(t), t);
   assert.match(html, /<button(?![^>]*disabled)[^>]*>Confirmar y enviar</);
   sinJerga(html);

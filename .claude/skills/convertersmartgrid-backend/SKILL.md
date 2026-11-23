@@ -1,7 +1,7 @@
 ---
 name: convertersmartgrid-backend
 description: >-
-  Reglas y checklist del motor de conversión CYMDIST TXT → DIgSILENT DGS y de su
+  Reglas y checklist del motor de conversión TXT → DIgSILENT DGS y de su
   API web. Usar al editar src/convertersmartgrid/{dominio,puertos,aplicacion,adaptadores,presentacion}/ (las capas, spec 002), las
   fuentes de adaptadores/sources/, la web de presentacion/web/, el CLI,
   el lote multi-alimentador, el lector de TXT, la validación, el rendimiento o la
@@ -28,12 +28,12 @@ web (`src/convertersmartgrid/presentacion/web/` + `frontend/`); la Tkinter se re
 
 ## Reglas de dominio (no romper)
 
-1. **Sin DGS de referencia en runtime.** `NA205.dgs` es solo para desarrollo.
+1. **Sin DGS de referencia en runtime.** `NA295.dgs` es solo para desarrollo.
 2. **Modo estricto por defecto.** No inventar tipos `DEFAULT`; los alias solo vienen de un JSON del usuario.
 3. **Independencia por alimentador.** Un fallo no invalida a los demás; el manifiesto dice OK/FAIL de cada uno.
 4. **Determinismo.** Misma entrada + perfil + alias → mismo DGS **byte a byte**, en serie o en paralelo. El manifiesto sigue el orden de la selección, no el orden en que acaban los procesos.
 5. **Geografía opcional.** `include_geography=False` funciona sin `pyproj`.
-6. **Dos disposiciones de export.** CYMDIST da la misma red de dos formas («reducida» y «completa»). Tres de sus cinco diferencias no fallan: producen un modelo que converge con números falsos. Todo cambio en el lector se prueba con `ExportSpec(layout='completo')` además del de referencia.
+6. **Dos disposiciones de los TXT.** La misma red llega en dos formas («reducida» y «completa»). Tres de sus cinco diferencias no fallan: producen un modelo que converge con números falsos. Todo cambio en el lector se prueba con `ExportSpec(layout='completo')` además del de referencia.
 7. **Publicación atómica.** Se escribe en `.csg-stage-<alimentador>` y se publica con `os.replace` solo si todo validó. Una cancelación nunca deja un `.dgs` a medias.
 
 ## Reglas del proyecto (siempre)

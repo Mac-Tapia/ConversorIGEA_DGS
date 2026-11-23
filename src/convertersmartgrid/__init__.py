@@ -1,4 +1,4 @@
-"""Motor universal de conversión CYMDIST (TXT o Access) a DGS de DIgSILENT."""
+"""Motor universal de conversión de los TXT o de la base Access a DGS de DIgSILENT."""
 
 # 103:RF-5: el paquete lo importan los guiones de DIgSILENT con su Python 3.9 embebido, donde «str | None» en una
 # anotación falla al importar (bd4cc7d2 lo trajo con seccion_de_notas; la puerta entera con CSG_PF_PYTHON_39 lo cazó).

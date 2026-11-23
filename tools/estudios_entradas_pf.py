@@ -7,8 +7,8 @@ ese guion activa el caso («Sin proyecto», «Cargas nuevas» o «Con proyecto»
 base»), comprueba que el flujo converge y llama aquí, dentro de ``_estudio_de_red``, que al
 terminar comprueba que ninguna demanda, variación, hora ni etapa quedó cambiada (RF-60, spec 064).
 
-Por qué en una variación temporal: la sonda del 2026-11-13 en CA101_CHN102 mostró una red externa
-por alimentador («External Grid CA101», en la barra de cabecera de 10 kV) con los valores por
+Por qué en una variación temporal: la sonda del 2026-11-13 en CA191_CHN192 mostró una red externa
+por alimentador («External Grid CA191», en la barra de cabecera de 10 kV) con los valores por
 defecto de DIgSILENT (``snss`` = 10 000 MVA, ``rntxn`` = 0,1, ``snssmin`` = 8 000). La Pcc
 confirmada en la web se escribe en esa red externa dentro de una variación que graba solo durante
 el estudio y se borra al terminar: la red, y con ella el «Caso base», vuelve a lo que era, y se
@@ -46,7 +46,7 @@ ATRIBUTOS_XNET = ('snss', 'rntxn', 'snssmin', 'rntxnmin', 'x0tx1', 'r0tx0')
 #: Códigos de ``ChaTime`` leídos en la biblioteca global de PF 2024 (sonda del 2026-11-13).
 CHATIME = {'source': 0, 'repeat': 0, 'unit': 0, 'usage': 1}
 #: ``ComShc.iopt_allbus``: falla en barras **y nodos de unión**. La orden nueva trae 2 (solo barras), y en la
-#: copia de CA101_CHN102 (2026-11-13) dejó sin calcular los 385 nodos de media tensión del alimentador,
+#: copia de CA191_CHN192 (2026-11-13) dejó sin calcular los 385 nodos de media tensión del alimentador,
 #: también la barra de cabecera: solo salían las barras de baja de las SED.
 FALLA_EN_BARRAS_Y_NODOS = 1
 #: Resultados del cortocircuito por barra: corriente inicial y potencia (manual §25).
@@ -61,7 +61,7 @@ def _num(obj, atributo):
 
 def nombres_xnet(x) -> list[str]:
     """Con qué nombres puede venir una red externa en la tabla del operador: el suyo, el del
-    alimentador que alimenta («External Grid CA101» → «CA101»), el de su barra y el de la
+    alimentador que alimenta («External Grid CA191» → «CA191»), el de su barra y el de la
     subestación que la contiene."""
     nombres = [x.loc_name]
     if x.loc_name.lower().startswith('external grid '):
@@ -183,7 +183,7 @@ def resumen_cortocircuito(terminales) -> dict:
     """Corriente y potencia de falla por barra, de mayor a menor, y los extremos.
 
     Una barra con Ik" = 0 no tiene falla calculada (sin tensión, o fuera de la selección de la orden;
-    CA101, 2026-11-13): se cuenta aparte y no es la mínima, que es la que decide el ajuste de protecciones.
+    CA191, 2026-11-13): se cuenta aparte y no es la mínima, que es la que decide el ajuste de protecciones.
     """
     barras, sin_tension = [], []
     for b in terminales:
@@ -227,7 +227,7 @@ def cuasi_dinamica(app, plan: dict, alims, feeders: list[str], informe: dict) ->
     from estudios_pf import _limpiar_salida, _salida
 
     con, sin = _cargas_con_perfil(alims, feeders, registro)
-    # CA101_CHN102 (2026-11-13): 204 cargas en la red y 203 en sus dos ElmFeeder; la que queda
+    # CA191_CHN192 (2026-11-13): 204 cargas en la red y 203 en sus dos ElmFeeder; la que queda
     # fuera sigue constante, y se dice en vez de callarlo.
     fuera = len(app.GetCalcRelevantObjects('*.ElmLod') or []) - len(con) - len(sin)
     if fuera > 0:

@@ -149,30 +149,30 @@ test('072:RF-32 los documentos del estudio se agrupan por entregable con las cla
 });
 
 
-const AVANCE = { cargas: [{ sed: 'SECA001', alimentador: 'CA101', sola: true }], estudiados: ['CA101'], obras: false,
+const AVANCE = { cargas: [{ sed: 'SECA001', alimentador: 'CA191', sola: true }], estudiados: ['CA191'], obras: false,
   informes: [] };
 
 test('072:RF-33 lo guardado en disco marca los pasos aunque la sesión no tenga sus trabajos', async () => {
   const { estadoConDisco } = await cargar();
-  const e = estadoConDisco({ ...NADA, proyecto: true, alimentadores: true, calibrado: true }, AVANCE, ['CA101', 'CHN102']);
+  const e = estadoConDisco({ ...NADA, proyecto: true, alimentadores: true, calibrado: true }, AVANCE, ['CA191', 'CHN192']);
   assert.equal(e.cargas, true);
   assert.equal(e.conProyecto, false);
   // Solo cuenta lo de los alimentadores marcados.
-  assert.equal(estadoConDisco(NADA, AVANCE, ['CHN102']).cargas, false);
-  assert.deepEqual(estadoConDisco(NADA, null, ['CA101']), NADA);
+  assert.equal(estadoConDisco(NADA, AVANCE, ['CHN192']).cargas, false);
+  assert.deepEqual(estadoConDisco(NADA, null, ['CA191']), NADA);
 });
 
 test('072:RF-33 con los marcados calibrados hay camino directo a 4.2 y 4.4', async () => {
   const { seguir, DESTINO } = await cargar();
   assert.equal(DESTINO.estudios, 'paso-estudios');
-  const html = seguir({ avance: AVANCE, calibrados: ['CA101', 'CHN102'], order: ['CA101', 'CHN102'] });
-  for (const t of ['Seguir donde quedó', 'SECA001 (CA101)', 'Falta el flujo de «Con proyecto» de CHN102',
+  const html = seguir({ avance: AVANCE, calibrados: ['CA191', 'CHN192'], order: ['CA191', 'CHN192'] });
+  for (const t of ['Seguir donde quedó', 'SECA001 (CA191)', 'Falta el flujo de «Con proyecto» de CHN192',
     'Ir a 4.2 · Estudios', 'Ir a 4.4 · Preparar informe', 'los pasos 2 y 3 siguen abajo']) assert.ok(html.includes(t), t);
-  const listo = seguir({ avance: { ...AVANCE, estudiados: ['CA101', 'CHN102'] }, calibrados: ['CA101', 'CHN102'],
-    order: ['CA101', 'CHN102'] });
-  assert.ok(listo.includes('Flujos de «Con proyecto» ya corridos: CA101, CHN102'));
+  const listo = seguir({ avance: { ...AVANCE, estudiados: ['CA191', 'CHN192'] }, calibrados: ['CA191', 'CHN192'],
+    order: ['CA191', 'CHN192'] });
+  assert.ok(listo.includes('Flujos de «Con proyecto» ya corridos: CA191, CHN192'));
   // Sin calibrar todos los marcados, no se ofrece el atajo.
-  assert.equal(seguir({ avance: AVANCE, calibrados: ['CA101'], order: ['CA101', 'CHN102'] }), '');
+  assert.equal(seguir({ avance: AVANCE, calibrados: ['CA191'], order: ['CA191', 'CHN192'] }), '');
 });
 
 test('024:RF-5 la tabla de episodios del gemelo se lee en español y sin rutas de DIgSILENT', async () => {
@@ -183,7 +183,7 @@ test('024:RF-5 la tabla de episodios del gemelo se lee en español y sin rutas d
   assert.equal(TEXTO_EPISODIO.sin_proyecto, 'Sin proyecto');
   assert.equal(TEXTO_EPISODIO.ajuste, 'Calibración');
   assert.doesNotMatch(fechaDeEpisodio('2026-11-13T23:23:22+00:00'), /T23|\+00:00/);
-  const ruta = (n) => `tensión 0.9468 p.u. en ElmTerm:Network Model.IntPrjfolder\\Network Data.IntPrjfolder\\CA101_CHN102.ElmNet\\${n}.ElmTerm fuera de 0.95–1.05 (NTCSE)`;
+  const ruta = (n) => `tensión 0.9468 p.u. en ElmTerm:Network Model.IntPrjfolder\\Network Data.IntPrjfolder\\CA191_CHN192.ElmNet\\${n}.ElmTerm fuera de 0.95–1.05 (NTCSE)`;
   assert.equal(avisosDeEpisodio([ruta(11799)]), 'barra 11799 a 0,9468 p.u., fuera de 0,95–1,05 (NTCSE)');
   assert.match(avisosDeEpisodio([ruta(1), ruta(2), ruta(3), ruta(4)]), /barra 1 .* · barra 2 .* · y 2 más$/);
   assert.equal(avisosDeEpisodio(['sin medida para comprobar la calibración']), 'sin medida para comprobar la calibración');

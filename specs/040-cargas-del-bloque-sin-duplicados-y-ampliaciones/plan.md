@@ -17,11 +17,11 @@ Decisiones:
   cambio de la carga existente: la potencia de una carga es dato del escenario, y escribirla en
   «Con proyecto» no se podría activar ni desactivar carga a carga (007:RF-12) ni dejaría intacta
   la calibración. Descartado también crear una SED en el mismo punto: es lo que duplicaba.
-- El punto de la SED existente es el GPS de la barra de baja de su carga (los 188 de NA203 +
-  NA205 lo tienen); la palabra del nombre se compara con los nombres de la red, sin patrón de
+- El punto de la SED existente es el GPS de la barra de baja de su carga (los 188 de NA293 +
+  NA295 lo tienen); la palabra del nombre se compara con los nombres de la red, sin patrón de
   empresa (P13).
 - Dos filas son la misma solo en el mismo alimentador del libro, como pidió el usuario.
 
 Pruebas: el doble `tests/fake_pf.py` con barras de baja (`bt=True`), en
-`tests/test_cargas_pf_guion_040.py`; la de 014:RF-26 se cambia a RF-7. NA203 + NA205 en DIgSILENT
+`tests/test_cargas_pf_guion_040.py`; la de 014:RF-26 se cambia a RF-7. NA293 + NA295 en DIgSILENT
 desde la web.

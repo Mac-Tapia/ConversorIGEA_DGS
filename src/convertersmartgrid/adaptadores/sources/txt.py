@@ -1,4 +1,4 @@
-"""Adaptador de los tres TXT CYMDIST custodiados."""
+"""Adaptador de los tres TXT custodiados."""
 
 from __future__ import annotations
 

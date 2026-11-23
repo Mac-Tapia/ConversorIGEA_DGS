@@ -23,10 +23,10 @@ recalibración la usen sin repetirla. Descartado: un tercer criterio general; la
 Decisiones: la Q de la red sale del informe de la calibración (cabecera simulada menos lo que
 consumen las cargas, más lo que entregan los bancos), no de una simulación aparte: los informes
 salen de lo que guardó la ejecución. Sin el registro coincidente no se cae al «máximo del mes» en
-silencio (RF-4): mezclar criterios es lo que escondió el desfase de NA203.
+silencio (RF-4): mezclar criterios es lo que escondió el desfase de NA293.
 
 Pruebas: libros sintéticos con `openpyxl` (con y sin el instante) para la lectura y el plan; la
-API con un informe de calibración en disco; la web, en el navegador real, y NA203 en DIgSILENT.
+API con un informe de calibración en disco; la web, en el navegador real, y NA293 en DIgSILENT.
 
 ## MEJ27-FIJAS (orden del usuario del 21-11): RF-24 y RF-25
 

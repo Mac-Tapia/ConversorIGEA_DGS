@@ -3,7 +3,7 @@
 Reglas sin DIgSILENT: de quién es cada generador, banco y variación que lee
 ``tools/escanear_alimentador_pf.py``, y qué barra toma la central de un alimentador. Lo propio
 del conversor se reconoce solo por sus prefijos (RF-7): en Nasca (2026-10-28) el usuario pone
-a mano la central y los bancos de NA205, y la calibración tiene que verlos sin que ningún
+a mano la central y los bancos de NA295, y la calibración tiene que verlos sin que ningún
 nombre de empresa, central o alimentador esté escrito en el código.
 """
 from __future__ import annotations

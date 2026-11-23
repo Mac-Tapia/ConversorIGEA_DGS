@@ -49,7 +49,7 @@ NOMBRES = {'base': 'Caso base', 'sin': 'Sin proyecto', 'con': 'Con proyecto'}
 #: Marca en la descripción de un caso creado o renombrado por el sistema.
 MARCA = 'convertersmartgrid:011:'
 #: La marca de los casos creados antes del cambio de nombre (058:RF-9): sin ella, ningún flujo
-#: reconocía los casos de NA203 + NA205 ni de SM218 (2026-11-01, «falta Con proyecto»).
+#: reconocía los casos de NA293 + NA295 ni de SM298 (2026-11-01, «falta Con proyecto»).
 MARCA_ANTERIOR = 'igea-dgs:011:'  # legado-058
 MARCAS = (MARCA, MARCA_ANTERIOR)
 
@@ -161,8 +161,8 @@ def objetos_de_variacion(variacion) -> list[tuple[str, str]]:
 def es_ajuste_puro(variacion) -> bool:
     """Un ``Ajuste_…`` cuyas etapas solo cambian cargas: lo dejó el ajuste y nada más.
 
-    CA101 (2026-10-14): el operador cambió el tipo de cuatro transformadores con
-    ``Ajuste_CA101_20261013_203247_3`` grabando, y los ajustes siguientes lo desactivaron
+    CA191 (2026-10-14): el operador cambió el tipo de cuatro transformadores con
+    ``Ajuste_CA191_20261013_203247_3`` grabando, y los ajustes siguientes lo desactivaron
     por su nombre. Una variación así es del operador (014:RF-3).
     """
     return (variacion.loc_name.startswith('Ajuste_')
@@ -221,8 +221,8 @@ def clasificar(variaciones, feeders: list[str], base: list[str], demandas: str |
 def obras_del_con_proyecto_sin_anio(app) -> list:
     """Las obras activas en «Con proyecto» sin año: ni cargas nuevas ni ajustes puros (025:RF-42).
 
-    Las cargas nuevas reutilizadas de otro año se crearon sobre ellas: las nueve de TA225 en
-    IN111 + TA225 (2026-10-23) partían tramos que solo existen con el enlace, la migración y
+    Las cargas nuevas reutilizadas de otro año se crearon sobre ellas: las nueve de TA295 en
+    IN191 + TA295 (2026-10-23) partían tramos que solo existen con el enlace, la migración y
     la terna de 2026, y sin ellas «Con proyecto 2025» unía 10 kV con 22,9 kV. Deja activo el
     caso que lo estaba.
     """
@@ -240,7 +240,7 @@ def obras_del_con_proyecto_sin_anio(app) -> list:
 def cargas_que_no_convergen_juntas(app, caso, converge) -> dict | None:
     """Si el caso no converge con sus cargas nuevas, cuáles no caben juntas (025:RF-43).
 
-    PA217 y TM105 en «Con proyecto 2025» (2026-10-23): ningún flujo convergía con todas, y
+    PA297 y TM195 en «Con proyecto 2025» (2026-10-23): ningún flujo convergía con todas, y
     cada carga sola sí; quitar PI_1 o PI_8 (CH_3 o CH_5) bastaba. Se prueba cada carga sola
     y el caso sin cada una, y todo queda como estaba. ``converge(app)`` corre el flujo del
     caso activo. ``None`` si converge con todas.
@@ -312,7 +312,7 @@ OPERACION = {
     # 4 × 630 kVA en «Sin proyecto» y 1 × 630 kVA en «Con proyecto», que no convergía ni sin cargas.
     'ElmTr2': ('outserv', 'nntap', 'ntnum'),
     'ElmLne': ('outserv',),
-    # La consigna de la fuente también: SM218 (2026-11-01), la recalibración dejó «Sin proyecto» a
+    # La consigna de la fuente también: SM298 (2026-11-01), la recalibración dejó «Sin proyecto» a
     # 1,02 p.u. y «Con proyecto» seguía a 1,00; la escalera medía las obras dos puntos más abajo.
     'ElmXnet': ('usetp',),
 }
@@ -344,7 +344,7 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
     """Lo que el operador hizo a mano en «Sin proyecto», también en «Con proyecto».
 
     014:RF-31 a RF-34. «Con proyecto» es «Sin proyecto» más las cargas nuevas y las obras,
-    pero se copia una vez y después cada caso va por su lado: en PN107 (2026-10-16) el
+    pero se copia una vez y después cada caso va por su lado: en PN197 (2026-10-16) el
     operador creó un banco en «Sin proyecto» y no estaba en «Con proyecto». Se activan las
     variaciones del operador (RF-21) y, por cada dato de operación de :data:`OPERACION`
     que «Sin proyecto» cambió respecto del «Caso base» y «Con proyecto» no, se escribe en
@@ -378,8 +378,8 @@ def sin_a_con_proyecto(app, casos: dict, excluir=()) -> dict:
         for ruta, (obj_sin, datos) in sorted(sin.items()):
             nombre = getattr(obj_sin, 'loc_name', ruta)
             # 098:RF-48: la transferencia del operador deshecha en «Con proyecto» como alternativa no elegida no se
-            # vuelve a copiar desde «Sin proyecto». CA101 + CHN102 (2026-11-07): al aplicar la obra de CA101, esta
-            # copia la reponía y CHN102 volvía a cargar la zona (0,703 p.u.) con la obra calculada sin ella.
+            # vuelve a copiar desde «Sin proyecto». CA191 + CHN192 (2026-11-07): al aplicar la obra de CA191, esta
+            # copia la reponía y CHN192 volvía a cargar la zona (0,703 p.u.) con la obra calculada sin ella.
             if nombre in excluir:
                 continue
             if ruta not in con:
@@ -437,7 +437,7 @@ def operacion_de_las_obras(app, casos_anio: dict) -> dict:
     """La operación que las obras de «Con proyecto» dejaron en su escenario, también en «Con
     proyecto <año>» (025:RF-42b).
 
-    IN111 + TA225 (2026-10-23): activas las variaciones del enlace y de la migración, «Con
+    IN191 + TA295 (2026-10-23): activas las variaciones del enlace y de la migración, «Con
     proyecto 2025» convergía, pero el enlace seguía fuera de servicio y el tramo que la
     migración abre, en servicio: el ``outserv`` de una línea es dato del escenario, y el de
     2025 es copia del de «Sin proyecto 2025». IC_11, IC_12, IC_15 e IC_17 quedaban sin
@@ -556,9 +556,9 @@ def crear_con_proyecto(app, sin, anio: int | None = None):
     con = app.GetProjectFolder('study').AddCopy(sin, nombre_caso('con', anio))
     _marcar(con, _clave('con', anio))
     _escenario_propio(app, con, 'con', _escenario_de(app, sin), anio)
-    # La copia tiene que ver las etapas que ve «Sin proyecto». Con CA101 + PE104 (2026-11-07) quedó en
+    # La copia tiene que ver las etapas que ve «Sin proyecto». Con CA191 + PE194 (2026-11-07) quedó en
     # 1793026149 y las etapas de la base en …150 (fichas, 707 tramos) y …151 (7 SED NTP): «activas» pero sin
-    # aplicar, CA101 entero sin tensión (687 barras) y la obra inactiva (044 y 048, T4). Subir la hora del
+    # aplicar, CA191 entero sin tensión (687 barras) y la obra inactiva (044 y 048, T4). Subir la hora del
     # caso no se mantiene (081:RF-78); se adelantan las etapas, como hace ``sin_a_con_proyecto``.
     con.Activate()
     etapas_al_dia(app)
@@ -606,7 +606,7 @@ def _escenario_renovado(app, caso, nombre: str, origen) -> str:
 
 
 #: Lo que se compara, objeto a objeto, entre «Sin proyecto» y un caso que sale de él (025:RF-81, RF-82).
-#: PA217 (2026-11-12): el operador puso bancos y pasó tramos a dos conductores de 120 mm² en «Sin
+#: PA297 (2026-11-12): el operador puso bancos y pasó tramos a dos conductores de 120 mm² en «Sin
 #: proyecto», y «Cargas nuevas» no los tenía. Son los datos que el operador cambia: bancos (pasos y
 #: potencia), tramos (tipo, conductores en paralelo, largo, servicio), transformadores (tipo, toma y
 #: unidades), interruptores (estado) y cargas (potencia y escala). Un atributo que la clase no tenga
@@ -789,7 +789,7 @@ def _armar_cargas_nuevas(app, sin, carpeta, nombre: str, clave: str, informe: di
         if v.loc_name in de_sin and v not in (app.GetActiveNetworkVariations() or []):
             v.Activate()
     # RF-80: una etapa fechada después de la hora del caso no se aplica aunque su variación esté
-    # activa, y DIgSILENT no avisa (SM218 y PRUEBA_007, 081:RF-78). Se adelantan antes de comparar.
+    # activa, y DIgSILENT no avisa (SM298 y PRUEBA_007, 081:RF-78). Se adelantan antes de comparar.
     adelantadas = etapas_al_dia(app)
     informe['etapas_adelantadas'] = sorted(set(informe['etapas_adelantadas']) | set(adelantadas))
     return caso
@@ -802,7 +802,7 @@ def cargas_nuevas(app, sin, anio: int | None, variaciones: list, flujo,
     nuevas activadas una a una (025:RF-61 a RF-66, RF-79 a RF-83).
 
     En cada inserción el caso del sistema se borra y se vuelve a copiar de «Sin proyecto» (RF-79): así
-    trae la hora, las variaciones, el escenario y lo que el operador cambió allí (PA217, 2026-11-12:
+    trae la hora, las variaciones, el escenario y lo que el operador cambió allí (PA297, 2026-11-12:
     bancos y tramos de dos conductores de 120 mm² que el caso reutilizado no tenía). Se adelantan sus
     etapas (RF-80) y, antes de activar ninguna carga, se compara con «Sin proyecto» objeto a objeto en
     los alimentadores ``feeders`` (RF-81); si sale distinto se rehace una vez y, si sigue distinto, se
@@ -1092,7 +1092,7 @@ def _renovar_con_proyecto(app, con, sin, anio: int | None):
     """«Con proyecto» de nuevo como copia de «Sin proyecto»; el anterior se conserva renombrado
     y sin la marca, con su escenario (037:RF-8).
 
-    SM218 (2026-11-01): «Con proyecto» se copió el 29-10 y la recalibración de después, con
+    SM298 (2026-11-01): «Con proyecto» se copió el 29-10 y la recalibración de después, con
     los cambios del operador y los bancos EBC_1, EBC_2 y ECB_3, quedó solo en «Sin proyecto»;
     su escenario mandaba con demandas viejas (SE41225 a 600 kW) y sus SED salían al 826 %.
     """
@@ -1151,7 +1151,7 @@ def preparar_con(app, plan: dict) -> tuple[dict, int]:
         con.Activate()
         activas = sorted(v.loc_name for v in (app.GetActiveNetworkVariations() or []))
         # Un informe de estudio no trae cliente nuevo: lo que distingue «Con proyecto» son
-        # las obras de mejora (017:RF-30). Antes solo contaban las cargas nuevas, y en CA101
+        # las obras de mejora (017:RF-30). Antes solo contaban las cargas nuevas, y en CA191
         # (2026-10-15) «Con proyecto» con obras se quedaba sin estudiar.
         obras = [v for v in activas if v.startswith(PREFIJO_VARIACION)]
         estudiable = bool(grupos['cargas'] or obras)

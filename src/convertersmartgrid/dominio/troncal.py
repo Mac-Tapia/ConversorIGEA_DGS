@@ -1,7 +1,7 @@
 """Troncal por el camino más largo, aguas abajo de un nodo y punto de conexión (spec 016).
 
 La troncal de la spec 011 es la de ``ComBbone``, y DIgSILENT solo la dibuja entre
-alimentadores con un enlace: IN111 no tenía ninguno y se quedó sin troncal el 2026-10-14,
+alimentadores con un enlace: IN191 no tenía ninguno y se quedó sin troncal el 2026-10-14,
 cuando el usuario pidió pasarla entera a 120 mm². Para las obras la troncal es, en sus
 palabras, «el conjunto de tramos continuos que hacen el más largo del alimentador»
 (RF-1): aquí se calcula con la red que lee el guion de DIgSILENT, sin PowerFactory, para
@@ -108,7 +108,7 @@ class Arbol:
 def arbol(red: Red, cabecera: str) -> Arbol:
     """Árbol de los caminos más cortos en metros desde la cabecera, por los tramos cerrados.
 
-    La red de distribución es radial, pero el modelo puede traer anillos cerrados: IN111
+    La red de distribución es radial, pero el modelo puede traer anillos cerrados: IN191
     del TXT de referencia tiene tres. Un recorrido en anchura cuenta saltos, y con un
     anillo el «camino» de una barra salía por el lado de menos tramos aunque fuera más
     largo. Con los caminos más cortos en metros, cada barra cuelga del lado por el que
@@ -198,7 +198,7 @@ def aguas_abajo(red: Red, cabecera: str, nodo: str) -> Subarbol:
 def camino_hasta(red: Red, cabecera: str, barra: str) -> tuple[str, ...]:
     """Los tramos del camino de la cabecera a ``barra``, en ese orden (017:RF-41).
 
-    Es la troncal de la cabecera a una SED que indica el operador: en CA101, la que va a
+    Es la troncal de la cabecera a una SED que indica el operador: en CA191, la que va a
     la SED del cliente (SE20701), no el camino más largo del alimentador.
     """
     a = arbol(red, cabecera)

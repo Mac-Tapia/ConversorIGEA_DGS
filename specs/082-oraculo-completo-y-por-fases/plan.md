@@ -11,7 +11,7 @@
 
 ## Decisiones
 
-- **`runpp_3ph` de pandapower**, no un barrido por fases propio: ya es dependencia y, medido en TI01 y
+- **`runpp_3ph` de pandapower**, no un barrido por fases propio: ya es dependencia y, medido en TI09 y
   C+æ02, queda cerca de DIgSILENT. Descartado el propio porque duplicaría un motor y su mantenimiento.
 - **Todos los tramos son trifásicos en pandapower**, que no tiene conductores ausentes. Un tramo
   monofásico solo lleva corriente en su fase: la caída sale de la impedancia propia, (Z0 + 2·Z1)/3.

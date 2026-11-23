@@ -20,7 +20,7 @@ from ...dominio.util import cuenta
 
 #: Versión del grafo. La 2 traía los acopladores y la consigna de las fuentes. La 3 separa carga,
 #: generación y bancos, trae tomas, fases y alcance, y cuenta las unidades en paralelo: un
-#: episodio versión 2 pudo capturarse antes o después de la 074 (``ntnum``, SM218 al 131 % frente
+#: episodio versión 2 pudo capturarse antes o después de la 074 (``ntnum``, SM298 al 131 % frente
 #: al 65 % de DIgSILENT) y no hay forma de distinguirlo, así que no enseña.
 VERSION_GRAFO = 3
 #: Tope de la impedancia de una rama en p.u. (r y x): un acoplador cerrado, sin impedancia en el
@@ -82,7 +82,7 @@ def _motivos_de_comldf(grafo: Mapping[str, Any]) -> list[str]:
     if comldf['iopt_lev']:
         distintos = _consumo_distinto(grafo.get('nodos') or {})
         if distintos:
-            # CA101 (2026-10-15) consumía el 73 % de lo escrito: iopt_lev vuelve las cargas impedancia.
+            # CA191 (2026-10-15) consumía el 73 % de lo escrito: iopt_lev vuelve las cargas impedancia.
             motivos.append(f'adaptación automática del modelo (iopt_lev): {cuenta(len(distintos), "barra consume", "barras consumen")} '
                            f'otra cosa que lo escrito o no se midió (p. ej. {_muestra_de(distintos)})')
     return motivos

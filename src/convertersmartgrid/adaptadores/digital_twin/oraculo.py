@@ -155,7 +155,7 @@ def muestra(grafo: Mapping[str, Any], tensiones: Mapping[str, float] | None = No
             inom.append(float(r.get('inom_ka') or 0.0) / i_base if i_base else 0.0)
             ramas.append(str(r.get('id')))
     # Una isla sin fuente no puede cumplir el balance: la física solo se exige donde llega
-    # una fuente (IN111–TA225 tenía 392 barras sin tensión en un caso mal activado).
+    # una fuente (IN191–TA295 tenía 392 barras sin tensión en un caso mal activado).
     alimentado = fuente.copy()
     vecinos: dict[int, list[int]] = {}
     for u, w in zip(origen, destino, strict=True):
@@ -211,7 +211,7 @@ def barras_electricas(m: Muestra) -> tuple[np.ndarray, np.ndarray, np.ndarray, n
     son acopladores y qué barras eléctricas deben cumplir el balance.
 
     Un acoplador es una rama de 10⁻⁶ p.u.: en el balance por nodo, una diferencia de tensión
-    mínima entre sus dos barras daba corrientes enormes. La PINN de IN111–TA225 (1221
+    mínima entre sus dos barras daba corrientes enormes. La PINN de IN191–TA295 (1221
     acopladores) empezaba con una pérdida de 1,7·10⁷ y acababa peor que la física sola
     (0,0072 p.u. frente a 0,0032, 2026-10-24).
     """
@@ -365,7 +365,7 @@ class ModeloMallado:
     """Flujo de carga por matriz de admitancias, con los lazos de la red (RF-38, RF-64).
 
     Es la física de la PINN y el evaluador de los algoritmos evolutivos. A diferencia del
-    barrido radial, respeta las ramas que cierran un lazo: IN111–TA225 tiene 3 y el barrido
+    barrido radial, respeta las ramas que cierran un lazo: IN191–TA295 tiene 3 y el barrido
     se apartaba 0,019 p.u. de DIgSILENT frente a 0,0032 de este (2026-10-24).
     """
 
@@ -461,7 +461,7 @@ def _red(ocultas: int = 64, pasos: int = 8, arquitectura: str = 'csg'):
             out = self.salida(h)
             # Híbrido: la tensión del barrido físico (columnas 5 y 6) más la corrección que la
             # red aprende de DIgSILENT. Solo con mensajes, la consigna de la fuente no llegaba a
-            # los nodos a cientos de tramos (IN111–TA225: error de 0,035 p.u., 2026-10-22).
+            # los nodos a cientos de tramos (IN191–TA295: error de 0,035 p.u., 2026-10-22).
             v = x[:, 5] + 0.1 * torch.tanh(out[:, 0])
             th = x[:, 6] + 0.2 * torch.tanh(out[:, 1])
             # En la fuente tensión y ángulo son dato, no predicción (045:RF-5): el ángulo flotaba.
@@ -492,7 +492,7 @@ def _tensores(m: Muestra, disp, exponente: float = 0.0, fisica: str = 'mallado')
 def _fisica(m: Muestra, disp, exponente: float = 0.0, dtype=None) -> dict:
     """Tensores fijos de la pérdida física de una muestra, creados una sola vez.
 
-    Crearlos en cada paso agotó la memoria con IN111–TA225 (2470 nodos, 2026-10-22: «CUDA
+    Crearlos en cada paso agotó la memoria con IN191–TA295 (2470 nodos, 2026-10-22: «CUDA
     error: Memory allocation failure» con 1,3 GB de RAM libre) y tumbó la web.
     """
     torch = _torch()
@@ -567,7 +567,7 @@ def _terminos_torch(f: dict, v, theta, objetivo, mascara) -> dict:
     """Los tres términos de la pérdida, sin sumar (045:RF-6)."""
     balance = _residuo_torch(f, v, theta)
     # Sin barras libres no hay balance que medir: 0, como ``perdidas_fisicas``. La media de nada era NaN y la pérdida de
-    # la época salía «nan» (ciclo del 2026-11-12, cinco episodios de TM102).
+    # la época salía «nan» (ciclo del 2026-11-12, cinco episodios de TM192).
     fisica = balance.mean() if balance.numel() else balance.sum()
     return {'datos': ((v - objetivo)[mascara] ** 2).mean(), 'fisica': fisica,
             'fronteras': _fronteras_torch(f, v, theta)}
@@ -579,7 +579,7 @@ class Entrenamiento:
     lr: float = 3e-3
     peso_fisico: float = 1e-4
     """La física de la base no tiene la capacidad de las líneas ni las tomas: con peso 1 la red
-    se quedaba en ella (0,0032 p.u. en IN111–TA225); con 10⁻⁴ aprende lo que le falta de
+    se quedaba en ella (0,0032 p.u. en IN191–TA295); con 10⁻⁴ aprende lo que le falta de
     DIgSILENT (0,00046 p.u. en escenarios no vistos, residuo 0,011; 2026-10-24)."""
     ocultas: int = 64
     pasos: int = 8
@@ -1305,7 +1305,7 @@ def particionar(muestras: Sequence[Muestra], declarados: set[str] | None = None,
     más redes, al menos una a prueba (la de huella menor si el reparto fijo no da ninguna) y
     nunca todas. La validación sale de los escenarios de las redes de entrenamiento.
 
-    045:RF-13: el reparto por huella dejó de prueba a TM102, de 30 nodos, frente a redes de 5 147
+    045:RF-13: el reparto por huella dejó de prueba a TM192, de 30 nodos, frente a redes de 5 147
     (2026-11-08): con una red declarada en el perfil, esa es la de prueba. Si no está entre las
     muestras se ignora, porque una declaración de otra empresa no debe vaciar la prueba.
     """
@@ -1415,7 +1415,7 @@ def elegir_exponente(muestras: Sequence[Muestra], candidatos: Sequence[float] = 
     No se fija en el código porque otra empresa o versión puede modelar las cargas de otro
     modo. Con el barrido radial salía impedancia constante (0,019 p.u. frente a 0,050), pero
     era el barrido el que fallaba: con el flujo mallado gana la potencia constante, con
-    0,0032 p.u. frente a 0,016 (IN111–TA225, 2026-10-24).
+    0,0032 p.u. frente a 0,016 (IN191–TA295, 2026-10-24).
     """
     def error(x: float) -> float:
         errores = []

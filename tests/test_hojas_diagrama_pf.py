@@ -1,7 +1,7 @@
 """Spec 022, RF-93: la hoja de cada diagrama frente a sus gráficos, con ``fake_pf``.
 
 DIgSILENT no se ejecuta en la suite (P11). En Nasca por SET (2026-10-29) DIgSILENT dio hoja
-vertical a la SET 52, la 53 y la 56, más altas que anchas, y los vectores de los conectores
+vertical a la SET 92, la 53 y la 56, más altas que anchas, y los vectores de los conectores
 traen −1 en los puntos sin usar.
 """
 from __future__ import annotations
@@ -46,7 +46,7 @@ def test_los_puntos_sin_usar_del_conector_no_son_del_dibujo(hojas):
     assert hojas.puntos_del_conector([], []) == []
     assert hojas.hoja_efectiva((203840.0, 112100.0), hojas.VERTICAL) == (112100.0, 203840.0)
     assert hojas.hoja_efectiva((203840.0, 112100.0), hojas.HORIZONTAL) == (203840.0, 112100.0)
-    assert hojas.tamano_del_formato('Nasca SET 53 Puquio (203840x112100)', {}) == (203840.0, 112100.0)
+    assert hojas.tamano_del_formato('Nasca SET 93 Puquio (203840x112100)', {}) == (203840.0, 112100.0)
     assert hojas.tamano_del_formato('A0', {'A0': (1188.0, 840.0)}) == (1188.0, 840.0)
     assert hojas.tamano_del_formato('sin tamaño', {}) is None
 
@@ -60,9 +60,9 @@ def test_la_herramienta_da_cada_hoja_con_sus_graficos(hojas, monkeypatch):
                         lambda app, nombre, carpeta=None: app.proyecto)
     for d in app.proyecto.GetContents('*.IntGrfnet', 1):
         d.Delete()
-    _diagrama(app, 'Nasca SET 53 Puquio', rnd.uniform(1e4, 1e5), rnd.uniform(1.5e5, 2e5), rnd,
+    _diagrama(app, 'Nasca SET 93 Puquio', rnd.uniform(1e4, 1e5), rnd.uniform(1.5e5, 2e5), rnd,
               orientacion=hojas.VERTICAL)
-    _diagrama(app, 'Nasca SET 51 Nasca', rnd.uniform(1e5, 2e5), rnd.uniform(1e4, 5e4), rnd,
+    _diagrama(app, 'Nasca SET 91 Nasca', rnd.uniform(1e5, 2e5), rnd.uniform(1e4, 5e4), rnd,
               orientacion=hojas.HORIZONTAL)
     escrituras = len(app.escrituras)
 
@@ -70,15 +70,15 @@ def test_la_herramienta_da_cada_hoja_con_sus_graficos(hojas, monkeypatch):
 
     assert rc == 0 and informe['todas_dentro'], informe
     assert {d['diagrama']: d['orientacion'] for d in informe['diagramas']} == {
-        'Nasca SET 51 Nasca': 'horizontal', 'Nasca SET 53 Puquio': 'vertical'}
+        'Nasca SET 91 Nasca': 'horizontal', 'Nasca SET 93 Puquio': 'vertical'}
     assert all(d['recuadro'][0] >= 0 for d in informe['diagramas']), 'sin los −1 del conector'
     assert len(app.escrituras) == escrituras, 'de solo lectura'
 
-    _diagrama(app, 'Nasca SET 56', rnd.uniform(1e3, 2e3), rnd.uniform(5e3, 7e3), rnd,
+    _diagrama(app, 'Nasca SET 96', rnd.uniform(1e3, 2e3), rnd.uniform(5e3, 7e3), rnd,
               orientacion=hojas.HORIZONTAL)
     informe, rc = hojas.ejecutar(app, {'project': 'P'})
     fuera = [d['diagrama'] for d in informe['diagramas'] if not d['dentro']]
-    assert rc == 1 and fuera == ['Nasca SET 56']
+    assert rc == 1 and fuera == ['Nasca SET 96']
 
 
 def test_un_diagrama_sin_graficos_no_se_sale(hojas, monkeypatch):

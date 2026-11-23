@@ -764,12 +764,18 @@ class VigilanciaLibros:
             if not listo:
                 self._vigilar_plazo(wid, proc)
                 continue
-            with self._cv:
-                self._procesos.pop(wid, None)
-                self._datasets.discard(wid)
-            ws = self._espacio(wid)
-            if ws is not None:
-                self._terminar_dataset(ws, libros, *valor)
+            # 104:RF-45 (aclaración, 2026-11-22): el estado final antes de dejar de tenerlo como proceso propio, como al
+            # cortarlo. Al revés, una lectura en medio (la web consulta a menudo) veía «regenerando» sin proceso propio,
+            # lo daba por interrumpido y lo relanzaba sin libros nuevos: la segunda vuelta dejaba el dataset «al día» con
+            # ``libros_incluidos`` vacío (fallo intermitente de la e2e F10, 2026-11-22).
+            try:
+                ws = self._espacio(wid)
+                if ws is not None:
+                    self._terminar_dataset(ws, libros, *valor)
+            finally:
+                with self._cv:
+                    self._procesos.pop(wid, None)
+                    self._datasets.discard(wid)
 
     def _cortar_datasets(self) -> None:
         """RF-37: el operador lanzó algo; el dataset vuelve a desactualizado y espera al siguiente reposo."""
@@ -866,9 +872,8 @@ class VigilanciaLibros:
                 return False                     # es de esta web: lo vigila su plazo (RF-45)
         if self._vivo_en_otro_sitio(dataset):
             return False                         # otra web lo tiene en marcha; no se le envía ninguna señal
-        self._interrumpir(ws, 'sin proceso vivo: la web que lo regeneraba se cerró o su proceso murió',
-                          retomar=self.activa)
-        return True
+        return self._interrumpir(ws, 'sin proceso vivo: la web que lo regeneraba se cerró o su proceso murió',
+                                 retomar=self.activa)
 
     def recuperar_datasets(self) -> None:
         """RF-46: al arrancar, los «regenerando» de los espacios recientes o abiertos, sin abrir ningún libro."""
@@ -886,14 +891,20 @@ class VigilanciaLibros:
             except Exception:  # noqa: BLE001 - un espacio que no se puede revisar no para el arranque
                 log.exception('dataset interrumpido de %s', ws.id)
 
-    def _interrumpir(self, ws, motivo: str, *, retomar: bool = True) -> None:
-        """RF-44: desactualizado con el motivo, un aviso en el paso de la demanda y, si se retoma, al carril de fondo."""
+    def _interrumpir(self, ws, motivo: str, *, retomar: bool = True) -> bool:
+        """RF-44: desactualizado con el motivo, un aviso en el paso de la demanda y, si se retoma, al carril de fondo.
+
+        Devuelve si lo interrumpió. 104:RF-43 (aclaración, 2026-11-22): solo un dataset que sigue «regenerando» dentro
+        del mismo guardado; entre la lectura que lo vio así y este guardado pudo terminar y quedar «al día», y pisarlo lo
+        relanzaba sin libros nuevos (la otra mitad de la carrera de la e2e F10)."""
         ahora = self.ahora()
         sigue = (f'se retoma sola tras {reposo_min():g} min sin trabajos del operador' if retomar else
                  'se retoma al revisar los libros (al abrir el espacio o con «Revisar ahora»)')
 
         def poner(e):
-            d = e.setdefault('dataset', {})
+            d = e.get('dataset')
+            if not isinstance(d, dict) or d.get('estado') != 'regenerando':
+                return False
             inicio = d.get('inicio') or d.get('desde')
             d.update(estado='desactualizado', interrumpido=ahora, motivo_interrupcion=motivo)
             d.pop('proceso', None)
@@ -911,13 +922,16 @@ class VigilanciaLibros:
                 log.exception('aviso de la interrupción del dataset de %s', ws.id)
                 self._aviso_generico(e, f'La regeneración del dataset del pronóstico quedó interrumpida: {motivo}; '
                                         f'{sigue}.')   # 104:RF-44
-        self._modificar(ws, poner)
+            return True
+        if not self._modificar(ws, poner):
+            return False
         # RF-39: el estado cambió siempre (aunque el aviso ya existiera): la web tiene que repintar.
         self._publicar(ws)
         if retomar:
             with self._cv:
                 self._datasets.add(ws.id)
             self._asegurar_hilo()
+        return True
 
     def _terminar_dataset(self, ws, libros: list[str], resumen: dict | None, error: str | None) -> None:
         def poner(e):

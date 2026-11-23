@@ -554,3 +554,9 @@ adaptador VNR (integrador f9).
       Hecho cuando: rojo por aserción sobre la base de FLINE y verde con `tests/test_pit_pf_guion.py` y
       `tests/test_interactive_architecture.py` (107:RF-37).
       Hecho en DIG2-RATFAC (22-11): rojo por aserción (rojo_154320) y verde (verde_codigo_154909).
+- [x] T57. Rama del devanado con toma en ohmios en el trafo3 con la toma en el punto estrella (corrida de T14 del
+      22-11): `tools/pit_pf._impedancia_fija_en_ohmios` corrige las vk y vkr que exporta `_vk_tr3` con itapos = 0.
+      (RF-38)
+      Hecho cuando: rojo por aserción sobre la base de RATFAC y verde con `tests/test_pit_pf_guion.py` y
+      `tests/test_interactive_architecture.py` (107:RF-38).
+      Hecho en DIG2-TOMAZ (22-11): rojo por aserción (rojo_195414) y verde (verde_195420).

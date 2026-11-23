@@ -33,7 +33,7 @@
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
 - [x] T20 [DIgSILENT] Una carga nueva en un ramal monofásico de un proyecto de prueba, importado por la web.
   Hecho cuando: «Con proyecto» converge con la SED monofásica servida y el informe lleva el aviso con sus cifras.
-  Verificado 2026-11-07: proyecto nuevo `20261107-233155_CSG_TXT_PE104`, importado por la web desde TXT reales intactos.
+  Verificado 2026-11-07: proyecto nuevo `20261107-233155_CSG_TXT_PE194`, importado por la web desde TXT reales intactos.
   Carga explícitamente sintética PRBFASE_UNO por barra sin coordenadas: transformador de una fase releído,
   baja a 0,914107 p.u. y potencia efectiva 0,099999997 kW para 0,1 kW pedidos. Con proyecto converge.
   Aviso conservado: 10 kVA, 0,1 kW, 0 kvar y corriente calculada de 1,0 A por fase frente a 0,6 A con tres;

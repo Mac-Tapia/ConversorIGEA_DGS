@@ -15,10 +15,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       sale la Q de la red; `POST /demanda/clientes/comparar` como trabajo del motor.
 - [x] T3. Web: selector del criterio, botón y tablas de la comparación; `--criterio-fijas` en
       `tools/sistema_web.py`. (RF-1, RF-5)
-      Hecho cuando: `npm run build` sin errores y la comparación de NA203 vista en el navegador real.
+      Hecho cuando: `npm run build` sin errores y la comparación de NA293 vista en el navegador real.
       Hecho el 2026-10-31: un solo `SelectorCriterio` (2.3 y «Recalibrar»), «coincidente» por
       defecto; `--criterio-fijas` en `sistema_web.py` y en la recalibración rápida. En el navegador,
-      NA203 con septiembre de 2026 (máxima 29/09 15:30, 10 043 kW y 1 777 kvar): «máximo del mes»
+      NA293 con septiembre de 2026 (máxima 29/09 15:30, 10 043 kW y 1 777 kvar): «máximo del mes»
       7 707,5 kW y 3 725,5 kvar; «coincidente» 6 505,9 kW y 2 906,1 kvar; red y bancos −278,1 kvar
       del último informe; quedan −851,1 y −1 670,4 kvar para las escaladas.
 - [x] T5. Criterio por alimentador: `criterio_por_alimentador` en el cruce, en el plan y en `sistema_web.py`
@@ -40,11 +40,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `npm run build` sin errores y `pytest -q tests/test_fijas_a_su_maxima.py` en verde.
       Hecho el 2026-11-07: `npm ci && npm run build` y `tsc --noEmit` sin errores; la vista en el navegador real
       queda con la prueba en DIgSILENT (T8).
-- [x] T8. [DIgSILENT] CA101_CHN102 recalibrado desde la web con un cliente a su máxima. (RF-12, RF-17 a RF-19)
+- [x] T8. [DIgSILENT] CA191_CHN192 recalibrado desde la web con un cliente a su máxima. (RF-12, RF-17 a RF-19)
       Hecho cuando: el informe de la calibración lista ese cliente con su registro, sus kW y sus kvar de máxima, la
       cabecera cuadra dentro de la tolerancia y la tabla, vista en el navegador real, muestra sus dos valores.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
-- [x] T4. [DIgSILENT] NA203 recalibrado con los dos criterios desde la web. (Todos)
+- [x] T4. [DIgSILENT] NA293 recalibrado con los dos criterios desde la web. (Todos)
       Hecho cuando: «máximo del mes» da 7 707,5 kW y 3 725,5 kvar de fijas y «coincidente» con
       2026-09 el registro de cada fija en el instante de su máxima de cabecera.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).

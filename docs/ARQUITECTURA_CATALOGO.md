@@ -13,7 +13,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 121 |
 | Pruebas de la interfaz | `frontend/test/` | 65 |
-| Pruebas | `tests/` | 663 |
+| Pruebas | `tests/` | 665 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
@@ -23,12 +23,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Estado | Specs |
 | --- | --- |
-| cumplida | 93 |
-| aprobada | 16 |
+| cumplida | 94 |
+| aprobada | 15 |
 | implementada | 2 |
 | retirada | 1 |
 
-112 specs con 4076 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4082 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -126,7 +126,7 @@ El intérprete acepta al modelo de órdenes con confianza 0.85, salvo que traiga
 | `fuentes` | no | sí | Revisa si cada afirmación de la propuesta está en la evidencia citada, con el mismo valor y del mismo elemento (alimentador, SET, tramo, poste, nodo o equipo): una evidencia de otro elemento no confirma ningún dato de la propuesta. |
 | `fisica` | no | sí | Revisa la consistencia física: tensiones, cargas y límites de la propuesta frente a los de la evidencia. |
 | `coste` | no | sí | Revisa los costes y cantidades de la propuesta frente a los precios y cantidades de la evidencia: el coste de la propuesta es el total de lo que, según la evidencia, necesita toda la acción. |
-| `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio. |
+| `riesgo` | no | sí | Revisa el riesgo de operación: si, según la evidencia, la propuesta deja cargas sin respaldo o sin servicio, o si la evidencia prohíbe o limita la forma de hacer la acción (procedimiento de seguridad, trabajo en caliente, maniobra no permitida). Cada riesgo que señala la evidencia va en incertidumbres, con el ID y la frase de la evidencia. |
 | `cliente_mcp` | no | sí | Un cliente MCP de esta máquina: solo las lecturas del proyecto. |
 
 ### Tareas (67)
@@ -591,12 +591,12 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/benchmarks/geometria.py` | Dom | 112 | Trazado sintético por el grafo, longitudes perturbadas con la semilla secreta y el control del atacante que empareja las longitudes ordenadas rango a… |
 | `adaptadores/benchmarks/geometria_publica.py` | Ada | 112 | La geometría pública de una empresa: el paquete VNR-GIS vigente de Osinergmin, elegido por resolución y bajado bajo demanda a una carpeta fuera del… |
 | `adaptadores/benchmarks/publicable.py` | Ada | 112 | Benchmark publicable: red sintética con los agregados de la entrega (al menos 5 alimentadores y 500 tramos, que se suben y no se bajan), sin un tramo… |
-| `dominio/benchmarks/sintetico.py` | Dom | 112, 034 | Generador de exports CYMDIST sintéticos y sorteados (antes en `tests/synthetic_export.py`, que lo reexporta), con longitudes y cargas por cuantiles… |
+| `dominio/benchmarks/sintetico.py` | Dom | 112, 034 | Generador de TXT sintéticos y sorteados (antes en `tests/synthetic_export.py`, que lo reexporta), con longitudes y cargas por cuantiles para el… |
 | `adaptadores/benchmarks/evaluacion.py` | Ada | 112 | Sellado de la prueba antes de elegir modelo (apertura exclusiva, huella fijada, rechazo si cambia) e informe publicado con todos los resultados,… |
 | `dominio/benchmarks/interempresa.py` | Dom | 112 | Dejar una empresa fuera cada vez, sin E/S: un pliegue por empresa que ajusta con las demás y mide en la retenida, el veredicto (con menos de 3… |
 | `adaptadores/benchmarks/interempresa.py` | Ada | 112 | Dejar una empresa fuera cada vez con datos en disco: el trío TXT de cada empresa para la conversión VNR, los benchmarks de series para el pronóstico… |
 | `aplicacion/benchmarks/cohortes.py` | Apl | 112 | Cohortes de evaluación por empresa (una fuera) y por tiempo con franja de separación, por componente conexo de alimentadores y clientes, validadas… |
-| `dominio/benchmarks/redes.py` | Dom | 112 | Benchmark de redes: el trío TXT de CYMDIST con una lista cerrada de secciones y columnas, en la disposición del origen, sin texto libre y con el… |
+| `dominio/benchmarks/redes.py` | Dom | 112 | Benchmark de redes: el trío TXT con una lista cerrada de secciones y columnas, en la disposición del origen, sin texto libre y con el perfil neutro. |
 | `adaptadores/benchmarks/reproduccion.py` | Ada | 112 | El mismo estudio (reglas y oráculo) en el original y en el benchmark, comparado alimentador a alimentador con la tolerancia del estudio o la de por… |
 | `adaptadores/benchmarks/series.py` | Ada | 112 | Benchmark de series del 089: seudónimo, escala sorteada, semanas completas desplazadas, exógenas como columnas, potencia en bandas y CSV determinista. |
 | `adaptadores/benchmarks/reidentificacion.py` | Ada | 112 | Control de reidentificación antes de emitir: identificadores, clientes, términos del perfil, rutas, coordenadas, fechas, secuencias de valores,… |
@@ -899,7 +899,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `informe_web.py` | — | 017, 105 | Un informe de la spec 017 desde la línea de órdenes: lee el `.plan.json` que la web guardó junto al Word (o un formulario con `--tipo`), lo envía a… |
 | `informe_casos_guardados.py` | — | 063 | Reproduce la evaluación Word con tres casos y sus seis flujos guardados por la web. |
 | `accept_three_sources.py` | — | 001, 004, 006, 011 | Aceptación universal y separada de MDB, TXT y VNR-GIS hasta ajuste, relectura y estudio nativos. |
-| `accept_digital_twin_in111_ta225.py` | — | 024 | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado`, comprobaciones y episodio en el… |
+| `accept_digital_twin_in191_ta295.py` | — | 024 | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado`, comprobaciones y episodio en el… |
 | `aceptacion_nativa.py` | — | 044, 045, 048, 049 | Evidencia nativa de las T4: obra aplicada por la web, relecturas en procesos nuevos de `digital_twin_snapshot_pf.py`, retiro, capacidades de… |
 | `aceptar_dominio.py` | — | 065 | Preaceptación de fuente, vínculo, caso, evidencia y recursos sin conectar ni modificar el motor nativo. |
 | `apply_catalog_to_model.py` | — | 034, 032 | Corrige las características eléctricas del modelo con el catálogo de fichas. |

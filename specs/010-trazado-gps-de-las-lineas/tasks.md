@@ -10,7 +10,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `pytest -q tests/test_powerfactory_gate.py` en verde.
 - [x] T4. 001:RF-14 anota la excepción y se regenera `output/linea_base_001.json`.
       Hecho cuando: `pytest -q tests/test_linea_base_001.py` en verde con las tres `CSG_*`.
-- [x] T5. Prueba real: red unida NA203 + NA205 importada en PowerFactory con `--manifest`. (RF-6, RF-7)
+- [x] T5. Prueba real: red unida NA293 + NA295 importada en PowerFactory con `--manifest`. (RF-6, RF-7)
       Hecho cuando: el informe da 0 líneas con trazado distinto del manifiesto.
 - [x] T6. Validación: cada RF citado por al menos una prueba y en verde. (Todos)
       Hecho cuando: `grep -rnoE "010:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-8.

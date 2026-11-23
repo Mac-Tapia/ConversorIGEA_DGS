@@ -194,12 +194,12 @@ test('086:RF-73 un interrumpido que después terminó bien, del mismo kind y ám
 
 test('086:RF-73 el ámbito es el espacio y el proyecto o los alimentadores de su título', async () => {
   const { avisosDeTrabajos } = await cargar();
-  const fallo = trabajo('recalibrar', 'interrumpido', { title: 'Recalibrar · PROY_A · AL209', created_at: 1 });
-  const otroProyecto = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_B · AL209', created_at: 2 });
-  const otroEspacio = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_A · AL209', created_at: 3, workspace_id: 'X' });
-  const otroKind = trabajo('pf_escaneo', 'done', { title: 'Recalibrar · PROY_A · AL209', created_at: 4 });
+  const fallo = trabajo('recalibrar', 'interrumpido', { title: 'Recalibrar · PROY_A · AL299', created_at: 1 });
+  const otroProyecto = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_B · AL299', created_at: 2 });
+  const otroEspacio = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_A · AL299', created_at: 3, workspace_id: 'X' });
+  const otroKind = trabajo('pf_escaneo', 'done', { title: 'Recalibrar · PROY_A · AL299', created_at: 4 });
   assert.equal(avisosDeTrabajos(porId(fallo, otroProyecto, otroEspacio, otroKind), 'W', []).length, 1);
-  const reintento = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_A · AL209 (reintento)', created_at: 5 });
+  const reintento = trabajo('recalibrar', 'done', { title: 'Recalibrar · PROY_A · AL299 (reintento)', created_at: 5 });
   assert.deepEqual(avisosDeTrabajos(porId(fallo, reintento), 'W', []), [], 'el reintento del vigilante es el mismo ámbito');
   assert.deepEqual(avisosDeTrabajos(porId(fallo), 'W', [fallo.id]), [], 'dado por visto');
   assert.deepEqual(avisosDeTrabajos(porId(trabajo('load', 'done'), trabajo('load', 'running')), 'W', []), []);

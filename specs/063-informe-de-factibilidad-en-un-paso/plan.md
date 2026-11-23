@@ -64,7 +64,7 @@ por ruta completa dentro del proyecto vinculado. Evaluar copia el escenario y gr
 refuerzo estructural en una variación propia; no aparta cargas que crean tramos partidos.
 Los cambios admitidos se restringen a capacidades, referencias de tipos existentes y
 operación; no se permite bajar plini, qlini o scale0. Se conserva posición y potencia de
-COPARA. Las maniobras y la salida de la central térmica quedan registradas en sus
+BOREALIS. Las maniobras y la salida de la central térmica quedan registradas en sus
 propias etapas, con el escenario propio de operación coherente con ellas. La
 aplicación debe revertir nuevas variaciones si falta cobertura, demanda o aceptación, y
 releer tras reabrir para acreditar persistencia. El caso original conserva su escenario.
@@ -88,7 +88,7 @@ instantáneos se pueden informar sin inventar una anualización ni un precio de 
   distribuidora), con EXP y código de ficha, y con tres fechas.
 - Front: `tsc` y `npm run build`; la web probada en el navegador real con un proyecto
   importado (constitución, «web probada de verdad»).
-- [DIgSILENT]: INKA en SM218 desde la web con un clic.
+- [DIgSILENT]: CLIENTE K en SM298 desde la web con un clic.
 
 ## Fundamento y límites de la verificación física
 
@@ -116,7 +116,7 @@ El enfoque se apoya en estas fuentes primarias consultadas en la web:
   sobre modelos y métodos de planificación de redes.
 
 Estas referencias justifican el método; no certifican este modelo ni prescriben sus
-ternas, ubicación, potencia, precios o límites. La ubicación y los 2×40 MVA de COPARA
+ternas, ubicación, potencia, precios o límites. La ubicación y los 2×40 MVA de BOREALIS
 son condiciones del usuario. Los límites proceden del perfil seleccionado y se registran
 en cada evaluación. Una alternativa que cumple los límites no prueba por sí sola un
 óptimo global económico o eléctrico. Al aplicar se capturan también los dos flujos

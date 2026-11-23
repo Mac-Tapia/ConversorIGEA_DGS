@@ -1,7 +1,7 @@
 """Spec 010 — cada línea lleva en el DGS su trazado GPS real.
 
 Antes el DGS dejaba ``GPScoords`` vacío y PowerFactory dibujaba cada línea, en la vista
-geográfica, como una recta entre sus barras (red unida NA203 + NA205, 2026-10-10). Se
+geográfica, como una recta entre sus barras (red unida NA293 + NA295, 2026-10-10). Se
 usa el export sintético sorteado, en las dos disposiciones, con varios puntos
 intermedios por tramo.
 """

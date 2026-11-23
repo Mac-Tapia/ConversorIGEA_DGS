@@ -110,7 +110,7 @@ def tasa_de_las_fijas(pot_por_mes: Mapping[str, Mapping[str, float]],
                       fijas: Mapping[str, Sequence[Sequence[str]]]) -> dict[str, dict[str, Any] | None]:
     """La tasa de cada alimentador desde la POT registrada de sus fijas (042:RF-7).
 
-    Cuando la cabecera no tiene dos años (NA203 y NA205 solo tienen 2026, 2026-10-31), la demanda
+    Cuando la cabecera no tiene dos años (NA293 y NA295 solo tienen 2026, 2026-10-31), la demanda
     registrada que sí los tiene es la de las fijas, en los libros de clientes de cada mes.
     ``pot_por_mes``: ``'AAAA-MM'`` → clave de cliente → POT (kW); ``fijas``: alimentador → cada
     fija con sus claves (la actual y la anterior: el código cambió entre años). Se suman, mes a
@@ -163,7 +163,7 @@ def pot_de_los_libros(libros: Sequence[tuple[str, str]], alias: Any, *, progreso
 
     De nivel superior: corre en el proceso del trabajo (029:RF-7). Un libro que no se lee no
     cuenta: su mes queda fuera de los meses comunes. Con ``cache``, la POT de cada libro se guarda
-    con su huella y un libro sin cambios no se vuelve a leer (042:RF-96): en PE102 (2026-11-06) cada
+    con su huella y un libro sin cambios no se vuelve a leer (042:RF-96): en PE192 (2026-11-06) cada
     «Con proyecto» releía los 21 libros de clientes importantes, de 50 a 150 MB cada uno.
     """
     import json

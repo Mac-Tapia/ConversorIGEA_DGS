@@ -613,8 +613,8 @@ def particionar_dataset(
 
     por_grupo: dict[str, int] = {}
     por_texto: dict[str, int] = {}
-    # 043:RF-4: los episodios de un alimentador van juntos. Con ``group_id`` solo, SM218, NA203, AL105
-    # y CA101 caían en varias particiones (2026-11-02), y se evaluaba con redes ya vistas al entrenar.
+    # 043:RF-4: los episodios de un alimentador van juntos. Con ``group_id`` solo, SM298, NA293, AL195
+    # y CA191 caían en varias particiones (2026-11-02), y se evaluaba con redes ya vistas al entrenar.
     por_alimentador: dict[str, int] = {}
     for i, registro in enumerate(elegibles):
         if registro.tipo == 'episodio':

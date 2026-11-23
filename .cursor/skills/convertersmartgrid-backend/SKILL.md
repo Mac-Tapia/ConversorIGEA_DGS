@@ -1,7 +1,7 @@
 ---
 name: convertersmartgrid-backend
 description: >-
-  Reglas y checklist del motor CYMDIST → DGS y de su API web. Usar al editar
+  Reglas y checklist del motor de conversión a DGS y de su API web. Usar al editar
   src/convertersmartgrid/*.py, src/convertersmartgrid/web/, el CLI o el lote.
 ---
 

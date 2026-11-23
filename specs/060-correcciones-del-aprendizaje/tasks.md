@@ -11,7 +11,7 @@
 - [x] T5. Regresión y entrega de evidencias. (RF-1 a RF-8)
       Hecho cuando: pruebas afectadas pasan sin omisiones y el informe enumera cambios, campañas reales y límites pendientes.
 - [x] T6. Alcance temporal explícito y ensayo con observaciones. (RF-8)
-      Hecho cuando: pruebas verifican límites, selección y procedencia sin omitir defectos interiores; se ejecuta una campaña sobre enero2025 de la hoja L-TM105, conservando configuración y métricas reales, y se informa ajuste/reapertura o el bloqueo efectivo de recursos.
+      Hecho cuando: pruebas verifican límites, selección y procedencia sin omitir defectos interiores; se ejecuta una campaña sobre enero2025 de la hoja L-TM195, conservando configuración y métricas reales, y se informa ajuste/reapertura o el bloqueo efectivo de recursos.
 
 ## Evidencia
 
@@ -24,7 +24,7 @@ T3: `lectura_registro_reales.xml`: 122 pruebas aprobadas con `CSG_DEMANDA_DIR=re
 sin omisiones. `gru_persistencia_web.xml`: 7 aprobadas, incluida una prueba CUDA real
 de ajuste, persistencia y reapertura con serie sintética de contrato; no es aprendizaje
 validado con mediciones. El libro real sigue bloqueado por potencia ausente en
-L-TM105, fila 4280 (`gru_fuente_corregida.json`); no se imputó el objetivo.
+L-TM195, fila 4280 (`gru_fuente_corregida.json`); no se imputó el objetivo.
 
 T4: `contratos_finales_v2.xml`: 22 aprobadas, sin omisiones; distingue puntero heredado
 con registro vacío y con candidato rechazado, preservando todos los archivos.
@@ -46,7 +46,7 @@ ni oculta informes anteriores. `pip check` satisfactorio. Trama global de specs 
 `indice_y_trazabilidad_final.xml`; los cuatro trabajadores quedaron documentados.
 [Entrega y límites](../../docs/CORRECCIONES_ALUMNOS_2026-11-01.md).
 
-T6: campaña CUDA real con2975 observaciones de enero2025 de la hoja L-TM105,
+T6: campaña CUDA real con2975 observaciones de enero2025 de la hoja L-TM195,
 cinco semillas, máximo40 épocas; selección eligió23. Candidato con MAE181,381kW
 frente al estacional864,168kW sobre los mismos351 puntos reservados; MAPE4,623%.
 40 épocas y280 actualizaciones del optimizador en el modelo elegido. Reapertura en

@@ -7,7 +7,7 @@ from collections import Counter
 from convertersmartgrid.aplicacion.asistente.sinteticos import expandir, generar, normalizar
 from convertersmartgrid.aplicacion.asistente.tareas import TAREAS
 
-VOCAB = {'alimentadores': ['IN111', 'TA225', 'PA217'], 'proyecto': ['20261015-170359_CSG_IN111_TA225'],
+VOCAB = {'alimentadores': ['IN191', 'TA295', 'PA297'], 'proyecto': ['20261015-170359_CSG_IN191_TA295'],
          'sistema': ['Pisco', 'Ica']}
 
 
@@ -19,7 +19,7 @@ def test_genera_todas_las_tareas_con_nombres_reales():
     assert [e.texto for e in a] == [e.texto for e in b]
     assert Counter(e.tarea for e in a) == {t: 40 for t in TAREAS}
     reales = [v for e in a for v in e.valor('alimentadores')]
-    assert any('IN111' in v.upper() for v in reales)
+    assert any('IN191' in v.upper() for v in reales)
     for e in a:
         for ini, fin, tipo in e.datos:
             assert 0 <= ini < fin <= len(e.texto) and e.texto[ini:fin].strip() == e.texto[ini:fin]
@@ -40,7 +40,7 @@ def test_ruido_en_la_plantilla_nunca_en_los_datos():
                      rnd, VOCAB, ruido=1.0)
         assert e.valor('alimentadores') and e.valor('proyecto')
         for v in e.valor('alimentadores'):
-            assert all(p.strip().upper() in {'IN111', 'TA225', 'PA217'} or any(c.isdigit() for c in p)
+            assert all(p.strip().upper() in {'IN191', 'TA295', 'PA297'} or any(c.isdigit() for c in p)
                        for p in v.replace(' y ', ',').split(',') if p.strip()) or 'todo' in v
 
 
@@ -56,7 +56,7 @@ def test_doscientas_ordenes_fijas_del_maestro():
     from convertersmartgrid.aplicacion.asistente import ordenes_fijas as of
     from convertersmartgrid.aplicacion.asistente.tareas import TAREAS, TAREAS_HASTA_069
 
-    vocab = {'alimentadores': ['IN111', 'TA225'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
+    vocab = {'alimentadores': ['IN191', 'TA295'], 'proyecto': ['P_PISCO'], 'sistema': ['Pisco']}
     e = of.generar(vocab)
     # 070:RF-75: son las tareas de hasta la 069; con las nuevas cambiaría su huella (068:RF-41).
     assert len(e) == 200 and {x.tarea for x in e} == set(TAREAS_HASTA_069)

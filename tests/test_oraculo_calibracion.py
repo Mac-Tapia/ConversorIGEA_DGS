@@ -481,7 +481,7 @@ def test_las_fijas_que_pasan_de_la_medida_se_corrigen_hasta_el_tope():
 
 
 def test_la_grabacion_vuelve_a_la_ultima_etapa_del_conversor():
-    """083:RF-29 — con las fichas grabando no se aplicaba la etapa posterior de los transformadores (CA101 + CHN102)."""
+    """083:RF-29 — con las fichas grabando no se aplicaba la etapa posterior de los transformadores (CA191 + CHN192)."""
     from types import SimpleNamespace
 
     from apoyo import cargar_herramienta

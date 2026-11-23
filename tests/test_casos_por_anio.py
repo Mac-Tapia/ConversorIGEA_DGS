@@ -299,7 +299,7 @@ def test_las_cargas_reutilizadas_traen_sus_obras():
 
 
 def test_las_obras_traen_su_operacion_al_caso_del_anio(monkeypatch):
-    """025:RF-42b — IN111 + TA225 (2026-10-23): el enlace activo en «Con proyecto <año>» pero
+    """025:RF-42b — IN191 + TA295 (2026-10-23): el enlace activo en «Con proyecto <año>» pero
     fuera de servicio en su escenario. Lo que las obras cambiaron en «Con proyecto» respecto de
     «Sin proyecto» se escribe en el escenario del año; lo que el año ya cambió por su cuenta se
     deja y se avisa; lo que no cambiaron las obras no se toca; vuelve el caso del principio."""
@@ -455,7 +455,7 @@ def test_cargas_nuevas_sin_las_obras_de_con_proyecto():
     assert obra.loc_name not in activas and informe['reutilizadas'][0]['variacion'] in activas
 
 
-# =========================================================================== T26: copia fresca (PA217)
+# =========================================================================== T26: copia fresca (PA297)
 def _diagnostico(app, *, anio=ANIO, cargas=('N1',), **kw):
     """«Cargas nuevas» con ``casos_pf.cargas_nuevas`` y un flujo que siempre converge; las variaciones
     de carga quedan inactivas en el caso activo, como las deja la inserción."""
@@ -490,7 +490,7 @@ def _banco_en(app, variacion_nombre, barra='F1_B2', nombre='BC_OPERADOR'):
 def test_cargas_nuevas_se_copia_de_nuevo_en_cada_insercion():
     """025:RF-79 — en cada inserción «Cargas nuevas <año>» se borra y se copia otra vez de «Sin
     proyecto <año>»: el caso de la inserción anterior no se reutiliza, queda uno solo y trae la hora
-    de estudio que «Sin proyecto» tiene ahora (PA217, 2026-11-12)."""
+    de estudio que «Sin proyecto» tiene ahora (PA297, 2026-11-12)."""
     from test_casos_pf import cargas_guion
     from test_cargas_pf_guion import _nueva, _plan as _plan_cargas
 
@@ -525,7 +525,7 @@ def test_cargas_nuevas_trae_los_bancos_y_las_ternas_que_el_operador_puso_en_sin_
     sin = casos_pf.caso(app, 'sin')
     sin.Activate()
     tramo = next(o for o in app.GetCalcRelevantObjects('*.ElmLne') if o.loc_name == 'F1_L2')
-    var, banco = _banco_en(app, 'Operador_bancos_PA217')
+    var, banco = _banco_en(app, 'Operador_bancos_PA297')
     app.grabando = var.GetContents('*.IntSstage')[0]
     tramo.nlnum = 2
     app.grabando = None
@@ -557,7 +557,7 @@ def test_cargas_nuevas_pone_al_dia_sus_etapas_antes_de_activar_cargas(monkeypatc
 
 def test_una_etapa_fechada_despues_de_la_hora_del_caso_queda_aplicada():
     """025:RF-80 — una etapa de una variación activa en «Sin proyecto», fechada después de la hora
-    del caso (SM218, PRUEBA_007), queda antes de la hora de «Cargas nuevas», y se avisa."""
+    del caso (SM298, PRUEBA_007), queda antes de la hora de «Cargas nuevas», y se avisa."""
     from test_casos_pf import _variacion
 
     app, _base = _red_calibrada(escenario=True)
@@ -582,7 +582,7 @@ def test_la_comparacion_detecta_un_banco_y_dos_conductores_que_faltan():
     sin = casos_pf.caso(app, 'sin')
     copia = app.carpetas['study'].AddCopy(sin, 'Copia')
     sin.Activate()
-    var, _banco = _banco_en(app, 'Operador_bancos_PA217')
+    var, _banco = _banco_en(app, 'Operador_bancos_PA297')
     tramo = next(o for o in app.GetCalcRelevantObjects('*.ElmLne') if o.loc_name == 'F1_L2')
     app.grabando = var.GetContents('*.IntSstage')[0]
     tramo.nlnum = 2
@@ -665,7 +665,7 @@ def test_con_proyecto_frente_a_sin_proyecto_sin_sus_obras_ni_sus_cargas():
     con.Activate()
     _banco_en(app, 'Obra_bancos_F1', barra='F1_B3', nombre='BC_OBRA')
     sin.Activate()
-    _banco_en(app, 'Operador_bancos_PA217')
+    _banco_en(app, 'Operador_bancos_PA297')
     out = casos_pf.con_frente_a_sin(app, sin, con, ['F1'], lambda _a: (True, []))
     textos = [d['texto'] for d in out['diferencias']]
     assert textos == ['en «Sin proyecto» hay ElmShnt BC_OPERADOR y en «Con proyecto» no']
@@ -969,7 +969,7 @@ def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resu
         tmp_path, monkeypatch, activa):
     """025:RF-69 — la elegida de F1 se aplica con las cargas nuevas de F2 apartadas, como se
     evaluó; F1 cuenta como resuelto para F2 solo si su obra quedó activa en «Con proyecto»
-    (Pisco, 2026-10-24: la de SI213 quedó inactiva y PA217 se evaluó como si estuviera resuelto)."""
+    (Pisco, 2026-10-24: la de SI293 quedó inactiva y PA297 se evaluó como si estuviera resuelto)."""
     def evaluar(nombre):
         cumple = nombre.startswith('terna') and '+' not in nombre
         return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
@@ -1012,7 +1012,7 @@ def test_la_base_de_las_cargas_se_encuentra_en_otra_ejecucion(tmp_path):
 def test_la_base_de_un_solo_alimentador_se_encuentra_por_su_token(tmp_path):
     """025:RF-37 (007:RF-40) — la calibración de un proyecto de un solo alimentador deja su
     informe sin ``_n`` (``…_<token>.json``); pedida por su token, en la ejecución activa o en
-    otra, se encuentra igual (CA101, 2026-10-24: «No se encuentra el ajuste de la base»)."""
+    otra, se encuentra igual (CA191, 2026-10-24: «No se encuentra el ajuste de la base»)."""
     import json
     from convertersmartgrid.presentacion.web import services
     from convertersmartgrid.presentacion.web.workspace import Workspace
@@ -1022,15 +1022,15 @@ def test_la_base_de_un_solo_alimentador_se_encuentra_por_su_token(tmp_path):
     activa.mkdir(parents=True)
     ws.active_run_id = 'r1'
     (activa / 'ajuste_cabecera_aplicacion_tok1.json').write_text(json.dumps(
-        {'project': 'P', 'feeder': 'CA101', 'caso': 'Sin proyecto'}), encoding='utf-8')
+        {'project': 'P', 'feeder': 'CA191', 'caso': 'Sin proyecto'}), encoding='utf-8')
     (activa / 'ajuste_cabecera_aplicacion_tok10_1.json').write_text(json.dumps(
         {'project': 'P', 'feeder': 'OTRO', 'caso': 'Sin proyecto'}), encoding='utf-8')
     hallado = services.ajuste_aplicado_en_disco(ws, None, 'tok1')
-    assert hallado and hallado['id'] == 'disco:tok1' and hallado['feeders'] == ['CA101']
+    assert hallado and hallado['id'] == 'disco:tok1' and hallado['feeders'] == ['CA191']
     ws.active_run_id = 'r2'
     (tmp_path / 'runs' / 'r2' / 'salida').mkdir(parents=True)
     hallado = services.ajuste_aplicado_en_disco(ws, None, 'tok1')
-    assert hallado and hallado['feeders'] == ['CA101']
+    assert hallado and hallado['feeders'] == ['CA191']
 
 
 def test_volver_a_calibrar_el_anio_reutiliza_sus_casos():
@@ -1045,7 +1045,7 @@ def test_volver_a_calibrar_el_anio_reutiliza_sus_casos():
 
 def test_la_sustitucion_con_casos_del_anio_queda(tmp_path, monkeypatch):
     """098:RF-36 (A) — con ``anio_casos``, la fila dice «Con proyecto» y el caso se llama «Con proyecto <año>»: la nueva
-    se da por buena igual, y la vieja se borra; antes se deshacía siempre (CA101_CHN102 tiene casos de año)."""
+    se da por buena igual, y la vieja se borra; antes se deshacía siempre (CA191_CHN192 tiene casos de año)."""
     from test_obras_pf_guion import _calibrada, _obra_terna, _plan as _plan_obras, _terna
     from test_obras_pf_guion import guion as obras_guion
 

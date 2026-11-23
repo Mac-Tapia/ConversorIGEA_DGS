@@ -117,18 +117,18 @@ def test_la_carga_sin_sed_en_la_red_de_su_zonal(tmp_path):
 
 
 def test_los_nombres_con_tilde_llegan_a_digsilent(tmp_path):
-    """022:RF-9, 022:RF-15 — el DGS va en la página de códigos de DIgSILENT (cp1252): «SET 46
+    """022:RF-9, 022:RF-15 — el DGS va en la página de códigos de DIgSILENT (cp1252): «SET 86
     Señor de Luren» y «Huaytará» no llegan como «SeÃ±or»; con nombres ASCII, el mismo
     fichero de siempre."""
     from convertersmartgrid.dominio.estructura import estructura_de_dict
 
     e = estructura_de_dict({'zonales': [{'nombre': 'Ica', 'sets': [
-        {'codigo': 'SET 46', 'nombre': 'Señor de Luren', 'alimentadores': [{'codigo': 'A', 'sistema': 'SE0051'}]}]}],
+        {'codigo': 'SET 86', 'nombre': 'Señor de Luren', 'alimentadores': [{'codigo': 'A', 'sistema': 'SE0051'}]}]}],
         'sistemas': {'SE0051': {'nombre': 'Huaytará - Chocorvos', 'sector': '4', 'norma': 'NTCSER'}}})
     red, _ = combine_models([_alimentador('A', 10.0, ['A_H', 'A_1'], con_carga='A_1')])
     estructurar(red, e)
     out, t = _tablas(tmp_path, red)
-    assert 'SET 46 Señor de Luren' in {r['loc_name'] for r in t['ElmSubstat']}
+    assert 'SET 86 Señor de Luren' in {r['loc_name'] for r in t['ElmSubstat']}
     assert 'SE0051 Huaytará - Chocorvos' in {r['loc_name'] for r in t['ElmZone']}
     assert 'Señor'.encode('cp1252') in out.read_bytes()
 
@@ -245,7 +245,7 @@ def _puntos_por_diagrama(t):
 def test_cada_hoja_empieza_en_su_origen(tmp_path):
     """022:RF-65 — DIgSILENT dimensiona cada hoja desde (0, 0) hasta el mayor de sus gráficos:
     cada diagrama empieza en el margen, con su propio origen, y no en el del zonal (Nasca por
-    SET, 2026-10-24: la SET 51 se quedó en A4 y la 55 con la hoja de alto negativo)."""
+    SET, 2026-10-24: la SET 91 se quedó en A4 y la 55 con la hoja de alto negativo)."""
     from convertersmartgrid.adaptadores.dgs import DIAGRAM_SHEET_MARGIN_DU
 
     red, _por_set = _red_dividida(random.Random(SEMILLA))

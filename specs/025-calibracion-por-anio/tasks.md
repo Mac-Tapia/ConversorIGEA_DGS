@@ -16,7 +16,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       año. (RF-12, RF-12b, RF-13, RF-30)
       Hecho cuando: `pytest -q tests/test_libros_por_anio.py` en verde.
       Hecho el 2026-10-23: con los libros reales, los 7 alimentadores de 2025 dan su máxima
-      (SI213, PN107, TM105 y PA217 por el código del alimentador, con aviso).
+      (SI293, PN197, TM195 y PA297 por el código del alimentador, con aviso).
 - [x] T4. Índice de cabecera como trabajo (reutiliza por tamaño y fecha, motivo por libro,
       foto recursiva, todo o nada al cancelar); clientes con foto recursiva.
       (RF-28, RF-29, RF-31, RF-32, RF-33)
@@ -65,12 +65,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: los tres sistemas calibrados y la comparación anotada aquí.
       Hecho el 2026-10-23, solo los alimentadores que pidió el usuario, cada uno en su
       proyecto y con `--sin-bancos` (los bancos que faltan se crean en la red común):
-      Pisco SI213 −0,00 % y PA217 −0,01 %; Chincha PN107 −0,04 % y TM105 −0,00 %; el
-      unido IN111 + TA225 (`20261015-170359_CSG_IN111_TA225`) IN111 −0,89 % y TA225
+      Pisco SI293 −0,00 % y PA297 −0,01 %; Chincha PN197 −0,04 % y TM195 −0,00 %; el
+      unido IN191 + TA295 (`20261015-170359_CSG_IN191_TA295`) IN191 −0,89 % y TA295
       −0,08 %; los seis VALIDO, con AVISO_KVAR (sin bancos, la red da menos kVAR que el
       medidor). Foto de cada carga (P, Q, scale0) y del flujo antes y después: «Caso base»,
-      «Sin proyecto» y «Con proyecto» de 2026, IGUAL en los cuatro proyectos. IN111 en
-      2025 no tiene hojas de sus canales: los dos se leen como IN111 y quedan en una fila.
+      «Sin proyecto» y «Con proyecto» de 2026, IGUAL en los cuatro proyectos. IN191 en
+      2025 no tiene hojas de sus canales: los dos se leen como IN191 y quedan en una fila.
       El sistema Ica se empezó y se canceló (el usuario lo quería en el unido): dejó un
       «Sin proyecto 2025» en `SISTEMA_ICA`, sin tocar 2026.
 - [x] T13. Cargas nuevas y demandas en bloque en los casos del año de su base: el plan
@@ -80,17 +80,17 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       verde y `NuevosclientesMayoresv1.xlsx` insertado en DIgSILENT sobre los proyectos
       recalibrados con 2025.
       Hecho el 2026-10-23 desde la web, con `anio_casos` 2025 en el plan: Pisco (PI_7 en
-      SI213; PI_1, PI_8 a PI_11 en PA217), Chincha (CH_9 en PN107; CH_3, CH_5 y CH_8 en
-      TM105) y el unido IN111 + TA225 (sus 9 de TA225), en «Con proyecto 2025»; las demandas
+      SI293; PI_1, PI_8 a PI_11 en PA297), Chincha (CH_9 en PN197; CH_3, CH_5 y CH_8 en
+      TM195) y el unido IN191 + TA295 (sus 9 de TA295), en «Con proyecto 2025»; las demandas
       en «Sin proyecto 2025». Cerrada el 2026-10-24 con las pruebas en verde.
 - [x] T14. Obras por año y obras de las cargas reutilizadas; campos de la web habilitados
       para reemplazar. (RF-39 a RF-43)
       Hecho cuando: `pytest -q tests/test_casos_por_anio.py tests/test_libros_por_anio_front.py`
-      en verde y el unido IN111 + TA225 converge en «Con proyecto 2025».
+      en verde y el unido IN191 + TA295 converge en «Con proyecto 2025».
       Avance del 2026-10-23: código y pruebas hechos; en DIgSILENT, el unido converge en
-      «Con proyecto 2025» con sus 9 cargas de TA225 y las 4 obras de 2026 activadas (RF-42);
-      «Con proyecto» (2026), igual. Pisco (PI_1 con PI_8, PA217) y Chincha (CH_3 con CH_5,
-      TM105) no convergen juntas; cada carga sola, sí (RF-43, sonda). Falta reiniciar la web
+      «Con proyecto 2025» con sus 9 cargas de TA295 y las 4 obras de 2026 activadas (RF-42);
+      «Con proyecto» (2026), igual. Pisco (PI_1 con PI_8, PA297) y Chincha (CH_3 con CH_5,
+      TM195) no convergen juntas; cada carga sola, sí (RF-43, sonda). Falta reiniciar la web
       (obras con año en la API) y la suite completa.
       Cerrada el 2026-10-24: suite con las siete variables, 2770 pasan, ninguna omitida (11 min
       15 s; la cuenta de flujos de 007 suma el de RF-43). Las obras de la escalera del 23 ya
@@ -100,14 +100,14 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: Pisco y Chincha convergen en «Con proyecto 2025» y el informe dice la obra.
       Avance del 2026-10-23: `obras_pf.escalera_de_obras` y `POST /pf/obras/escalera` con
       bancos, sección de toda la troncal y terna (sin regulador). En DIgSILENT, con año 2025:
-      PA217 converge con la terna (bancos y sección no bastan); TM105, con la sección. Los
+      PA297 converge con la terna (bancos y sección no bastan); TM195, con la sección. Los
       bancos se intentaron en NODE_T_PI_1 y NODE_T_PI_11, nodos que crea la variación de la
       carga; ya se excluyen por el criterio de conexión. Del 2026-10-24: el informe de cargas
       dice qué cargas no convergen juntas y ofrece «Proponer obras en escalera» (antes solo
       por la API). Falta decidir el escalón del regulador que nombra RF-44.
       Comprobado en DIgSILENT el 2026-10-24 (sonda de solo lectura): «Sin proyecto 2025»
-      converge y cuadra con la máxima de 2025 en PA217 −0,005 %, SI213 −0,00 %, PN107
-      −0,04 %, TM105 −0,00 %, IN111 −0,89 % y TA225 −0,08 % (unido); «Con proyecto 2025»
+      converge y cuadra con la máxima de 2025 en PA297 −0,005 %, SI293 −0,00 %, PN197
+      −0,04 %, TM195 −0,00 %, IN191 −0,89 % y TA295 −0,08 % (unido); «Con proyecto 2025»
       converge en los tres con sus cargas y su obra. El regulador no se pudo probar: no hay
       ningún `TypVoltreg` en la biblioteca global ni en los proyectos; hace falta su ficha.
       Del 2026-10-24: sustituida por T17 a T22 (escalera optimizada, RF-44 cambiado).
@@ -135,13 +135,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       variaciones de las cargas nuevas, una a una, solo las que lo dejan converger, sin obras
       ni cambios; las que no, inactivas y con su motivo en la web. (RF-61 a RF-66)
       Hecho cuando: `pytest -q tests/test_casos_por_anio.py` en verde y el caso en DIgSILENT
-      en Pisco, Chincha y el unido IN111 + TA225, con 2025, insertando desde la web.
+      en Pisco, Chincha y el unido IN191 + TA295, con 2025, insertando desde la web.
       Hecho el 2026-10-24, insertando `NuevosclientesMayoresv1.xlsx` por la web con la base de
       2025 (las cargas ya existían y se reutilizan). «Cargas nuevas 2025» convergido en los
-      tres: Pisco con PI_1, PI_7 y PI_8 (fuera PI_9, PI_10 y PI_11: PA217 ya a 0,647 p.u. y
-      72 tramos sobre el 100 %, Newton estancado); Chincha sin CH_5 (TM105 a 0,832 p.u., un
+      tres: Pisco con PI_1, PI_7 y PI_8 (fuera PI_9, PI_10 y PI_11: PA297 ya a 0,647 p.u. y
+      72 tramos sobre el 100 %, Newton estancado); Chincha sin CH_5 (TM195 a 0,832 p.u., un
       tramo al 301 %); el unido sin IC_11, IC_12, IC_15 e IC_17 (su línea queda entre 22,9 y
-      10 kV sin la migración de IN111, que es obra de «Con proyecto»). De paso, la base de
+      10 kV sin la migración de IN191, que es obra de «Con proyecto»). De paso, la base de
       las cargas se busca en todas las ejecuciones también sin token: tras reiniciar la web,
       la de Pisco no aparecía. Comprobado en DIgSILENT nativo el mismo día (sonda de solo
       lectura, 25 comprobaciones, 0 fallos): los 16 reguladores con los datos del catálogo,
@@ -170,7 +170,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       variantes, `--evaluar`, costo con el CAPEX por ruta y el perfil, elección y solo la elegida
       aplicada); la escalera antigua (`obras_pf.escalera_de_obras`) retirada; tabla de variantes en el
       informe de cargas con su costo y por qué no.
-- T21. Retirada el 2026-11-08 por orden del usuario, sin hacer: PA217 está vetado (086, «No hacen falta para la 1.0»). Era: [DIgSILENT] DIgSILENT: PA217 (Pisco) y TM105 (Chincha) en «Con proyecto 2025» desde la web,
+- T21. Retirada el 2026-11-08 por orden del usuario, sin hacer: PA297 está vetado (086, «No hacen falta para la 1.0»). Era: [DIgSILENT] DIgSILENT: PA297 (Pisco) y TM195 (Chincha) en «Con proyecto 2025» desde la web,
 - [x] T22. Validación de RF-44 a RF-60 y suite completa sin omitidas.
       Hecho cuando: `grep -rnoE "025:RF-[0-9]+[a-z]?" tests | sort -u` lista RF-44 a RF-60 y la suite con las siete variables pasa sin omitidas.
       Evidencia: suite completa del 2026-11-12 sobre 6306cc65 con las doce variables de datos reales y `-rs`: 8 682 aprobadas, 0 fallidas, 0 omitidas (59 min; `.git/puerta_calidad/6306cc65….json`).
@@ -201,12 +201,12 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       aviso. (RF-61, RF-79 a RF-83)
       Hecho cuando: `pytest -q tests/test_casos_por_anio.py tests/test_casos_pf.py tests/test_cargas_pf_guion_007.py
       tests/test_seis_reglas.py` en verde.
-      Hecho el 2026-11-12 (PA217): `casos_pf.cargas_nuevas` borra el caso del sistema (nombre y marca) y lo
+      Hecho el 2026-11-12 (PA297): `casos_pf.cargas_nuevas` borra el caso del sistema (nombre y marca) y lo
       copia otra vez con `AddCopy`, llama a `etapas_al_dia`, compara con `foto_de_red` y
       `diferencias_de_red` y, con `con`, `con_frente_a_sin`; `_a_cargas_nuevas` y `preparar` le pasan los
       alimentadores marcados y «Con proyecto». Pruebas con `fake_pf`, en rojo con el código anterior. Dos flujos
       más por inserción (el de «Sin proyecto» y el de «Con proyecto»); el de la copia es el de partida.
-- [x] T27. [DIgSILENT] En una copia del proyecto PA217 con los bancos y los tramos de dos conductores
+- [x] T27. [DIgSILENT] En una copia del proyecto PA297 con los bancos y los tramos de dos conductores
       de 120 mm² que el operador puso en «Sin proyecto», insertar una carga unitaria (3.2) y un bloque
       (3.1) desde la web y comprobar en DIgSILENT que «Cargas nuevas» los tiene, con la hora de «Sin
       proyecto» y la comparación sin diferencias. (RF-79 a RF-83)

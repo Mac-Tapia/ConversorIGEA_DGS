@@ -90,7 +90,7 @@ def descargar(plan: dict[str, Any], *, gestor=None, cancelado: Callable[[], bool
 
 
 def vertices_por_alimentador(trio: Iterable[Path | str]) -> dict[str, np.ndarray]:
-    """Los vértices (x, y) de cada alimentador de un trío TXT de CYMDIST: los nudos de sus tramos y sus intermedios."""
+    """Los vértices (x, y) de cada alimentador de un trío TXT: los nudos de sus tramos y sus intermedios."""
     from ...dominio.benchmarks.redes import NOMBRES, leer_fichero
 
     ficheros = [leer_fichero(r, n) for r, n in zip(trio, NOMBRES)]

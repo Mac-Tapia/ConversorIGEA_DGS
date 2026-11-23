@@ -274,7 +274,7 @@ def test_rango_y_ambito():
     assert meses_del_rango('2025-11', '2026-02') == ['2025-11', '2025-12', '2026-01', '2026-02']
     with pytest.raises(ValueError):
         meses_del_rango('2026-03', '2026-02')
-    assert ambito(['AL209']) == 'AL209' and ambito(['B', 'A']) == 'A+B'
+    assert ambito(['AL299']) == 'AL299' and ambito(['B', 'A']) == 'A+B'
     assert ambito([f'A{i}' for i in range(9)]) == 'A0+8_mas'
 
 
@@ -334,13 +334,13 @@ def test_archivar_reemplaza_solo_el_mismo_fichero(config_archivo, tmp_path):
     ar.guardar_carpeta(str(raiz))
     f = tmp_path / 'libro.xlsx'
     f.write_bytes(b'uno')
-    primero = ar.archivar(f, 'clientes_fijos', 'AL209', '2026-01_a_2026-10')
-    assert primero == raiz / 'informes' / 'clientes_fijos' / 'AL209' / '2026-01_a_2026-10' / 'libro.xlsx'
-    assert ar.archivar(f, 'clientes_fijos', 'AL209', '2026-01_a_2026-10') == primero
+    primero = ar.archivar(f, 'clientes_fijos', 'AL299', '2026-01_a_2026-10')
+    assert primero == raiz / 'informes' / 'clientes_fijos' / 'AL299' / '2026-01_a_2026-10' / 'libro.xlsx'
+    assert ar.archivar(f, 'clientes_fijos', 'AL299', '2026-01_a_2026-10') == primero
     otro = primero.parent / 'hecho_a_mano.xlsx'
     otro.write_bytes(b'del usuario')
     f.write_bytes(b'dos')
-    segundo = ar.archivar(f, 'clientes_fijos', 'AL209', '2026-01_a_2026-10')
+    segundo = ar.archivar(f, 'clientes_fijos', 'AL299', '2026-01_a_2026-10')
     assert segundo == primero and primero.read_bytes() == b'dos'
     assert otro.read_bytes() == b'del usuario'
     assert sorted(p.name for p in primero.parent.iterdir()) == ['hecho_a_mano.xlsx', 'libro.xlsx']

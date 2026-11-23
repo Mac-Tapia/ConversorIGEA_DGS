@@ -1,6 +1,6 @@
 # Spec 104 — Los libros nuevos de demanda se reconocen solos
 
-Estado: cumplida (2026-11-18: T1 a T11 cerradas; T6 con el recorrido e2e F10 en la web arrancada, sin pulsar nada) · aprobada (2026-11-12) · Fecha: 2026-11-12 · Origen: usuario, 2026-11-12, al añadir el libro de clientes importantes de octubre
+Estado: cumplida (2026-11-22: T12, aclaraciones de RF-43 y RF-45, con su rojo y su verde; 2026-11-18: T1 a T11 cerradas; T6 con el recorrido e2e F10 en la web arrancada, sin pulsar nada) · aprobada (2026-11-12) · Fecha: 2026-11-12 · Origen: usuario, 2026-11-12, al añadir el libro de clientes importantes de octubre
 de 2026: «todo lo has hecho tú; el conversor debe hacerlo de forma automática, reconocerlo». Coordinador, el mismo día:
 el libro de abril de 2026 repite los valores de marzo y nadie lo detectó.
 
@@ -163,6 +163,12 @@ dataset, que nadie abre (089:RF-107 a RF-113 corrigen su lectura).
   el estado del dataset antes de dejar de tenerlo como proceso propio, para que ninguna lectura en
   medio lo dé por «sin proceso vivo» (RF-43) ni deje un segundo aviso (carrera hallada el 2026-11-14).
 - Aclaración de RF-45 (2026-11-14): SI el sistema termina la regeneración por su plazo, ENTONCES EL SISTEMA no la relanzará hasta la próxima revisión de libros.
+- Aclaración de RF-45 (2026-11-22): CUANDO la regeneración termina, bien o con error, EL SISTEMA guardará el estado final
+  del dataset antes de dejar de tenerlo como proceso propio, igual que al cortarlo. Al revés, una lectura en medio lo daba
+  por «sin proceso vivo», lo relanzaba sin libros nuevos y la segunda vuelta dejaba el dataset «al día» con la lista de
+  libros incluidos vacía (fallo intermitente de la e2e F10, 2026-11-22).
+- Aclaración de RF-43 (2026-11-22): EL SISTEMA decidirá el paso a interrumpido dentro del mismo guardado que lo escribe, y
+  SI el dataset ya no está «regenerando», ENTONCES no lo tocará, no lo avisará y no lo relanzará.
 - RF-46: CUANDO la web se apaga con el dataset regenerándose, EL SISTEMA terminará su proceso y lo dejará interrumpido
   en disco; al arrancar, también con la vigilancia apagada, revisará los «regenerando» de los espacios recientes sin
   abrir ningún libro.

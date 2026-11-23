@@ -60,7 +60,7 @@ Lectura de proyectos (sustituye a la spec 004, RF-2)
 - RF-11: CUANDO el operador lee los proyectos, EL SISTEMA listará solo los proyectos de la
   carpeta de importación y de sus subcarpetas, y de cada uno, sus alimentadores.
 - RF-12: EL SISTEMA mostrará cada proyecto de una subcarpeta con su ruta relativa a la
-  carpeta de importación, por ejemplo «2026-10 / SI213».
+  carpeta de importación, por ejemplo «2026-10 / SI293».
 - RF-13: EL SISTEMA buscará proyectos en las subcarpetas sin entrar en el contenido de
   ningún proyecto.
 - RF-14: SI la carpeta de importación no existe, ENTONCES EL SISTEMA devolverá la lista
@@ -99,7 +99,7 @@ PowerFactory que no responde (añadido el 2026-10-14)
   ya activo. Después de activar verificará esa identidad antes de calcular su huella;
   un retorno 0 o 1 sin identidad confirmada no acredita la relectura. Restituirá el
   proyecto previo y comprobará la restitución, incluso ante un fallo de lectura.
-  Hallado el 2026-11-07: CA101/PE104 se importaba y convergía, pero el plan de calibración
+  Hallado el 2026-11-07: CA191/PE194 se importaba y convergía, pero el plan de calibración
   se bloqueaba al confundir otro wrapper del proyecto activo con otro proyecto.
 
 - RF-24: CUANDO `tools/sistema_web.py` va a importar un grupo sin que el espacio tenga vínculo con su proyecto
@@ -108,8 +108,8 @@ PowerFactory que no responde (añadido el 2026-10-14)
   nombre tras el sello, con la misma fuente y en la propia carpeta), ENTONCES no importará, saldrá con el
   código 2 y dirá qué proyecto es y que se use el espacio vinculado con él o `--reconvertir`, que lo borrará.
   SI la carpeta no se puede leer, tampoco importará. Sin ninguno (la primera importación) importa como antes, y
-  la RF-22 no cambia. Copia de PA217 (2026-11-13): un espacio nuevo, sin vínculo, iba a importar `PA217` sin
-  preguntar y la RF-22 habría borrado `20261112-113130_CSG_TXT_PA217`, el que el usuario ya había trabajado.
+  la RF-22 no cambia. Copia de PA297 (2026-11-13): un espacio nuevo, sin vínculo, iba a importar `PA297` sin
+  preguntar y la RF-22 habría borrado `20261112-113130_CSG_TXT_PA297`, el que el usuario ya había trabajado.
 
 ## Requisitos no funcionales
 

@@ -22,10 +22,10 @@ PERFIL = {'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabil
 
 
 def _plan():
-    binding = {'project': 'P_IN111', 'source_run_id': 'r', 'source_mode': 'txt', 'source_fingerprint': H}
-    return {'project': 'P_IN111', 'feeders': ['IN111', 'TA225'],
+    binding = {'project': 'P_IN191', 'source_run_id': 'r', 'source_mode': 'txt', 'source_fingerprint': H}
+    return {'project': 'P_IN191', 'feeders': ['IN191', 'TA295'],
             'native_action_context': build_native_action_context(
-                binding, 'P_IN111', ['IN111', 'TA225'], 'obras_ejecutar')}
+                binding, 'P_IN191', ['IN191', 'TA295'], 'obras_ejecutar')}
 
 
 def _capturar(tmp_path, caso, informe=None, lectura='def', **kw):
@@ -64,7 +64,7 @@ def test_lectura_que_falla_deja_cuarentena_y_aviso(tmp_path):
 
 
 def test_lectura_que_falla_sin_texto_dice_la_excepcion(tmp_path):
-    """024:RF-9 — «la lectura nativa falló: » sin causa (CA101 + CHN102, 2026-11-09)."""
+    """024:RF-9 — «la lectura nativa falló: » sin causa (CA191 + CHN192, 2026-11-09)."""
     class Cortada(Exception):
         pass
 
@@ -125,7 +125,7 @@ def test_con_proyecto_se_compara_con_el_ultimo_sin_proyecto(tmp_path):
     out, _, _ = _capturar(tmp_path, Caso.CON_PROYECTO, lectura=peor, bufer=bufer)
     assert out['clase'] == 'converged_with_violations'
     assert any('pérdidas' in v for v in out['violaciones'])
-    assert len(bufer.consultar(Consulta(proyecto='P_IN111'))) == 3
+    assert len(bufer.consultar(Consulta(proyecto='P_IN191'))) == 3
 
 
 def test_limites_por_norma_del_sistema_de_cada_alimentador():
@@ -133,11 +133,11 @@ def test_limites_por_norma_del_sistema_de_cada_alimentador():
     los límites más estrictos de las dos; sin la de uno, no hay límites."""
     estructura = Estructura(
         zonales=['Z'], sets={},
-        alimentadores={'IN111': AlimentadorEstructura('IN111', 'S1', 'SE1'),
+        alimentadores={'IN191': AlimentadorEstructura('IN191', 'S1', 'SE1'),
                        'PA201': AlimentadorEstructura('PA201', 'S2', 'SE2')},
         sistemas={'SE1': Sistema('SE1', 'Ica', '2', 'NTCSE'),
                   'SE2': Sistema('SE2', 'Palpa', '3', 'NTCSER')})
-    assert it.normas_de(estructura, ['IN111', 'PA201']) == ['NTCSE', 'NTCSER']
+    assert it.normas_de(estructura, ['IN191', 'PA201']) == ['NTCSE', 'NTCSER']
     lim = it.limites_combinados(PERFIL, ['NTCSE', 'NTCSER'])
     assert (lim.tension_min_pu, lim.tension_max_pu) == (0.95, 1.05)
     assert it.limites_combinados({k: v for k, v in PERFIL.items() if k != 'normas'},
@@ -204,11 +204,11 @@ def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
     class Ws:
         out_dir = root = tmp_path
 
-    plan = {**_plan(), 'feeders': ['TA225', 'IN111'], 'folder': 'F'}
+    plan = {**_plan(), 'feeders': ['TA295', 'IN191'], 'folder': 'F'}
     out = services._gemelo(Ws(), Ctx(), plan, {'status': 'OK', 'converged': True, 'cuadrado': True},
                            caso='sin_proyecto', rutas={})
     assert pedidos[0][0] == 'digital_twin_snapshot_pf.py'
-    assert pedidos[0][1]['feeders'] == ['TA225', 'IN111']
+    assert pedidos[0][1]['feeders'] == ['TA295', 'IN191']
     assert out['clase'] == 'accepted'
     assert BuferEpisodios().leer(out['episode_id']).caso is Caso.SIN_PROYECTO
     assert json.loads(json.dumps(out))
@@ -217,7 +217,7 @@ def test_gemelo_de_la_web_con_la_lectura_del_guion(tmp_path, monkeypatch):
 
 @pytest.mark.parametrize(('ajustes', 'limite'), [({}, 300.0), ({'lectura_s': 60}, 60.0)])
 def test_lectura_del_gemelo_con_su_limite_propio(tmp_path, monkeypatch, ajustes, limite):
-    """024:RF-1 — la lectura del gemelo no hereda el límite de un estudio (PA217 esperó 26 min
+    """024:RF-1 — la lectura del gemelo no hereda el límite de un estudio (PA297 esperó 26 min
     a DIgSILENT): 5 min por defecto o ``gemelo.lectura_s`` del perfil; ``gemelo.captura: false``
     la apaga sin llamar a DIgSILENT."""
     from convertersmartgrid.dominio import perfil_empresa

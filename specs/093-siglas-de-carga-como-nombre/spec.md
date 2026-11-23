@@ -1,6 +1,6 @@
 # Spec 093 — La sigla de la carga nombra la carga nueva y su variación
 
-Estado: cumplida (2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL209: «en las cargas y sus variaciones solo
+Estado: cumplida (2026-11-07, verificada en DIgSILENT en el Pisco de prueba) · Fecha: 2026-11-06 · Origen: usuario, 2026-11-06, AL299: «en las cargas y sus variaciones solo
 debe poner con la columna de SIGLAS DE CARGA».
 
 ## Contexto y objetivo
@@ -8,8 +8,8 @@ debe poner con la columna de SIGLAS DE CARGA».
 El libro de cargas nuevas en bloque de la distribuidora trae, por fila, «SIGLAS DE CARGA» (PI_15), «DESCRIPCION»
 («SU_CementoINKA-Pisco») y la demanda. El lector solo reconoce «DESCRIPCION» como nombre (004:RF-53), así que la
 carga, su SED y su variación se llamaban con el texto largo del cliente
-(`Carga_EMPRESA_INVE_AL209_…`, `EMPRESA_INVERSIONES_DE_CEMENTO_S_A(2)`) y no por su sigla, que es como la
-distribuidora la identifica. Con nombres largos se confundieron dos clientes de cemento de AL209 (PI_11 y PI_15).
+(`Carga_EMPRESA_INVE_AL299_…`, `EMPRESA_INVERSIONES_DE_CEMENTO_S_A(2)`) y no por su sigla, que es como la
+distribuidora la identifica. Con nombres largos se confundieron dos clientes de cemento de AL299 (PI_11 y PI_15).
 Cambia 004:RF-53 (spec cumplida, que no crece).
 
 ## Requisitos funcionales (EARS)
@@ -21,7 +21,7 @@ Cambia 004:RF-53 (spec cumplida, que no crece).
   de qué cliente se trata.
 
 - RF-4: EL SISTEMA reconocerá una ampliación (040:RF-3) también cuando el código de la SED esté en la descripción de
-  una fila nombrada por su sigla. PE102 (2026-11-06): con la sigla como nombre, la descripción dejó de mirarse.
+  una fila nombrada por su sigla. PE192 (2026-11-06): con la sigla como nombre, la descripción dejó de mirarse.
 
 ## Fuera de alcance
 

@@ -1987,7 +1987,7 @@ def _unir_islas(nodos: _Nodos, extremos: Mapping[str, tuple[str, str]], cabecera
     """Une a la red de la cabecera cada parte que quedó suelta, por su par de nodos más
     cercano, y anota el hueco (RF-10: se reconstruye, no se bloquea).
 
-    Una cadena de padres que no llega a la cabecera deja una isla: SM117 en la copia de
+    Una cadena de padres que no llega a la cabecera deja una isla: SM197 en la copia de
     una distribuidora real (2026-10-18) tenía 257 tramos y 122 SED sin camino a su SET.
     """
     while True:

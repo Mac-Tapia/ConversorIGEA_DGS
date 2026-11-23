@@ -1,13 +1,13 @@
 # Spec 101 — La calibración cambia sola los transformadores que impiden converger
 
-Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-15) · antes cumplida (2026-11-10: T3 en DIgSILENT y RF-14) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09, calibración de CA101 + CHN102
-(`20261109-152654_CSG_TXT_CA101_CHN102`): «no se acepta que no converge, todo tiene que converger, y para eso
+Estado: cumplida (reabierta el 2026-11-20 con MEJ10-FIJAS por orden del usuario: RF-15) · antes cumplida (2026-11-10: T3 en DIgSILENT y RF-14) · Fecha: 2026-11-09 · Origen: usuario, 2026-11-09, calibración de CA191 + CHN192
+(`20261109-152654_CSG_TXT_CA191_CHN192`): «no se acepta que no converge, todo tiene que converger, y para eso
 debería hacer los cambios físicos según corresponde».
 
 ## Contexto y objetivo
 
-La calibración de CA101 + CHN102 del 2026-11-09 terminó en FALLO_VALIDACION_NATIVA. Seis SED fijas de CA101 y una de
-CHN102 piden más que su transformador: SE20701 pide 1 506 kVA y el TXT le da 50 kVA, y SE20049 pide 2 824 kVA con
+La calibración de CA191 + CHN192 del 2026-11-09 terminó en FALLO_VALIDACION_NATIVA. Seis SED fijas de CA191 y una de
+CHN192 piden más que su transformador: SE20701 pide 1 506 kVA y el TXT le da 50 kVA, y SE20049 pide 2 824 kVA con
 500 kVA. Sin `iopt_lev` el flujo no converge, y con `iopt_lev` las cargas pasan a impedancia y no consumen lo escrito.
 El guion ya proponía para cada una el transformador de la ficha NTP 370.400 (020:RF-6), pero lo dejaba para que el
 operador lo marcara y pulsara «Implementar transformadores» (020:RF-13 a RF-15). El objetivo es que la calibración
@@ -43,7 +43,7 @@ por la misma ruta.
   de 020:RF-13: no impiden converger.
 - RF-13: MIENTRAS se simula la calibración, EL SISTEMA no cambiará ningún transformador.
 - RF-14: CUANDO la primera pasada de la calibración (la que mide para los bancos, 021:RF-64) cambie transformadores
-  (083:RF-31), EL SISTEMA los dejará anotados, con su aviso, en el informe que vale. (CA101 + CHN102 de prueba,
+  (083:RF-31), EL SISTEMA los dejará anotados, con su aviso, en el informe que vale. (CA191 + CHN192 de prueba,
   2026-11-10: SE20701 quedó con 3 × 630 kVA en «SED_NTP_» y ningún informe lo decía.)
 - RF-15: (orden del usuario del 20-11) CUANDO la calibración cambie sola los transformadores, EL SISTEMA partirá de los
   kVA de la fuente del grupo de la SED (015:RF-75): no cambiará los de una SED cuyo grupo ya lleva su carga ni los de
@@ -72,4 +72,4 @@ por la misma ruta.
 ## Criterios de finalización
 
 Cada RF citado por una prueba (`grep -rnoE "101:RF-[0-9]+" tests`), la suite en verde, y una calibración real de
-CA101 + CHN102 desde la web que termine válida sin pulsar ningún botón.
+CA191 + CHN192 desde la web que termine válida sin pulsar ningún botón.

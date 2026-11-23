@@ -92,7 +92,7 @@ def test_nuevas_con_barra_latlon_o_coordenadas_proyectadas():
 
 def test_libro_de_planificacion_sin_sed_ni_kva_instalado():
     """004:RF-51 / 004:RF-53 — «DESCRIPCION», «DEM PROY (KW)», «TRONCAL» y «COORDENADAS UTM
-    (X)/(Y)», con columnas vacías al final, como el libro de SI213 del 2026-10-12."""
+    (X)/(Y)», con columnas vacías al final, como el libro de SI293 del 2026-10-12."""
     pytest.importorskip('pyproj')
     header = ['DESCRIPCION', 'DEM PROY (KW)', 'TRONCAL', 'BARRA', 'SISTEMA', 'SUBESTACIÓN',
               'COORDENADAS UTM (X)', 'COORDENADAS UTM (Y)'] + [None] * 5
@@ -322,7 +322,7 @@ def test_la_fila_cercana_que_no_cabe_en_la_sed_es_sed_nueva():
 
 def test_la_sigla_de_la_carga_nombra_la_carga_nueva():
     """093:RF-1, 093:RF-2, 093:RF-3 — con «SIGLAS DE CARGA», la carga se llama por su sigla y guarda su descripción;
-    la fila sin sigla sigue con su descripción. AL209 (2026-11-06): PI_11 y PI_15 eran dos clientes de cemento."""
+    la fila sin sigla sigue con su descripción. AL299 (2026-11-06): PI_11 y PI_15 eran dos clientes de cemento."""
     header = ['N°', 'EXP', 'SIGLAS DE CARGA', 'UNIDAD DE NEGOCIO', 'DESCRIPCION', 'DEM PROY \n(KW)', 'TRONCAL', 'BARRA']
     filas, errores = leer_hoja_nuevas(header, [
         [None, None, 'PI_15', 'Pisco', 'SU_CementoANDES-Pisco', 5000, 'F1', 'B1'],
@@ -338,7 +338,7 @@ def test_la_sigla_de_la_carga_nombra_la_carga_nueva():
 
 def test_con_sigla_la_ampliacion_se_reconoce_por_la_descripcion():
     """093:RF-4 — nombrada por su sigla, una fila sigue siendo ampliación si su descripción lleva el código de la SED
-    (040:RF-3). PE102 (2026-11-06): «CH_22 · …ViveroLosViñeros SE21146» se habría creado como SED nueva."""
+    (040:RF-3). PE192 (2026-11-06): «CH_22 · …ViveroLosViñeros SE21146» se habría creado como SED nueva."""
     from apoyo import cargar_herramienta
 
     guion = cargar_herramienta('cargas_pf.py', 'cargas_093_rf4', tools_en_path=True)

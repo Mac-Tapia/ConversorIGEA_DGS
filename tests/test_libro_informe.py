@@ -37,7 +37,7 @@ def _modelo(tmp_path):
     libro = openpyxl.Workbook()
     i = libro.active
     i.title = 'Informe'
-    i['C4'], i['B2'], i['B30'], i['H1'], i['G9'] = 'EMAPICA', 'RED LL202', 'dato de EMAPICA', 240, 0.5
+    i['C4'], i['B2'], i['B30'], i['H1'], i['G9'] = 'EMAPICA', 'RED LL292', 'dato de EMAPICA', 240, 0.5
     i['F7'] = '=C4'                                                 # una fórmula que el perfil no declara
     i['G11'] = 50.0
     for nombre in ('Datos', 'Otra', 'Oculta', 'Catalogo'):

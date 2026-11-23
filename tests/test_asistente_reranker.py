@@ -628,10 +628,13 @@ def test_produccion_solo_con_decision_del_conjunto_sellado(tmp_path):
 
 
 def test_el_informe_real_del_repositorio_esta_sellado():
-    """047:RF-4, RF-27 — el informe guardado, si lo hay, corresponde al conjunto sellado de hoy."""
+    """047:RF-4, RF-27 — el informe guardado, si lo hay, corresponde al conjunto sellado de hoy: por su huella o, si
+    el conjunto se anonimizó después de medir (056:RF-1), por la tabla de huellas anonimizadas."""
     informe = RAIZ / 'docs' / 'EVALUACION_RAG_047.json'
     if informe.is_file():
-        assert json.loads(informe.read_text(encoding='utf-8'))['conjunto_sha256'] == evaluacion_rag.sha256_de(CONJUNTO)
+        citada = json.loads(informe.read_text(encoding='utf-8'))['conjunto_sha256']
+        tabla = json.loads((RAIZ / 'docs' / 'RAG_SELLOS_ANONIMIZADOS_047.json').read_text(encoding='utf-8'))['huellas']
+        assert tabla.get(citada, citada) == evaluacion_rag.sha256_de(CONJUNTO)
     assert reranker.politica()['hibrido'] in (True, False)
 
 
@@ -939,7 +942,7 @@ def test_los_conjuntos_nuevos_estan_separados_y_anclan():
         assert len(sin_ancla) <= 4, sin_ancla                         # medir exige el 100 %; esto vigila la deriva
         assert sum(not p.answerable for p in pares) == 40
         assert {x['tipo'] for x in c['preguntas'] if x.get('sin_respuesta')} == {'dominio', 'fuera'}
-    assert sel['sha256'] == '2faeb8c3973f308bab55b74116ec1651581178151da6c02e8f90f35953a45231'
-    assert cal['sha256'] == 'c5ba77aaca78a92d531475030b9f88cbdb08678614bda758ac794efd0e572437'
-    assert his['sha256'] == '88245a0755bac8813968dee64a03a22778168d8a6aec9d21e813f73a0ff5c36a'
+    assert sel['sha256'] == '1866532c0e8709f8bbaef8a7d291119b3c593a414b93cf773c75d2797d8ecab6'
+    assert cal['sha256'] == 'e6fd69ee7ba001d2b41e16a6c9cf2ac73dcca1616b0eb1ea9d96e39e3bfa363a'
+    assert his['sha256'] == 'ae8031e6f8a690831d2e2e02e676e4cc235677be1912ebb1289523bcfd7a9ba9'
 

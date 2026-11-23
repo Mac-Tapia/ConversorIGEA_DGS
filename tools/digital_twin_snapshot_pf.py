@@ -74,7 +74,7 @@ def _version(app) -> str | None:
         return str(app.GetVersion())
     except Exception:  # noqa: BLE001, S110 - la versión es opcional; se busca en el módulo
         pass
-    # PF 2024 no tiene ``GetVersion`` en la aplicación: todas las lecturas del 2026-11-07 (CA101 + PE104)
+    # PF 2024 no tiene ``GetVersion`` en la aplicación: todas las lecturas del 2026-11-07 (CA191 + PE194)
     # salían sin versión, aunque el módulo dice «24.0.2» (lo que lee ``protecciones_pf.py``).
     # El módulo ya lo importó ``pf_arnes.conectar``; con el doble de las pruebas no está y no hay versión.
     import sys
@@ -87,7 +87,7 @@ def _estados(app, nombres: set[str]) -> dict[str, dict]:
     """En servicio y cerrado de los interruptores, acopladores y líneas pedidos por nombre.
 
     Desde la spec 021 los seccionadores y fusibles son ``StaSwitch`` dentro de un cubículo:
-    no son tramos, así que su estado se pide aparte (la frontera de IN111–TA225 se corrige
+    no son tramos, así que su estado se pide aparte (la frontera de IN191–TA295 se corrige
     cerrando un seccionador).
     """
     out = {}
@@ -192,7 +192,7 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     lectura['flujo'] = resultados(app, proyecto, raiz, lectura['feeders'])
     # 027:RF-1: con el grafo eléctrico, el episodio de cualquier calibración, obra o estudio
     # enseña al gemelo; los de Nasca y Chincha (2026-10-28) traían 4 067 tensiones y ningún
-    # grafo, y solo entrenaban los escenarios de IN111–TA225.
+    # grafo, y solo entrenaban los escenarios de IN191–TA295.
     lectura['topologia']['grafo'] = grafo(app, proyecto, raiz, lectura['feeders'])
     return lectura, 0
 
@@ -274,7 +274,7 @@ def _rama_de_trafo(tr, hv, lv, tipo, raiz: str) -> dict:
     faltan = _faltan({'strn': s, 'utrn_h': uh, 'utrn_l': ul, 'pcutr': pcu, 'uktr': uk})
     s, uh = s or 0.0, uh or 0.0
     z_base = uh * uh / s if s else 0.0
-    # Las unidades en paralelo, como las ternas de una línea (074:RF-8): sin ellas, SM218 veía al 131 %
+    # Las unidades en paralelo, como las ternas de una línea (074:RF-8): sin ellas, SM298 veía al 131 %
     # un transformador que DIgSILENT mide al 65 %.
     u = max(int(_num(tr, 'ntnum') or 1), 1)
     # 045:RF-4: la toma y si la mueve un control. Sin posición ni paso no se sabe la relación efectiva.
@@ -321,7 +321,7 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
             nodos[n]['carga_q_mvar'] += (_num(c, 'qlini') or 0.0) * escala
             medida_p.setdefault(n, []).append(_medido(c, 'm:Psum:bus1'))
             medida_q.setdefault(n, []).append(_medido(c, 'm:Qsum:bus1'))
-    # 015:RF-49: lo escrito no es lo consumido (CA101 escribía 3677 kW y consumía 2686). Se guardan las dos.
+    # 015:RF-49: lo escrito no es lo consumido (CA191 escribía 3677 kW y consumía 2686). Se guardan las dos.
     for n, valores in medida_p.items():
         if all(v is not None for v in valores):
             nodos[n]['carga_p_efectiva_mw'] = sum(valores)
@@ -343,7 +343,7 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
             nodos[g['nodo']]['gen_q_mvar'] += g['q_mvar'] or 0.0
     redes = list(app.GetCalcRelevantObjects('*.ElmXnet'))
     fuentes_info = []
-    # La consigna de tensión de cada red externa: IN111 está a 1,02 p.u. y TA225 a 1,00, y sin
+    # La consigna de tensión de cada red externa: IN191 está a 1,02 p.u. y TA295 a 1,00, y sin
     # ella el oráculo tenía que adivinar el nivel de toda la red (024, 2026-10-22).
     for x in redes:
         f = _barra(getattr(x, 'bus1', None), raiz)
@@ -383,7 +383,7 @@ def grafo(app, proyecto, raiz: str, feeders: list[str], factor: float = 1.0) -> 
             continue
         ramas.append(_rama_de_linea(ln, cubs, tipo, raiz))
     # Los acopladores (interruptores y seccionadores de barra): desde la spec 022 la cabecera
-    # de cada alimentador es un interruptor en su SET. Sin ellos, de 2470 nodos de IN111–TA225
+    # de cada alimentador es un interruptor en su SET. Sin ellos, de 2470 nodos de IN191–TA295
     # solo 91 quedaban unidos a una fuente (2026-10-22).
     for cp in app.GetCalcRelevantObjects('*.ElmCoup'):
         cubs = [c for c in (getattr(cp, 'bus1', None), getattr(cp, 'bus2', None)) if c is not None]
@@ -421,7 +421,7 @@ def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:
     La usa también ``tools/pide_pf.py`` en cada año del horizonte (RF-53).
     """
     # Una barra a 0 p.u. no tiene subtensión: está en una isla sin fuente. En la copia de
-    # IN111–TA225 (2026-10-21) eran 392 de 2470 barras y la mínima salía «0,0 p.u.».
+    # IN191–TA295 (2026-10-21) eran 392 de 2470 barras y la mínima salía «0,0 p.u.».
     tensiones, sin_tension = {}, []
     for b in app.GetCalcRelevantObjects('*.ElmTerm'):
         if b.HasResults() and (u := _num(b, 'm:u')) is not None:
@@ -438,8 +438,8 @@ def resultados(app, proyecto, raiz: str, feeders: list[str]) -> dict:
     cabeceras, fps, perdidas = {}, {}, 0.0
     elms = {f.loc_name: f for f in proyecto.GetContents('*.ElmFeeder', 1)}
     # Toda la red calculable solo cuando el proyecto es de un alimentador, como ``estudios_pf.medidas``:
-    # contar por los del plan sumaba las cargas de todos. En CA101 + PE104 (2026-11-07, lectura de solo
-    # CA101) la cabecera era 4 655 kW y las pérdidas −4 690 kW, y la aceptación nativa las rechazaba (044 T4).
+    # contar por los del plan sumaba las cargas de todos. En CA191 + PE194 (2026-11-07, lectura de solo
+    # CA191) la cabecera era 4 655 kW y las pérdidas −4 690 kW, y la aceptación nativa las rechazaba (044 T4).
     for feeder in feeders:
         elm = elms.get(feeder)
         m = medida(elm, app if len(elms) == 1 else None) if elm is not None else {}

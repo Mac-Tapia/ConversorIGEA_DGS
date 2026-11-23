@@ -18,7 +18,7 @@
 - Se detectaron 1,296 requisitos, 170 sin evidencia de prueba/código y 45 tareas abiertas; la especificación 013 no tiene `tasks.md`.
 - La especificación 022 se declara implementada, pero mantiene T11c, T11d, T14 y T16 sin cierre nativo y su `plan.md` aún figura como borrador.
 - Nasca genera 6 `ElmNet` para 6 SET; Chincha y Pisco generan hoy un solo `ElmNet` por zonal, aunque la misma ejecución en memoria produjo correctamente 5 y 7 redes por SET, respectivamente.
-- Los alimentadores CA103, CN103, PN208 y PI101 tienen fuente pero no topología y pueden quedar omitidos silenciosamente por el filtro actual.
+- Los alimentadores CA193, CN193, PN298 y PI191 tienen fuente pero no topología y pueden quedar omitidos silenciosamente por el filtro actual.
 - La API web rechaza sistemas de un alimentador por reutilizar una regla de “unir” que exige dos; la CLI no tiene esa restricción.
 - El manifiesto de una selección zonal calcula `faltan` contra toda la empresa, no contra el alcance solicitado.
 - La suite focalizada pasó 81 pruebas y el inventario 48; el último conjunto completo conocido en el mismo HEAD fue 2,873 aprobadas y 47 omitidas. Esto es línea base, no aceptación final.
@@ -149,8 +149,8 @@ def seleccionar_sistema(
 
 **Pasos TDD:**
 
-1. Probar Chincha: CHN/SET esperadas aparecen aunque CN103 carezca de topología.
-2. Probar Pisco: PN208 y PI101 se clasifican en `sin_topologia`, no desaparecen.
+1. Probar Chincha: CHN/SET esperadas aparecen aunque CN193 carezca de topología.
+2. Probar Pisco: PN298 y PI191 se clasifican en `sin_topologia`, no desaparecen.
 3. Probar un sistema de un solo alimentador: selección válida.
 4. Probar códigos desconocidos: error explícito, sin fallback global.
 5. Implementar una única función y reemplazar los filtros duplicados de CLI/web.
@@ -175,7 +175,7 @@ def seleccionar_sistema(
 - Devolver `bloqueado_datos` con lista, SET, archivos fuente y acción de remediación.
 - Solo un parámetro diagnóstico explícito y no predeterminado podrá producir cabeceras sin red; nunca marcará el resultado como completo.
 
-**Pruebas:** CN103, CA103, PN208 y PI101 deben quedar visibles y causar el estado correcto.
+**Pruebas:** CN193, CA193, PN298 y PI191 deben quedar visibles y causar el estado correcto.
 
 **Verificación:**
 
@@ -214,7 +214,7 @@ La configuración no enumerará zonales autorizadas para dividir por SET. El nom
 **Casos rojos mínimos:**
 
 - Nasca: 6 SET → 6 `ElmNet`.
-- Chincha: 5 SET → 5 `ElmNet`; CHN102 pertenece solo a Chincha Nueva.
+- Chincha: 5 SET → 5 `ElmNet`; CHN192 pertenece solo a Chincha Nueva.
 - Pisco: 7 SET → 7 `ElmNet`; Pampa de Oca conserva únicamente sus alimentadores.
 - Ica: cada SET presente genera su propia red.
 - Ningún alimentador aparece en dos redes.
@@ -243,7 +243,7 @@ La configuración no enumerará zonales autorizadas para dividir por SET. El nom
 5. comprobar codificación canónica y unicidad global;
 6. exigir asignación única a SET y `ElmNet`.
 
-Para CHN102, la prueba debe enumerar su recorrido real y fallar si cualquier objeto alcanzable desaparece. Para Pampa de Oca se aplica el mismo oráculo a cada alimentador, no una muestra.
+Para CHN192, la prueba debe enumerar su recorrido real y fallar si cualquier objeto alcanzable desaparece. Para Pampa de Oca se aplica el mismo oráculo a cada alimentador, no una muestra.
 
 **Verificación:** `pytest tests/test_recorridos_chn_pdo.py -q`.
 
@@ -481,7 +481,7 @@ Corregir hallazgos, repetir la puerta completa y crear el commit final solo con 
 
 `git commit -m "release: cierra conversion universal por SET y trazabilidad"`
 
-No etiquetar la versión si CN103/CA103/PN208/PI101 siguen sin topología dentro de un alcance que se pretende completo; mantener `bloqueado_datos` hasta obtener o reconstruir evidencia autorizada.
+No etiquetar la versión si CN193/CA193/PN298/PI191 siguen sin topología dentro de un alcance que se pretende completo; mantener `bloqueado_datos` hasta obtener o reconstruir evidencia autorizada.
 
 ---
 
@@ -501,7 +501,7 @@ No etiquetar la versión si CN103/CA103/PN208/PI101 siguen sin topología dentro
 El cierre correcto no es “todos los checks marcados”, sino un repositorio en el que:
 
 - cualquier sistema se convierte con una red independiente por SET;
-- CHN102 y cada alimentador de Pampa de Oca conservan su recorrido, códigos y equipos;
+- CHN192 y cada alimentador de Pampa de Oca conservan su recorrido, códigos y equipos;
 - ningún alimentador fuente queda omitido silenciosamente;
 - web, CLI y API aplican el mismo contrato;
 - los manifiestos informan únicamente el alcance pedido y separan las puertas de aceptación;
