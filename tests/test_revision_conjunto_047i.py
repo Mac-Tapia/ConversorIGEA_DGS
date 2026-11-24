@@ -15,6 +15,7 @@ import re
 
 from test_revision_conjunto_047b import (  # noqa: F401  (``ollama_falso`` es un fixture)
     HUELLAS_EMPRESAS, RAZON_SOCIAL, _herramienta, _huella_sin_declaracion, _leer, _main, ollama_falso)
+from apoyo import bloque_de_tarea
 
 RAIZ = Path(__file__).resolve().parents[1]
 G047 = RAIZ / 'docs' / 'REVISION_ROLES_CASOS_047i.json'
@@ -26,8 +27,8 @@ HUELLA_047I = 'eab90f9e2596dd877ad89b04290e6e312f0206e789d5ad56ba86e3efe57dfba4'
 def _t17() -> str:
     tareas = next((RAIZ / 'specs').glob('047-*')) / 'tasks.md'
     texto = tareas.read_text(encoding='utf-8')
-    assert '- [ ] T17.' in texto, 'la spec 047 no tiene la tarea de la medida con el 047i'
-    return texto.split('- [ ] T17.', 1)[1].split('\n- [', 1)[0]
+    assert bloque_de_tarea(texto, 'T17') is not None, 'la spec 047 no tiene la tarea de la medida con el 047i'
+    return bloque_de_tarea(texto, 'T17')
 
 
 def test_conjunto_047i_declarado_antes_de_medir_y_fijo():

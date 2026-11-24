@@ -16,6 +16,7 @@ import pytest
 
 from test_revision_conjunto_047b import (  # noqa: F401  (``ollama_falso`` es un fixture)
     HUELLAS_EMPRESAS, RAZON_SOCIAL, _herramienta, _huella_sin_declaracion, _leer, _main, ollama_falso)
+from apoyo import bloque_de_tarea
 
 RAIZ = Path(__file__).resolve().parents[1]
 C047 = RAIZ / 'docs' / 'REVISION_ROLES_CASOS_047c.json'
@@ -35,7 +36,7 @@ def test_conjunto_047c_declarado_antes_de_medir_y_fijo():
     assert declaracion['origen'] == 'maestro' and 'maestro' in contenido['descripcion']
     assert herramienta.huella(C047) == HUELLA_047C
     tareas = next((RAIZ / 'specs').glob('047-*')) / 'tasks.md'
-    t8 = tareas.read_text(encoding='utf-8').split('- [ ] T8.', 1)[1].split('\n- [', 1)[0]
+    t8 = bloque_de_tarea(tareas.read_text(encoding='utf-8'), 'T8')
     assert HUELLA_047C in t8 and '2026-11-21' in t8
     assert '--conjunto docs/REVISION_ROLES_CASOS_047c.json' in t8, 'la T8 no deja la orden de la medida con el 047c'
 

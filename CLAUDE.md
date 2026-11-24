@@ -73,7 +73,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 044 Evaluación causal y verificación completa | cumplida |  |
   | 045 Gemelo físico y contratos PINN/GNN | cumplida | T6 cerrada (22-11, en la GPU: el híbrido aprobado en global y en sus familias); todas sus tareas cerradas |
   | 046 Pronóstico causal multihorizonte | cumplida |  |
-  | 047 Asistente estructurado y revisión por roles | aprobada | ver sus tareas |
+  | 047 Asistente estructurado y revisión por roles | aprobada | falta T4 y T7 (GPU); la revisión por roles cerrada (24-11: la 047q pasa en los dos modos, T8 a T25) |
   | 048 Optimización mixta evolutiva y PNL | cumplida |  |
   | 049 Protecciones nativas y coordinación | cumplida |  |
   | 050 Aprendizaje continuo integrado | aprobada | falta T3b, T4b, T5b |

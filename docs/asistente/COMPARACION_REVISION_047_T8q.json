@@ -1,0 +1,5978 @@
+{
+  "casos": 24,
+  "con_defecto": 12,
+  "conjunto": "REVISION_ROLES_CASOS_047q.json",
+  "conjunto_sha256": "eb04a0a39151cedf0e6ed31b449c91b860e23f2b5a32d62165795cc89ea23b0a",
+  "modelo": "qwen3:8b",
+  "tokens": 1024,
+  "rol_unico": {
+    "modo": "rol_unico",
+    "casos": 24,
+    "con_defecto": 12,
+    "sin_respuesta": 0,
+    "motivos_sin_respuesta": {},
+    "detectados": 12,
+    "perdidos": 0,
+    "falsas_alarmas": 0,
+    "intervenciones": 29,
+    "contradicciones_descartadas": 25,
+    "incertidumbres_descartadas": 19,
+    "decisiones_recalculadas": 17,
+    "comprobaciones_fallidas": 12,
+    "tokens_entrada": 21422,
+    "tokens_salida": 3810,
+    "tokens_tope": 1024,
+    "max_tokens_salida": 267,
+    "en_tope": 0,
+    "segundos": 212.938,
+    "p95_por_caso_s": 13.875,
+    "por_caso": [
+      {
+        "id": "q01",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2420",
+                  "valor_evidencia": "220 USD por puesta a tierra",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              },
+              {
+                "entrada": {
+                  "campo": "puestas",
+                  "valor_propuesta": "11",
+                  "valor_evidencia": "11 estructuras",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «11» y «11 estructuras»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2420,
+            "valor_calculado": 2420.0,
+            "calculo": "11 × 220 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "puestas",
+            "valor_propuesta": 11,
+            "valor_calculado": 11,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 12.688
+      },
+      {
+        "id": "q02",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$18,900",
+                  "valor_evidencia": "21 000 USD el kilómetro",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_evidencia_total": 18900.0,
+                  "calculo": "0.9 × 21 000 USD el kilómetro"
+                },
+                "motivo": "valores iguales tras convertir: 0.9 × 21 000 USD el kilómetro"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "caida_tension_pct",
+                "motivo": "el código comprobó caida_tension_pct con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 18900,
+            "valor_calculado": 18900.0,
+            "calculo": "0.9 × 21 000 (e1, por km)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "caida_tension_pct",
+            "valor_propuesta": 1.8,
+            "valor_calculado": 1.8,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.89
+      },
+      {
+        "id": "q03",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 4460,
+                  "valor_evidencia": "Transformador de 100 kVA: 3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD.",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Cambiar el transformador de la SED T-9110 por uno de 100 kVA: 4460 USD"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "carga_final_pct",
+                "motivo": "el código comprobó carga_final_pct con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 4460,
+            "valor_calculado": 4460.0,
+            "calculo": "3 650 (e1) + 540 (e1) + 270 (e1)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "carga_final_pct",
+            "valor_propuesta": 74,
+            "valor_calculado": 74,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 8.813
+      },
+      {
+        "id": "q04",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "reconectadores",
+                  "valor_propuesta": "3",
+                  "valor_evidencia": "3",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «3» y «3»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "37500",
+                  "valor_evidencia": "12500",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "reconectadores",
+                "motivo": "la acción fija reconectadores (3): no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 37500,
+            "valor_calculado": 37500.0,
+            "calculo": "3 × 12 500 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "reconectadores",
+            "valor_propuesta": 3,
+            "valor_calculado": 3,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 9.437
+      },
+      {
+        "id": "q05",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [],
+            "incertidumbres": [
+              "dictamen bloqueada sin hallazgo: ninguna contradicción ni incertidumbre"
+            ],
+            "contradicciones": [],
+            "devuelto": {
+              "decision": "bloqueada",
+              "incertidumbres": [],
+              "contradicciones": []
+            }
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 9300,
+            "valor_calculado": 9300.0,
+            "calculo": "9 300 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.99,
+            "valor_calculado": 0.99,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 12.985
+      },
+      {
+        "id": "q06",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "alimentador",
+                  "valor_propuesta": "no especificado",
+                  "valor_evidencia": "alimentador vecino",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "no fundada: «no especificado» no está en la propuesta"
+              },
+              {
+                "entrada": {
+                  "campo": "tramo",
+                  "valor_propuesta": "M40",
+                  "valor_evidencia": "no especificado",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "no fundada: «no especificado» no está en e1"
+              },
+              {
+                "entrada": {
+                  "campo": "tiempo_de_interrupcion",
+                  "valor_propuesta": "50 minutos",
+                  "valor_evidencia": "no debe superar 9,0 horas",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "no fundada: «no debe superar 9,0 horas» no está en e2"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "tiempo_de_apertura_del_seccionador",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "coste_total_de_la_accion",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "cargas_sin_respaldo_durante_la_accion",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "servicio_sin_respaldo_durante_la_accion",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 310,
+            "valor_calculado": 310.0,
+            "calculo": "310 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 11.078
+      },
+      {
+        "id": "q07",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$27500",
+                  "valor_evidencia": "11 000 USD por kilómetro",
+                  "fuente": "e2",
+                  "base": "unidad",
+                  "valor_evidencia_total": 27500.0,
+                  "calculo": "2.5 × 11 000 USD por kilómetro"
+                },
+                "motivo": "valores iguales tras convertir: 2.5 × 11 000 USD por kilómetro"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "corriente_final_a",
+                "motivo": "el código comprobó corriente_final_a con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 27500,
+            "valor_calculado": 27500.0,
+            "calculo": "2.5 × 11 000 (e2, por km)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "corriente_final_a",
+            "valor_propuesta": 150,
+            "valor_calculado": 150,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.609
+      },
+      {
+        "id": "q08",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "cargabilidad_n416_pct",
+                "motivo": "el código comprobó cargabilidad_n416_pct con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e1 dice que no tiene coste",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "cargabilidad_n416_pct",
+            "valor_propuesta": 61,
+            "valor_calculado": 61,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.235
+      },
+      {
+        "id": "q09",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$ 1680",
+                  "valor_evidencia": "24 espaciadores × US$ 70 = US$ 1680",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$ 1680» y «24 espaciadores × US$ 70 = US$ 1680»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 1680,
+            "valor_calculado": 1680.0,
+            "calculo": "24 × 70 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "espaciadores",
+            "valor_propuesta": 24,
+            "valor_calculado": 24,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.39
+      },
+      {
+        "id": "q10",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "corriente_ajuste_a",
+                "motivo": "el código comprobó corriente_ajuste_a con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e2 dice que no tiene coste",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "corriente_ajuste_a",
+            "valor_propuesta": 40,
+            "valor_calculado": 40,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.0
+      },
+      {
+        "id": "q11",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "demanda_max_kw",
+                  "valor_propuesta": 1900,
+                  "valor_evidencia": "1,9 MW",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1900» y «1,9 MW»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 7600,
+                  "valor_evidencia": "7 600 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «7600» y «7 600 USD»"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 7600,
+            "valor_calculado": 7600.0,
+            "calculo": "7 600 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "demanda_max_kw",
+            "valor_propuesta": 1900,
+            "valor_calculado": 1900,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.938
+      },
+      {
+        "id": "q12",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.97",
+                  "valor_evidencia": "0,97",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «0.97» y «0,97»"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 15800,
+            "valor_calculado": 15800.0,
+            "calculo": "15 800 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.97,
+            "valor_calculado": 0.97,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.64
+      },
+      {
+        "id": "q13",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "coste_usd"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 120,
+                  "valor_evidencia": "120 USD por aislador",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "How much is the cost?"
+                },
+                "motivo": "valores iguales: «120» y «120 USD por aislador»"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "aisladores",
+                "motivo": "la acción fija aisladores (9): no es una incertidumbre"
+              }
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "coste_usd"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$120",
+                  "valor_evidencia": "120 USD por aislador",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «>$120» y «120 USD por aislador»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 120,
+            "valor_calculado": 1080.0,
+            "calculo": "9 × 120 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          },
+          {
+            "campo": "aisladores",
+            "valor_propuesta": 9,
+            "valor_calculado": 9,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 13.375
+      },
+      {
+        "id": "q14",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "/29000",
+                "valor_evidencia": "16 000 USD por kilómetro × 2,5 km = 40 000 USD",
+                "fuente": "e1 + e2",
+                "base": "total"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 29000,
+            "valor_calculado": 40000.0,
+            "calculo": "2.5 × 16 000 (e1, por km)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.063
+      },
+      {
+        "id": "q15",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tramos"
+            ],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "COSTE_USD: 2100",
+                "valor_evidencia": "USD 410 cada indicador",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "indicadores",
+                "motivo": "la acción fija indicadores (8): no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2100,
+            "valor_calculado": 3280.0,
+            "calculo": "8 × 410 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          },
+          {
+            "campo": "indicadores",
+            "valor_propuesta": 8,
+            "valor_calculado": 8,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 7.625
+      },
+      {
+        "id": "q16",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "carga_t9300_pct",
+                "valor_propuesta": 79,
+                "valor_evidencia": "162 %",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "N/A"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 1050,
+            "valor_calculado": 1050.0,
+            "calculo": "1 050 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "carga_t9300_pct",
+            "valor_propuesta": 79,
+            "valor_calculado": 162.0,
+            "calculo": "e1 da 162 % para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.328
+      },
+      {
+        "id": "q17",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tension_final_pu"
+            ],
+            "contradicciones": [
+              {
+                "campo": "tension_final_pu",
+                "valor_propuesta": "0.98",
+                "valor_evidencia": "0,95 pu",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 6500,
+            "valor_calculado": 6500.0,
+            "calculo": "6 500 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.98,
+            "valor_calculado": 0.9,
+            "calculo": "e1 da 0.9 pu para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 5.969
+      },
+      {
+        "id": "q18",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "cortocircuito_ka",
+                "valor_propuesta": "21",
+                "valor_evidencia": "29,6",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 15200,
+            "valor_calculado": 15200.0,
+            "calculo": "15 200 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "cortocircuito_ka",
+            "valor_propuesta": 21,
+            "valor_calculado": 29.6,
+            "calculo": "e1 da 29.6 kA para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 5.625
+      },
+      {
+        "id": "q19",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "duración del corte programado",
+                "valor_propuesta": "7 horas",
+                "valor_evidencia": "4 horas",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "3300",
+                  "valor_evidencia": "3 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «3300» y «3 300 USD»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 3300,
+            "valor_calculado": 3300.0,
+            "calculo": "3 300 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "dejar sin servicio el alimentador N440 durante 7 horas para cambiar su celda",
+            "valor_calculado": "el contrato admite a lo sumo 4 horas de corte programado.",
+            "calculo": "e1 pone un límite de 240 min y la acción llega a 420 min",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.828
+      },
+      {
+        "id": "q20",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+                  "valor_evidencia": "verificar la protección antes de poner en servicio cualquier subestación nueva",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "accion",
+            "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+            "valor_calculado": "El reglamento exige verificar la protección antes de poner en servicio cualquier subestación nueva.",
+            "calculo": "e1 exige verificar la protección antes de lo que la acción hace, y la acción lo hace sin ello",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 5.984
+      },
+      {
+        "id": "q21",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "impacto_sobre_usuarios",
+              "necesidad_de_alimentador_de_respaldo",
+              "seguridad_duracion_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "{\"coste_usd\": 2100}",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «{\"coste_usd\": 2100}» y «2 100 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "impacto_sobre_usuarios",
+              "necesidad_de_alimentador_de_respaldo",
+              "seguridad_duracion_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "Cambio de tres postes con la línea abierta: 2 100 USD.",
+                  "valor_evidencia": "Cambio de tres postes con la línea abierta: 2 100 USD.",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «Cambio de tres postes con la línea abierta: 2 100 USD.» y «Cambio de tres postes con la línea abierta: 2 100 USD.»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2100,
+            "valor_calculado": 2100.0,
+            "calculo": "2 100 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "abrir el seccionador S-450 durante 3 horas para cambiar postes del tramo M70",
+            "valor_calculado": "Aguas abajo de S-450 hay 1 700 usuarios sin enlace con otro alimentador ni generación propia.",
+            "calculo": "e1 dice que al elemento que la acción maniobra le falta una salvaguarda",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 13.875
+      },
+      {
+        "id": "q22",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "El transformador de la SED T-9510 no está mencionado en ninguna evidencia.",
+              "La acción de bajar a la toma 1 no está confirmada por ninguna evidencia.",
+              "El costo de la acción no está confirmado por ninguna evidencia."
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tensión_actual_pu",
+                  "valor_propuesta": "1.08",
+                  "valor_evidencia": "1,08",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «1.08» y «1,08»"
+              }
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "El transformador de la SED T-9510 no está mencionado en ninguna evidencia.",
+              "La acción de bajar a la toma 1 no está confirmada por ninguna evidencia.",
+              "El costo de la acción no está confirmado por ninguna evidencia."
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tensión_actual_pu",
+                  "valor_propuesta": "1.08",
+                  "valor_evidencia": "1,08",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «1.08» y «1,08»"
+              },
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+                  "valor_evidencia": "El cambio de toma lo realiza la guardia nocturna, sin materiales.",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e2 dice que no tiene coste",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_actual_pu",
+            "valor_propuesta": 1.08,
+            "valor_calculado": 1.08,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+            "valor_calculado": "Registro del analizador en la SED T-9501 a las 3:30: 1,08 pu en baja tensión.",
+            "calculo": "e1 es de t-9501, no del elemento de la acción",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 15.797
+      },
+      {
+        "id": "q23",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 1,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "demanda_max_kw",
+                "valor_propuesta": 11200,
+                "valor_evidencia": "8,7 MW",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "She has a lot of friends."
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 260000,
+                  "valor_evidencia": "260 000 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "She has a lot of friends."
+                },
+                "motivo": "valores iguales: «260000» y «260 000 USD»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 260000,
+            "valor_calculado": 260000.0,
+            "calculo": "260 000 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "demanda_max_kw",
+            "valor_propuesta": 11200,
+            "valor_calculado": 8700.0,
+            "calculo": "e1 da 8700 kW para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 6.922
+      },
+      {
+        "id": "q24",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 2,
+        "dictamenes": [
+          {
+            "rol": "unico",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ]
+          },
+          {
+            "rol": "unico",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": []
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 5300,
+            "valor_calculado": 5300.0,
+            "calculo": "5 300 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.99,
+            "valor_calculado": 0.99,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "reduccion_perdidas_kw",
+            "valor_propuesta": 55,
+            "valor_calculado": null,
+            "calculo": "ningún fragmento de la evidencia da este resultado",
+            "fuentes": [],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 12.844
+      }
+    ]
+  },
+  "equipo": {
+    "modo": "equipo",
+    "casos": 24,
+    "con_defecto": 12,
+    "sin_respuesta": 0,
+    "motivos_sin_respuesta": {},
+    "detectados": 12,
+    "perdidos": 0,
+    "falsas_alarmas": 0,
+    "intervenciones": 116,
+    "contradicciones_descartadas": 150,
+    "incertidumbres_descartadas": 15,
+    "decisiones_recalculadas": 67,
+    "comprobaciones_fallidas": 12,
+    "tokens_entrada": 81543,
+    "tokens_salida": 14530,
+    "tokens_tope": 1024,
+    "max_tokens_salida": 253,
+    "en_tope": 0,
+    "segundos": 708.203,
+    "p95_por_caso_s": 47.203,
+    "por_caso": [
+      {
+        "id": "q01",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2420",
+                  "valor_evidencia": "220 USD por puesta a tierra",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              },
+              {
+                "entrada": {
+                  "campo": "puestas",
+                  "valor_propuesta": "11",
+                  "valor_evidencia": "11 estructuras",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «11» y «11 estructuras»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2420",
+                  "valor_evidencia": "11 × 220 USD = 2420 USD",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2420» y «11 × 220 USD = 2420 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "puestas",
+                  "valor_propuesta": "11",
+                  "valor_evidencia": "11",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «11» y «11»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2420",
+                  "valor_evidencia": "11 × 220 USD = 2420 USD",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2420» y «11 × 220 USD = 2420 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "puestas",
+                  "valor_propuesta": "11",
+                  "valor_evidencia": "11",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «11» y «11»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2420",
+                  "valor_evidencia": "220 USD por puesta a tierra",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              },
+              {
+                "entrada": {
+                  "campo": "puestas",
+                  "valor_propuesta": "11",
+                  "valor_evidencia": "11 estructuras",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «11» y «11 estructuras»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2420,
+            "valor_calculado": 2420.0,
+            "calculo": "11 × 220 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "puestas",
+            "valor_propuesta": 11,
+            "valor_calculado": 11,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 27.328
+      },
+      {
+        "id": "q02",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$18,900",
+                  "valor_evidencia": "21 000 USD el kilómetro",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_evidencia_total": 18900.0,
+                  "calculo": "0.9 × 21 000 USD el kilómetro"
+                },
+                "motivo": "valores iguales tras convertir: 0.9 × 21 000 USD el kilómetro"
+              },
+              {
+                "entrada": {
+                  "campo": "caida_tension_pct",
+                  "valor_propuesta": "1.8",
+                  "valor_evidencia": "1,8 %",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «1.8» y «1,8 %»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$18,900",
+                  "valor_evidencia": "21 000 USD el kilómetro × 0,9 km = 18 900 USD",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$18,900» y «21 000 USD el kilómetro × 0,9 km = 18 900 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "caida_tension_pct",
+                  "valor_propuesta": "1.8",
+                  "valor_evidencia": "1,8 %",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «1.8» y «1,8 %»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$18,900",
+                  "valor_evidencia": "21 000 USD el kilómetro × 0,9 km = 18 900 USD",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$18,900» y «21 000 USD el kilómetro × 0,9 km = 18 900 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "caida_tension_pct",
+                  "valor_propuesta": "1.8",
+                  "valor_evidencia": "1,8 %",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «1.8» y «1,8 %»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$18,900",
+                  "valor_evidencia": "21 000 USD el kilómetro",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_evidencia_total": 18900.0,
+                  "calculo": "0.9 × 21 000 USD el kilómetro"
+                },
+                "motivo": "valores iguales tras convertir: 0.9 × 21 000 USD el kilómetro"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "caida_tension_pct",
+                "motivo": "el código comprobó caida_tension_pct con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 18900,
+            "valor_calculado": 18900.0,
+            "calculo": "0.9 × 21 000 (e1, por km)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "caida_tension_pct",
+            "valor_propuesta": 1.8,
+            "valor_calculado": 1.8,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 25.844
+      },
+      {
+        "id": "q03",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 4460,
+                  "valor_evidencia": "3 650 USD + 540 USD + 270 USD = 4 460 USD",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "COSTE_USD"
+                },
+                "motivo": "valores iguales: «4460» y «3 650 USD + 540 USD + 270 USD = 4 460 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 4460,
+                  "valor_evidencia": "3 650 USD + 540 USD + 270 USD = 4 460 USD",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Cambiar el transformador de la SED T-9110 por uno de 100 kVA: 3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD."
+                },
+                "motivo": "valores iguales: «4460» y «3 650 USD + 540 USD + 270 USD = 4 460 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "carga_final_pct",
+                  "valor_propuesta": 74,
+                  "valor_evidencia": "74 %",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "carga_final_pct"
+                },
+                "motivo": "valores iguales: «74» y «74 %»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 4460,
+                  "valor_evidencia": "3 650 USD + 540 USD + 270 USD = 4 460 USD",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Cambiar el transformador de la SED T-9110 por uno de 100 kVA: 3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD."
+                },
+                "motivo": "valores iguales: «4460» y «3 650 USD + 540 USD + 270 USD = 4 460 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "carga_final_pct",
+                  "valor_propuesta": 74,
+                  "valor_evidencia": "74 %",
+                  "fuente": "e2",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "carga_final_pct"
+                },
+                "motivo": "valores iguales: «74» y «74 %»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 4460,
+                  "valor_evidencia": "3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD.",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Cambiar el transformador de la SED T-9110 por uno de 100 kVA: 3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD."
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 4460,
+            "valor_calculado": 4460.0,
+            "calculo": "3 650 (e1) + 540 (e1) + 270 (e1)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "carga_final_pct",
+            "valor_propuesta": 74,
+            "valor_calculado": 74,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 29.64
+      },
+      {
+        "id": "q04",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "$37 500",
+                  "valor_evidencia": "USD 12 500 cada reconectador",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              },
+              {
+                "entrada": {
+                  "campo": "reconectadores",
+                  "valor_propuesta": "3",
+                  "valor_evidencia": "3",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «3» y «3»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 37500,
+                  "valor_evidencia": "3 × 12 500 = 37 500",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "https://www.ejemplo.com/coste"
+                },
+                "motivo": "valores iguales: «37500» y «3 × 12 500 = 37 500»"
+              },
+              {
+                "entrada": {
+                  "campo": "reconectadores",
+                  "valor_propuesta": 3,
+                  "valor_evidencia": "3",
+                  "fuente": "e2",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "https://www.ejemplo.com/reconectadores"
+                },
+                "motivo": "valores iguales: «3» y «3»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "$37 500",
+                  "valor_evidencia": "3 × $12 500 = $37 500",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «$37 500» y «3 × $12 500 = $37 500»"
+              },
+              {
+                "entrada": {
+                  "campo": "reconectadores",
+                  "valor_propuesta": "3",
+                  "valor_evidencia": "3",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «3» y «3»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "use 37500",
+                  "valor_evidencia": "USD 12 500 cada reconectador × 3 = USD 37 500",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «use 37500» y «USD 12 500 cada reconectador × 3 = USD 37 500»"
+              },
+              {
+                "entrada": {
+                  "campo": "reconectadores",
+                  "valor_propuesta": "3",
+                  "valor_evidencia": "3",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «3» y «3»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 37500,
+            "valor_calculado": 37500.0,
+            "calculo": "3 × 12 500 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "reconectadores",
+            "valor_propuesta": 3,
+            "valor_calculado": 3,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 25.297
+      },
+      {
+        "id": "q05",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "display: 0.99",
+                  "valor_evidencia": "0,99 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 0.99» y «0,99 pu»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "display: 9300",
+                  "valor_evidencia": "9 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 9300» y «9 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "display: 0.99",
+                  "valor_evidencia": "0,99 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 0.99» y «0,99 pu»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "display: 9300",
+                  "valor_evidencia": "9 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 9300» y «9 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [],
+            "incertidumbres": [
+              "dictamen bloqueada sin hallazgo: ninguna contradicción ni incertidumbre"
+            ],
+            "contradicciones": [],
+            "devuelto": {
+              "decision": "bloqueada",
+              "incertidumbres": [],
+              "contradicciones": []
+            }
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tensión_final_pu",
+                  "valor_propuesta": "logrado",
+                  "valor_evidencia": "0,99 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «logrado» no está en la propuesta"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 9300,
+                  "valor_evidencia": "9 300 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "logrado"
+                },
+                "motivo": "valores iguales: «9300» y «9 300 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 9300,
+                  "valor_evidencia": "9 300 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «9300» y «9 300 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99 pu",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99 pu»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": []
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 9300,
+            "valor_calculado": 9300.0,
+            "calculo": "9 300 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.99,
+            "valor_calculado": 0.99,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 42.359
+      },
+      {
+        "id": "q06",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "abrir el seccionador S-410 durante 50 minutos para cambiar un pararrayos del tramo M40",
+                  "valor_evidencia": "Durante la apertura de S-410, sus usuarios pasan por el enlace E-41 al alimentador vecino.",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "{\"coste_usd\": 310}",
+                  "valor_evidencia": "Cambio de un pararrayos con la línea abierta: 310 USD; la interrupción no debe superar 90 minutos.",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "310",
+                  "valor_evidencia": "310",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «310» y «310»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "${310}",
+                  "valor_evidencia": "310 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «${310}» y «310 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "310",
+                  "valor_evidencia": "310 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «310» y «310 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "interrupción",
+                  "valor_propuesta": "50 minutos",
+                  "valor_evidencia": "no debe superar 90 minutos",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "campo que la propuesta no tiene, con todos sus datos respaldados: queda como observación"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "duración de la apertura del seccionador S-410",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "procedimiento para cambiar el pararrayos del tramo M40",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "si la apertura del seccionador S-410 requiere pasaje por el enlace E-41 al alimentador vecino",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              },
+              {
+                "entrada": "si el cambio del pararrayos del tramo M40 implica interrupción de la línea",
+                "motivo": "el código respalda todos los datos: queda como observación"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 310,
+            "valor_calculado": 310.0,
+            "calculo": "310 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 26.625
+      },
+      {
+        "id": "q07",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "corriente_final_a",
+                  "valor_propuesta": 150,
+                  "valor_evidencia": "150 A",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "Yes"
+                },
+                "motivo": "valores iguales: «150» y «150 A»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 27500,
+                  "valor_evidencia": "11 000 USD por kilómetro",
+                  "fuente": "e2",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "Yes",
+                  "valor_evidencia_total": 27500.0,
+                  "calculo": "2.5 × 11 000 USD por kilómetro"
+                },
+                "motivo": "valores iguales tras convertir: 2.5 × 11 000 USD por kilómetro"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "corriente_final_a",
+                  "valor_propuesta": 150,
+                  "valor_evidencia": "150",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "Yes"
+                },
+                "motivo": "valores iguales: «150» y «150»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "27500",
+                  "valor_evidencia": "11000",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_evidencia_total": 27500.0,
+                  "calculo": "2.5 × 11000"
+                },
+                "motivo": "valores iguales tras convertir: 2.5 × 11000"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$27,500",
+                  "valor_evidencia": "11 000 USD por kilómetro × 2,5 km = 27 500 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$27,500» y «11 000 USD por kilómetro × 2,5 km = 27 500 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "corriente_final_a",
+                  "valor_propuesta": "150",
+                  "valor_evidencia": "150",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «150» y «150»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "corriente_final_a",
+                  "valor_propuesta": 150,
+                  "valor_evidencia": "finales",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "finales"
+                },
+                "motivo": "no fundada: «finales» no está en e1"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "27500",
+                  "valor_evidencia": "11000 × 2,5 = 27500",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «27500» y «11000 × 2,5 = 27500»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 27500,
+            "valor_calculado": 27500.0,
+            "calculo": "2.5 × 11 000 (e2, por km)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "corriente_final_a",
+            "valor_propuesta": 150,
+            "valor_calculado": 150,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 26.547
+      },
+      {
+        "id": "q08",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$0",
+                  "valor_evidencia": "sin gasto",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra"
+              },
+              {
+                "entrada": {
+                  "campo": "cargabilidad_n416_pct",
+                  "valor_propuesta": "61",
+                  "valor_evidencia": "al 61 % de su capacidad",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «61» y «al 61 % de su capacidad»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$0",
+                  "valor_evidencia": "0",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «0» no está en e1"
+              },
+              {
+                "entrada": {
+                  "campo": "cargabilidad_n416_pct",
+                  "valor_propuesta": "61",
+                  "valor_evidencia": "61",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «61» y «61»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$0",
+                  "valor_evidencia": "0",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «0» no está en e1"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "cargabilidad_n416_pct",
+                "motivo": "el código comprobó cargabilidad_n416_pct con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e1 dice que no tiene coste",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "cargabilidad_n416_pct",
+            "valor_propuesta": 61,
+            "valor_calculado": 61,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 21.969
+      },
+      {
+        "id": "q09",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$ 1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$ 1680» y «24 × $70 = $1680»"
+              },
+              {
+                "entrada": {
+                  "campo": "espaciadores",
+                  "valor_propuesta": "24",
+                  "valor_evidencia": "24",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «24» y «24»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$ 1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$ 1680» y «24 × $70 = $1680»"
+              },
+              {
+                "entrada": {
+                  "campo": "espaciadores",
+                  "valor_propuesta": "24",
+                  "valor_evidencia": "24",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «24» y «24»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$ 1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1 y e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$ 1680» y «24 × $70 = $1680»"
+              },
+              {
+                "entrada": {
+                  "campo": "espaciadores",
+                  "valor_propuesta": "24",
+                  "valor_evidencia": "24",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «24» y «24»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [],
+            "incertidumbres": [
+              "dictamen bloqueada sin hallazgo: ninguna contradicción ni incertidumbre"
+            ],
+            "contradicciones": [],
+            "devuelto": {
+              "decision": "bloqueada",
+              "incertidumbres": [],
+              "contradicciones": []
+            }
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1 y e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$1680» y «24 × $70 = $1680»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1 y e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$1680» y «24 × $70 = $1680»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$ 1680",
+                  "valor_evidencia": "24 × $70 = $1680",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$ 1680» y «24 × $70 = $1680»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 1680,
+            "valor_calculado": 1680.0,
+            "calculo": "24 × 70 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "espaciadores",
+            "valor_propuesta": 24,
+            "valor_calculado": 24,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 43.875
+      },
+      {
+        "id": "q10",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "corriente_ajuste_a",
+                  "valor_propuesta": 40,
+                  "valor_evidencia": "40 A",
+                  "fuente": "e2",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "valores iguales: «40» y «40 A»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 0,
+                  "valor_evidencia": "0",
+                  "fuente": "propuesta",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "no fundada: 'propuesta' no es una evidencia del paquete"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "corriente_ajuste_a",
+                  "valor_propuesta": "/40",
+                  "valor_evidencia": "40 A",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «/40» y «40 A»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/0",
+                  "valor_evidencia": "no mencionado",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «no mencionado» no está en e1"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              },
+              {
+                "entrada": "corriente_ajuste_a",
+                "motivo": "el código comprobó corriente_ajuste_a con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e2 dice que no tiene coste",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "corriente_ajuste_a",
+            "valor_propuesta": 40,
+            "valor_calculado": 40,
+            "calculo": "la cifra está en e2",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 21.328
+      },
+      {
+        "id": "q11",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "demanda_max_kw",
+                  "valor_propuesta": 1900,
+                  "valor_evidencia": "1,9 MW",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1900» y «1,9 MW»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 7600,
+                  "valor_evidencia": "7 600 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «7600» y «7 600 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "demanda_max_kw",
+                  "valor_propuesta": 1900,
+                  "valor_evidencia": "1,9 MW",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1900» y «1,9 MW»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 7600,
+                  "valor_evidencia": "7 600 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «7600» y «7 600 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "demanda_max_kw",
+                  "valor_propuesta": 1900,
+                  "valor_evidencia": "1,9 MW",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1900» y «1,9 MW»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "$7600",
+                  "valor_evidencia": "7 600 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «$7600» y «7 600 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "demanda_max_kw",
+                  "valor_propuesta": 1900,
+                  "valor_evidencia": "1,9 MW",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1900» y «1,9 MW»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 7600,
+                  "valor_evidencia": "7 600 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «7600» y «7 600 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 7600,
+            "valor_calculado": 7600.0,
+            "calculo": "7 600 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "demanda_max_kw",
+            "valor_propuesta": 1900,
+            "valor_calculado": 1900,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 27.141
+      },
+      {
+        "id": "q12",
+        "con_defecto": false,
+        "aprobada": true,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": 0.97,
+                  "valor_evidencia": "0,97 pu",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "valores iguales: «0.97» y «0,97 pu»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 15800,
+                  "valor_evidencia": "USD 15 800 en total",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "valores iguales: «15800» y «USD 15 800 en total»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "display: 0.97",
+                  "valor_evidencia": "0,97 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 0.97» y «0,97 pu»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "display: 15800",
+                  "valor_evidencia": "USD 15 800 en total",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «display: 15800» y «USD 15 800 en total»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": 0.97,
+                  "valor_evidencia": "0.97",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "valores iguales: «0.97» y «0.97»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 15800,
+                  "valor_evidencia": "15800",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "errors"
+                },
+                "motivo": "valores iguales: «15800» y «15800»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.97",
+                  "valor_evidencia": "0,97",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «0.97» y «0,97»"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 15800,
+            "valor_calculado": 15800.0,
+            "calculo": "15 800 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.97,
+            "valor_calculado": 0.97,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.687
+      },
+      {
+        "id": "q13",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$120",
+                  "valor_evidencia": "120 USD por aislador",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «>$120» y «120 USD por aislador»"
+              },
+              {
+                "entrada": {
+                  "campo": "aisladores",
+                  "valor_propuesta": "9",
+                  "valor_evidencia": "9 aisladores de suspensión contorneados",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «9» y «9 aisladores de suspensión contorneados»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$120",
+                  "valor_evidencia": "120 USD por aislador",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «>$120» y «120 USD por aislador»"
+              },
+              {
+                "entrada": {
+                  "campo": "aisladores",
+                  "valor_propuesta": "9",
+                  "valor_evidencia": "9",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «9» y «9»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$120",
+                  "valor_evidencia": "120 USD por aislador",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «>$120» y «120 USD por aislador»"
+              },
+              {
+                "entrada": {
+                  "campo": "aisladores",
+                  "valor_propuesta": "9",
+                  "valor_evidencia": "9",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «9» y «9»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "120",
+                  "valor_evidencia": "120",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «120» y «120»"
+              },
+              {
+                "entrada": {
+                  "campo": "aisladores",
+                  "valor_propuesta": "9",
+                  "valor_evidencia": "9",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «9» y «9»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 120,
+            "valor_calculado": 1080.0,
+            "calculo": "9 × 120 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          },
+          {
+            "campo": "aisladores",
+            "valor_propuesta": 9,
+            "valor_calculado": 9,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 26.485
+      },
+      {
+        "id": "q14",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "/29000",
+                "valor_evidencia": "16 000 USD por kilómetro",
+                "fuente": "e1",
+                "base": "unidad",
+                "valor_evidencia_total": 40000.0,
+                "calculo": "2.5 × 16 000 USD por kilómetro"
+              },
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "/29000",
+                "valor_evidencia": "2,5 km × 16 000 USD/km = 40 000 USD",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "/29000",
+                "valor_evidencia": "16 000 USD por kilómetro × 2,5 km = 40 000 USD",
+                "fuente": "e1 y e2",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "tender 2,5 km de red de 13,2 kV hasta el anexo M60",
+                  "valor_evidencia": "El trazado hasta M60 mide 2,5 km",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "/29000",
+                "valor_evidencia": "16000 USD por kilómetro × 2,5 km = 40000 USD",
+                "fuente": "e1 y e2",
+                "base": "total"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "29000",
+                "valor_evidencia": "16 000 USD por kilómetro × 2,5 km = 40 000 USD",
+                "fuente": "e1, e2",
+                "base": "total"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 29000,
+            "valor_calculado": 40000.0,
+            "calculo": "2.5 × 16 000 (e1, por km)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 27.125
+      },
+      {
+        "id": "q15",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "2100",
+                "valor_evidencia": "410",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "indicadores",
+                  "valor_propuesta": "8",
+                  "valor_evidencia": "8",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «8» y «8»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": ">$2100",
+                "valor_evidencia": "8 × $410 = $3280",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "indicadores",
+                  "valor_propuesta": "8",
+                  "valor_evidencia": "8",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «8» y «8»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": ">$2100",
+                "valor_evidencia": "8 × $410 = $3280",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "indicadores",
+                  "valor_propuesta": "8",
+                  "valor_evidencia": "8",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «8» y «8»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "coste_usd"
+            ],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": "COSTE USD 2100",
+                "valor_evidencia": "USD 410 cada indicador",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "indicadores",
+                "motivo": "la acción fija indicadores (8): no es una incertidumbre"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2100,
+            "valor_calculado": 3280.0,
+            "calculo": "8 × 410 (e1, por unidad)",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          },
+          {
+            "campo": "indicadores",
+            "valor_propuesta": 8,
+            "valor_calculado": 8,
+            "calculo": "la acción fija la cantidad",
+            "fuentes": [],
+            "coincide": true,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 23.984
+      },
+      {
+        "id": "q16",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "carga_t9300_pct",
+                "valor_propuesta": 79,
+                "valor_evidencia": "162 %",
+                "fuente": "e1",
+                "base": "unidad",
+                "valor_propuesta_devuelto": "contexto"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "1050",
+                  "valor_evidencia": "1 050 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «1050» y «1 050 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "carga_t9300_pct",
+                "valor_propuesta": 79,
+                "valor_evidencia": "162",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "N/A"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 1050,
+                  "valor_evidencia": "1 050",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "N/A"
+                },
+                "motivo": "valores iguales: «1050» y «1 050»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "carga_t9300_pct",
+                "valor_propuesta": 79,
+                "valor_evidencia": "162 %",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "N/A"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "$1050",
+                  "valor_evidencia": "$1 050",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «$1050» y «$1 050»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "carga_t9300_pct"
+            ],
+            "contradicciones": [
+              {
+                "campo": "carga_t9300_pct",
+                "valor_propuesta": 79,
+                "valor_evidencia": "162 %",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "N/A"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 1050,
+            "valor_calculado": 1050.0,
+            "calculo": "1 050 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "carga_t9300_pct",
+            "valor_propuesta": 79,
+            "valor_calculado": 162.0,
+            "calculo": "e1 da 162 % para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.359
+      },
+      {
+        "id": "q17",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "tension_final_pu",
+                "valor_propuesta": "0.98",
+                "valor_evidencia": "0,90 pu",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "6500",
+                  "valor_evidencia": "6 500 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «6500» y «6 500 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "tension_final_pu",
+                "valor_propuesta": "0.98",
+                "valor_evidencia": "0.90",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "6500",
+                  "valor_evidencia": "6 500",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «6500» y «6 500»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "tension_final_pu",
+                "valor_propuesta": "0.98",
+                "valor_evidencia": "0.90 pu",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "6500",
+                  "valor_evidencia": "6 500 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «6500» y «6 500 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "tension_final_pu",
+                "valor_propuesta": "0.98",
+                "valor_evidencia": "0,90 pu en la máxima; el mínimo es 0,95 pu",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 6500,
+            "valor_calculado": 6500.0,
+            "calculo": "6 500 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.98,
+            "valor_calculado": 0.9,
+            "calculo": "e1 da 0.9 pu para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.688
+      },
+      {
+        "id": "q18",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "cortocircuito_ka",
+                "valor_propuesta": "21",
+                "valor_evidencia": "29,6",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "15200",
+                  "valor_evidencia": "15 200",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «15200» y «15 200»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "cortocircuito_ka",
+                  "valor_propuesta": 21,
+                  "valor_evidencia": "21",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Cortocircuito trifásico máximo en la barra de la celda C-80: 29,6 kA"
+                },
+                "motivo": "no fundada: «21» no está en e1"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "15200",
+                  "valor_evidencia": "15 200 USD",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «15200» y «15 200 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "cortocircuito_ka",
+                "valor_propuesta": "21",
+                "valor_evidencia": "29,6",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "15200",
+                  "valor_evidencia": "15 200",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «15200» y «15 200»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "cortocircuito_ka",
+                "valor_propuesta": "21",
+                "valor_evidencia": "29,6",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 15200,
+            "valor_calculado": 15200.0,
+            "calculo": "15 200 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "cortocircuito_ka",
+            "valor_propuesta": 21,
+            "valor_calculado": 29.6,
+            "calculo": "e1 da 29.6 kA para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.922
+      },
+      {
+        "id": "q19",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "duración del corte programado",
+                "valor_propuesta": "7 horas",
+                "valor_evidencia": "4 horas",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "3300",
+                  "valor_evidencia": "3 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «3300» y «3 300 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "duración del corte programado",
+                "valor_propuesta": "7 horas",
+                "valor_evidencia": "4 horas",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "3300",
+                  "valor_evidencia": "3 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «3300» y «3 300 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "tiempo_de_corte",
+                "valor_propuesta": "7 horas",
+                "valor_evidencia": "4 horas",
+                "fuente": "e1",
+                "base": "unidad"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "$3300",
+                  "valor_evidencia": "3 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «$3300» y «3 300 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "duración del corte programado",
+                "valor_propuesta": "7 horas",
+                "valor_evidencia": "4 horas",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "3300",
+                  "valor_evidencia": "3 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «3300» y «3 300 USD»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 3300,
+            "valor_calculado": 3300.0,
+            "calculo": "3 300 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "dejar sin servicio el alimentador N440 durante 7 horas para cambiar su celda",
+            "valor_calculado": "el contrato admite a lo sumo 4 horas de corte programado.",
+            "calculo": "e1 pone un límite de 240 min y la acción llega a 420 min",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 25.594
+      },
+      {
+        "id": "q20",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "coste_usd",
+                "valor_propuesta": ": 0",
+                "valor_evidencia": "no consume materiales",
+                "fuente": "e2",
+                "base": "unidad"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+                  "valor_evidencia": "verificar la protección antes de poner en servicio cualquier subestación nueva",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+                  "valor_evidencia": "verificar la protección antes de poner en servicio cualquier subestación nueva",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ": 0",
+                  "valor_evidencia": "no se menciona",
+                  "fuente": "no disponible",
+                  "base": "total"
+                },
+                "motivo": "no fundada: 'no disponible' no es una evidencia del paquete"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$0",
+                  "valor_evidencia": "No se menciona",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «No se menciona» no está en e1"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+                  "valor_evidencia": "poner en servicio cualquier subestación nueva",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "accion",
+            "valor_propuesta": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+            "valor_calculado": "El reglamento exige verificar la protección antes de poner en servicio cualquier subestación nueva.",
+            "calculo": "e1 exige verificar la protección antes de lo que la acción hace, y la acción lo hace sin ello",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.062
+      },
+      {
+        "id": "q21",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2100» y «2 100 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/2100» y «2 100 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2100» y «2 100 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "numero_de_usuarios_afectados",
+              "tipo_de_postes_a_cambiar",
+              "seguridad_durante_la_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «2100» y «2 100 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "numero_de_usuarios_afectados",
+              "tipo_de_postes_a_cambiar",
+              "seguridad_durante_la_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2100» y «2 100 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "tipo_de_postes_a_cambiar",
+              "seguridad_durante_la_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/2100» y «2 100 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "numero_de_usuarios_afectados",
+                  "valor_propuesta": "1 700",
+                  "valor_evidencia": "1 700",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «1 700» no está en la propuesta"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "numero_de_usuarios_afectados",
+              "tipo_de_postes_a_cambiar",
+              "seguridad_durante_la_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$2100",
+                  "valor_evidencia": "2 100 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «>$2100» y «2 100 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "tiempo_de_operacion",
+              "numero_de_usuarios_afectados",
+              "tipo_de_postes_a_cambiar",
+              "seguridad_durante_la_operacion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "Cambio de tres postes con la línea abierta: 2 100 USD.",
+                  "valor_evidencia": "Cambio de tres postes con la línea abierta: 2 100 USD.",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «Cambio de tres postes con la línea abierta: 2 100 USD.» y «Cambio de tres postes con la línea abierta: 2 100 USD.»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 2100,
+            "valor_calculado": 2100.0,
+            "calculo": "2 100 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "abrir el seccionador S-450 durante 3 horas para cambiar postes del tramo M70",
+            "valor_calculado": "Aguas abajo de S-450 hay 1 700 usuarios sin enlace con otro alimentador ni generación propia.",
+            "calculo": "e1 dice que al elemento que la acción maniobra le falta una salvaguarda",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 47.203
+      },
+      {
+        "id": "q22",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_actual_pu",
+                  "valor_propuesta": 1.08,
+                  "valor_evidencia": "1,08",
+                  "fuente": "e1",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "A"
+                },
+                "motivo": "valores iguales: «1.08» y «1,08»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tensión_actual_pu",
+                  "valor_propuesta": "Límite de tensión del transformador",
+                  "valor_evidencia": "1,08 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "no fundada: «Límite de tensión del transformador» no está en la propuesta"
+              },
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+                  "valor_evidencia": "El cambio de toma lo realiza la guardia nocturna, sin materiales.",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_actual_pu",
+                  "valor_propuesta": 1.08,
+                  "valor_evidencia": "1,08 pu",
+                  "fuente": "e1",
+                  "base": "unidad",
+                  "valor_propuesta_devuelto": "Hecho"
+                },
+                "motivo": "valores iguales: «1.08» y «1,08 pu»"
+              }
+            ],
+            "decision_devuelta": "revisar"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_actual_pu",
+                  "valor_propuesta": "1.08",
+                  "valor_evidencia": "1,08",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «1.08» y «1,08»"
+              }
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": []
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_actual_pu",
+                  "valor_propuesta": "Hecho: 1,08 pu en baja tensión",
+                  "valor_evidencia": "1,08 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «Hecho: 1,08 pu en baja tensión» y «1,08 pu»"
+              },
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+                  "valor_evidencia": "El cambio de toma lo realiza la guardia nocturna, sin materiales",
+                  "fuente": "e2",
+                  "base": "unidad"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": ">$0",
+                  "valor_evidencia": "no disponible",
+                  "fuente": "no disponible",
+                  "base": "total"
+                },
+                "motivo": "no fundada: 'no disponible' no es una evidencia del paquete"
+              },
+              {
+                "entrada": {
+                  "campo": "accion",
+                  "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+                  "valor_evidencia": "no disponible",
+                  "fuente": "no disponible",
+                  "base": "unidad"
+                },
+                "motivo": "la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "accion"
+            ],
+            "contradicciones": []
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 0,
+            "valor_calculado": 0.0,
+            "calculo": "e2 dice que no tiene coste",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_actual_pu",
+            "valor_propuesta": 1.08,
+            "valor_calculado": 1.08,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "accion",
+            "valor_propuesta": "bajar a la toma 1 el transformador de la SED T-9510",
+            "valor_calculado": "Registro del analizador en la SED T-9501 a las 3:30: 1,08 pu en baja tensión.",
+            "calculo": "e1 es de t-9501, no del elemento de la acción",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 43.875
+      },
+      {
+        "id": "q23",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 4,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "demanda_max_kw",
+                "valor_propuesta": 11200,
+                "valor_evidencia": "8,7 MW",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "Shear"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 260000,
+                  "valor_evidencia": "260 000 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Shear"
+                },
+                "motivo": "valores iguales: «260000» y «260 000 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "demanda_max_kw",
+                "valor_propuesta": 11200,
+                "valor_evidencia": "8,7 MW",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "Shear"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 260000,
+                  "valor_evidencia": "260 000 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Shear"
+                },
+                "motivo": "valores iguales: «260000» y «260 000 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "demanda_max_kw",
+                "valor_propuesta": 11200,
+                "valor_evidencia": "8,7 MW",
+                "fuente": "e1",
+                "base": "total",
+                "valor_propuesta_devuelto": "Shear"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": 260000,
+                  "valor_evidencia": "260 000 USD",
+                  "fuente": "e2",
+                  "base": "total",
+                  "valor_propuesta_devuelto": "Shear"
+                },
+                "motivo": "valores iguales: «260000» y «260 000 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "bloqueada",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [
+              {
+                "campo": "demanda_max_kw",
+                "valor_propuesta": "11200",
+                "valor_evidencia": "8700",
+                "fuente": "e1",
+                "base": "total"
+              }
+            ],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "260000",
+                  "valor_evidencia": "260000",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «260000» y «260000»"
+              }
+            ]
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 260000,
+            "valor_calculado": 260000.0,
+            "calculo": "260 000 (e2)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "demanda_max_kw",
+            "valor_propuesta": 11200,
+            "valor_calculado": 8700.0,
+            "calculo": "e1 da 8700 kW para el mismo elemento",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 24.766
+      },
+      {
+        "id": "q24",
+        "con_defecto": true,
+        "aprobada": false,
+        "sin_respuesta": false,
+        "motivos": [],
+        "intervenciones": 8,
+        "dictamenes": [
+          {
+            "rol": "fuentes",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «5300» y «5 300 USD»"
+              }
+            ]
+          },
+          {
+            "rol": "fisica",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «5300» y «5 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 1,
+            "decision": "favorable",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «5300» y «5 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 1,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "unidad"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              }
+            ],
+            "incertidumbres_descartadas": [
+              {
+                "entrada": "coste_usd",
+                "motivo": "el código comprobó coste_usd con la evidencia y cuadra: no es una incertidumbre"
+              }
+            ]
+          },
+          {
+            "rol": "fuentes",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/5300» y «5 300 USD»"
+              },
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "/0.99",
+                  "valor_evidencia": "0,99 pu",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/0.99» y «0,99 pu»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "fisica",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "tension_final_pu",
+                  "valor_propuesta": "0.99",
+                  "valor_evidencia": "0,99",
+                  "fuente": "e1",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «0.99» y «0,99»"
+              },
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «5300» y «5 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "coste",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/5300» y «5 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          },
+          {
+            "rol": "riesgo",
+            "ronda": 2,
+            "decision": "revisar",
+            "evidencia_ids": [
+              "e1",
+              "e2"
+            ],
+            "incertidumbres": [
+              "reduccion_perdidas_kw"
+            ],
+            "contradicciones": [],
+            "contradicciones_descartadas": [
+              {
+                "entrada": {
+                  "campo": "coste_usd",
+                  "valor_propuesta": "/5300",
+                  "valor_evidencia": "5 300 USD",
+                  "fuente": "e2",
+                  "base": "total"
+                },
+                "motivo": "valores iguales: «/5300» y «5 300 USD»"
+              }
+            ],
+            "decision_devuelta": "bloqueada"
+          }
+        ],
+        "comprobaciones_del_codigo": [
+          {
+            "campo": "coste_usd",
+            "valor_propuesta": 5300,
+            "valor_calculado": 5300.0,
+            "calculo": "5 300 (e2, en total)",
+            "fuentes": [
+              "e2"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "tension_final_pu",
+            "valor_propuesta": 0.99,
+            "valor_calculado": 0.99,
+            "calculo": "la cifra está en e1",
+            "fuentes": [
+              "e1"
+            ],
+            "coincide": true,
+            "origen": "codigo"
+          },
+          {
+            "campo": "reduccion_perdidas_kw",
+            "valor_propuesta": 55,
+            "valor_calculado": null,
+            "calculo": "ningún fragmento de la evidencia da este resultado",
+            "fuentes": [],
+            "coincide": false,
+            "origen": "codigo"
+          }
+        ],
+        "segundos": 48.5
+      }
+    ]
+  },
+  "autoriza_ejecucion": false,
+  "aceptacion_cientifica": false
+}

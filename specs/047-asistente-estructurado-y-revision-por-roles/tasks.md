@@ -30,7 +30,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
 - [x] T6. Auditar, materializar y evaluar 200 propuestas únicas, sin fuga y con puertas por alcance. (RF-13, RF-16, RF-17, RF-18)
       Hecho cuando: pruebas de `tests/test_aceptacion_agente.py` y regresiones de órdenes fijas/intérprete pasan; se ejecutan selección local de configuración y evaluación sellada de las 200 propuestas, con informe de métricas/errores/bloqueos y sin escrituras nativas.
 
-- [ ] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41, RF-43, RF-44, RF-45, RF-46, RF-47)
+- [x] T8. Que la revisión distinga una propuesta sana de una con defecto antes de autorizar nada. (RF-5, RF-6, RF-38, RF-39, RF-40, RF-41, RF-43, RF-44, RF-45, RF-46, RF-47)
       Hecho cuando: `tools/asistente_comparar_revision.py` sobre sus 12 casos da 0 falsas alarmas sin perder defectos, con el
       informe en `docs/asistente/`, sin ajustar nada mirando esos casos (si hace falta, con un conjunto nuevo declarado antes de medir).
       Código, 2026-11-03 (rama `feat/027-047t8`): causa hallada en el código y en el encargo, sin leer el contenido de los
@@ -89,6 +89,10 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Rol único 6 de 6, 0 perdidos, 5 falsas alarmas, 0 sin respuesta; equipo 5 de 6, 0 perdidos, 2 falsas alarmas,
       5 sin respuesta. Ninguna intervención llegó al tope (243 tokens la más larga). Causa, en los dictámenes: el
       modelo apunta como contradicción comprobaciones cuyos dos valores coinciden. Sigue en la T10 (RF-48 a RF-51).
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
 
 ## Evidencia de ejecución
 
@@ -212,7 +216,7 @@ T3, 2026-11-03, segunda medición, `qwen3:8b` sin razonamiento (corrección 3984
 T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`qwen3:8b`, 12 casos, huella `102bdfbf…`): **no pasa su puerta**. Rol único: 5 de 6 defectos, 1 perdido (el de riesgo), 3 falsas alarmas de 6 sanos, 0 sin respuesta, 123 s. Equipo: 5 de 6, 1 perdido, 5 falsas alarmas, 1 sin respuesta, 448 s. Informe en git (`git show 2fd22a65:docs/asistente/COMPARACION_REVISION_047_T8.json`, retirado el 2026-11-24). Mejora frente a la medición anterior, que marcaba defecto en todo, pero la T8 sigue abierta y estos 12 casos ya orientaron el diagnóstico: la próxima medida necesita un conjunto nuevo declarado antes de medir.
 - [x] T9. Las puertas dicen el valor medido y los ejemplos, o que falta la métrica. (RF-42)
       Hecho cuando: `tests/test_entrenamiento_dataset_puertas.py` en verde.
-- [ ] T10. Contradicciones estructuradas, decididas por el código, y medida con un conjunto nuevo. (RF-48, RF-49, RF-50, RF-51)
+- [x] T10. Contradicciones estructuradas, decididas por el código, y medida con un conjunto nuevo. (RF-48, RF-49, RF-50, RF-51)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047d.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8d.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierra también la T8.
@@ -237,7 +241,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       dictámenes: cifras con marcas o dentro de una frase («>$14500», «_3_», «Cargabilidad máxima de A71 74 %»),
       valores inventados («user», «kOhm») y un total frente a un precio por unidad. Los defectos se «hallaban» con esos
       mismos valores inventados: el 0 perdidos no lo acredita. Sigue en la T11 (RF-52 a RF-56).
-- [ ] T11. Contradicciones fundadas y por base, y medida con un conjunto nuevo. (RF-52, RF-53, RF-54, RF-55, RF-56)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T11. Contradicciones fundadas y por base, y medida con un conjunto nuevo. (RF-52, RF-53, RF-54, RF-55, RF-56)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047e.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8e.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T10 y la T8.
@@ -263,7 +271,10 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       alarmas en los dos modos, pero perdidos 3 de 6 (rol único) y 2 de 6 (equipo), 0 sin respuesta. Lo que el modelo
       sí vio acabó descartado por las reglas de la T11: una cuenta que citaba solo la fuente de la cantidad, un precio
       por km frente al total, y la base «unidad» que el modelo declaraba en «0,92 p.u.» o «124 %». Sigue en la T13.
-
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
 - [x] T12. Órdenes revisadas por el maestro: registro sellado y decisión de ajuste mientras falten humanas. (RF-62, RF-63, RF-64, RF-65, RF-66, RF-67, RF-68)
       Hecho cuando: `tests/test_asistente_revisadas_maestro.py`, `tests/test_asistente_ajuste_condicionado.py`,
       `tests/test_aceptacion_agente.py` y `tests/test_asistente_qlora.py` pasan, y el conjunto de 200 queda sellado en
@@ -279,7 +290,7 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       revisadas, 3 humanas y 197 que faltan. **No cierra la T4:** su evaluación final en GPU es `aceptar_agente.py
       evaluar` con este conjunto, y la decisión que dé (`decision_ajuste.json`) es la que abre o no el QLoRA de la 043 T9.
 
-- [ ] T13. Cuentas evaluadas por el código, precios por unidad pasados a total y coste comprobado sin el LLM, y medida con un conjunto nuevo. (RF-75, RF-76, RF-77, RF-78)
+- [x] T13. Cuentas evaluadas por el código, precios por unidad pasados a total y coste comprobado sin el LLM, y medida con un conjunto nuevo. (RF-75, RF-76, RF-77, RF-78)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047f.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8f.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T11, la T10 y la T8.
@@ -308,8 +319,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       cada partida) y 1 sin respuesta (f12: riesgo «bloqueada» sin hallazgo). El código resolvió solo los dos
       defectos de coste (f02 y f10, `comprobaciones_fallidas` 2); el modelo, los de física y fuentes. El riesgo del
       equipo se «halló» por una contradicción de la acción que comparaba un 2 de su frase con 22,9 kV. Sigue en la T14.
-
-- [ ] T14. El código decide el coste que comprobó, las dudas que fija la acción y el riesgo por prohibición, y medida con un conjunto nuevo. (RF-79, RF-80, RF-81, RF-82, RF-83)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T14. El código decide el coste que comprobó, las dudas que fija la acción y el riesgo por prohibición, y medida con un conjunto nuevo. (RF-79, RF-80, RF-81, RF-82, RF-83)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047g.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8g.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T13, la T11, la T10 y la T8.
@@ -334,7 +348,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       como duda con el coste que cuadra; g07, g09: la acción copiada como duda; g01 además 6 picas frente a «3 m»). Equipo
       5 de 6, 1 perdido (g06: la maniobra prohibida, los cuatro roles favorables), 2 falsas alarmas (g01, g09) y 1 sin
       respuesta (g12). Sigue en la T16.
-- [ ] T16. El código descarta las dudas sobre lo que comprobó y la acción copiada, la cantidad frente a una magnitud, y halla la acción prohibida; medida con un conjunto nuevo. (RF-85, RF-86, RF-87, RF-88)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T16. El código descarta las dudas sobre lo que comprobó y la acción copiada, la cantidad frente a una magnitud, y halla la acción prohibida; medida con un conjunto nuevo. (RF-85, RF-86, RF-87, RF-88)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047h.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8h.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T14, la T13, la T11, la T10 y la T8.
@@ -357,7 +375,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       tensión de la máxima frente a la del valle). Equipo 6 de 6, 0 perdidos, 6 falsas alarmas (h01, h03, h05, h07,
       h09, h12: dudas sobre lo que la propuesta no dice y datos que da la evidencia). La fuente ajena (h08) solo se
       bloqueó por una duda sin relación. Sigue en la T17.
-- [ ] T17. El código respalda los datos que da la evidencia o fija la acción, halla la evidencia de otro elemento, y con todo respaldado las dudas sueltas son observaciones; medida con un conjunto nuevo. (RF-89, RF-90, RF-91)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T17. El código respalda los datos que da la evidencia o fija la acción, halla la evidencia de otro elemento, y con todo respaldado las dudas sueltas son observaciones; medida con un conjunto nuevo. (RF-89, RF-90, RF-91)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047i.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8i.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T16, la T14, la T13, la T11, la T10 y la T8.
@@ -377,7 +399,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       ellas (i01, i03, i09) las dio el código del coste, que leía como totales «… la unidad», «… por equipo» y «… el
       kilómetro»; la cuarta (i07, rol único), sin coste calculado, dejaba sin respaldar todos los datos. La evidencia
       de otra SED (i08) y la maniobra prohibida (i06) las halló el código. Sigue en la T18.
-- [ ] T18. El coste lee las formas corrientes de un precio por unidad y por km, y ancla el precio unitario en la única cantidad de piezas; medida con un conjunto nuevo. (RF-92)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T18. El coste lee las formas corrientes de un precio por unidad y por km, y ancla el precio unitario en la única cantidad de piezas; medida con un conjunto nuevo. (RF-92)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047j.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8j.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T17, la T16, la T14, la T13, la T11, la T10 y la T8.
@@ -394,7 +420,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       `GPU_BLOQUE/047_T18_noche`): **no pasa**. Rol único y equipo 0 falsas alarmas y 0 sin respuesta, 5 de 6 y 1
       perdido en los dos: la acción de j06 la prohibía la evidencia con «no permiten trabajar … sin puesta a tierra», y
       el código no leía esa forma. Los costes por unidad, por equipo y por km de RF-92 los leyó bien. Sigue en la T19.
-- [ ] T19. El código lee otras formas corrientes de prohibir y lo prohibido «sin» algo; medida con un conjunto nuevo. (RF-93)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T19. El código lee otras formas corrientes de prohibir y lo prohibido «sin» algo; medida con un conjunto nuevo. (RF-93)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047k.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8k.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T18, la T17, la T16, la T14, la T13, la T11, la
@@ -413,7 +443,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       equipo 5 de 6, 0 falsas alarmas, 0 perdidos y 1 sin respuesta: en k06 la evidencia prohibía la acción con
       «ninguna cuadrilla está autorizada a maniobrar con carga…», el código no leía esa forma y el rol de coste bloqueó
       sin hallazgo. Sigue en la T20.
-- [ ] T20. El código lee como prohibición una negación con un participio de permiso; medida con un conjunto nuevo. (RF-94)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T20. El código lee como prohibición una negación con un participio de permiso; medida con un conjunto nuevo. (RF-94)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047l.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8l.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T19, la T18, la T17, la T16, la T14, la T13, la
@@ -432,7 +466,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       alarma del código en un caso sano, «US$ 8 800 por banco» con «instalar 2 bancos…» leído como un total. Ese
       hallazgo orientó RF-95, así que el 047l ya no vale para la aceptación. Rojo por aserción de RF-94 sobre b5e0c45f
       (`N10_SINCODEX/T20/rojo_base_0412.log`, 7 failed). Sigue en la T21.
-- [ ] T21. Precio por la pieza que la acción cuenta; medida con un conjunto nuevo. (RF-95)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T21. Precio por la pieza que la acción cuenta; medida con un conjunto nuevo. (RF-95)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047m.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8m.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T20, la T19, la T18, la T17, la T16, la T14, la
@@ -453,7 +491,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       Decisión (d8, 2026-11-24, lección B80): diez conjuntos (047 a 047m) muestran que lo que falta es del modelo de 8B
       leyendo riesgos y física sin cifras que el código compruebe; no se escribe otro conjunto. La tarea queda abierta
       con este diagnóstico hasta un cambio de enfoque (modelo o encargo de los roles) que se ensaye antes de medir.
-- [ ] T22. Cambio de enfoque: el código comprueba lo que no depende de interpretar la red y el modelo solo lo demás.
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T22. Cambio de enfoque: el código comprueba lo que no depende de interpretar la red y el modelo solo lo demás.
       (RF-96, RF-97, RF-98, RF-99, RF-100, RF-101)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047n.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8n.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
@@ -478,7 +520,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       modos: 5 de 6 y 1 perdido, n06, la cota que el código no leía y el modelo tampoco. Del 047n salió la lectura única de
       las cotas de RF-99 (en lugar de dos formas sueltas) y el permiso restringido a un agente de RF-100, así que el 047n
       no vale para la aceptación. Sigue en la T23.
-- [ ] T23. Aceptación con un conjunto de 24 casos, escrito después del código de RF-89 a RF-101. (RF-43, RF-99, RF-100)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T23. Aceptación con un conjunto de 24 casos, escrito después del código de RF-89 a RF-101. (RF-43, RF-99, RF-100)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047o.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8o.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T22, la T21, la T20, la T19, la T18, la T17, la
@@ -500,7 +546,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       sin ningún motivo también en la segunda ronda: de ahí RF-102. La falsa alarma (o08) es un fallo del conjunto, no del
       sistema: un sano con coste 0 sin ninguna evidencia de ese coste, y dudar de un dato sin fuente es lo que debe hacer
       el revisor. El 047o orientó RF-102 y no vale para la aceptación. Sigue en la T24.
-- [ ] T24. Aceptación con un conjunto de 24 casos en el que cada dato de cada sano tiene su evidencia. (RF-43, RF-102)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T24. Aceptación con un conjunto de 24 casos en el que cada dato de cada sano tiene su evidencia. (RF-43, RF-102)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047p.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8p.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T23, la T22, la T21, la T20, la T19, la T18, la
@@ -519,7 +569,11 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       (rol único 12 de 12; equipo 11 de 12 detectados y el duodécimo bloqueado). Quedan 1 y 3 sin respuesta: dos sanos
       que el reintento resolvió y acabaron aprobados, contados por su primera ronda, y un defecto que el código halló y el
       rol de coste bloqueó sin motivo. De ahí RF-103; el 047p no vale para la aceptación. Sigue en la T25.
-- [ ] T25. Aceptación con un conjunto de 24 casos tras contar el dictamen final de cada rol. (RF-43, RF-103)
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
+- [x] T25. Aceptación con un conjunto de 24 casos tras contar el dictamen final de cada rol. (RF-43, RF-103)
       Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047q.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8q.json`
       da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
       ajustar nada mirando esos casos; entonces se cierran también la T24 a la T16, la T14, la T13, la T11, la T10 y la
@@ -532,6 +586,10 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       la herramienta y en la prueba. El 047p no vale para la aceptación. Lo escribió quien escribió la corrección:
       limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+      Cerrada el 2026-11-24 13:16 (d8) por la T25: la 047q (24 casos, huella eb04a0a3…23b0a, declarada antes de
+      medir) da con qwen3:8b 12 detectados, 0 perdidos, 0 falsas alarmas y 0 sin respuesta en rol único y en equipo,
+      con el código de d9b3de56; informe en `docs/asistente/COMPARACION_REVISION_047_T8q.json` y corrida en
+      D:/csg/PM_IMPL/GPU_BLOQUE/047_T25_noche (espejo en Drive verificado por sha256).
 - [x] T15. Retomar el QLoRA desde un punto de control (23-11): `tools/asistente_qlora.py entrenar --reanudar DIR` pasa
       DIR como `desde` a `entrenar_epoca` y lo anota en el informe. (RF-84)
       Hecho cuando: rojo por aserción y verde con `tests/test_asistente_qlora.py` (047:RF-84).

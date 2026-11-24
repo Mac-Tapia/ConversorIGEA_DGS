@@ -28,6 +28,15 @@ def fuente_servicios_web() -> str:
     return textos[0] + ''.join('\n' + re.sub(r'(?m)^from __future__ import annotations\n', '', t) for t in textos[1:])
 
 
+def bloque_de_tarea(texto: str, tarea: str) -> str | None:
+    """El texto de la tarea ``tarea`` (``'T25'``) de un tasks.md, abierta o cerrada; ``None`` si no está.
+
+    Las pruebas de los conjuntos de la 047 buscaban «- [ ] T25.» y cada una caía al cerrar su tarea: el 2026-11-24 la
+    047q pasó y al cerrar de la T8 a la T25 fallaron las dieciséis a la vez."""
+    m = re.search(rf'^- \[[ x]\] {re.escape(tarea)}\.', texto, re.M)
+    return None if m is None else texto[m.end():].split('\n- [', 1)[0]
+
+
 #: Carpeta que deja ``tools/aceptacion_nativa.py`` con lecturas e informes de DIgSILENT real (044, 045, 048 y
 #: 049, T4). Las pruebas no se conectan a DIgSILENT (084:RF-21): releen esa evidencia, comprueban sus huellas
 #: y vuelven a calcular los veredictos. Sin la variable se omiten, como las de los TXT reales con ``CSG_*``.

@@ -16,6 +16,7 @@ from pathlib import Path
 import re
 
 import pytest
+from apoyo import bloque_de_tarea
 
 RAIZ = Path(__file__).resolve().parents[1]
 NUEVO = RAIZ / 'docs' / 'REVISION_ROLES_CASOS_047b.json'
@@ -99,7 +100,7 @@ def test_conjunto_047b_declarado_antes_de_medir_y_fijo():
     assert declaracion['origen'] == 'maestro' and 'maestro' in contenido['descripcion']
     assert herramienta.huella(NUEVO) == HUELLA_047B
     tareas = next((RAIZ / 'specs').glob('047-*')) / 'tasks.md'
-    t8 = tareas.read_text(encoding='utf-8').split('- [ ] T8.', 1)[1].split('\n- [', 1)[0]
+    t8 = bloque_de_tarea(tareas.read_text(encoding='utf-8'), 'T8')
     assert HUELLA_047B in t8 and '2026-11-19' in t8 and 'REVISION_ROLES_CASOS_047b.json' in t8
 
 
