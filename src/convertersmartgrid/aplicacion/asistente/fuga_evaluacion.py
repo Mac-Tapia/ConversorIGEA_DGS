@@ -169,7 +169,10 @@ def textos_que_entrenan() -> set[str]:
     from . import propuestas_maestro as pm
     from .tareas import TAREAS
 
-    textos = [x for d in (cm.FAMILIAS, cm.ESTILO_REAL, pm.PLANTILLAS, of.FRASES) for v in d.values() for x in v]
+    # 070:RF-93: también las paráfrasis que solo entrenan (070, 079 y 070 T28): no estaban, y una igual a una frase sellada
+    # habría dejado ciega la prueba sin que la cuenta lo dijera.
+    curriculos = (cm.FAMILIAS, cm.ESTILO_REAL, cm.PARAFRASIS_070, cm.PARAFRASIS_079, cm.PARAFRASIS_070_T28, pm.PLANTILLAS, of.FRASES)
+    textos = [x for d in curriculos for v in d.values() for x in v]
     textos += [p for t in TAREAS.values() for p in t.plantillas]
     return {texto_canonico(x) for x in textos}
 

@@ -198,6 +198,11 @@ le estaban cerradas aunque el operador confirmara.
   sin ninguna que el contrato ya no tenga, y las mismas entidades, ENTONCES EL SISTEMA lo abrirá y predecirá con sus
   propias tareas (las nuevas, por RF-84), y la no regresión del candidato lo comparará en las mismas órdenes humanas.
   SI le falta al contrato alguna de sus tareas o cambian las entidades, ENTONCES seguirá incompatible.
+- RF-93: (070 T28, 2026-11-24: el candidato de la T22 confundía tareas vecinas ante frases que no había visto) EL SISTEMA
+  entrenará el intérprete también con paráfrasis de las tareas vecinas que la selección y la calibración dieron flojas o
+  confundidas, cada una con la pista que la separa de su vecina, solo en entrenamiento y con su origen y su maestro; una
+  que coincida por texto, por familia o por la familia ancha de la 075 con lo que mide no entra. La comprobación de fugas
+  hacia las pruebas selladas contará también todas las paráfrasis que solo entrenan.
 
 ## Fuera de alcance
 

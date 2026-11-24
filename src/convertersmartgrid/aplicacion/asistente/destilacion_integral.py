@@ -15,8 +15,8 @@ import platform
 from ...dominio.evaluacion_harness.estadistica import intervalo_wilson, mcnemar_exacta
 from ..evaluacion_modelos import (PARTES, PoliticaEvaluacion, huella, particionar_registros,
                                   texto_canonico, verificar_familias)
-from .curriculo_maestro import (ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_079, MAESTRO_ESTILO_REAL, PARAFRASIS_070,
-                                PARAFRASIS_079)
+from .curriculo_maestro import (ESTILO_REAL, FAMILIAS, MAESTRO, MAESTRO_070, MAESTRO_070_T28, MAESTRO_079, MAESTRO_ESTILO_REAL,
+                                PARAFRASIS_070, PARAFRASIS_070_T28, PARAFRASIS_079)
 from .interprete import PUESTO_CHARLA, UMBRAL_TRANSFORMER, charla_cerca
 from .maestro_real import CALIDAD, CONFIANZA_MINIMA, NINGUNA, clave_texto, con_erratas, firma_familia
 from .ordenes_fijas import generar as generar_fijas, repartir
@@ -121,6 +121,14 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                 e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
                 if agregar(e, grupo, 'silver_teacher_verified', 'parafrasis_079', maestro='claude') != 'fuga':
                     erratas(e, grupo, 'silver_teacher_verified', 'parafrasis_079', rnd, maestro='claude')
+    for tarea, frases in sorted(PARAFRASIS_070_T28.items()):                       # 070:RF-93
+        for j, plantilla in enumerate(frases):
+            rnd = random.Random(7331 + j + int(huella(tarea)[:8], 16))
+            grupo = huella({'parafrasis_070_t28': plantilla, 'tarea': tarea})
+            for _ in range(max(1, por_familia // 2)):
+                e = expandir(plantilla, tarea, rnd, vocab, ruido=.08)
+                if agregar(e, grupo, 'silver_teacher_verified', 'parafrasis_070_t28', maestro='claude') != 'fuga':
+                    erratas(e, grupo, 'silver_teacher_verified', 'parafrasis_070_t28', rnd, maestro='claude')
     por_tarea, leidas = Counter(), 0
     for f in sorted(etiquetas, key=lambda x: clave_texto(x['texto'])):
         leidas += 1
@@ -149,6 +157,9 @@ def _ampliar_entrenamiento(filas: list[dict], vocab: dict, etiquetas: Sequence[d
                                'excluidas_por_fuga': cuenta['parafrasis_070_fuga'], 'maestro': MAESTRO_070},
             'parafrasis_079': {'frases': sum(len(v) for v in PARAFRASIS_079.values()), 'filas': cuenta['parafrasis_079_filas'],
                                'excluidas_por_fuga': cuenta['parafrasis_079_fuga'], 'maestro': MAESTRO_079},
+            'parafrasis_070_t28': {'frases': sum(len(v) for v in PARAFRASIS_070_T28.values()),
+                                   'filas': cuenta['parafrasis_070_t28_filas'],
+                                   'excluidas_por_fuga': cuenta['parafrasis_070_t28_fuga'], 'maestro': MAESTRO_070_T28},
             'erratas_del_catalogo': {'filas': cuenta['catalogo_filas'], 'excluidas_por_fuga': cuenta['catalogo_fuga']}}
 
 
@@ -279,7 +290,8 @@ def preparar_corpus(vocab: dict, reales: list[dict], *, por_familia: int = 40, e
                                                             'huella_sinteticas': huella(sinteticas_historicas)},
             'denominadores': {p: dict(sorted(c.items())) for p, c in sorted(denominadores.items())},
             'curriculo_hash': huella({'sesion': FAMILIAS, 'catalogo_revisado': FRASES, 'estilo_real': ESTILO_REAL,
-                                      'parafrasis_070': PARAFRASIS_070, 'parafrasis_079': PARAFRASIS_079}),
+                                      'parafrasis_070': PARAFRASIS_070, 'parafrasis_079': PARAFRASIS_079,
+                                      'parafrasis_070_t28': PARAFRASIS_070_T28}),
             'calidades': dict(Counter(r['quality'] for r in filas)),
             'particiones': dict(Counter(r['particion'] for r in filas)),
             'vocabulario_hash': huella(vocab), 'por_familia': por_familia,

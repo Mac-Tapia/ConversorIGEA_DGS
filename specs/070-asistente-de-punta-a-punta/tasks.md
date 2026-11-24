@@ -122,9 +122,16 @@
       D:/csg/PM_IMPL/N12/070_T27/verde.log. Con el modelo real en uso (prov-8fd8a405, 49 de 68 tareas),
       `motivo_no_disponible()` pasa de ese error a ninguno.
 - [ ] T28 [GPU] Mejorar el candidato rechazado en la T22: separar las tareas vecinas que confunde y repetir la corrida
-  con la no regresión ya medible (T27). (RF-84, RF-92)
+  con la no regresión ya medible (T27). (RF-84, RF-92, RF-93)
   Causas medidas el 2026-11-24 (asistente_integral_20261124.json): en calibración buscar_maxima→sistema_completo (40),
   cruzar_clientes→alimentadores_completo (36), descargar_resultados→unir (36), proyecto_entero→enviar_informe (11);
   en selección estado→ninguna (10), proyecto_entero→sistema_completo (10), leer_solicitud→pit_expediente (7) y
   →subir_fuente_empresa (6). Ejecución sola: sintéticas 0,964 y maestro 0,946, bajo 0,98.
   Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con el diagnóstico de lo que aún confunde.
+      Código, 2026-11-24 (d8, wt_d8_t28): `PARAFRASIS_070_T28` en `curriculo_maestro.py` (14 tareas, 12 frases cada
+      una, elegidas por la selección y la calibración, sin mirar los textos de las pruebas que deciden), su bucle en
+      `destilacion_integral.preparar_corpus` (semilla 7331, origen `parafrasis_070_t28`, en el manifiesto y en
+      `curriculo_hash`) y las paráfrasis en `fuga_evaluacion.textos_que_entrenan`. Pruebas:
+      `tests/test_curriculo_070_t28.py` (070:RF-93), rojo por aserción de la fuga con el código anterior
+      (D:/csg/PM_IMPL/N12/t28_rojo.log) y verde con sus vecinas (269 passed, D:/csg/PM_IMPL/N12/t28_vecinas.log).
+      Queda la corrida en la GPU con la no regresión ya medible (T27).
