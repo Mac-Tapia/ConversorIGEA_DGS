@@ -39,7 +39,7 @@ for _flujo in (sys.stdout, sys.stderr):
         pass
 
 from convertersmartgrid.dominio.coordenadas import completar_coordenadas  # noqa: E402
-from convertersmartgrid.adaptadores.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.adaptadores.dataset import DatasetRed  # noqa: E402
 from convertersmartgrid.adaptadores.dgs import formato_hoja, write_dgs  # noqa: E402
 from convertersmartgrid.adaptadores.geography import assert_metre_source_crs, build_geography  # noqa: E402
 from convertersmartgrid.dominio.model import calc_p_q, build_feeder_model  # noqa: E402
@@ -246,7 +246,7 @@ def main(argv: list[str] | None = None) -> int:
     out = Path(args.out_dir)
     out.mkdir(parents=True, exist_ok=True)
 
-    ds = CymdistDataset.from_files(args.red, args.cargas, args.equipos)
+    ds = DatasetRed.from_files(args.red, args.cargas, args.equipos)
     coords = completar_coordenadas(ds)
     print(coords.texto())
 

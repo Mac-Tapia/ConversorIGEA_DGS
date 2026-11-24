@@ -6,12 +6,12 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
-from ..dominio.dataset import TABLAS_TIPOS_LINEA, CymdistDataset
+from ..dominio.dataset import TABLAS_TIPOS_LINEA, DatasetRed
 from ..dominio.naming import feeder_short_name, sort_key_feeder
 from ..dominio.util import write_json_atomic, cuenta
 
 
-def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
+def cabecera_xy(dataset: DatasetRed, network_id: str) -> list[float] | None:
     """Coordenadas del nodo de la fuente del alimentador, en las unidades de la entrega.
 
     Con ellas la estructura coloca en su zonal la SET que la tabla de la empresa aún no
@@ -28,7 +28,7 @@ def cabecera_xy(dataset: CymdistDataset, network_id: str) -> list[float] | None:
 
 
 def build_dataset_inventory(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     aliases: dict[str, str] | None = None,
 ) -> dict[str, Any]:
     """Analyze RED/CARGA/BD_Equipo contents in depth for conversion planning.

@@ -2,7 +2,7 @@
 
 Para el cierre completo con máxima de cabecera, clientes importantes, bancos y
 estudios nativos, continúe con
-[`universal-native-load-acceptance.md`](universal-native-load-acceptance.md).
+`universal-native-load-acceptance.md` (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/runbooks/universal-native-load-acceptance.md`).
 
 ## Objetivo y criterio de evidencia
 

@@ -137,13 +137,11 @@ def main(destino: str, fuentes: str) -> None:
     print(salida, sha(salida)[:16])
 
 
+# Auditoría D.2 (2026-11-24): una sola copia, en tools/normativa/fuentes.py.
 def _argumentos(descripcion: str):
-    import argparse
-    ap = argparse.ArgumentParser(description=descripcion)
-    ap.add_argument('--fuentes', required=True,
-                    help='carpeta raíz de las fuentes oficiales descargadas (fuera de git), con su SHA256SUMS.txt')
-    ap.add_argument('--destino', required=True, help='raíz del repositorio: escribe en <destino>/config/normativa/')
-    return ap.parse_args()
+    sys.path.insert(0, str(Path(__file__).resolve().parent))   # se lanza con -I: su carpeta no está en sys.path
+    from fuentes import argumentos_de_generador
+    return argumentos_de_generador(descripcion)
 
 
 if __name__ == '__main__':

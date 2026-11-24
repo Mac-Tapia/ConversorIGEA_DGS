@@ -153,7 +153,10 @@ def test_047_rf102_bloqueo_sin_hallazgo_tras_el_reintento_con_todo_respaldado(tm
     assert r['aprobada'], r['dictamenes'][-1]
     assert any('sin ningún hallazgo' in o for o in r['dictamenes'][-1].get('observaciones', []))
     r = _revision(tmp_path, {**sano, 'perdidas_evitadas_kw': 12}, frags)
-    assert not r['aprobada'] and r['dictamenes'][-1].get('fallo_revisor'), 'sin todo respaldado sigue sin respuesta'
+    # Sin todo respaldado no se aprueba: el dato sin fuente lo halla el código (RF-101) y el bloqueo lo lleva (RF-103).
+    final = r['dictamenes'][-1]
+    assert not r['aprobada'] and any(c.get('origen') == 'codigo' and c['campo'] == 'perdidas_evitadas_kw'
+                                     for c in final['contradicciones']), final
 
 
 def test_047_rf102_coste_cero_respaldado_por_la_evidencia():
@@ -161,3 +164,22 @@ def test_047_rf102_coste_cero_respaldado_por_la_evidencia():
     r = _f('comprobar_coste')(p, _ev('El cierre del enlace se hace desde el centro de control, sin materiales.'))
     assert r and r[0]['coincide'], r
     assert _f('comprobar_coste')(p, _ev('El enlace Z96 une dos alimentadores.')) == []
+
+
+def test_047_rf103_un_bloqueo_vacio_con_hallazgos_del_codigo_los_lleva(tmp_path):
+    """047:RF-103 — con el 047p, el rol de coste bloqueó sin motivo un defecto que el código ya había hallado: el bloqueo
+    lleva esos hallazgos como sus contradicciones y no queda sin respuesta."""
+    defecto = {'accion': 'cambiar 4 crucetas del ramal Z97', 'crucetas': 4, 'coste_usd': 300}
+    r = _revision(tmp_path, defecto, {'e1': 'Cruceta metálica colocada: 300 USD por cruceta.', 'e2': 'Z97 tiene 4 crucetas partidas.'})
+    final = r['dictamenes'][-1]
+    assert not r['aprobada'] and not final.get('fallo_revisor'), final
+    assert any(c.get('origen') == 'codigo' and c['campo'] == 'coste_usd' for c in final['contradicciones'])
+
+
+def test_047_rf103_sin_respuesta_cuenta_el_dictamen_final_de_cada_rol(tmp_path):
+    """047:RF-103 — un rol que falló en la primera ronda y respondió en la segunda no cuenta como sin respuesta."""
+    from convertersmartgrid.aplicacion.asistente import revision_roles
+    from convertersmartgrid.aplicacion.asistente.revision_roles import comparar_revision
+    import inspect
+    fuente = inspect.getsource(revision_roles._revision_por_modo)
+    assert 'finales' in fuente, 'la cuenta de sin respuesta no mira el dictamen final de cada rol'

@@ -37,7 +37,7 @@ De abajo arriba; una capa solo importa de las que tiene debajo (RF-1, RF-2).
 
 | Capa | Qué va | Módulos de hoy |
 | --- | --- | --- |
-| `dominio` | El modelo de red y las reglas puras, sin E/S ni dependencias pesadas | `model`, la estructura de `dataset` (`CymdistDataset`, sin el lector), `naming`, `puentes`, `sed_potencia`, `trafomix`, `coordenadas`, `reconstruction`, `reconstruction_topology`, `catalog_resolution`, `catalog_data`, `ajuste_cabecera`, `economia`, `huella`, el perfil de empresa (nuevo) |
+| `dominio` | El modelo de red y las reglas puras, sin E/S ni dependencias pesadas | `model`, la estructura de `dataset` (`DatasetRed`, sin el lector), `naming`, `puentes`, `sed_potencia`, `trafomix`, `coordenadas`, `reconstruction`, `reconstruction_topology`, `catalog_resolution`, `catalog_data`, `ajuste_cabecera`, `economia`, `huella`, el perfil de empresa (nuevo) |
 | `puertos` | Interfaces y su versión | `LectorDeRed` (de `sources/base.py`), `EscritorDeRed`, `Estudio`, `SesionPowerFactory` (RF-7) |
 | `aplicacion` | Casos de uso que combinan puertos | `batch`, `reglas`, `combine`, `reconstruction_pipeline`, `inventory`, `catalog`, `catalog_merge`, `demanda_medida`, `cargas_pf` (plan), `studies`, el registro de módulos (nuevo) |
 | `adaptadores` | Implementaciones de los puertos | entrada: el lector de `dataset`, `access`, `study`, `identify`, `loads`, `sources/*`, `vnr_etl` entero (RF-6); salida: `dgs`, `schema` y `schemas/`, `validate`, `export_tables`, `geography` (pyproj), `feeder_metadata`, `preview`; PowerFactory: `powerfactory_env`, `powerfactory_metadata`, `carpeta_pf`; estudios: `oraculo` (pandapower) |

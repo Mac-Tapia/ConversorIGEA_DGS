@@ -16,6 +16,7 @@ from fastapi.testclient import TestClient  # noqa: E402
 from convertersmartgrid.dominio.ajuste_cabecera import Objetivo, derivacion_cliente, fijas_de  # noqa: E402
 from convertersmartgrid.dominio.perfil_empresa import datos_perfil, factor_potencia_cargas  # noqa: E402
 from convertersmartgrid.presentacion.web.app import create_app  # noqa: E402
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -121,7 +122,7 @@ def test_el_mes_anterior_solo_si_falta_el_de_la_maxima():
 def test_el_plan_y_la_tabla_dicen_el_libro_del_mes_anterior():
     """035:RF-17, 035:RF-18 — solo cuando falta el del mes: el plan cruza con el libro elegido y
     no da el mes distinto por error; plan, tabla e informe lo dicen con su libro y su mes."""
-    fuente = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     activo = fuente[fuente.index('def periodo_clientes_activo'):fuente.index('def mes_anterior_con_libro')]
     assert 'not any(\n            str(item.get(\'mes\') or \'\').strip() == periodo for item in active)' in activo
     assert "status='CLIENT_PERIOD_PREVIOUS'" in activo and 'el mes anterior más cercano con libro' in activo

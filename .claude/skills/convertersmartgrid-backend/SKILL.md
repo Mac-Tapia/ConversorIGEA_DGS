@@ -15,16 +15,19 @@ description: >-
 El «backend» es el motor Python, el CLI y la API web. La única interfaz gráfica es la
 web (`src/convertersmartgrid/presentacion/web/` + `frontend/`); la Tkinter se retiró (spec 001, RF-16).
 
+Rutas relativas a `src/convertersmartgrid/` (capas de la spec 002; el mapa completo, en
+`docs/ARQUITECTURA.md` y `docs/ARQUITECTURA_CATALOGO.md`).
+
 | Capa | Módulos | Rol |
 | ---- | ------- | --- |
-| Entrada | `sources/` (adaptadores), `dataset.py`, `access.py`, `identify.py` | Una lectura de RED / CARGA / BD_Equipo (TXT), `.mdb` o paquete VNR-GIS, la misma para la web y el CLI (`adapter_for`). Reconoce cada TXT por su contenido, no por su nombre |
-| Índices | `CymdistDataset.*_by_feeder`, `intermediate_by_section` | Agrupan las tablas una vez por lote |
-| Modelo | `model.py`, `catalog*.py` | Modelo aislado por alimentador; correcciones de catálogo |
-| Salida | `dgs.py`, `geography.py`, `validate.py`, `export_tables.py`, `preview.py` | DGS determinista, GPS, validación estricta |
-| Lote | `batch.py` | Multi-alimentador, publicación atómica, `batch_manifest.json`, `workers` |
-| Red unida | `combine.py`, `puentes.py`, `studies.py` | Grid única con los N alimentadores; estudios |
-| Borde | `cli.py`, `web/app.py`, `web/jobs.py`, `web/services.py`, `web/workspace.py` | CLI; API FastAPI + WebSocket; cola de trabajos con carriles `engine` y `powerfactory` |
-| Proyecto en DIgSILENT | `cargas_pf.py`, `demanda_medida.py`, `ajuste_cabecera.py`, `carpeta_pf.py`; guiones `tools/cargas_pf.py`, `tools/ajuste_cabecera_pf.py`, `tools/verificar_pf.py`, `tools/pf_proyectos.py` | Specs 004 a 008: la web valida y escribe un plan JSON; el guion, con el intérprete de PowerFactory, decide en el proyecto y deja siempre un informe (también si revienta, 008:RF-17). Pruebas con el doble `tests/fake_pf.py` |
+| Entrada | `adaptadores/sources/` (`txt.py`, `mdb.py`, `vnr.py`), `adaptadores/dataset.py`, `adaptadores/access.py`, `adaptadores/identify.py` | Una lectura de RED / CARGA / BD_Equipo (TXT), `.mdb` o paquete VNR-GIS, la misma para la web y el CLI (`adapter_for`). Reconoce cada TXT por su contenido, no por su nombre |
+| Índices | `DatasetRed.*_by_feeder`, `intermediate_by_section` (`dominio/dataset.py`) | Agrupan las tablas una vez por lote |
+| Modelo | `dominio/model.py`, `aplicacion/catalog.py`, `aplicacion/catalog_merge.py` | Modelo aislado por alimentador; correcciones de catálogo |
+| Salida | `adaptadores/dgs.py`, `adaptadores/geography.py`, `adaptadores/validate.py`, `adaptadores/export_tables.py`, `adaptadores/preview.py` | DGS determinista, GPS, validación estricta |
+| Lote | `aplicacion/batch.py` | Multi-alimentador, publicación atómica, `batch_manifest.json`, `workers` |
+| Red unida | `aplicacion/combine.py`, `dominio/puentes.py`, `aplicacion/studies.py` | Grid única con los N alimentadores; estudios |
+| Borde | `presentacion/cli.py`, `presentacion/web/app.py`, `presentacion/web/jobs.py`, `presentacion/web/services.py`, `presentacion/web/workspace.py` | CLI; API FastAPI + WebSocket; cola de trabajos con carriles `engine` y `powerfactory` |
+| Proyecto en DIgSILENT | `aplicacion/cargas_pf.py`, `aplicacion/demanda_medida.py`, `dominio/ajuste_cabecera.py`, `adaptadores/carpeta_pf.py`; guiones `tools/cargas_pf.py`, `tools/ajuste_cabecera_pf.py`, `tools/verificar_pf.py`, `tools/pf_proyectos.py` | Specs 004 a 008: la web valida y escribe un plan JSON; el guion, con el intérprete de PowerFactory, decide en el proyecto y deja siempre un informe (también si revienta, 008:RF-17). Pruebas con el doble `tests/fake_pf.py` |
 
 ## Reglas de dominio (no romper)
 
@@ -38,7 +41,7 @@ web (`src/convertersmartgrid/presentacion/web/` + `frontend/`); la Tkinter se re
 
 ## Reglas del proyecto (siempre)
 
-Toda conversión pasa por `reglas.py`: `preparar_dataset` (coordenadas por el grafo,
+Toda conversión pasa por `aplicacion/reglas.py`: `preparar_dataset` (coordenadas por el grafo,
 catálogo del proyecto) y `aplicar_reglas` (puentes `DEFAULT` ≤ 10 m fundidos, trafomix
 `M…` excluidos, SED sobrecargadas redimensionadas, hoja a medida a escala real por
 defecto, formatos A0–A4 solo explícitos, todo dibujado) y
@@ -78,7 +81,7 @@ desiguales. Ningún número está grabado en el motor ni en las pruebas.
   puede tener el motor de PowerFactory**, así que ese carril es estrictamente serie.
 - La cancelación es cooperativa, con `threading.Event`: se comprueba entre alimentadores y
   nunca a mitad de uno.
-- Si hiciera falta repartir el trabajo entre máquinas, se sustituye `web/jobs.py` (por
+- Si hiciera falta repartir el trabajo entre máquinas, se sustituye `presentacion/web/jobs.py` (por
   Redis/RQ, por ejemplo) sin tocar las rutas de la API.
 
 ## Checklist (al tocar el motor, el CLI o la API)
@@ -146,5 +149,5 @@ def algo_by_feeder(self) -> dict[str, tuple[...]]:
 
 ## Referencias
 
-- `docs/superpowers/specs/2026-09-10-universal-convertersmartgrid-engine-design.md`
+- `specs/034-motor-base-y-contrato-de-fuentes/` (motor y contrato de fuentes) y `specs/002-arquitectura-por-capas/` (capas)
 - `docs/POWERFACTORY_ACCEPTANCE.md`, `docs/MANUAL_COMANDOS.md`

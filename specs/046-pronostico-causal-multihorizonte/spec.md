@@ -115,7 +115,7 @@ No declarar promoción, entrenamiento ni aceptación eléctrica a partir del pla
 
 ## Fundamento científico y técnico
 
-El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la [investigación](../../docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md#8-fundamento-académico-consultado). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
+El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la investigación (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md`). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
 
 [Lim et al., International Journal of Forecasting (2021)](https://doi.org/10.1016/j.ijforecast.2021.03.012) justifica TFT multihorizonte. [NeuralForecast oficial](https://github.com/Nixtla/neuralforecast) permite comparar varios candidatos; no prueba que mejoren estas series.
 

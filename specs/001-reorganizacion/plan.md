@@ -1,7 +1,7 @@
 # Plan — Spec 001
 
 Lee: `docs/constitution.md`, `specs/001-reorganizacion/spec.md` y el diagnóstico
-`docs/DIAGNOSTICO_SDD_2026-10-07.md` (§3 backend, §4 frontend).
+retirado el 2026-11-24, en git: `git show 2fd22a65:docs/DIAGNOSTICO_SDD_2026-10-07.md` (§3 backend, §4 frontend).
 
 ## Contexto técnico
 

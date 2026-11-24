@@ -10,7 +10,6 @@ usa el libro de evolución de los clientes fijos.
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import os
 import re
@@ -20,6 +19,7 @@ from pathlib import Path
 
 from ..dominio.runtime_paths import raiz_local
 from ..dominio.util import publicar_duradero
+from ..dominio.util import sha256_file
 
 #: Intentos y espera inicial (se dobla en cada uno) ante un fichero bloqueado por la sincronización.
 REINTENTOS = 5
@@ -67,13 +67,8 @@ def _parte(texto: str) -> str:
     return limpio
 
 
-def huella_fichero(path: Path) -> str:
-    """SHA-256 de un fichero, leído por bloques. Pública porque la usa también el correo de la 110 (P5: una vía)."""
-    h = hashlib.sha256()
-    with path.open('rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+huella_fichero = sha256_file
 
 
 #: El nombre de antes, para quien lo use todavía.

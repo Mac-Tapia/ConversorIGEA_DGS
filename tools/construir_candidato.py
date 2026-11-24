@@ -50,6 +50,7 @@ sys.path.insert(0, str(RAIZ / 'tools'))
 
 import comprobar_entrega as CE  # noqa: E402  (herramienta hermana, sin instalar)
 from _plural import cuenta  # noqa: E402
+from convertersmartgrid.dominio.util import sha256_file
 
 LOCK = RAIZ / 'requirements-nucleo.lock'
 COMPLEMENTO_IA = RAIZ / 'requirements-complemento-ia.txt'
@@ -84,12 +85,8 @@ def _pip(*argumentos: str) -> None:
         raise CE.EntregaError(f'pip falló: {" ".join(argumentos[:3])}…\n{r.stdout[-2500:]}\n{r.stderr[-2500:]}')
 
 
-def _sha256(ruta: Path) -> str:
-    h = hashlib.sha256()
-    with ruta.open('rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+_sha256 = sha256_file
 
 
 # --------------------------------------------------------------------------- versión y documentos (086:RF-89 a RF-93)

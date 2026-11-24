@@ -34,12 +34,12 @@ def _txt_workspace(tmp_path, *, feeders: int = 2):
 
 
 def test_txt_adapter_paridad_con_lector_actual(tmp_path):
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from convertersmartgrid.presentacion.web.source_runs import create_source_run
     from convertersmartgrid.adaptadores.sources import adapter_for
 
     ws, originals = _txt_workspace(tmp_path)
-    expected = CymdistDataset.from_files(*originals)
+    expected = DatasetRed.from_files(*originals)
     snapshot = create_source_run(ws)
 
     result = adapter_for('txt').load(snapshot, aliases={})

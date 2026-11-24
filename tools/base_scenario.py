@@ -77,8 +77,8 @@ def _cargar_dataset(args):
     if args.mdb:
         from convertersmartgrid.adaptadores.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_db=args.equipment_mdb)
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
-    return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
+    return DatasetRed.from_files(args.red, args.cargas, args.equipos)
 
 
 # --------------------------------------------------------------------------------

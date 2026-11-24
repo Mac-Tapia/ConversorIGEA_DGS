@@ -16,7 +16,7 @@ import json
 from pathlib import Path
 from typing import Any, Iterable, Mapping
 
-from .dataset import CymdistDataset
+from .dataset import DatasetRed
 
 
 class EvidenceLevel(str, Enum):
@@ -118,7 +118,7 @@ class ReconstructionReport:
 
 @dataclass
 class ReconstructionResult:
-    dataset: CymdistDataset
+    dataset: DatasetRed
     report: ReconstructionReport
     policy: ReconstructionPolicy
 
@@ -160,7 +160,7 @@ class ReconstructionResult:
         return self.report.record_change(decision)
 
 
-def _copy_dataset(dataset: CymdistDataset) -> CymdistDataset:
+def _copy_dataset(dataset: DatasetRed) -> DatasetRed:
     """Copy only declared canonical fields, excluding cached derived indexes.
 
     La copia conserva la clase de la entrada: la del lector (``convertersmartgrid.adaptadores.dataset``)
@@ -169,12 +169,12 @@ def _copy_dataset(dataset: CymdistDataset) -> CymdistDataset:
 
     return type(dataset)(**{
         item.name: deepcopy(getattr(dataset, item.name))
-        for item in fields(CymdistDataset)
+        for item in fields(DatasetRed)
     })
 
 
 def reconstruct_dataset(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     policy: ReconstructionPolicy | None = None,
     catalogs: Iterable[Any] = (),
 ) -> ReconstructionResult:

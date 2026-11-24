@@ -715,11 +715,11 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
         for network_id in network_ids
     )
     if not ready_without_reconstruction:
-        from ...dominio.dataset import CymdistDataset
+        from ...dominio.dataset import DatasetRed
 
         # Keep the preflight fail-closed for adapter/test doubles that did not
         # provide a canonical dataset. Real TXT/MDB/VNR loads always do.
-        if not isinstance(ws.dataset, CymdistDataset):
+        if not isinstance(ws.dataset, DatasetRed):
             check_selection_readiness(ws, feeders, all_feeders)
     if not ready_without_reconstruction and not matching_reconstruction(ws, network_ids):
         ctx.log('La selección tiene datos incompletos: se crea una reconstrucción auditable.')

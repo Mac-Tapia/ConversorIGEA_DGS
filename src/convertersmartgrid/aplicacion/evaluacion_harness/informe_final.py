@@ -12,7 +12,6 @@ el recolector de la tesis (``intervalo_de``: ``valor`` más ``ic95``), y que no 
 """
 from __future__ import annotations
 
-import hashlib
 import json
 import math
 import os
@@ -24,6 +23,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from ...dominio.evaluacion_harness.estadistica import ajustar_holm
+from ...dominio.util import sha256_file
 
 ESQUEMA = 'csg-evaluacion-final-v1'
 #: Ruta del informe dentro del repositorio; es lo único que puede cambiar después de la rev medida.
@@ -37,12 +37,8 @@ class InformeRechazado(ValueError):
     """La evaluación no corresponde a la revisión o a los conjuntos que declara (044:RF-11)."""
 
 
-def huella_fichero(ruta: Path | str) -> str:
-    h = hashlib.sha256()
-    with open(ruta, 'rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+huella_fichero = sha256_file
 
 
 def _git(repo: Path, *args: str) -> str:

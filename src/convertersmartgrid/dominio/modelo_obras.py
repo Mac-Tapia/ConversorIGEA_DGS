@@ -46,17 +46,8 @@ def anadir(ruta: Path | str, filas: Iterable[Mapping[str, Any]]) -> None:
         pass
 
 
-def leer(ruta: Path | str) -> list[dict[str, Any]]:
-    filas = []
-    try:
-        for ln in Path(ruta).read_text(encoding='utf-8').splitlines():
-            try:
-                filas.append(json.loads(ln))
-            except ValueError:
-                continue
-    except OSError:
-        pass
-    return filas
+# Auditoría D.2 (2026-11-24): una sola copia de esta función, en convertersmartgrid.dominio.medicion_obras; este nombre queda por quien lo llama aquí.
+from convertersmartgrid.dominio.medicion_obras import leer  # noqa: E402
 
 
 def _matriz(filas: Sequence[Mapping[str, Any]]) -> list[list[float]]:

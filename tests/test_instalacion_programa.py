@@ -29,7 +29,7 @@ from convertersmartgrid import __version__, notas_de_la_version
 from convertersmartgrid.dominio import runtime_paths
 from convertersmartgrid.aplicacion.batch import convert_selection
 from convertersmartgrid.presentacion.cli import _parser, main as cli_main
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.edicion import es_edicion_producto
 from convertersmartgrid.adaptadores.registro_rotativo import configurar_registro
 from convertersmartgrid.presentacion.web import doctor as DR, runtime as RT, soporte as SP
@@ -187,7 +187,7 @@ print('ok')
 
 def _huellas_del_motor(tmp_path: Path, layout: str, workers: int) -> dict[str, str]:
     red, carga, equipo = write_export(ExportSpec(feeders=3, sections_per_feeder=6, loads_per_feeder=3, layout=layout, seed=11), tmp_path / 'e')
-    ds = CymdistDataset.from_files(red, carga, equipo)
+    ds = DatasetRed.from_files(red, carga, equipo)
     convert_selection(ds, None, str(tmp_path / 'o'), all_feeders=True, aliases={}, strict=False, include_geography=False, workers=workers)
     return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((tmp_path / 'o').rglob('*.dgs'))}
 
@@ -207,12 +207,12 @@ sys.path.insert(0, {str(Path(__file__).parent)!r})
 from synthetic_export import ExportSpec, write_export
 import convertersmartgrid
 from convertersmartgrid.aplicacion.batch import convert_selection
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 if __name__ == '__main__':
     assert '_programa' not in convertersmartgrid.__file__ and {str(RAIZ)!r} not in convertersmartgrid.__file__
     t = Path('.').resolve()
     red, carga, equipo = write_export(ExportSpec(feeders=3, sections_per_feeder=6, loads_per_feeder=3, layout={layout!r}, seed=11), t / 'e')
-    ds = CymdistDataset.from_files(red, carga, equipo)
+    ds = DatasetRed.from_files(red, carga, equipo)
     convert_selection(ds, None, str(t / 'o'), all_feeders=True, aliases={{}}, strict=False, include_geography=False, workers={workers})
     print(json.dumps({{p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted((t / 'o').rglob('*.dgs'))}}))
 """)

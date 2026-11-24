@@ -14,7 +14,7 @@
       sobre 98dbffc9 con solo la prueba. Hecha el 2026-11-22 (CUSTODIA-ENLACE): rojo
       `D:/csg/PM_IMPL/CUSTODIA_ENLACE/rojo2.log`, verde `D:/csg/PM_IMPL/CUSTODIA_ENLACE/verde2.log`.
 
-Evidencia: `docs/RETENCION_AUTOMATICA_2026-11-01.md`,
+Evidencia: retirado el 2026-11-24, en git: `git show 2fd22a65:docs/RETENCION_AUTOMATICA_2026-11-01.md`,
 `output/retencion_20261101/regresion.xml` y `politica_final.xml`.
 T4 verificada por HTTP en el servidor principal: política7 días/24h, primera revisión
 completada,12 ejecuciones retiradas y110 conservadas, sin errores. Evidencia:

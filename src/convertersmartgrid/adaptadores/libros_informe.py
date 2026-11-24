@@ -39,6 +39,17 @@ class LibroError(ValueError):
     """El libro o la tabla no tienen la forma que dice el perfil; el mensaje dice qué falta."""
 
 
+def _hoja_del_libro(libro, hojas: dict, nombre: str):
+    """La hoja del libro de pérdidas por su nombre sin distinguir mayúsculas ni espacios, o un error que dice las que tiene.
+
+    Auditoría D.2 (2026-11-24): estaba copiada, anidada, en las dos lecturas del libro.
+    """
+    if _clave(nombre) not in hojas:
+        raise LibroError(f'El libro de pérdidas no tiene la hoja {nombre!r}; '
+                         f'tiene {", ".join(repr(n) for n in libro.sheetnames)}.')
+    return libro[hojas[_clave(nombre)]]
+
+
 def _clave(texto: Any) -> str:
     """Nombre comparable: sin tildes, sin mayúsculas y con los espacios colapsados.
 
@@ -148,10 +159,7 @@ def _leer_por_sistema(libro, alimentador: str, config: Mapping[str, Any]) -> Dat
     hojas = {_clave(n): n for n in libro.sheetnames}
 
     def hoja(nombre: str):
-        if _clave(nombre) not in hojas:
-            raise LibroError(f'El libro de pérdidas no tiene la hoja {nombre!r}; '
-                             f'tiene {", ".join(repr(n) for n in libro.sheetnames)}.')
-        return libro[hojas[_clave(nombre)]]
+        return _hoja_del_libro(libro, hojas, nombre)
 
     nombre = alimentador.strip()
     radial = hoja(config['hoja_alimentadores'])
@@ -208,10 +216,7 @@ def leer_libro_perdidas(ruta: Path, alimentador: str, columnas: ColumnasPerdidas
         hojas = {_clave(n): n for n in libro.sheetnames}
 
         def hoja(nombre: str):
-            if _clave(nombre) not in hojas:
-                raise LibroError(f'El libro de pérdidas no tiene la hoja {nombre!r}; '
-                                 f'tiene {", ".join(repr(n) for n in libro.sheetnames)}.')
-            return libro[hojas[_clave(nombre)]]
+            return _hoja_del_libro(libro, hojas, nombre)
 
         datos = hoja(columnas.hoja)
         buscadas = dict(columnas.columnas)

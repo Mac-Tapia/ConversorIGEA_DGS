@@ -283,7 +283,7 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
 - T31. Retirada el 2026-11-08 por orden del usuario, sin hacer: la 086 la da por innecesaria. Era: [DIgSILENT] Episodios 30/10/10 de cada sistema con «Aprender» y su curva de aprendizaje (sigue a T24). (RF-53, RF-54)
 
 Revisión del 2026-11-03 de T29, T30 y T31: siguen abiertas. Ninguna spec posterior las midió en DIgSILENT:
-`docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en
+retirado el 2026-11-24, en git: `git show 2fd22a65:docs/implementacion065/aceptacion_dominio.md` las lista como pendientes de corrida nativa (T29, hipercubo en
 copias de Nasca; T30, top-k de bancos en Chincha; T31, 30/10/10 y curva por familia), y 044 T4 sigue abierta.
 - [x] T33. «El proyecto entero» hasta los entregables de todos los módulos: las entradas al principio y el PIT, el VAD y el
       VNR como etapas opcionales con lo que requieren, saltadas con su motivo si falta su dato. (RF-72)

@@ -11,7 +11,7 @@ Lo que ya existe y se reutiliza (comprobado leyendo el código):
 - `web/soporte.py:26-33` y `:66-77`: las expresiones de rutas, correos, IP, códigos y texto entrecomillado, los términos
   del perfil (`_terminos_del_perfil`) y `anonimizar(linea, terminos)`. Hoy solo sirven al paquete de soporte (086:RF-42),
   que se arma con una **lista cerrada** de lo que entra. El benchmark sigue la misma idea.
-- `dataset.py:29-48` (`_parse_simple`) y `CymdistDataset.from_files`: el export se lee como secciones con su línea
+- `dataset.py:29-48` (`_parse_simple`) y `DatasetRed.from_files`: el export se lee como secciones con su línea
   `FORMAT_` y filas `dict[columna, valor]`, en las dos disposiciones (P3). Eso basta para volver a escribir un trío TXT
   con las columnas que se conservan.
 - `tests/synthetic_export.py`: `ExportSpec(seed=…, layout=…, naming=…)`, `write_export` y `load_export`. Hacen de
@@ -57,7 +57,7 @@ carril del motor y en la máquina del usuario; no usa PowerFactory, GPU ni red. 
 ### Generación (RF-1, RF-2, RF-3, RF-5, RF-10, RF-11)
 
 1. `generar_benchmark(origen, destino, *, semilla, tolerancia=None, perfil=None)` lee el trío con
-   `CymdistDataset.from_files` (o un MDB o paquete VNR por `adapter_for`, si el adaptador da las mismas tablas) y, si se
+   `DatasetRed.from_files` (o un MDB o paquete VNR por `adapter_for`, si el adaptador da las mismas tablas) y, si se
    pasa, la carpeta del dataset del 089 con `abrir_dataset`. No abre ningún socket ni llama a ningún proveedor: una
    prueba lo comprueba sustituyendo `socket.socket` por uno que falla (RF-1).
 2. `seudonimos.Mapa(semilla)` recoge los valores originales por **tipo de identificador** (red, alimentador, SET,

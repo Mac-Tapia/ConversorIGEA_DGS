@@ -122,7 +122,7 @@ Estado: borrador · Fecha: 2026-10-17 · Spec: [spec.md](spec.md)
      vale igual en UTM que en grados, y no hace falta el CRS.
    - Las cabeceras salen del inventario: `build_dataset_inventory` añade a cada fila
      `cabecera_xy` (CoordX, CoordY del nodo de la fuente), común a TXT, MDB y VNR-GIS, que
-     llegan todas como `CymdistDataset` (RF-77).
+     llegan todas como `DatasetRed` (RF-77).
    - Web: `estructura_del_espacio` completa la estructura con el inventario del espacio; la
      usan el resumen, la selección por zonal, la conversión y la calibración. CLI: igual
      con el dataset leído. Lo que todos ven es ya la estructura completada, así que `asignar`,

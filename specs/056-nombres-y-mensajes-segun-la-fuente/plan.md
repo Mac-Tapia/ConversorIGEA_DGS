@@ -1,6 +1,6 @@
 # Plan — Spec 056
 
-1. Fuente en el dataset y en el modelo (todas las RF): `CymdistDataset.fuente` («TXT» por
+1. Fuente en el dataset y en el modelo (todas las RF): `DatasetRed.fuente` («TXT» por
    defecto, «MDB» desde `access.py`, «VNR-GIS» desde el puente de `vnr_etl`), copiada a
    `FeederModel.fuente` en `build_feeder_model`. Una .mdb es de CYMDIST y un TXT no dice de qué programa sale: sus textos
    y su DGS quedan como estaban, byte a byte.

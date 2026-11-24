@@ -13,6 +13,7 @@ from convertersmartgrid.aplicacion.asistente import corpus_proyecto, indice
 from convertersmartgrid.aplicacion.asistente import lectura_proyecto as lp
 from convertersmartgrid.aplicacion.asistente import ollama as modulo_ollama
 from convertersmartgrid.aplicacion.asistente.equipo import LecturaGobernada
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 DATO = 'CODIGO-ZX9981 de la empresa Ficticia'
@@ -280,7 +281,7 @@ def test_sin_camino_a_internet():
         importados = {a.name.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.Import) for a in n.names}
         importados |= {n.module.split('.')[0] for n in ast.walk(arbol) if isinstance(n, ast.ImportFrom) and n.module}
         assert not importados & (prohibidos | {'internet'}), rel
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     arbol = ast.parse(fuente)
     funcion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == 'asistente_pregunta')
     cuerpo = ast.get_source_segment(fuente, funcion)

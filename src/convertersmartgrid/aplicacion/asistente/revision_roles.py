@@ -133,6 +133,7 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                       # 047:RF-98, RF-101: el resultado físico que la evidencia contradice o que nada respalda.
                       + comprobar_magnitudes(propuesta, evidencia))
     comprobados = {c['campo'] for c in comprobaciones if c['coincide']}
+    fallidas_del_codigo = [c for c in comprobaciones if not c['coincide']]
     # 047:RF-91: con el 047h, en propuestas sanas cuyos datos el código ya había respaldado todos, el LLM seguía
     # bloqueando con dudas sobre lo que la propuesta no dice («tipo de aislador», «si D17 necesita más reconectadores»).
     # Si el código respalda cada dato y ninguna comprobación falla, esas dudas pasan a observaciones: se guardan, no
@@ -214,6 +215,14 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                     observaciones = [*observaciones, f'el revisor dijo «{decision}» sin ningún hallazgo tras el '
                                                      'reintento; el código respalda todos los datos']
                     decision = 'favorable'
+                if decision != 'favorable' and not (incertidumbres or contradicciones) and fallidas_del_codigo:
+                    # 047:RF-103: con el 047p, el rol de coste bloqueó sin motivo un defecto que el código ya había
+                    # hallado: el bloqueo está fundado en ese hallazgo, que pasa a ser su contradicción (con su origen).
+                    contradicciones = [{'campo': c['campo'], 'valor_propuesta': c['valor_propuesta'],
+                                        'valor_evidencia': c.get('valor_calculado'),
+                                        'fuente': (c.get('fuentes') or ['codigo'])[0], 'origen': 'codigo',
+                                        'calculo': c.get('calculo')} for c in fallidas_del_codigo]
+                    decision = 'bloqueada'
                 if decision != 'favorable' and not (incertidumbres or contradicciones):
                     raise ValueError(f"dictamen {decision} sin hallazgo: ninguna contradicción ni incertidumbre")
                 dato = {**deepcopy(raw), 'decision': decision, 'contradicciones': contradicciones,
@@ -356,7 +365,10 @@ def _revision_por_modo(casos, fabrica, modo, roles, rondas, tope=None):
         r = revisar_propuesta(caso['propuesta'], caso['evidencia'], contexto=caso['contexto'], revisor=revisor,
                               max_rondas=rondas, roles=roles, presupuesto_s=120.0)
         # Por qué no vale, en el informe: la primera medición solo dijo «sin respuesta» en 23 de 24 revisiones.
-        motivos = [f"{d['rol']}: {m}" for d in r['dictamenes'] if d.get('fallo_revisor') for m in d['incertidumbres']]
+        # 047:RF-103: con el 047p (2026-11-24), dos sanos que el reintento de RF-81 resolvió y terminaron aprobados se
+        # contaban «sin respuesta» por el fallo de la primera ronda, ya superado. Cuenta el dictamen final de cada rol.
+        finales = {d['rol']: d for d in r['dictamenes']}
+        motivos = [f"{d['rol']}: {m}" for d in finales.values() if d.get('fallo_revisor') for m in d['incertidumbres']]
         if r['presupuesto_agotado']:
             motivos.append('presupuesto de tiempo agotado')
         filas.append({'id': caso['id'], 'con_defecto': caso['defecto'] is not None, 'aprobada': r['aprobada'],

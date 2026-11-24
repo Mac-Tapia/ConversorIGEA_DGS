@@ -97,11 +97,8 @@ def _positivo(valor: Any) -> float:
     return v if math.isfinite(v) and v > 0 else 0.0
 
 
-def _medida(valor: Any) -> float:
-    try:
-        return float(valor)
-    except (TypeError, ValueError):
-        return float('nan')
+# Auditoría D.2 (2026-11-24): era una copia de _numero.
+_medida = _numero
 
 
 def _ficha_con_datos(r1: Any, x1: Any, amps: Any) -> Ficha | None:

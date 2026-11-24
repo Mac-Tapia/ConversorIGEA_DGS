@@ -7,7 +7,7 @@ captura y caso dorado). Generador de escenarios, PINN/GNN, RNN, ordenamiento de
 alternativas del PIDE y confiabilidad tienen cada uno su plan después de este, cuando el
 búfer tenga episodios completos. Este plan no entrena ningún modelo ni añade PyTorch.
 
-Parte del borrador de Codex `docs/superpowers/plans/2026-10-21-digital-twin-episode-buffer.md`
+Parte del borrador de Codex retirado el 2026-11-24, en git: `git show 2fd22a65:docs/superpowers/plans/2026-10-21-digital-twin-episode-buffer.md`
 (histórico), corregido con la evaluación por caso (RF-28 a RF-31) y el registro de las
 alternativas del PIDE (RF-32) que entraron en la spec al aprobarla.
 

@@ -62,7 +62,7 @@ Benchmark real GA/NSGA-II/DE: 30 semillas por algoritmo. Con fuentes reales, QLo
 rechaza la huella antigua, GRU detecta fecha/potencia ausente y embeddings encontró
 memoria insuficiente; ningún bloqueo se presenta como entrenamiento completado.
 Se corrigieron cuatro hallazgos de revisión con pruebas RED/GREEN. Detalles y
-límites en [trabajadores](../../docs/TRABAJADORES_COORDINADOR_2026-11-01.md).
+límites en trabajadores (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/TRABAJADORES_COORDINADOR_2026-11-01.md`).
 Este cierre solo acredita los trabajadores/contratos de T7, no T3, 047 T7 ni 050.
 
 - [x] T6. Instalar y verificar bibliotecas y pesos faltantes del catálogo local. (RF-12)
@@ -78,13 +78,13 @@ Este cierre solo acredita los trabajadores/contratos de T7, no T3, 047 T7 ni 050
       evaluación runtime real sigue en T9. Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c6/`.
 
 T5: siete pruebas con Git y subprocesos reales pasaron; se verificaron las nueve
-copias públicas. Catálogo y reproducción en [reutilización GitHub](../../docs/REUSO_GITHUB_IA_2026-10-31.md).
+copias públicas. Catálogo y reproducción en reutilización GitHub (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REUSO_GITHUB_IA_2026-10-31.md`).
 La implementación de adaptadores y su aceptación permanecen en 045–048.
 
 T6: 33 paquetes instalados, cero versiones previas del núcleo cambiadas,
 `pip check` correcto; nueve ensayos de entorno/GPU y un ensayo real Ipopt pasaron.
 Catálogos fijados y descargas reanudables implementados; cinco modelos completos
-verificados por segunda auditoría. [Informe](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+verificados por segunda auditoría. Informe (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md`).
 
 Continuación local: BGE completó descarga y verificación de archivos/hashes;
 E5 y nomic están disponibles. Se fijó la base Instruct-2507 NF4 para PEFT y se
@@ -115,6 +115,6 @@ resultado, informe y limitaciones; no marcar casillas por existir código o por 
 simulación que solo converge.
 
 
-Ejecución 2026-10-31: ver [registro y pendientes](../../docs/EJECUCION_IA_2026-10-31.md).
+Ejecución 2026-10-31: ver registro y pendientes (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/EJECUCION_IA_2026-10-31.md`).
 
 Las tareas abiertas pueden contener código parcial: el registro distingue implementación, datos reales, verificación y aceptación pendiente.

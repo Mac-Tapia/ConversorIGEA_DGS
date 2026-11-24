@@ -83,7 +83,7 @@ def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
     georreferencia— sin inventar tramos, cargas ni SED, y avisando de forma
     inequívoca de que no es un alimentador modelado.
     """
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
     red = tmp_path / 'RED.txt'
     loads = tmp_path / 'CARGA.txt'
@@ -108,7 +108,7 @@ def test_source_only_feeder_is_drawn_instead_of_rejected(tmp_path):
     loads.write_text('[LOADS]\nFORMAT_LOADS=SectionID,DeviceNumber,Location\n', encoding='utf-8')
     equip.write_text('[LINE]\nFORMAT_LINE=LineID\nDEFAULT\n', encoding='utf-8')
 
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     model = build_feeder_model(ds, 'CA193')
 
     # Se dibuja la cabecera — y nada más.

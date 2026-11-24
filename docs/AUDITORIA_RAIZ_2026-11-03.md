@@ -76,7 +76,7 @@ las cachés del checkout.
 - `.agents/` y `tmp/` aparecen o pueden aparecer sin ignorar en `git status`. Decidir si `.agents/` se
   versiona o se ignora es del integrador.
 - `tools/arquitectura.py` da 97 violaciones aceptadas y 0 errores: deuda declarada, no conformidad.
-- `docs/AUDITORIA_ALUMNOS_2026-11-01.md` y `docs/CORRECCIONES_ALUMNOS_2026-11-01.md` enlazan evidencia
+- retirado el 2026-11-24, en git: `git show 2fd22a65:docs/AUDITORIA_ALUMNOS_2026-11-01.md` y retirado el 2026-11-24, en git: `git show 2fd22a65:docs/CORRECCIONES_ALUMNOS_2026-11-01.md` enlazan evidencia
   de `output/`, que existe en el checkout principal y no en un worktree. No es un enlace roto.
 - No se ha probado una instalación limpia ni un arranque nativo del lanzador con su servidor real:
   las pruebas de `run_gui.bat` lo ejecutan en una carpeta aislada con dobles del servidor y de npm.

@@ -8,7 +8,7 @@ El conversor tiene dos alternativas de entrada, no una:
    manual de exportar. Requiere Windows con el driver «Microsoft Access Driver» y
    ``pyodbc`` (extra ``convertersmartgrid[access]``).
 
-Ambas producen el **mismo** ``CymdistDataset``, de modo que el resto del motor
+Ambas producen el **mismo** ``DatasetRed``, de modo que el resto del motor
 —modelo, DGS, validación, lote— es idéntico y ya está probado. La equivalencia entre
 las dos vías se verifica en ``tests/test_access_input.py``.
 
@@ -49,7 +49,7 @@ from collections import defaultdict
 from pathlib import Path
 from typing import Any
 
-from .dataset import CymdistDataset
+from .dataset import DatasetRed
 
 ACCESS_DRIVER = 'Microsoft Access Driver (*.mdb, *.accdb)'
 
@@ -217,8 +217,8 @@ def read_access_dataset(
     load_year: int | None = None,
     networks: list[str] | None = None,
     equipment_tables: dict[str, tuple[dict[str, str], ...]] | None = None,
-) -> CymdistDataset:
-    """Lee una base CYMDIST y devuelve el mismo ``CymdistDataset`` que el lector TXT.
+) -> DatasetRed:
+    """Lee una base CYMDIST y devuelve el mismo ``DatasetRed`` que el lector TXT.
 
     ``equipment_db`` permite indicar otra base para el catálogo de equipos: no siempre
     vive en la misma (hay bases de red con ``CYMEQOVERHEADLINE`` vacía). Si se omite,
@@ -433,7 +433,7 @@ def read_access_dataset(
             '--equipment-db.'
         )
 
-    return CymdistDataset(
+    return DatasetRed(
         red_path=net_path,
         loads_path=net_path,
         equipment_path=eq_path,

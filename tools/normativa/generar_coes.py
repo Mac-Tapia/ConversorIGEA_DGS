@@ -437,13 +437,10 @@ def registro_medida() -> dict:
                                      'perfil se toma 0,5S, la de mayor error admisible (decisión del auditor 28).')}]}]}
 
 
+# Auditoría D.2 (2026-11-24): una sola copia, en tools/normativa/fuentes.py.
 def _argumentos(descripcion: str):
-    import argparse
-    ap = argparse.ArgumentParser(description=descripcion)
-    ap.add_argument('--fuentes', required=True,
-                    help='carpeta raíz de las fuentes oficiales descargadas (fuera de git), con su SHA256SUMS.txt')
-    ap.add_argument('--destino', required=True, help='raíz del repositorio: escribe en <destino>/config/normativa/')
-    return ap.parse_args()
+    from fuentes import argumentos_de_generador
+    return argumentos_de_generador(descripcion)
 
 
 if __name__ == '__main__':

@@ -50,7 +50,7 @@ ejecución tiene UUID propio, caché y temporales externos, hashes del candidato
 y después y JUnit enlazado. `--hash-datos` verifica criptográficamente las fuentes
 antes y después; sin él se conserva inventario de tamaño/fecha, que no es una huella.
 Una regresión no sustituye instalación limpia, arranque, evaluación científica ni
-aceptación eléctrica. Véase [verificación integrada](implementacion065/verificacion_integrada.md).
+aceptación eléctrica. Véase verificación integrada (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/implementacion065/verificacion_integrada.md`).
 
 ```powershell
 .venv/Scripts/python.exe -B tools/aceptar_dominio.py --help
@@ -154,7 +154,7 @@ preparado. La interfaz de escritorio Tkinter (`convertersmartgrid.gui`) se retir
 | `convertersmartgrid doctor [--json]` | Qué le falta a esta instalación, qué función afecta y cómo arreglarlo. Solo lee, y no gasta licencia. | 1 si falta algo imprescindible |
 | `convertersmartgrid soporte [--destino DIR]` | Reúne un `.zip` para soporte, con lista cerrada y registros anonimizados, sin datos del cliente. No lo envía. | 0 |
 | `convertersmartgrid version` | La versión del programa y sus notas. | 0 |
-| `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (`docs/VNR_GIS_PRODUCTION.md`). | — |
+| `vnr-etl` | Módulo VNR-GIS: descubrir, validar y exportar paquetes (ver «Anexo: VNR-GIS en producción»). | — |
 
 `convertersmartgrid` equivale a `python -m convertersmartgrid.presentacion.cli`; los ejemplos usan una u otra forma.
 
@@ -1165,7 +1165,7 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 
 | Herramienta | Para qué | PF |
 | --- | --- | --- |
-| `accept_three_sources.py` | Aceptación universal TXT/MDB/VNR-GIS hasta ajuste y estudio nativos (`docs/runbooks/universal-native-load-acceptance.md`). | opcional |
+| `accept_three_sources.py` | Aceptación universal TXT/MDB/VNR-GIS hasta ajuste y estudio nativos (`docs/MANUAL_COMANDOS.md` («Anexo: aceptación universal de carga en PowerFactory»)). | opcional |
 | `accept_digital_twin_in191_ta295.py` | Aceptación nativa del caso dorado del gemelo digital: dos lecturas en procesos nuevos, hechos del JSON `--esperado` (`tests/fixtures/digital_twin/in191_ta295_topology_episode.json` para IN191–TA295) y su episodio en el búfer. Solo lee; no entrena ningún modelo (spec 024, T8). | PF |
 | `_plural.py` | Concordancia de número de los avisos de los guiones: `cuenta(3, 'carga', 'cargas')` da «3 cargas», nunca «carga(s)» (086:RF-110). La importan los guiones de `tools/`, también los que corren con el intérprete de PowerFactory; solo usa la biblioteca estándar de Python 3.9. `python tools/_plural.py 3 carga cargas` lo prueba a mano. | |
 | `ajuste_cabecera_pf.py` | Ajusta un alimentador a su máxima de cabecera (sección 7.ter). | PF |
@@ -1245,10 +1245,10 @@ se ejecutan con el intérprete de PowerFactory (Python 3.12 con `powerfactory.py
 | `preparar_ciclo_aprendizaje.py` | Spec 050, T6. `--salida CARPETA_NUEVA --dataset D --observaciones JSONL --vocabulario V --twin BUFER --cabeceras LIBRO --llm-dataset CORPUS --casos-evolutivos CASOS --zona-horaria Z --cadencia-min N --horizontes H` escribe `procedencia.json`, `contexto_ciclo.json`, `cuarentena.json`, `vista_twin/` y `preparacion.json`, con las órdenes `congelar` y `ciclo --solo-preparar` listas y una sola copia. Solo lee las fuentes. Lo que no tiene procedencia demostrable va a cuarentena con su motivo; `--complemento` declara por proyecto `year`, `period`, `criterio_fijas` y `profile_hash`, que los episodios no traen, y nunca sustituye lo que el episodio dice. `--espacios RAIZ --perfil P --declarado-por RESPONSABLE` lo genera desde la última calibración de cada proyecto y el perfil vigente; `--proyecto-series P` vincula las series del libro al último caso base de ese proyecto y `--proyecto-casos P` arma casos evolutivos con sus escaleras, diciendo el parámetro que falte. La salida contiene datos de la distribuidora: fuera de git. Plan del ciclo (050:RF-32 a RF-35): `--solo-preparar --almacen <_asistente> --salida CARPETA_NUEVA --plan-salida <ruta>/plan.json --workspace-id ESPACIO --familias F1,F2 --tiempo-s S --memoria-gib G [--sin-gpu] [--raiz R]` toma del almacén lo no declarado (`dataset/`, `ejemplos.jsonl`, `informes.jsonl`, `vocabulario.json` y `../_digital_twin`), escribe los manifiestos en `--salida` y valida el plan con `validar_plan_ciclo`: familias, fuentes con su huella (`datasets`), puertas por familia y la matriz de las siete familias con estado `listo_para_preflight` o `bloqueado_por_datos` y su motivo. Solo con nada pendiente escribe el plan, y solo en `--plan-salida` (código 0); si falta algo imprime la lista entera en palabras del operador y no escribe plan (código 2). No congela instantánea ni entrena; un dataset de otro esquema bloquea sus familias y se nombran las versiones v2 que haya al lado, sin escoger ninguna. |
 | `rellenar_identidad_043.py` | Spec 086, RF-120. `--twin BUFER [--espacios RAIZ] [--perfil P]` dice, en seco, qué identidad 043 (periodo y criterio de fijas de la última calibración del proyecto anterior al episodio, del búfer o de los espacios, y la huella del perfil vigente) rellenaría a cada episodio grabado sin ella, de dónde la saca y por qué no la de los demás. `--aplicar --declarado-por RESPONSABLE` la escribe en `identidad_043.jsonl` del búfer, sin tocar `objetos/` ni el índice; `preparar_ciclo_aprendizaje.py` la combina con el objeto y nunca sustituye lo que el episodio dice. | |
 | `aprendizaje_continuo.py` | Ciclo común de la spec 050. `congelar --contexto HASH_O_EXPERIMENTO_O_MANIFIESTO --fuente nombre=ruta ...` copia y verifica lo que el ciclo consume. Para varios proyectos, el manifiesto de `crear_contexto_ciclo` conserva el mapa de identidades a huellas 043 y su huella agregada (instantánea v2); las capturas individuales v1 se siguen leyendo. `ciclo` además ejecuta, sobre esas copias, las etapas de `reentrenar_modelos.py` (`--familias`, `--politica-hash`, `--tiempo-s`, `--memoria-gib`, `--sin-gpu`), una vez por instantánea; `estado` muestra las siete fases con versiones y motivos; `cancelar --clave CLAVE` corta un ciclo en curso; `revertir` vuelve al conjunto anterior. Un bloqueo sale con código 2 y queda en `bloqueos.jsonl`. Opción común `--raiz`. | GPU solo con `ciclo` |
-| `preparar_upstream_ia.py` | Clona revisiones fijadas en `docs/UPSTREAM_IA_LOCK.json`; `--verificar` comprueba las copias sin descargar. Opciones `--catalogo`, `--destino` y `--output-json`. No instala dependencias ni ejecuta terceros; ver `docs/REUSO_GITHUB_IA_2026-10-31.md`. | |
+| `preparar_upstream_ia.py` | Clona revisiones fijadas en `docs/UPSTREAM_IA_LOCK.json`; `--verificar` comprueba las copias sin descargar. Opciones `--catalogo`, `--destino` y `--output-json`. No instala dependencias ni ejecuta terceros; ver retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REUSO_GITHUB_IA_2026-10-31.md`. | |
 | `asistente_ordenes_reales.py` | `extraer [--almacen RUTA] [--claude RUTA] [--codex RUTA] [--raiz-proyecto RUTA]` reúne las órdenes reales en `maestro_real/textos.jsonl`; `exportar [--almacen RUTA]` crea `maestro_real/revision.xlsx` con las etiquetas del maestro; `importar [--almacen RUTA] [--excel RUTA]` anota en `ejemplos.jsonl` solo lo que el operador marcó; `revisar-maestro --entrada JSONL [--almacen RUTA]` sella en `maestro_real/revisadas_047/` las órdenes revisadas una a una por un revisor de origen `maestro`, con su motivo: prueba aparte, nunca entrenan ni son humanas (047:RF-62, RF-63). En pantalla, solo recuentos. |
 | `asistente_modelo_provisional.py` | `ver` da el modelo en uso y las cifras del último candidato; `poner --candidato ID --decidido-por QUIEN --motivo TEXTO [--fecha F]` pone en uso, por decisión del usuario, un candidato que no pasa las puertas, sin aprobarlo: sigue rechazado y cada plan espera su confirmación; `volver` regresa al modelo anterior (spec 085, RF-26 a RF-33). | |
-| `asistente_destilar.py` | `preparar --destino RUTA [--por-familia N]` crea el corpus; `entrenar --dataset RUTA --destino NUEVA_RUTA [--semillas 11,23,37] [--epocas 24] [--registro RUTA]` compara supervisado/destilado; `verificar --modelo RUTA` recarga pesos; `ensayar --modelo RUTA [--ollama MODELO_LOCAL] --output-json RUTA` prueba intérprete y plan con alumno o agente híbrido. No activa el candidato ni escribe en PowerFactory. La cola de la web usa `asistente_entrenar.py --integral`. Ver `docs/DESTILACION_AGENTE_2026-10-31.md`. | GPU al entrenar/verificar/ensayar |
+| `asistente_destilar.py` | `preparar --destino RUTA [--por-familia N]` crea el corpus; `entrenar --dataset RUTA --destino NUEVA_RUTA [--semillas 11,23,37] [--epocas 24] [--registro RUTA]` compara supervisado/destilado; `verificar --modelo RUTA` recarga pesos; `ensayar --modelo RUTA [--ollama MODELO_LOCAL] --output-json RUTA` prueba intérprete y plan con alumno o agente híbrido. No activa el candidato ni escribe en PowerFactory. La cola de la web usa `asistente_entrenar.py --integral`. Ver retirado el 2026-11-24, en git: `git show 2fd22a65:docs/DESTILACION_AGENTE_2026-10-31.md`. | GPU al entrenar/verificar/ensayar |
 | `aceptar_agente.py` | `preparar --dataset CORPUS --destino NUEVA_RUTA [--publicar]`; `seleccionar --dataset CORPUS --destino NUEVA_RUTA --modelos NOMBRES`; `evaluar --corpus PROPUESTAS --dataset CORPUS --seleccion SELECCION/resultado.json --modelo NOMBRE --destino NUEVA_RUTA [--publicar]`; `preparar --revisadas-maestro CARPETA_SELLADA` copia el conjunto del maestro, que `evaluar` mide aparte de las humanas y del que deja `decision_ajuste.json` para `asistente_qlora.py --decision` (047:RF-64, RF-68). Las opciones `--dos-etapas` y `--sin-pensamiento` deben coincidir con selección. En Windows requiere 0,5 GiB físicos y 6 GiB comprometibles; sin ese contador exige 4 GiB físicos. Al terminar descarga de GPU solo su modelo. Publicar actualiza el informe que lee la web; no activa pesos. | GPU local mediante Ollama |
 | `preparar_modelos_ia.py` | `--output-json RUTA` audita el catálogo local; `--descargar` obtiene los pesos faltantes y `--backend huggingface` o `ollama` limita el proveedor. Verifica revisión, tamaño y SHA-256; devuelve código 2 si falta algún modelo. No activa candidatos ni ejecuta código remoto. | Red solo al descargar |
 | `run_one_study.py` | Trabajador de un estudio en su propio proceso (sección 8). | PF |
@@ -1390,3 +1390,230 @@ del programa: `normativa_usuario` en la carpeta local, o la que fije `CSG_NORMAT
 `agregar` rechaza un fichero que no cumple el esquema `registro_normativo_v1` y no deja nada en la capa. Una norma con
 el mismo acto que una del programa la sustituye, y queda anotado. `exportar` solo reescribe si cambió la huella de la
 biblioteca.
+
+## Anexo: VNR-GIS en producción
+
+(Antes en `docs/MANUAL_COMANDOS.md` («Anexo: VNR-GIS en producción»), fundido aquí el 2026-11-24.)
+
+### Alcance
+
+`vnr_etl` implementa un flujo auditable que reconstruye lo que falta en vez de negarse:
+
+```text
+fuente oficial/archivo/SQLite -> inventario y huellas -> modelo canónico
+-> reconstrucción (alimentadores, fuentes, tensión, fases, longitudes, cargas, CRS)
+-> catálogo de parámetros para los conductores -> motor convertersmartgrid
+-> DGS transaccional + manifiesto + informe de reconstrucción -> PowerFactory -> ComLdf
+```
+
+CLI y API Web usan `convertersmartgrid.adaptadores.entrada.vnr.application.VnrApplicationService`. Las puertas A–F se
+evalúan siempre y se informan, pero ninguna impide exportar (spec 001, RF-17 y RF-22 a
+RF-24): lo que les falta se reconstruye y se anota. La procedencia ausente se deriva de
+la huella del modelo o queda `DESCONOCIDO`; sin perfil de destino verificado se usa el
+perfil de esquema del motor; un error de relectura queda en el manifiesto. Solo se
+queda sin DGS un modelo sin ningún tramo, y G–H bloquean únicamente si quien llama exige
+evidencia de simulador. `EXPORT_READY` acredita A–F con los datos originales;
+`EXPORT_RECONSTRUCTED`, un DGS escrito con datos reconstruidos, que detallan
+`<red>_reconstruccion.json` y el manifiesto (`perfil_verificado`,
+`procedencia_reconstruida`, `roundtrip`, `avisos`).
+
+### Instalación
+
+```powershell
+py -3.12 -m venv .venv
+.\.venv\Scripts\python.exe -m pip install -r requirements.txt
+.\.venv\Scripts\python.exe -m pip install -r requirements-drivers.txt
+.\.venv\Scripts\python.exe -m vnr_etl doctor
+```
+
+Los drivers de Oracle, PostgreSQL, SQLAlchemy, RAR y la recuperación PDF/OpenCV van en
+`requirements-drivers.txt`, aparte del resto, para que uno que no se descargue no
+impida instalar lo demás. La ausencia de uno deshabilita solo su adaptador; `doctor`
+dice cuáles quedaron operativos. ODBC (`pyodbc`) va en `requirements.txt`, porque la
+vía Access del conversor lo necesita.
+
+### Uso CLI
+
+```powershell
+## Descubrimiento oficial y catálogo aditivo
+.\.venv\Scripts\python.exe -m vnr_etl search-vnr --latest
+.\.venv\Scripts\python.exe -m vnr_etl list-vnr
+.\.venv\Scripts\python.exe -m vnr_etl download-vnr PUBLICATION_ID
+
+## Inspección segura: un SQL se analiza, nunca se ejecuta
+.\.venv\Scripts\python.exe -m vnr_etl inspect-sql backup.sql
+
+## Inventario y conversión; sin CRS declarado se deduce de las coordenadas
+.\.venv\Scripts\python.exe -m vnr_etl inventory fuente.gpkg
+.\.venv\Scripts\python.exe -m vnr_etl convert fuente.gpkg `
+  --company EMPRESA --period latest_available --format json --output output\vnr
+
+## Validación/exportación con el perfil DGS versionado
+.\.venv\Scripts\python.exe -m vnr_etl validate output\vnr\canonical.json
+.\.venv\Scripts\python.exe -m vnr_etl export-dgs output\vnr\canonical.json
+```
+
+Al exportar, un dato ausente no detiene el proceso: se reconstruye y queda anotado con
+su valor original, la regla, el nivel de evidencia y la confianza. Los conductores se
+completan primero con el catálogo de parámetros (el del modelo y
+`input/catalogo_parametros.xlsx`), después por atributos compatibles, después por
+derivación física y, en último lugar, con un perfil provisional; lo que el conductor sí
+trae se conserva. Un CRS geográfico se reproyecta a su zona UTM; uno desconocido da un
+DGS sin georreferenciación, con las longitudes del modelo. No se crean cargas: una
+carga sin red ni coordenadas queda fuera, y el informe lo dice.
+
+Al leer (`convert`, `/api/vnr/topology/build`), una capa sin CRS declarado ya no se
+rechaza: si sus coordenadas están en grados se toma EPSG:4326 y se trabaja en su zona
+UTM; si no, se lee sin reproyectar y la red se exporta sin georreferenciación. El
+motivo queda en `metadata.crs_deducido`. `--source-crs` sigue mandando si se indica.
+
+### API Web y seguridad
+
+Las rutas de VNR forman parte de la API web única (`convertersmartgrid-web`), con su misma cola
+de trabajos; el lanzador `vnr-etl-web` y su token de sesión se retiraron (spec 001,
+RF-11). `vnr-etl web` abre esa misma web.
+
+```powershell
+.\.venv\Scripts\convertersmartgrid-web.exe            # o: python -m vnr_etl web
+```
+
+Las cargas usan identificadores
+opacos, límite de tamaño, nombre saneado y SHA-256. ZIP rechaza traversal, rutas
+absolutas, enlaces simbólicos y expansión excesiva. SQLite abre en `mode=ro` y las
+conexiones se cierran explícitamente. Los artefactos solo se sirven por ID de job
+y dentro de la raíz autorizada.
+
+Rutas de VNR, todas bajo `/api/vnr`: `doctor`, `companies`, `download`,
+`sources/upload`, `sources/inspect`, `database/test`, `database/discover`,
+`schema/resolve`, `topology/build`, `validate`, `reconcile`, `export/{target}` y
+`artifacts/{job_id}/{index}`. El catálogo oficial es `/api/vnr/publications`
+(`?refresh=true` lo actualiza), y el estado de un trabajo, `/api/jobs/{id}`, como el
+de cualquier otro.
+
+### Evidencia ejecutada el 2026-10-05
+
+- Suite focal del módulo: `55 passed, 1 warning`; integración VNR con la interfaz
+  principal: `85 passed, 1 warning`. La regresión completa se registra en la entrega.
+- Ruff no está instalado en el entorno actual; por tanto, lint queda `NOT_RUN` y no
+  se presenta como verificado.
+- PowerFactory 2024 real: importación de un proyecto nuevo, conteos esperados =
+  reales (2 nodos, 1 línea, 1 carga y 1 fuente), conectividad PASS, coordenadas
+  PASS y `ComLdf` convergente con retorno 0.
+- Informe: `AUDIT/vnr_acceptance/powerfactory_acceptance_verified.json`.
+- El caso de aceptación es sintético y verifica el motor/exportador; no sustituye
+  la aceptación de una publicación VNRGIS empresarial concreta.
+- Descubrimiento oficial final: la página GRT 2026 produjo tres PDF regulatorios
+  del proyecto VNR al 31-12-2025, no un paquete empresarial VNR-GIS completo. La
+  conversión real de Empresa A permanece `BLOCKED_MISSING_OFFICIAL_PACKAGE`
+  hasta obtener y custodiar ese paquete original.
+
+### Fundamento científico y técnico
+
+La arquitectura canónica y validada sigue la tesis doctoral de McMorran sobre CIM,
+perfiles y conversión de formatos propietarios
+(DOI [10.48730/bvtk-xz74](https://doi.org/10.48730/bvtk-xz74)). La unión de GIS
+operacional con análisis eléctrico se apoya en la tesis doctoral de Lu
+(DOI [10.48730/40hb-xf18](https://doi.org/10.48730/40hb-xf18)). La validación
+automatizada de datos de redes de distribución está respaldada por el artículo
+ISPRS (DOI [10.5194/isprs-archives-XLVIII-4-W18-2025-95-2026](https://doi.org/10.5194/isprs-archives-XLVIII-4-W18-2025-95-2026)), y el uso de GIS abierto para
+identificación topológica por Liu et al. (DOI
+[10.1016/j.ijepes.2024.110395](https://doi.org/10.1016/j.ijepes.2024.110395)).
+La procedencia reproducible se alinea con el trabajo de provenance para flujos
+geoespaciales (DOI [10.1016/j.cageo.2018.05.001](https://doi.org/10.1016/j.cageo.2018.05.001)).
+
+## Anexo: aceptación universal de carga en PowerFactory
+
+(Antes en `docs/MANUAL_COMANDOS.md` («Anexo: aceptación universal de carga en PowerFactory»), fundido aquí el 2026-11-24.)
+
+### Resultado que acredita
+
+Este procedimiento cierra cada fuente oficial —TXT, MDB o VNR-GIS— con el mismo
+recorrido: adaptador → contrato canónico → DGS → importación y relectura nativa →
+ajuste de P/Q → `ComLdf` → estudio. No existe un algoritmo alternativo por formato.
+
+El resultado aceptado es `NATIVE_LOAD_VERIFIED`. `DGS_READY` solo acredita el archivo
+DGS; una ejecución de PowerFactory sin medición de cabecera, medidor o estudio queda
+`BLOQUEADO_DATOS` y no se presenta como aceptación de carga.
+
+La arquitectura común sigue la interoperabilidad CIM desarrollada por McMorran en su
+tesis doctoral (<https://stax.strath.ac.uk/concern/theses/cc08hf706>) y el modelado de
+redes desde GIS y datos operativos investigado por Lu en su tesis doctoral
+(<https://pureportal.strath.ac.uk/en/studentTheses/predicting-power-distribution-network-characteristics-and-load-pr/>)
+y Tefera en su tesis de maestría
+(<https://etd.aau.edu.et/items/56fa0725-26f3-4436-b102-7f00fd4ffa6b>). La verificación
+previa de topología y parámetros se apoya en el artículo indexado IEEE TIM, DOI
+10.1109/TIM.2022.3175043 (<https://ieeexplore.ieee.org/document/9781319/>).
+
+### Entradas
+
+- Los paquetes oficiales de cada modalidad disponible.
+- Un alimentador y su medidor de cabecera mediante `--feeder` y
+  `--meter ALIMENTADOR=MEDIDOR`.
+- El libro o carpeta de medición mediante `--cabecera`.
+- Juntos, `--suministros` y `--clientes`, cuando existen clientes importantes. El libro
+  de clientes debe demostrar el mismo mes natural que la máxima.
+- PowerFactory y su intérprete Python cuando se usa `--powerfactory`.
+
+No se sustituye una fuente oficial ausente. Sin paquete VNR-GIS, el estado correcto es
+`BLOCKED_MISSING_OFFICIAL_PACKAGE`.
+
+### Ejecución
+
+```powershell
+python tools\accept_three_sources.py `
+  --audit-dir AUDIT\native_load_YYYYMMDD_HHMMSS `
+  --feeder CA191 `
+  --meter CA191=L-CA131 `
+  --cabecera "ruta\medicion_cabecera" `
+  --suministros "ruta\suministros.xlsx" `
+  --clientes "ruta\clientes_2026-04.xlsx" `
+  --txt-red "ruta\RED.txt" `
+  --txt-loads "ruta\CARGA.txt" `
+  --txt-equipment "ruta\EQUIPOS.txt" `
+  --mdb "ruta\red.mdb" `
+  --vnr-package "ruta\paquete_vnr.zip" `
+  --study-key flujo `
+  --powerfactory
+```
+
+`--feeder`, `--meter` y `--study-key` se pueden repetir. Sin libros de clientes se
+permite el reparto por kVA y se conserva el aviso; no se inventan clientes fijos.
+
+### Evidencia por modalidad
+
+`acceptance_summary.json` usa el esquema
+`convertersmartgrid-three-source-native-load-v1` y contiene:
+
+- hash de la auditoría canónica, archivos fuente y DGS;
+- bancos esperados y releídos, potencia, nodo y correcciones antes/después;
+- conteo escrito y releído del atributo `p:alimentador`;
+- vínculo entre ejecución fuente y proyecto nativo;
+- periodo de máxima, periodo y fingerprint del libro de clientes;
+- SED fijas y escaladas, derivación P=`Pot` y Q=`Pot×ERI/EA`;
+- relectura nativa de P, Q, FP, `outserv` e `i_scale`;
+- objetivo y resultado P/Q de cabecera;
+- validez de `ComLdf`, tensiones, cargabilidad y violaciones físicas.
+
+### Reglas no bloqueantes
+
+- `AVISO_KVAR` conserva diferencia firmada, relativa y tolerancia con
+  `bloquea=false`. El kW convergente dentro de tolerancia es el criterio de cuadre.
+- Una diferencia de banco se corrige al valor de origen; solo si falta capacidad se
+  usa el catálogo operativo: 300 kVAr en 10 kV y 450 kVAr en 22,9 kV. El informe debe
+  indicar el nodo y los valores anterior, aplicado y releído.
+- `AVISO_PERSISTENCIA_CORREGIDA` y `AVISO_PERSISTENCIA_NO_CORREGIDA` informan bancos y
+  no detienen conversión, ajuste ni estudio.
+
+`BLOQUEADO_PERSISTENCIA` se reserva para una escritura o relectura nativa requerida que
+no queda demostrada; no se usa por una diferencia reactiva de banco o cabecera.
+
+### Niveles de comprobación
+
+1. Salida del comando: prueba que el proceso terminó.
+2. Guardado: prueba que PowerFactory aceptó la operación.
+3. Reapertura/relectura: prueba los valores efectivos del objeto nativo.
+4. `ComLdf`: prueba convergencia con la red ya cargada.
+5. Aceptación física: prueba tensiones, cargabilidad y ausencia de violaciones.
+
+Un test automatizado o un guion falso no reemplaza los niveles 2–5. Una modalidad no
+ejecutada queda explícitamente pendiente; nunca hereda la evidencia de otra.

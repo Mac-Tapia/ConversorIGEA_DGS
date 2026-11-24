@@ -13,6 +13,7 @@ from convertersmartgrid.adaptadores.digital_twin.buffer import BuferEpisodios, C
 from convertersmartgrid.dominio.digital_twin.episode import Caso
 from convertersmartgrid.dominio.estructura import AlimentadorEstructura, Estructura, Sistema
 from convertersmartgrid.dominio.native_action import build_native_action_context
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 H = 'e' * 64
@@ -176,7 +177,7 @@ def test_captura_se_apaga_con_su_variable(monkeypatch):
                                      'guion_ejecutar'])
 def test_cada_accion_nativa_de_la_web_registra_su_episodio(funcion):
     """024:RF-1 — toda acción nativa de la web pasa por el único punto de captura."""
-    arbol = ast.parse((RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8'))
+    arbol = ast.parse(fuente_servicios_web())
     definicion = next(n for n in arbol.body if isinstance(n, ast.FunctionDef) and n.name == funcion)
     llamadas = {n.func.id for n in ast.walk(definicion)
                 if isinstance(n, ast.Call) and isinstance(n.func, ast.Name)}

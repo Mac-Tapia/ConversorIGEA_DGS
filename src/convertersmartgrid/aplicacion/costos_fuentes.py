@@ -26,6 +26,7 @@ from collections.abc import Iterable, Iterator, Mapping, Sequence
 from dataclasses import asdict, dataclass, field
 from itertools import chain, islice, pairwise
 from pathlib import Path
+from ..dominio.util import sha256_file
 
 #: Componentes del costo total de una instalación, con el nombre de su columna en el SICODI.
 COMPONENTES = {'material': 'COSTO MAT', 'stock': 'COSTO STOCK', 'mano_obra': 'COSTO MO', 'transporte': 'COSTO TRANS',
@@ -230,13 +231,8 @@ def leer_sicodi(ruta: Path | str, *, resolucion: str, anio: int, moneda: str, ur
     return TablaCostos(fuente, filas, columnas={k: f'{_INSTALACION}: {c}' for k, c in COMPONENTES.items()})
 
 
-def _huella(ruta: Path) -> str:
-    """SHA-256 por bloques: el libro del SICODI pesa decenas de MB."""
-    h = hashlib.sha256()
-    with ruta.open('rb') as f:
-        for bloque in iter(lambda: f.read(1 << 20), b''):
-            h.update(bloque)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+_huella = sha256_file
 
 
 def _es_libro(ruta: Path) -> bool:

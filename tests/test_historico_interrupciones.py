@@ -273,9 +273,9 @@ def _faltan_reales() -> list[str]:
 def test_historico_real_da_tasas_mayores_que_cero():
     """012:RF-6, RF-8, RF-62 — el histórico real de la empresa, tal cual, da tasas mayores que cero
     para las líneas y los transformadores, normalizadas con la red del TXT, y lo dice."""
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
-    ds = CymdistDataset.from_files(os.environ['CSG_RED'], os.environ['CSG_LOADS'], os.environ['CSG_EQUIPMENT'])
+    ds = DatasetRed.from_files(os.environ['CSG_RED'], os.environ['CSG_LOADS'], os.environ['CSG_EQUIPMENT'])
     libro = de.leer_libro(os.environ['CSG_INTERRUPCIONES'], red=ds)
     assert libro.tasas['linea'].permanente > 0 and libro.tasas['linea'].reparacion_h > 0
     assert libro.tasas['transformador'].permanente > 0

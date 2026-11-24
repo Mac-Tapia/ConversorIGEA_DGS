@@ -28,7 +28,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.model import (LARGO_MAXIMO_CARGA_CENTRAL_M, Line, ModelBuildError,
                             _load_node, build_feeder_model)
 from synthetic_export import ExportSpec, load_export, write_export
@@ -96,7 +96,7 @@ class TestLaTensionDeFuente:
         texto = red.read_text(encoding='utf-8')
         assert fase_neutro in texto
         red.write_text(texto.replace(fase_neutro, ''), encoding='utf-8')
-        ds = CymdistDataset.from_files(red, carga, equipo)
+        ds = DatasetRed.from_files(red, carga, equipo)
         with pytest.raises(ModelBuildError) as exc:
             build_feeder_model(ds, ds.feeder_ids()[0], strict=True)
         assert 'DesiredVoltage' in str(exc.value)
@@ -185,7 +185,7 @@ class TestElContratoDelConductorPorTramo:
         lineas.insert(i + 2, 'SEC_1_0,SEC_1_0,,0,0,AA05001D,40.0')
         red.write_text('\n'.join(lineas) + '\n', encoding='utf-8')
         with pytest.raises(ValueError, match='dos conductores distintos'):
-            CymdistDataset.from_files(red, carga, equipo)
+            DatasetRed.from_files(red, carga, equipo)
 
     def test_una_tabla_explicita_manda_sobre_los_ajustes(self, tmp_path):
         """Si el export trae las dos cosas, [LINE CONFIGURATION] es la explícita."""
@@ -195,7 +195,7 @@ class TestElContratoDelConductorPorTramo:
                   'FORMAT_LINECONFIGURATION=SectionID,LineCableID,Length,Overhead\n'
                   'SEC_1_0,AA05001D,999.0,1\n')
         red.write_text(texto, encoding='utf-8')
-        ds = CymdistDataset.from_files(red, carga, equipo)
+        ds = DatasetRed.from_files(red, carga, equipo)
         assert ds.line_configurations['SEC_1_0']['LineCableID'] == 'AA05001D'
         assert float(ds.line_configurations['SEC_1_0']['Length']) == pytest.approx(999.0)
         # Y los demás siguen viniendo de las tablas de ajuste.
@@ -253,7 +253,7 @@ class TestLaEntregaRealLarga:
                 base / '260922Equipos.txt')
         if not all(p.is_file() for p in trio):
             pytest.skip('la entrega larga no está en esta máquina')
-        return CymdistDataset.from_files(*trio)
+        return DatasetRed.from_files(*trio)
 
     def test_se_leen_los_tramos(self, entrega):
         assert len(entrega.sections) > 38000

@@ -6,7 +6,7 @@
       Hecho cuando: `pytest -q tests/test_asistente_vectores_097.py` en verde.
 - [x] T3. Medición real en la GPU: calibrar los candidatos en 047 y 077, sellar una vez el elegido. (RF-4, RF-5, RF-6, RF-7, RF-8)
       Hecho cuando: el informe está en `docs/` con las métricas de cada candidato y la decisión anotada aquí.
-      Hecho el 2026-11-13 (`docs/EVALUACION_VECTORES_097.json`; salidas en `D:/csg/rag_097_20261113`). «Conserva» del
+      Hecho el 2026-11-13 (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/EVALUACION_VECTORES_097.json`; salidas en `D:/csg/rag_097_20261113`). «Conserva» del
       híbrido con abstención 0,95: en el 047, bge-m3 1,000 [0,946; 1,000], e5-large 0,973 [0,919; 1,000] y nomic 0,811
       [0,676; 1,000]; en el 077, 0,064, 0,059 y 0,047. Por RF-11 ninguno queda fuera (bge-m3 − nomic en el 047:
       [0,000; 0,297]) y decide la memoria (320 frente a 596 y 657 MiB, latencias dentro del 20 %): **sigue
@@ -28,7 +28,7 @@
       usuario. (RF-5, RF-7, RF-14, RF-19)
       Hecho cuando: antes, con la calibración del 077 rehecha sin las preguntas que el corpus ya lleva (RF-19), se
       recalibra la abstención y se sella una vez por modelo de vectores en la GPU, y se repite la elección de RF-11; las
-      cifras van a `docs/EVALUACION_VECTORES_097.json` (las de la T3 en el 077 se midieron con la calibración anterior,
+      cifras van a retirado el 2026-11-24, en git: `git show 2fd22a65:docs/EVALUACION_VECTORES_097.json` (las de la T3 en el 077 se midieron con la calibración anterior,
       que tenía 233 de sus 308 preguntas en el corpus). Por modelo `<m>`
       (nomic-embed-text, bge-m3, jeffh/intfloat-multilingual-e5-large:f16), con `S=D:/csg/rag_097_limpio`:
       `python tools/asistente_evaluar_rag.py --corpus 077 --calibrar --modelo-vectores <m> --datos $S/m_<m> --salida $S/calibra_077_<m>.json`
@@ -37,7 +37,7 @@
       (desde la T6, con el sellado del 047 de cada modelo, el en uso incluido: RF-24).
       Y luego `vectores_en_uso.json` existe en la carpeta del asistente y la web responde con el modelo elegido; o, si la
       elección deja el modelo en uso, la decisión anotada aquí (RF-6).
-      Hecho el 2026-11-21 (d8, bloque GPU; `docs/EVALUACION_VECTORES_097.json`, clave `eleccion_t5`; salidas en
+      Hecho el 2026-11-21 (d8, bloque GPU; retirado el 2026-11-24, en git: `git show 2fd22a65:docs/EVALUACION_VECTORES_097.json`, clave `eleccion_t5`; salidas en
       `D:/csg/PM_IMPL/GPU_BLOQUE/097_T5c`): con la regla de RF-11 y RF-24, bge-m3 queda fuera porque su Recall@10
       sellado del 047 baja de 0,974 a 0,949 frente a nomic con los mismos denominadores (79 preguntas, 39 con
       respuesta; una perdió su ancla al medir, RF-8) y e5-large queda fuera por su sellado (Recall@10 del reranker

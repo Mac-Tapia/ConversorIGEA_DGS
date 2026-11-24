@@ -25,7 +25,7 @@ from pathlib import Path
 import numpy as np
 
 from ..digital_twin.pronostico import Objetivo
-from ..pronostico_demanda import CurvaCompacta, Dataset, Exogenas, abrir_dataset
+from ..pronostico_demanda import CurvaCompacta, Dataset, Exogenas, abrir_dataset, arreglos
 from ...dominio.benchmarks.seudonimos import Mapa
 
 SERIES = 'series.csv'
@@ -68,12 +68,7 @@ def banda(maximo_kw_o_kva: float) -> str:
     return '1–5 MVA' if maximo_kw_o_kva <= 5000 else '> 5 MVA'
 
 
-def arreglos(o: Objetivo) -> tuple[np.ndarray, np.ndarray]:
-    if isinstance(o.curva, CurvaCompacta):
-        return o.curva.t, o.curva.columnas[0]
-    orden = sorted(o.curva, key=lambda f: f[0])
-    return (np.array([t for t, _v in orden], dtype='datetime64[ns]'),
-            np.array([v for _t, v in orden], dtype=float))
+# Auditoría D.2 (2026-11-24): arreglos tiene una sola copia, la de pronostico_demanda (donde vive CurvaCompacta).
 
 
 def _intervalo(dataset: Dataset) -> tuple[np.datetime64, np.datetime64] | None:

@@ -6,7 +6,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.adaptadores.dgs import _ORIGEN_DGS
 from convertersmartgrid.dominio.model import FeederModel
 
@@ -20,7 +20,7 @@ def test_la_cabecera_dice_su_fuente_y_ninguna_dice_cymdist():
 
 def test_el_dataset_y_el_modelo_traen_su_fuente_con_txt_por_defecto():
     """056:RF-3 — un dataset o un modelo sin fuente declarada es un TXT, como hasta ahora."""
-    assert {f.name: f.default for f in fields(CymdistDataset)}['fuente'] == 'txt'
+    assert {f.name: f.default for f in fields(DatasetRed)}['fuente'] == 'txt'
     assert {f.name: f.default for f in fields(FeederModel)}['fuente'] == 'txt'
 
 

@@ -12,7 +12,7 @@
 
 ## Global Constraints
 
-Rigen la constitución y las restricciones del [plan maestro](../../docs/superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md#global-constraints).
+Rigen la constitución y las restricciones del plan maestro (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md`).
 No crear otro registro, particionador o conexión nativa; consumir los contratos de
 043 y 044. Antes de editar, comparar diffs y verificar rutas actuales; «integrar»
 significa conservar cambios propios y ajenos, no reemplazar árboles completos.

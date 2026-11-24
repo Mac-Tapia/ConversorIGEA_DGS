@@ -12,7 +12,7 @@ import math
 import re
 from typing import Mapping, Sequence
 
-from .dataset import CymdistDataset
+from .dataset import DatasetRed
 from .fases_red import fases_de_carga_que_llegan, fases_desde_la_cabecera
 from .dataset import (TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA,
                        TABLAS_TIPOS_SUBTERRANEO)
@@ -449,7 +449,7 @@ def capacitor_from_source(row: Mapping[str, object]) -> CapacitorBank:
     )
 
 
-def capacitor_node(dataset: CymdistDataset, row: Mapping[str, object]) -> str:
+def capacitor_node(dataset: DatasetRed, row: Mapping[str, object]) -> str:
     node_id = str(_source_value(row, 'NodeID', 'ConnectionNode') or '').strip()
     if node_id:
         return node_id
@@ -461,7 +461,7 @@ def capacitor_node(dataset: CymdistDataset, row: Mapping[str, object]) -> str:
 
 
 def capacitor_owner_candidates(
-    dataset: CymdistDataset, row: Mapping[str, object],
+    dataset: DatasetRed, row: Mapping[str, object],
 ) -> set[str]:
     explicit = str(_source_value(row, 'NetworkID', 'FeederID') or '').strip()
     if explicit:
@@ -524,7 +524,7 @@ def _line_type_from_row(table: str, row: Mapping[str, str]) -> LineType:
     )
 
 
-def _catalog(dataset: CymdistDataset) -> tuple[dict[str, LineType], dict[str, list[LineType]]]:
+def _catalog(dataset: DatasetRed) -> tuple[dict[str, LineType], dict[str, list[LineType]]]:
     by_key: dict[str, LineType] = {}
     by_code: dict[str, list[LineType]] = {}
     for table in TABLAS_TIPOS_LINEA:
@@ -656,7 +656,7 @@ def _resolve_type(
 
 
 def unresolved_line_type_codes(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     aliases: Mapping[str, str] | None = None,
 ) -> set[str]:
     """Devuelve los códigos usados que el conversor resolvería a DEFAULT."""
@@ -811,7 +811,7 @@ def _polyline_length_m(points: Sequence[tuple[float, float]]) -> float:
 
 
 def _section_projected_path(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     section_id: str,
     from_node: str,
     to_node: str,
@@ -871,7 +871,7 @@ def palabras_de(fuente: str | None) -> dict[str, str]:
     return PALABRAS_POR_FUENTE.get(str(fuente or 'txt').lower(), PALABRAS_POR_FUENTE['txt'])
 
 
-def apply_georeferenced_lengths(model: FeederModel, dataset: CymdistDataset) -> FeederModel:
+def apply_georeferenced_lengths(model: FeederModel, dataset: DatasetRed) -> FeederModel:
     """Replace LINE CONFIGURATION lengths with polyline meters from georeferenced nodes.
 
     Uses NODE.CoordX/Y (projected CRS, typically metres) plus INTERMEDIATE NODES when
@@ -1010,7 +1010,7 @@ def check_length_scale_agreement(
 
 def prove_mt_connections(
     model: FeederModel,
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     *,
     require_coordinates: bool = True,
 ) -> dict:
@@ -1197,7 +1197,7 @@ LARGO_MAXIMO_PUENTE_M = 10.0
 
 
 def _short_default_node_aliases(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     network_id: str,
     source_node: str,
 ) -> dict[str, str]:
@@ -1302,7 +1302,7 @@ def _fases_coherentes(name: str, source_node: str, lines: list[Line],
 
 
 def build_feeder_model(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     selector: str,
     *,
     aliases: Mapping[str, str] | None = None,

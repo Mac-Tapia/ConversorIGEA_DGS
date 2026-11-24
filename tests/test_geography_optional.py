@@ -20,7 +20,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.model import (
     ModelBuildError,
     build_feeder_model,
@@ -82,7 +82,7 @@ def _write_feeder(tmp_path, *, coords: dict[str, tuple[str, str]], length_txt: f
         ]),
         encoding='utf-8',
     )
-    return CymdistDataset.from_files(red, loads, equip)
+    return DatasetRed.from_files(red, loads, equip)
 
 
 # 3-4-5: cada tramo mide 50 m de geometría.

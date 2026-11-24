@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any
 
 from ..dominio.util import write_json_atomic
+from ..dominio.util import sha256_file
 from .madrl_obras import (
     Accion,
     ParametrosObras,
@@ -49,8 +50,8 @@ def huella_grafo(grafo: Mapping[str, Any]) -> str:
     return _huella(grafo)
 
 
-def huella_fichero(ruta: Path) -> str:
-    return hashlib.sha256(Path(ruta).read_bytes()).hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+huella_fichero = sha256_file
 
 
 def alimentadores_de(grafo: Mapping[str, Any]) -> list[str]:

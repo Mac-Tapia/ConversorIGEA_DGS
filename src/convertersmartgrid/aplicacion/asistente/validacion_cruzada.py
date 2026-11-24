@@ -22,6 +22,7 @@ from ...dominio.util import cuenta
 from . import codificador_ordenes as co
 from .maestro_real import clave_texto, con_erratas
 from .sinteticos import CORTESIAS, Ejemplo
+from ...dominio.util import raiz_union
 
 VUELTAS = 5
 SEMILLA = 75
@@ -116,10 +117,7 @@ def agrupar_familias(filas: Sequence[dict]) -> list[list[dict]]:
     padre = list(range(len(filas)))
 
     def raiz(i: int) -> int:
-        while padre[i] != i:
-            padre[i] = padre[padre[i]]
-            i = padre[i]
-        return i
+        return raiz_union(padre, i)
 
     for i in range(len(filas)):
         for j in range(i):

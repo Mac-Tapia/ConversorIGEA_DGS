@@ -89,7 +89,7 @@ T4 (RF-9), 2026-11-07, rama `worktree-agent-a578852c96aa94605` sobre `main` `7e8
   caso y el escenario «Con proyecto» (creados el 2026-11-07, sin obras) y las etapas de fichas y SED NTP adelantadas antes de la
   hora de «Con proyecto»; «Caso base» y «Sin proyecto» releídos antes y después, idénticos (0,0 p.u., 0,0 kW, mismas huellas).
 
-Ejecución 2026-10-31: ver [registro y pendientes](../../docs/EJECUCION_IA_2026-10-31.md).
+Ejecución 2026-10-31: ver registro y pendientes (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/EJECUCION_IA_2026-10-31.md`).
 
 Ampliación 2.A (RF-10 a RF-12), 2026-11-14, rama `trabajo/evaluacion-final-estadistica` sobre `51895566`. Sin GPU ni DIgSILENT.
 - `evaluacion_harness/estadistica.py`: Wilson, Holm, McNemar exacto, varianza HAC (Bartlett y uniforme), DM-HLN, Wilcoxon

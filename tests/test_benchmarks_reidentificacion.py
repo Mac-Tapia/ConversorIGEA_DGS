@@ -288,14 +288,14 @@ def test_geometria_de_uso_local_reproduce_y_se_marca(tmp_path, semilla, layout):
     assert importlib.util.find_spec('convertersmartgrid.dominio.benchmarks.geometria'), 'falta convertersmartgrid.dominio.benchmarks.geometria'
     pytest.importorskip('pandapower')
     from convertersmartgrid.adaptadores.benchmarks import generar_benchmark
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     trio = _red_grande(tmp_path, semilla, feeders=3, layout=layout)
     m = generar_benchmark(*trio, tmp_path / 'bench', semilla=SECRETA, raiz=tmp_path / 'local')
     assert m['uso_local'] is True
     assert m['geometria']['trazado'] == 'sintetico' and 0 < m['geometria']['amplitud'] <= 0.05
     assert m['geometria']['identificados'] >= 1        # lo esperado con una red real perturbada (aclaración RF-14)
-    original = CymdistDataset.from_files(*trio)
-    bench = CymdistDataset.from_files(*(tmp_path / 'bench' / n for n in ('RED.txt', 'CARGA.txt', 'BD_Equipo.txt')))
+    original = DatasetRed.from_files(*trio)
+    bench = DatasetRed.from_files(*(tmp_path / 'bench' / n for n in ('RED.txt', 'CARGA.txt', 'BD_Equipo.txt')))
     xo = sorted(float(n['CoordX']) for n in original.nodes.values() if n.get('CoordX'))
     xb = sorted(float(n['CoordX']) for n in bench.nodes.values() if n.get('CoordX'))
     assert len(xo) == len(xb) and xo != xb
@@ -329,9 +329,9 @@ def test_geometria_el_publicable_sale_de_las_estadisticas_y_no_se_identifica(tmp
     assert m['estadisticas']['alimentadores'] == 6 and m['estadisticas']['tramos'] >= 500
     # Ningún tramo del origen (su código con su longitud) está en el publicable: el generador comparte la forma de los
     # códigos, no los tramos.
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
-    original = CymdistDataset.from_files(*trio)
-    pub = CymdistDataset.from_files(*(tmp_path / 'pub' / n for n in ('RED.txt', 'CARGA.txt', 'BD_Equipo.txt')))
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
+    original = DatasetRed.from_files(*trio)
+    pub = DatasetRed.from_files(*(tmp_path / 'pub' / n for n in ('RED.txt', 'CARGA.txt', 'BD_Equipo.txt')))
     tramos_o = {(s, c['Length']) for s, c in original.line_configurations.items()}
     tramos_p = {(s, c['Length']) for s, c in pub.line_configurations.items()}
     assert len(tramos_p) >= 500 and not tramos_o & tramos_p

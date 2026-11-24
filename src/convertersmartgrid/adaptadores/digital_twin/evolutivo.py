@@ -39,6 +39,7 @@ from ...aplicacion.experimentos import ContextoExperimento
 from ...dominio.digital_twin.episode import Caso, Clase
 from .evaluacion import Limites, evaluar
 from .oraculo import S_BASE, Muestra, escalar_nodo, muestra, sistema_de
+from ...dominio.util import raiz_union
 from .problema_optimizacion import (
     ContextoSintetico,
     Objetivo,
@@ -611,10 +612,7 @@ def _lazos(m: Muestra) -> int:
     padre = np.arange(len(m.ids))
 
     def raiz(i: int) -> int:
-        while padre[i] != i:
-            padre[i] = padre[padre[i]]
-            i = int(padre[i])
-        return i
+        return raiz_union(padre, i)
 
     lazos = 0
     a, b = m.aristas

@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from ..dominio.util import publicar_duradero, write_json_atomic
+from ..dominio.util import sha256_file
 
 CLASES = ('sicodi', 'pit', 'red_area', 'vad', 'vad_caso', 'tdr', 'pide', 'perfil', 'catalogo', 'pfd', 'medicion',
           'demanda', 'cargas_nuevas', 'proyeccion', 'alternativas', 'interrupciones', 'otro')
@@ -48,12 +49,8 @@ class Fuente:
     miembros: list[dict] = field(default_factory=list)
 
 
-def _huella(ruta: Path) -> str:
-    h = hashlib.sha256()
-    with ruta.open('rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+_huella = sha256_file
 
 
 def _nombre_seguro(nombre: str) -> str:

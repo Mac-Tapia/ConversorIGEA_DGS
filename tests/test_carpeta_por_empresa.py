@@ -15,6 +15,7 @@ from convertersmartgrid.adaptadores.carpeta_pf import (
 )
 from convertersmartgrid.adaptadores.powerfactory_binding import ProjectBindingError
 from convertersmartgrid.presentacion.web import services
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 _AZAR = random.Random(81)
@@ -166,7 +167,7 @@ def test_vinculo_ilegible_no_bloquea(perfil, monkeypatch):
 
 def test_ningun_plan_sale_sin_la_carpeta_de_su_vinculo():
     """081:RF-54 — todo plan con proyecto pasa por ``carpeta_de(ws, proyecto)``; ``carpeta_pf`` solo la usa la regla."""
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     assert not re.findall(r"'project': (?:project|proyecto)[^\n]*'folder': carpeta_de\(ws\)", fuente)
     assert "'--pf-carpeta', carpeta_de(ws, project), '--source-dgs'" in fuente
     usos = [m for m in re.findall(r'^.*\bcarpeta_pf\b(?!\.py).*$', fuente, re.M) if not re.search(r'from \.+(?:\w+\.)*carpeta_pf import', m)]
@@ -215,7 +216,7 @@ def test_crea_su_carpeta_y_no_mueve_nada():
 
 def test_se_dice_en_la_estructura_y_al_importar():
     """081:RF-53 — en el plan a la vista y en el resultado de la importación, también el supuesto."""
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     assert "perfil_no_aplicado['carpeta_destino'] = asdict(destino)" in fuente and "'carpeta': asdict(destino)," in fuente
     assert 'ctx.log(destino.aviso)' in fuente
     assert 'estructura?.carpeta_destino?.aviso' in (RAIZ / 'frontend/src/features/conversion/FeedersPanel.tsx').read_text(encoding='utf-8')

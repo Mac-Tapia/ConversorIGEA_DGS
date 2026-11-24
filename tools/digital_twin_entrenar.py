@@ -41,16 +41,10 @@ if str(REPO / 'src') not in sys.path:
     sys.path.insert(0, str(REPO / 'src'))
 
 
+# Auditoría D.2 (2026-11-24): una sola copia, en convertersmartgrid.dominio.util.avisar.
 def _log(mensaje: str) -> None:
-    """El avance a quien escuche; si la web que lo lanzó ya no está, se entrena igual.
-
-    2026-10-24: con la web parada a mitad, el primer ``print`` dio «OSError 22» en la salida
-    rota y el entrenamiento se perdió aunque la GPU seguía libre.
-    """
-    try:
-        print(mensaje, flush=True)
-    except OSError:
-        pass
+    from convertersmartgrid.dominio.util import avisar
+    avisar(mensaje)
 
 
 def _reabrir(carpeta: Path) -> int:

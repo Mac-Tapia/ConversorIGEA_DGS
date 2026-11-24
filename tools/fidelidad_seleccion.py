@@ -27,7 +27,7 @@ from collections import Counter
 from pathlib import Path
 
 from convertersmartgrid.aplicacion.batch import convert_selection, load_aliases
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.aplicacion.inventory import build_dataset_inventory
 from convertersmartgrid.dominio.model import build_feeder_model
 
@@ -94,7 +94,7 @@ def main(argv=None) -> int:
     args = p.parse_args(argv)
 
     print('Leyendo los TXT…')
-    ds = CymdistDataset.from_files(args.red, args.cargas, args.equipos)
+    ds = DatasetRed.from_files(args.red, args.cargas, args.equipos)
     aliases = load_aliases(args.alias)
     inv = build_dataset_inventory(ds)
     integ = inv['integrity']

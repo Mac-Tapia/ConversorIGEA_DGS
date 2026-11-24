@@ -28,6 +28,7 @@ from collections.abc import Iterable, Iterator, Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
+from convertersmartgrid.dominio.util import sha256_file
 
 RAIZ = Path(__file__).resolve().parents[1]
 MANIFIESTO = RAIZ / 'config' / 'entrega.json'
@@ -385,12 +386,8 @@ def _es_peso_por_contenido(ruta: Path) -> bool:
     return False
 
 
-def _sha256(ruta: Path) -> str:
-    h = hashlib.sha256()
-    with ruta.open('rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+_sha256 = sha256_file
 
 
 def motivo_de_peso(ruta: Path, rel: str, manifiesto: Mapping[str, Any]) -> str | None:

@@ -46,13 +46,10 @@ if str(_REPO / 'src') not in sys.path:
     sys.path.insert(0, str(_REPO / 'src'))
 
 
+# Auditoría D.2 (2026-11-24): una sola copia, en convertersmartgrid.dominio.util.avisar.
 def _log(mensaje: str) -> None:
-    """El avance a quien escuche; si la web que lo lanzó ya no está, se entrena igual
-    (con la salida rota, ``print`` daba «OSError 22» y se perdía el entrenamiento)."""
-    try:
-        print(mensaje, flush=True)
-    except OSError:
-        pass
+    from convertersmartgrid.dominio.util import avisar
+    avisar(mensaje)
 
 
 def main(argv=None) -> int:
@@ -123,6 +120,7 @@ def main(argv=None) -> int:
             from convertersmartgrid.aplicacion.asistente import almacen, clasificador, transformer
             from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
             from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
             destino = salida.parent / (salida.stem + '_integral')
             vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
                      else almacen.leer_json('vocabulario') or {})
@@ -139,7 +137,9 @@ def main(argv=None) -> int:
             from convertersmartgrid.aplicacion.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
             fijas_de_prueba = [e.texto for e in repartir_fijas(generar_fijas(vocab))[1]] if args.validacion_cruzada else []
             lock = ruta_guardia_gpu()
-            with BloqueoGPU(lock, 'asistente-integral-web'):
+            # 106:RF-21 (2026-11-24): con BloqueoGPU directo caía al instante con «GPU ocupada» si el turno lo tenía otro (la
+            # 070 T22, en su ensayo, con el gancho de un commit); turno_gpu espera con plazo y dice quién lo tiene.
+            with turno_gpu('asistente-integral-web'):
                 resultado = entrenar_destilacion(destino / 'corpus', destino / 'entrenamiento',
                     cfg=codificador_ordenes.Configuracion(
                         epocas=args.epocas, codificador=args.codificador, **({'afinar_capas': args.afinar_capas, 'afinar_lote': args.afinar_lote,

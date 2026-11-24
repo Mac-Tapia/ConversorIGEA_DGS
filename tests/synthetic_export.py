@@ -37,11 +37,11 @@ from convertersmartgrid.dominio.benchmarks.sintetico import (  # noqa: F401
 
 
 def load_export(spec: ExportSpec, out_dir: Path):
-    """Genera el export y lo devuelve ya leído como ``CymdistDataset``.
+    """Genera el export y lo devuelve ya leído como ``DatasetRed``.
 
     Se queda en las pruebas: usa el lector (capa de adaptadores) y el generador del núcleo es de dominio.
     """
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
     red, carga, equipo = write_export(spec, out_dir)
-    return CymdistDataset.from_files(red, carga, equipo)
+    return DatasetRed.from_files(red, carga, equipo)

@@ -136,7 +136,7 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
     que el DGS no depende de él (002:RF-20); los parámetros guardados no cambian.
     """
     from convertersmartgrid.aplicacion.batch import convert_group, convert_selection
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from convertersmartgrid.dominio.naming import feeder_short_name
     from convertersmartgrid.aplicacion.reglas import catalogo_del_proyecto
 
@@ -145,7 +145,7 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
 
     # Un dataset por conversión: preparar_dataset completa coordenadas y catálogo sobre
     # el propio dataset, y la red unida no debe partir de uno ya preparado por el lote.
-    ds = CymdistDataset.from_files(red, loads, equipment)
+    ds = DatasetRed.from_files(red, loads, equipment)
     por_alimentador = salida / 'alimentadores'
     manifiesto = convert_selection(
         ds, None, por_alimentador, all_feeders=True, aliases=p['aliases'],
@@ -155,7 +155,7 @@ def _calcular(red: Path, loads: Path, equipment: Path, salida: Path, *,
         catalogo=catalogo,
     )
 
-    ds = CymdistDataset.from_files(red, loads, equipment)
+    ds = DatasetRed.from_files(red, loads, equipment)
     selectores = [feeder_short_name(n) for n in ds.feeder_ids() if ds.feeders.get(n)]
     red_unida = salida / 'red_unida'
     grupo = convert_group(

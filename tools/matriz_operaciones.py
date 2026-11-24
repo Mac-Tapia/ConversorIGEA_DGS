@@ -39,14 +39,23 @@ SPECS_DEL_ASISTENTE = ('026', '047', '070')
 #: aquí, y una abierta sin fila hace fallar ``--comprobar``.
 RESPONSABLES: dict[str, str] = {
     '047:T4': 'sin asignar: evaluación real (GPU)', '047:T7': 'sin asignar: destilación del LLM (GPU)',
-    '047:T7c': 'd8: reentrenamiento en GPU del alumno con el corpus v7 (cola pesada)',
     '047:T8': 'sin asignar: revisión que distingue defectos',
     '047:T10': 'd8: medida en GPU de la revisión con contradicciones estructuradas',
     '047:T11': 'd8: medida en GPU de la revisión con contradicciones fundadas y por base (047e)',
     '047:T13': 'd8: medida en GPU de la revisión con costes comprobados por el código (047f)',
     '047:T14': 'd8: medida en GPU de la revisión con el coste del código, las dudas de la acción y el riesgo (047g)',
+    '047:T16': 'd8: medida en GPU de la revisión con los datos respaldados por el código (047h)',
+    '047:T17': 'd8: medida en GPU de la revisión con los elementos de otra red (047i)',
+    '047:T18': 'd8: medida en GPU de la revisión con los precios por unidad y por km (047j)',
+    '047:T19': 'd8: medida en GPU de la revisión con otras formas de prohibir (047k)',
+    '047:T20': 'd8: medida en GPU de la revisión con la negación y el permiso (047l)',
+    '047:T21': 'd8: medida en GPU de la revisión con el precio por la pieza contada (047m)',
+    '047:T22': 'd8: medida en GPU de la revisión con las reglas de RF-96 a RF-101 (047n)',
+    '047:T23': 'd8: aceptación en GPU de la revisión con 24 casos (047o)',
+    '047:T24': 'd8: aceptación en GPU de la revisión con los datos de cada sano respaldados (047p)',
+    '047:T25': 'd8: aceptación en GPU de la revisión con el dictamen final de cada rol (047q)',
     '070:T11': 'usuario: candidato en DIgSILENT',
-    '070:T22': 'ce: reentreno en GPU (turno 6 de TURNOS_GPU_ce_2026-11-19)',
+    '070:T22': 'd8: reentreno en GPU del modelo de órdenes con el contrato de tareas nuevo (cola de d8)',
 }
 
 _VIA = {'consulta': 'consulta', 'trabajo': 'plan', 'proceso': 'proceso', 'etapas': 'etapas'}

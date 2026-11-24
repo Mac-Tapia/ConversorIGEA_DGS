@@ -2,12 +2,12 @@
 
 Spec 034: 034:RF-1.
 """
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 
 
 def test_dataset_parses_all_source_tables_once(csg_paths):
     red, loads, equip = csg_paths
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     n_feeders = len(ds.feeder_ids())
     assert n_feeders >= 1
     assert len(ds.sources) == n_feeders

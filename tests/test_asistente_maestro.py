@@ -17,6 +17,7 @@ from convertersmartgrid.aplicacion.asistente import almacen
 from convertersmartgrid.presentacion.web import asistente_operacion as operacion
 from convertersmartgrid.presentacion.web import services
 from convertersmartgrid.presentacion.web.app import create_app
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 #: Fijada antes de entrenar ningún candidato (070:RF-70): no se actualiza para que pase una prueba.
@@ -1085,7 +1086,7 @@ def test_cadena_el_libro_es_solo_del_perfil():
     """070:RF-55 — lo decide el informe, que ya lo escribe solo si el perfil lo declara (066:RF-1): aquí no se fuerza."""
     fuente = (RAIZ / 'src/convertersmartgrid/aplicacion/asistente/orquestador.py').read_text(encoding='utf-8')
     assert 'libro_informe' not in fuente and 'libro_xlsx' not in fuente
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     assert '_libro_del_informe(ctx, destino, imagenes)' in fuente
 
 # ------------------------------------------------------------------ T6, reglas de dominio

@@ -70,6 +70,8 @@ HUELLA_047N = '3bd4f48e38bd14edb934366df10e2813dfb5a973e1f1289fa276a26211a207fb'
 HUELLA_047O = '0b2bfe80bb8a44467ef24f454eb1f093f6237e1cadeb95bc57cd4455056557b3'
 #: 047 T24: el 047o orientó RF-102; la aceptación es con otro conjunto de 24 casos, declarado el 2026-11-24 antes de medir.
 HUELLA_047P = 'e6855d63aebeff55db0fbdf239c47c267c6004fef4426cb76d5071037ce42704'
+#: 047 T25: el 047p orientó RF-103; la aceptación es con otro conjunto de 24 casos, declarado el 2026-11-24 antes de medir.
+HUELLA_047Q = 'eb04a0a39151cedf0e6ed31b449c91b860e23f2b5a32d62165795cc89ea23b0a'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
 DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
               'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E,
@@ -82,7 +84,8 @@ DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CAS
               'REVISION_ROLES_CASOS_047m.json': HUELLA_047M,
               'REVISION_ROLES_CASOS_047n.json': HUELLA_047N,
               'REVISION_ROLES_CASOS_047o.json': HUELLA_047O,
-              'REVISION_ROLES_CASOS_047p.json': HUELLA_047P}
+              'REVISION_ROLES_CASOS_047p.json': HUELLA_047P,
+              'REVISION_ROLES_CASOS_047q.json': HUELLA_047Q}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}

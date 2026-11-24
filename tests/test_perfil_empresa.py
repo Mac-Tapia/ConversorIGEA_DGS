@@ -17,7 +17,7 @@ from pathlib import Path
 import pytest
 
 from synthetic_export import ExportSpec, write_export
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.perfil_empresa import (
     SIN_PERFIL,
     VARIABLE_RUTA,
@@ -42,7 +42,7 @@ def _convertir(tmp_path: Path, perfil: PerfilEmpresa, nombre: str, *, geografia:
     from convertersmartgrid.aplicacion.batch import convert_selection
 
     red, loads, equip = write_export(ExportSpec(feeders=2, naming='plain'), tmp_path / 'export')
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     out = tmp_path / nombre
     manifiesto = convert_selection(
         ds, None, out, all_feeders=True, include_geography=geografia,
@@ -122,7 +122,7 @@ def test_sin_crs_no_se_supone_ninguno(tmp_path):
     from convertersmartgrid.adaptadores.geography import CrsOrigenFaltaError
 
     red, loads, equip = write_export(ExportSpec(feeders=1), tmp_path / 'export')
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     with pytest.raises(CrsOrigenFaltaError, match='crs_origen'):
         convert_selection(ds, None, tmp_path / 'out', all_feeders=True, include_geography=True)
     assert not list((tmp_path / 'out').glob('*.dgs'))
@@ -308,7 +308,7 @@ def test_la_red_unida_registra_el_perfil(tmp_path):
     from convertersmartgrid.aplicacion.batch import convert_group
 
     red, loads, equip = write_export(ExportSpec(feeders=2, naming='plain'), tmp_path / 'export')
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     grupo = convert_group(ds, ['AL01', 'AL02'], tmp_path / 'out', name='UNIDA',
                           include_geography=False, perfil=EMPRESA_B,
                           reglas=reglas_de_perfil(EMPRESA_B))

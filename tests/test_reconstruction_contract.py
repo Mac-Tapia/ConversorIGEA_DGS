@@ -8,11 +8,11 @@ import json
 from dataclasses import asdict
 from pathlib import Path
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 
 
-def _dataset() -> CymdistDataset:
-    return CymdistDataset(
+def _dataset() -> DatasetRed:
+    return DatasetRed(
         red_path=Path('original-red.txt'),
         loads_path=Path('original-loads.txt'),
         equipment_path=Path('original-equipment.txt'),
@@ -32,7 +32,7 @@ def _dataset() -> CymdistDataset:
     )
 
 
-def _fingerprint(dataset: CymdistDataset) -> str:
+def _fingerprint(dataset: DatasetRed) -> str:
     return json.dumps(asdict(dataset), sort_keys=True, default=str)
 
 

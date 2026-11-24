@@ -22,6 +22,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 import numpy as np
+from ...dominio.util import raiz_union
 
 #: Por debajo de esta impedancia (p.u.) una rama es un acoplador y une sus dos barras.
 Z_ACOPLADOR = 1e-5
@@ -58,10 +59,7 @@ class SistemaMallado:
         padre = np.arange(n)
 
         def raiz(i: int) -> int:
-            while padre[i] != i:
-                padre[i] = padre[padre[i]]
-                i = int(padre[i])
-            return i
+            return raiz_union(padre, i)
 
         acoplador = np.abs(z) < Z_ACOPLADOR
         for k in np.flatnonzero(acoplador):

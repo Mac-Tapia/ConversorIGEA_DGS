@@ -1,6 +1,6 @@
 """Auditoria canonica posterior a cualquier adaptador de fuente.
 
-Los adaptadores solo traducen su formato a ``CymdistDataset``. Desde aqui no existe
+Los adaptadores solo traducen su formato a ``DatasetRed``. Desde aqui no existe
 ninguna bifurcacion por procedencia: la propiedad del alimentador, los conteos y los
 bloqueos se calculan una sola vez sobre el dataset normalizado.
 """

@@ -49,11 +49,11 @@ def test_missing_capacity_is_retained_without_synthetic_number():
 
 
 def test_txt_reader_preserves_shunt_capacitor_setting(tmp_path):
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from synthetic_export import write_export
 
     red, loads, equipment = write_export(ExportSpec(feeders=1), tmp_path / 'export')
-    base = CymdistDataset.from_files(red, loads, equipment)
+    base = DatasetRed.from_files(red, loads, equipment)
     network_id = base.feeder_ids()[0]
     node = base.sources[network_id]['NodeID']
     with red.open('a', encoding='utf-8') as stream:
@@ -64,7 +64,7 @@ def test_txt_reader_preserves_shunt_capacitor_setting(tmp_path):
             f'BC_TXT,{network_id},{node},7,150,3,450,10,1\n'
         )
 
-    dataset = CymdistDataset.from_files(red, loads, equipment)
+    dataset = DatasetRed.from_files(red, loads, equipment)
 
     assert dataset.capacitor_settings == ({
         'DeviceNumber': 'BC_TXT', 'NetworkID': network_id, 'NodeID': node,

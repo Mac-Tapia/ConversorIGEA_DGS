@@ -13,6 +13,7 @@ from convertersmartgrid.aplicacion.costos_fuentes import (CostosError, FuenteCos
                                                partir_codigo_vnr)
 from convertersmartgrid.dominio.estudio_planeamiento import EstudioError, aviso_del_anio_medido, estudio_de
 from convertersmartgrid.aplicacion.metrados import metrados_de_lineas, valorar_metrados
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 HORIZONTE = json.loads((RAIZ / 'config/pide_universal_2017.json').read_text(encoding='utf-8'))['horizonte']
@@ -166,7 +167,7 @@ def test_componente_en_blanco_es_sin_dato_no_cero(tmp_path):
 
 def test_datos_del_plan_activan_el_estudio():
     """072:RF-1 — el servicio del PIDE forma los años desde el plan, no de una lista fija."""
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     assert "estudio_de(plan_pide['anio_presentacion']" in fuente
 
 
@@ -209,13 +210,13 @@ def test_metrados_de_un_alimentador_real():
     """072:RF-15 — con datos reales: cuadra con el largo de todos los tramos del modelo."""
     import os
 
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from convertersmartgrid.dominio.model import build_feeder_model
 
     rutas = [os.environ.get(k) for k in ('CSG_RED', 'CSG_LOADS', 'CSG_EQUIPMENT')]
     if not all(rutas):
         pytest.skip('sin los TXT reales')
-    ds = CymdistDataset.from_files(*rutas)
+    ds = DatasetRed.from_files(*rutas)
     modelo = build_feeder_model(ds, ds.feeder_ids()[0])
     m = metrados_de_lineas(modelo.lines)
     assert m['tramos'] == len(modelo.lines) > 0

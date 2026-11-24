@@ -27,7 +27,7 @@ TABLAS_TIPOS_LINEA: tuple[str, ...] = TABLAS_TIPOS_AEREO + TABLAS_TIPOS_SUBTERRA
 
 
 @dataclass(frozen=True)
-class CymdistDataset:
+class DatasetRed:
     red_path: Path
     loads_path: Path
     equipment_path: Path

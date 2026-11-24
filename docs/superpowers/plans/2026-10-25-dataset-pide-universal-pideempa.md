@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12, biblioteca estándar, PyPDF, python-docx, openpyxl, pyogrio opcionales, JSON/JSONL, pytest.
 
-**Spec:** `docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideempa-design.md`
+**Spec:** retirado el 2026-11-24, en git: `git show 2fd22a65:docs/superpowers/specs/2026-10-25-dataset-pide-universal-pideempa-design.md`
 
 ## Global Constraints
 

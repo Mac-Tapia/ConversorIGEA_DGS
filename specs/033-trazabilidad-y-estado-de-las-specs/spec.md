@@ -1,10 +1,10 @@
 # Spec 033 — Trazabilidad y estado de las specs
 
-Estado: cumplida (2026-10-29) · aprobada el mismo día, pedida por el usuario: «nada debe quedar suelto» · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`
+Estado: cumplida (2026-10-29) · aprobada el mismo día, pedida por el usuario: «nada debe quedar suelto» · Fecha: 2026-10-29 · Origen: retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REVISION_SPECS_2026-10-29.md`
 
 ## Contexto y objetivo
 
-La revisión del 2026-10-29 (`docs/REVISION_SPECS_2026-10-29.md`) cruzó las 30 specs con
+La revisión del 2026-10-29 (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REVISION_SPECS_2026-10-29.md`) cruzó las 30 specs con
 sus tareas, sus pruebas, el índice del código y los commits, y encontró la suite en verde
 con todo esto mal:
 

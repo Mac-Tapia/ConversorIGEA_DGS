@@ -739,7 +739,6 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `tools/aceptar_agente.py` | Materializa propuestas, selecciona configuración local y evalúa las 200 sin ejecutar acciones nativas; mide aparte el conjunto sellado del maestro y deja la decisión de ajuste. | 047 (RF-16 a RF-18, RF-64, RF-68) |
 | `tools/preparar_modelos_ia.py` | Descarga explícita y auditoría de pesos fijados, sin activación. | 043 (RF-12) |
 | `docs/MODELOS_IA_LOCK.json` | Revisiones, licencias, tamaños y hashes de los modelos locales seleccionados. | 043 (RF-12) |
-| `docs/DEPENDENCIAS_IA_LOCK.json` | Versiones, fuentes, hashes de bibliotecas y ejecutable Ipopt del entorno IA instalado. | 043 (RF-12) |
 
 
 ## Documentación
@@ -753,28 +752,17 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `docs/ARQUITECTURA.md` | Arquitectura actual: capas de hecho, flujos, casos de PowerFactory, carriles, asistente y modelos. | vigente |
 | `docs/ARQUITECTURA_CATALOGO.md` | Catálogo generado: cada fichero, cifras, tareas del asistente y roles de su equipo. | generado |
 | `docs/architecture/subsistemas.json` | A qué subsistema del catálogo va cada fichero. | vigente |
-| `docs/VERIFICACION_SPECS_2026-10-14.md` | Verificación de cada spec, RF por RF y tarea por tarea. | histórico |
-| `docs/REVISION_SPECS_2026-10-29.md` | Revisión de numeración, estado y trazabilidad spec ↔ tareas ↔ pruebas ↔ código, con el plan de saneamiento (futura spec 033). | vigente |
 | `docs/MANUAL_COMANDOS.md` | Cada orden del CLI y cada herramienta. | vigente |
 | `docs/MANUAL_INSTALACION.md` | Instalar, actualizar, volver atrás, copias y perfil de empresa en el programa instalado, para una persona ajena al proyecto. | 086 (RF-44) |
 | `docs/NOTAS_VERSION_1.0.0.md` | Notas de la etiqueta `v1.0.0`: qué hace, qué cambió desde el rc5 con sus commits, requisitos, limitaciones y licencias. | 086 (T34) |
 | `docs/GUIA_PRUEBA_PERSONA_AJENA.md` | Pasos, lo que se debe ver y hoja del observador para la prueba de una persona ajena con el manual. | 086 (T41) |
 | `docs/POWERFACTORY_ACCEPTANCE.md` | Aceptación en PowerFactory. | vigente |
-| `docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md` | Investigación de mejoras de gemelo, PINN/GNN, pronóstico, LLM/PLN y optimización evolutiva/PNL sobre el código existente, con repositorios y bibliografía. | propuesta, 2026-10-31 |
-| `docs/VERIFICACION_PUBLICACIONES_IA_PF_2026-10-31.md` | Contraste de los enlaces PINN, TradingAgents y protecciones DIgSILENT con código local y brechas reproducidas. | 043–049, borrador |
-| `docs/superpowers/plans/2026-10-31-mejora-integral-ia-conversor.md` | Plan maestro SDD con dependencias, contratos, paquetes de implementación y aceptación independiente/nativa. | 043–049, borrador |
-| `docs/VNR_GIS_PRODUCTION.md` | Operación del módulo VNR-GIS. | vigente |
 | `docs/runbooks/three-source-production-acceptance.md` | Aceptación de las tres fuentes. | vigente |
-| `docs/runbooks/universal-native-load-acceptance.md` | Aceptación universal hasta carga, relectura y estudio nativos. | vigente |
 | `VNR-GIS.md` | Diseño completo de VNR-GIS, citado por secciones en el código. | vigente |
 | `input/README.md` | Qué va en `input/`. | vigente |
 | `specs/NNN-*/` | Specs, planes y tareas. | vigente |
 | `docs/DIAGNOSTICO_*.md` | Diagnósticos fechados que dieron origen a specs. | histórico |
-| `docs/EJECUCION_IA_2026-10-31.md` | Evidencia de implementación, revisión independiente y pendientes reales por spec. | 043, 044, 046 |
 | `docs/UPSTREAM_IA_LOCK.json` | URLs, commits y hashes de licencias de los proyectos GitHub seleccionados. | 043 (RF-9) |
-| `docs/REUSO_GITHUB_IA_2026-10-31.md` | Selección de proyectos, reproducción de clones, adaptador comprobado y límites pendientes. | 043, 045–048 |
-| `docs/DESTILACION_AGENTE_2026-10-31.md` | Metodología, currículo del maestro, comparación real y límites de aceptación del alumno del agente. | 043, 044, 047 |
-| `docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md` | Auditoría de las 200 propuestas, medición real, instalación de dependencias y pendientes de aceptación integral. | 043, 047 |
 | `docs/superpowers/` | Diseños y planes anteriores a las specs. | histórico |
 
 ## Observación integrada del agente

@@ -7,7 +7,7 @@ from types import SimpleNamespace
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 
 
 def _equipment(code='C2'):
@@ -17,8 +17,8 @@ def _equipment(code='C2'):
     }
 
 
-def _dataset() -> CymdistDataset:
-    return CymdistDataset(
+def _dataset() -> DatasetRed:
+    return DatasetRed(
         red_path=Path('red-original.txt'), loads_path=Path('loads-original.txt'),
         equipment_path=Path('equipment-original.txt'),
         headnodes={'N0': 'F-A', 'N2': 'F-B'},

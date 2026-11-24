@@ -47,7 +47,7 @@ la spec 005 (RF-2, RF-3) y no entra aquí.
   CYMDIST», «CYMDIST TXT», «export CYMDIST» por los TXT): se dicen «los TXT» o «los ficheros TXT (RED, CARGA y
   BD_Equipo)». CYMDIST se sigue nombrando donde lo es: la base Access (.mdb), su estudio (.zxst/.xst), la exportación
   de VNR-GIS a su formato (`vnr-etl --format cymdist`, `exporters`, `cymdist_bridge`) y el nombre interno del dataset
-  común (`CymdistDataset`), que no es un texto para el operador. Esta spec y las pruebas que citan los textos de antes
+  común (`DatasetRed`, que hasta el 2026-11-24 se llamó `CymdistDataset`: los TXT no son de CYMDIST), que no es un texto para el operador. Esta spec y las pruebas que citan los textos de antes
   quedan como explicación.
 - Aclaración de RF-3 (2026-11-22, por la aclaración de RF-8): la cabecera del DGS de los TXT dice «TXT to DIgSILENT
   DGS converter». Un DGS escrito antes con «CYMDIST» se sigue leyendo como TXT al nombrar su proyecto (RF-1), y la

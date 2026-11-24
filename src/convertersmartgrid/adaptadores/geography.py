@@ -8,7 +8,7 @@ from dataclasses import dataclass
 from pathlib import Path
 import math
 
-from .dataset import CymdistDataset
+from .dataset import DatasetRed
 from ..dominio.model import FeederModel
 from ..dominio.util import write_json_atomic
 
@@ -175,7 +175,7 @@ def ordenar_intermedios(section_id: str, rows: Sequence[Mapping[str, object]]) -
 
 
 def build_geography(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     model: FeederModel,
     *,
     source_crs: str | None,
@@ -206,7 +206,7 @@ def build_geography(
         nodes[node_id] = GeoPoint(lat=lat, lon=lon, x=x, y=y)
         xs.append(x); ys.append(y); lons.append(lon); lats.append(lat)
 
-    # Índice del dataset, construido una vez para todo el lote (ver CymdistDataset).
+    # Índice del dataset, construido una vez para todo el lote (ver DatasetRed).
     intermediate_by_section = {
         sid: rows for sid in model.section_by_id
         if (rows := dataset.intermediate_by_section.get(sid))

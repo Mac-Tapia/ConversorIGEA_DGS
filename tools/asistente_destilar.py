@@ -69,11 +69,14 @@ def main(argv=None) -> int:
         elif args.accion == 'entrenar':
             from convertersmartgrid.aplicacion.asistente.codificador_ordenes import Configuracion
             from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
             semillas = tuple(int(s) for s in args.semillas.split(',') if s.strip())
             ruta = ruta_guardia_gpu()
-            with BloqueoGPU(ruta, 'destilacion-integral'):
+            # 106:RF-21 (2026-11-24): con BloqueoGPU directo caía al instante con «GPU ocupada» si el turno lo tenía otro (la
+            # 070 T22, en su ensayo, con el gancho de un commit); turno_gpu espera con plazo y dice quién lo tiene.
+            with turno_gpu('destilacion-integral'):
                 resultado = entrenar_destilacion(args.dataset, args.destino,
                     cfg=Configuracion(epocas=args.epocas), semillas=semillas, registro=args.registro)
         elif args.accion == 'verificar':
@@ -86,8 +89,11 @@ def main(argv=None) -> int:
             from convertersmartgrid.aplicacion.asistente.destilacion_integral import cargar_alumno, ensayar_funcionamiento, evaluar_agente, leer_corpus
             from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
             from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+            from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
             ruta = ruta_guardia_gpu()
-            with BloqueoGPU(ruta, 'ensayo-agente-integral'):
+            # 106:RF-21 (2026-11-24): con BloqueoGPU directo caía al instante con «GPU ocupada» si el turno lo tenía otro (la
+            # 070 T22, en su ensayo, con el gancho de un commit); turno_gpu espera con plazo y dice quién lo tiene.
+            with turno_gpu('ensayo-agente-integral'):
                 cliente = ClienteOllama(modelo=args.ollama, tiempo_max_s=60.) if args.ollama else None
                 try:
                     modelo = cargar_alumno(args.modelo)

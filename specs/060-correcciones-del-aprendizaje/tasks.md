@@ -44,7 +44,7 @@ ni oculta informes anteriores. `pip check` satisfactorio. Trama global de specs 
 22 pruebas aprobadas; la prueba nativa T12 de019 sigue abierta con estado implementada.
 Índice, ayudas, manual y trazabilidad final:91 aprobadas sin omisiones en
 `indice_y_trazabilidad_final.xml`; los cuatro trabajadores quedaron documentados.
-[Entrega y límites](../../docs/CORRECCIONES_ALUMNOS_2026-11-01.md).
+Entrega y límites (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/CORRECCIONES_ALUMNOS_2026-11-01.md`).
 
 T6: campaña CUDA real con2975 observaciones de enero2025 de la hoja L-TM195,
 cinco semillas, máximo40 épocas; selección eligió23. Candidato con MAE181,381kW

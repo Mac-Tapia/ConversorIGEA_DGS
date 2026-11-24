@@ -118,7 +118,7 @@ aquella revisión; la ubicación operativa actual es el adaptador indicado arrib
 
 ## Flujo de conversión
 
-1. **Lectura.** El adaptador de la fuente elegida devuelve un `CymdistDataset`, una sola lectura para todos los alimentadores.
+1. **Lectura.** El adaptador de la fuente elegida devuelve un `DatasetRed`, una sola lectura para todos los alimentadores.
    `sources/snapshot.py` fija la huella de los ficheros y `web/source_runs.py` los custodia: cada carga es una ejecución
    inmutable y no se mezclan fuentes.
 2. **Selección.** Un alimentador, varios, todos o un sistema eléctrico (`estructura.py`). Un estudio CYMDIST (`study.py`) puede
@@ -384,7 +384,7 @@ servidor ni otro registro. La parada temprana y la calibración usan familias ap
 persistidos. Un warm-start exige la genealogía de lo visto, y si falta o contamina las reservas se ajusta desde cero. El corpus lleva
 una copia verificada de su política. Las medianoches de la medición no se desplazan y cada error temporal dice su hoja y su fila. Los
 modelos heredados se consultan con su versión y una advertencia, sin promoverlos ni cargar Torch. Evidencia en
-[`CORRECCIONES_ALUMNOS_2026-11-01.md`](CORRECCIONES_ALUMNOS_2026-11-01.md).
+`CORRECCIONES_ALUMNOS_2026-11-01.md` (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/CORRECCIONES_ALUMNOS_2026-11-01.md`).
 
 ## Gemelo digital (024, 045)
 

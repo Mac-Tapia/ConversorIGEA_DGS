@@ -41,12 +41,12 @@ def _vnr_package(tmp_path: Path, companies: tuple[str, ...]) -> Path:
 def test_txt_igual_que_el_lector_directo(tmp_path, layout):
     """001:RF-1 — las dos disposiciones de export, por el adaptador común."""
     from convertersmartgrid.presentacion.cli import load_dataset
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
     red, loads, equip = write_export(ExportSpec(feeders=3, layout=layout), tmp_path / 'e')
     ds = load_dataset(_args('list', '--red', str(red), '--loads', str(loads),
                             '--equipment', str(equip)))
-    esperado = CymdistDataset.from_files(red, loads, equip)
+    esperado = DatasetRed.from_files(red, loads, equip)
     assert ds.feeder_ids() == esperado.feeder_ids()
     assert len(ds.sections) == len(esperado.sections)
     assert len(ds.nodes) == len(esperado.nodes)

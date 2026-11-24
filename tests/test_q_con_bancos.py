@@ -122,6 +122,7 @@ def test_por_proyecto_solo_el_alimentador_con_bancos_cuadra_su_q():
 # ------------------------------------------------------------------ el guion de DIgSILENT
 from apoyo import cargar_herramienta  # noqa: E402
 from test_ajuste_cabecera_guion import _app, _banco, _carga, _plan  # noqa: E402
+from apoyo import fuente_servicios_web
 
 
 @pytest.fixture(scope='module')
@@ -259,7 +260,7 @@ def test_la_web_dice_que_cuadra_cada_una(tmp_path):
     from pathlib import Path
 
     raiz = Path(__file__).resolve().parents[1]
-    servicios = (raiz / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8')
+    servicios = fuente_servicios_web()
     assert "plan['recalibracion'] = 0 if not previa else int(previa.get('recalibracion') or 0) + 1" in servicios
     ajuste = (raiz / 'frontend' / 'src' / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
     assert 'Calibración: solo se cuadra la P (kW).' in ajuste

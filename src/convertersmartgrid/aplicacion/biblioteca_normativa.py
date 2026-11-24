@@ -24,6 +24,7 @@ from pathlib import Path
 from ..dominio.registro_normativo import (ESQUEMA, Norma, Regla, RegistroError, RegistroNormativo, cargar_registro, leer_norma,
                                  leer_regla)
 from ..dominio.util import publicar_duradero
+from ..dominio.util import sha256_file
 
 #: Variable que cambia la carpeta de la capa del usuario.
 VARIABLE_CAPA = 'CSG_NORMATIVA_USUARIO'
@@ -124,12 +125,8 @@ def agregar_norma(fichero: Path | str, *, capa_usuario: Path | None = None) -> l
     return actos or [str(datos['amplia'])]
 
 
-def _sha256(ruta: Path) -> str:
-    h = hashlib.sha256()
-    with ruta.open('rb') as f:                  # solo los bytes: el libro oficial nunca se abre con COM
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+_sha256 = sha256_file
 
 
 def comprobar_fuentes(carpeta: Path | str | None, fecha: str, *, raiz: Path | None = None,

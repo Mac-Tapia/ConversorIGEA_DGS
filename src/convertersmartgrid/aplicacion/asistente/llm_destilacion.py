@@ -14,7 +14,7 @@ from .contratos_salida import validar_orden
 from .custodia_corpus import CustodiaCorpus, leer_custodia, ruta_fuente
 # El corpus del ajuste generativo se selló con estas tareas; el catálogo nuevo no lo cambia (070, limitaciones).
 from .tareas import TIPOS_DATO, TAREAS_HASTA_069 as TAREAS, sistema_alumno
-from ...dominio.dataset import CymdistDataset
+from ...dominio.dataset import DatasetRed
 from ..evaluacion_modelos import huella, texto_canonico
 from ...dominio.runtime_paths import raiz_programa
 from ...dominio.util import publicar_duradero
@@ -172,7 +172,7 @@ def _respuesta_de_spans(registro: dict) -> str:
     return json.dumps(respuesta, ensure_ascii=False, separators=(',', ':'))
 
 
-def extraer_referencia(*, dataset: CymdistDataset, red: Path, cargas: Path, equipos: Path, estructura_pdf: Path,
+def extraer_referencia(*, dataset: DatasetRed, red: Path, cargas: Path, equipos: Path, estructura_pdf: Path,
                       mediciones: Path, nuevos_clientes: Path, workspaces: list[Path]) -> tuple[list[dict], dict]:
     """Lee registros reales; el PDF no reemplaza la pertenencia del TXT.
 

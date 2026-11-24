@@ -308,6 +308,11 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
   respaldado, sigue sin respuesta (RF-38). EL SISTEMA dará también por respaldado un coste 0 cuando la evidencia diga
   que no lo hay («sin materiales», «sin costo», «no necesita materiales»). Con el 047o (2026-11-24), en los dos modos,
   dos sanos con todos sus datos respaldados quedaron sin respuesta porque el modelo bloqueó sin motivo en las dos rondas.
+- RF-103: EL SISTEMA contará como «sin respuesta» solo el dictamen final de cada rol, después del reintento de RF-81; y
+  SI un rol bloquea sin ningún motivo Y el código ya halló una comprobación fallida, ENTONCES el bloqueo llevará esos
+  hallazgos del código como sus contradicciones, con su origen. Con el 047p (2026-11-24), dos sanos que el reintento
+  resolvió y terminaron aprobados se contaban sin respuesta por la primera ronda, y un defecto que el código ya había
+  hallado quedó sin respuesta porque el rol de coste bloqueó sin decir por qué.
 
 ## Requisitos no funcionales
 
@@ -341,7 +346,7 @@ No declarar promoción, entrenamiento ni aceptación eléctrica a partir del pla
 
 ## Fundamento científico y técnico
 
-El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la [investigación](../../docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md#8-fundamento-académico-consultado). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
+El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la investigación (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md`). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
 
 [TradingAgents oficial](https://github.com/TauricResearch/TradingAgents) inspira revisión por roles, con licencia Apache-2.0; su paper/repo financiero no se presenta como evidencia eléctrica. [Ollama Structured Outputs](https://docs.ollama.com/capabilities/structured-outputs) y [retrieve/rerank](https://www.sbert.net/examples/sentence_transformer/applications/retrieve_rerank/README.html) sustentan los contratos técnicos.
 

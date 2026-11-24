@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.12 x64, dataclasses/stdlib, Pydantic 2, pyproj, pandas/openpyxl, geopandas/Shapely/leafmap, pytest, pytest-cov, Hypothesis, Ruff, Mypy, Bandit, pip-audit, DIgSILENT PowerFactory 2024 Python API.
 
-**Spec:** `docs/superpowers/specs/2026-09-21-robustecimiento-integral-convertersmartgrid-design.md`
+**Spec:** retirado el 2026-11-24, en git: `git show 2fd22a65:docs/superpowers/specs/2026-09-21-robustecimiento-integral-convertersmartgrid-design.md`
 
 ## Global Constraints
 

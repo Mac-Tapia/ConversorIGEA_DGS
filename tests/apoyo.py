@@ -16,6 +16,16 @@ from pathlib import Path
 from types import ModuleType
 
 TOOLS = Path(__file__).resolve().parents[1] / 'tools'
+WEB = Path(__file__).resolve().parents[1] / 'src' / 'convertersmartgrid' / 'presentacion' / 'web'
+
+
+def fuente_servicios_web() -> str:
+    """El texto de los servicios de la web: la fachada ``services.py`` y los módulos en que se partió (auditoría D.1,
+    2026-11-24). Las pruebas que leen el código de los servicios lo leen entero, esté la función donde esté; los
+    ``from __future__`` de cada módulo se quitan para que el conjunto se pueda analizar como un solo módulo."""
+    partes = [WEB / 'services.py', *sorted(WEB.glob('servicios_*.py'))]
+    textos = [p.read_text(encoding='utf-8') for p in partes]
+    return textos[0] + ''.join('\n' + re.sub(r'(?m)^from __future__ import annotations\n', '', t) for t in textos[1:])
 
 
 #: Carpeta que deja ``tools/aceptacion_nativa.py`` con lecturas e informes de DIgSILENT real (044, 045, 048 y

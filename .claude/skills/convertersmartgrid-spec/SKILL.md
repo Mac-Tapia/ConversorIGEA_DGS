@@ -13,7 +13,7 @@ Adaptado de `spec-generator` de [mouredev/hello-sdd](https://github.com/mouredev
 (Apache-2.0), con las fases de plan, tareas y validación y las reglas de este proyecto.
 
 La spec es el contrato: lo que no está en ella no se implementa. Existe porque las
-specs de `docs/superpowers/specs/` se escribían y luego se separaban del código: sin
+specs de `docs/superpowers/` (retiradas el 2026-11-24, en git) se escribían y luego se separaban del código: sin
 requisitos numerados, ninguna prueba las citaba y ninguna casilla de sus planes llegó a
 marcarse (diagnóstico del 2026-10-07).
 

@@ -18,7 +18,7 @@ import json
 import pytest
 
 from convertersmartgrid.aplicacion.batch import convert_selection
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from synthetic_export import ExportSpec, write_export
 
 SPEC = ExportSpec(feeders=3, sections_per_feeder=4, loads_per_feeder=2)
@@ -30,7 +30,7 @@ def export(tmp_path):
 
 
 def _load(paths):
-    return CymdistDataset.from_files(*paths)
+    return DatasetRed.from_files(*paths)
 
 
 class TestUnusableInputFailsLoudly:
@@ -76,7 +76,7 @@ class TestUnusableInputFailsLoudly:
         """Pasar el CARGA donde va el RED debe decirlo, no dar un lote vacío."""
         red, carga, equipo = export
         with pytest.raises(ValueError) as excinfo:
-            CymdistDataset.from_files(carga, carga, equipo)
+            DatasetRed.from_files(carga, carga, equipo)
         mensaje = str(excinfo.value)
         assert carga.name in mensaje
         # Ahora se reconoce por contenido, así que el mensaje puede decir QUÉ es el
@@ -91,7 +91,7 @@ class TestUnusableInputFailsLoudly:
         """
         red, carga, equipo = export
         with pytest.raises(ValueError) as excinfo:
-            CymdistDataset.from_files(red, equipo, carga)
+            DatasetRed.from_files(red, equipo, carga)
         assert equipo.name in str(excinfo.value)
 
 

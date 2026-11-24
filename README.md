@@ -299,7 +299,7 @@ TXT
    └── BD_Equipo
         │
         ▼
-CymdistDataset (una sola lectura)
+DatasetRed (una sola lectura)
         │
         ├── selector (cualquier NetworkID / nombre corto)
         ├── varios selectores

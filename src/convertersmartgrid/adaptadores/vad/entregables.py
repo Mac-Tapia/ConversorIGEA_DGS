@@ -35,7 +35,6 @@ registro normativo que lo rige (clave, acto y huella de la regla). :func:`compro
 from __future__ import annotations
 
 import copy
-import hashlib
 import math
 import os
 import re
@@ -52,6 +51,7 @@ from ...dominio.util import write_json_atomic
 from ...aplicacion.vad import VadError
 from ...aplicacion.vad.anexo2 import Campo, Formato, Formatos
 from ...aplicacion.vad.formulas import FormulaError, evaluar
+from ...dominio.util import sha256_file
 
 PREFIJOS = ('A', 'B')
 HOJA_INDICE = 'Índice'
@@ -583,12 +583,8 @@ def escribir_mapas(registro: RegistroNormativo, capas: Mapping[str, Sequence[Map
 
 
 # ================================================================================ Manifiesto de fuentes (T10)
-def huella_fichero(ruta: Path | str) -> str:
-    h = hashlib.sha256()
-    with open(ruta, 'rb') as f:
-        for trozo in iter(lambda: f.read(1 << 20), b''):
-            h.update(trozo)
-    return h.hexdigest()
+# Auditoría D.2 (2026-11-24): la huella de un fichero es una sola, la de dominio/util; este nombre queda por quien lo llama.
+huella_fichero = sha256_file
 
 
 def manifiesto_fuentes(entradas: Mapping[str, Mapping[str, str]], registro: RegistroNormativo,

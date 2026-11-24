@@ -9,7 +9,7 @@ from convertersmartgrid.dominio.catalog_resolution import (
     EquipmentQuery,
     resolve_equipment,
 )
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.reconstruction import (
     EvidenceLevel,
     ReconstructionPolicy,
@@ -138,7 +138,7 @@ def test_ambiguous_compatible_tie_uses_provisional_profile_and_records_both():
 def test_dataset_materialization_keeps_linecableid_and_records_provenance():
     from convertersmartgrid.dominio.catalog_resolution import resolve_dataset_equipment
 
-    dataset = CymdistDataset(
+    dataset = DatasetRed(
         red_path=Path('red.txt'), loads_path=Path('loads.txt'),
         equipment_path=Path('equipment.txt'),
         headnodes={'N0': 'UTILITY_X_F-A'},
@@ -176,7 +176,7 @@ def test_dataset_materialization_keeps_linecableid_and_records_provenance():
 
 def _dataset_con_conductor_a_medias():
     # Como llega de un paquete VNR-GIS: R1 y X1 sí, R0, X0, B y Amps no.
-    return CymdistDataset(
+    return DatasetRed(
         red_path=Path('red.txt'), loads_path=Path('loads.txt'),
         equipment_path=Path('equipment.txt'),
         headnodes={'N0': 'F1'},

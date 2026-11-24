@@ -1,6 +1,6 @@
 # Spec 034 — Motor base de conversión y contrato universal de fuentes
 
-Estado: cumplida (2026-11-22: T7, RF-42, con su rojo y su verde; 2026-11-15: T4 a T6 con su rojo y su verde) · aprobada (2026-11-14: RF-34 a RF-41, C4 TO-BE y ADR; RF-1 a RF-33 cumplidos desde el 2026-10-29) · Fecha: 2026-10-29 · Origen: `docs/REVISION_SPECS_2026-10-29.md`; ampliación del 2026-11-14: F-20 del Plan Maestro V1 (§30.7), aceptada por el auditor ca
+Estado: cumplida (2026-11-22: T7, RF-42, con su rojo y su verde; 2026-11-15: T4 a T6 con su rojo y su verde) · aprobada (2026-11-14: RF-34 a RF-41, C4 TO-BE y ADR; RF-1 a RF-33 cumplidos desde el 2026-10-29) · Fecha: 2026-10-29 · Origen: retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REVISION_SPECS_2026-10-29.md`; ampliación del 2026-11-14: F-20 del Plan Maestro V1 (§30.7), aceptada por el auditor ca
 
 ## Contexto y objetivo
 

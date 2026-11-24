@@ -129,22 +129,22 @@ class TestRepartoAutomatico:
 
 class TestElMotorAborta:
     def test_from_files_rechaza_las_casillas_cruzadas(self, tmp_path):
-        from convertersmartgrid.adaptadores.dataset import CymdistDataset
+        from convertersmartgrid.adaptadores.dataset import DatasetRed
 
         red = _escribir(tmp_path, 'a.txt', ['NODE', 'SECTION', 'SOURCE'])
         carga = _escribir(tmp_path, 'b.txt', ['CUSTOMER LOADS'])
         equipos = _escribir(tmp_path, 'c.txt', ['CONDUCTOR', 'LINE'])
         with pytest.raises(ValueError, match='no corresponden con su casilla'):
-            CymdistDataset.from_files(red, equipos, carga)
+            DatasetRed.from_files(red, equipos, carga)
 
     def test_el_error_menciona_los_dos_ficheros_mal_puestos(self, tmp_path):
-        from convertersmartgrid.adaptadores.dataset import CymdistDataset
+        from convertersmartgrid.adaptadores.dataset import DatasetRed
 
         red = _escribir(tmp_path, 'a.txt', ['NODE', 'SECTION'])
         carga = _escribir(tmp_path, 'b.txt', ['CUSTOMER LOADS'])
         equipos = _escribir(tmp_path, 'c.txt', ['CONDUCTOR'])
         with pytest.raises(ValueError) as exc:
-            CymdistDataset.from_files(red, equipos, carga)
+            DatasetRed.from_files(red, equipos, carga)
         mensaje = str(exc.value)
         assert 'c.txt' in mensaje and 'b.txt' in mensaje
 
@@ -163,14 +163,14 @@ class TestExportReal:
         """Lo que hace falta: que la próxima entrega se llame como sea."""
         import shutil
 
-        from convertersmartgrid.adaptadores.dataset import CymdistDataset
+        from convertersmartgrid.adaptadores.dataset import DatasetRed
 
         r = tmp_path / 'exportacion_enero.txt'
         c = tmp_path / 'demanda.txt'
         e = tmp_path / 'catalogo.txt'
         for origen, destino in ((RED, r), (LOAD, c), (EQUIP, e)):
             shutil.copy(origen, destino)
-        ds = CymdistDataset.from_files(r, c, e)
+        ds = DatasetRed.from_files(r, c, e)
         assert ds.feeder_ids()
         assert ds.customer_loads, 'las cargas deben llegar igual que con los nombres de siempre'
 

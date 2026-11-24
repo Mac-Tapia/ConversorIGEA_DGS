@@ -56,7 +56,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `grep -rnoE "014:RF-[0-9]+" tests | sort -u` lista los 28 RF y la suite
       con las variables `CSG_*` pasa.
       Hecho el 2026-10-14: los 28 RF citados; suite con las cinco variables, 1753 correctas
-      (`docs/VERIFICACION_SPECS_2026-10-14.md`).
+      (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/VERIFICACION_SPECS_2026-10-14.md`).
 - [x] T11. La carga de una variación se reconoce también con el sufijo «(n)» que le pone la
       etapa (PN197, 2026-10-16), y por su punto con otro nombre. (RF-29, RF-30)
       Hecho cuando: las pruebas que citan 014:RF-29 y RF-30 pasan y reaplicar las cargas de PN197 en

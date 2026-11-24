@@ -22,7 +22,7 @@ import threading
 import pytest
 
 from convertersmartgrid.aplicacion.batch import STAGE_PREFIX, convert_selection
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 
 NETWORK = 'NET_2030_150_NA999'
 SECOND = 'NET_2030_151_NB888'
@@ -68,7 +68,7 @@ def _write_two_feeders(tmp_path, *, second_broken: bool = False):
         '[LINE]\nFORMAT_LINE=ID,R1,R0,X1,X0,B1,B0,Amps\nDEFAULT,0.1,0.2,0.3,0.4,0,0,200\n',
         encoding='utf-8',
     )
-    return CymdistDataset.from_files(red, loads, equip)
+    return DatasetRed.from_files(red, loads, equip)
 
 
 def _write_source_only(tmp_path):
@@ -99,7 +99,7 @@ def _write_source_only(tmp_path):
         '[LINE]\nFORMAT_LINE=ID,R1,R0,X1,X0,B1,B0,Amps\nDEFAULT,0.1,0.2,0.3,0.4,0,0,200\n',
         encoding='utf-8',
     )
-    return CymdistDataset.from_files(red, loads, equip)
+    return DatasetRed.from_files(red, loads, equip)
 
 
 def _stages(out_dir):
@@ -309,7 +309,7 @@ class TestShortNameCollisions:
             '[LOADS]\nFORMAT_LOADS=SectionID,DeviceNumber,LoadType,Connection,Location\n', encoding='utf-8')
         (tmp_path / 'BD_Equipo.txt').write_text(
             '[LINE]\nFORMAT_LINE=ID,R1,R0,X1,X0,B1,B0,Amps\nDEFAULT,0.1,0.2,0.3,0.4,0,0,200\n', encoding='utf-8')
-        return CymdistDataset.from_files(red, tmp_path / 'CARGA.txt', tmp_path / 'BD_Equipo.txt')
+        return DatasetRed.from_files(red, tmp_path / 'CARGA.txt', tmp_path / 'BD_Equipo.txt')
 
     def test_collision_no_longer_aborts_the_whole_batch(self, tmp_path):
         ds = self._colliding(tmp_path / 'src')

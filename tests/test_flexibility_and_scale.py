@@ -309,7 +309,7 @@ class _NoFullScan:
     def _scan(self, *_args):
         raise AssertionError(
             f'recorrido completo de {self._name} al convertir un alimentador: O(F·N). '
-            'Use los índices por alimentador de CymdistDataset.'
+            'Use los índices por alimentador de DatasetRed.'
         )
 
     __iter__ = items = values = keys = _scan

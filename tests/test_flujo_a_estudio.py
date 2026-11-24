@@ -20,6 +20,7 @@ from convertersmartgrid.aplicacion.demanda_medida import (
 )
 from convertersmartgrid.presentacion.web import services
 from convertersmartgrid.presentacion.web.requisitos import UserError
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
@@ -31,7 +32,7 @@ CATALOGO = (SRC / 'features' / 'powerfactory' / 'clientesCatalogo.ts').read_text
 ESTUDIOS = (SRC / 'features' / 'powerfactory' / 'EstudiosPF.tsx').read_text(encoding='utf-8')
 CARGAS = (SRC / 'features' / 'powerfactory' / 'CargasTab.tsx').read_text(encoding='utf-8')
 API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
-SERVICES = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'services.py').read_text(encoding='utf-8')
+SERVICES = fuente_servicios_web()
 
 
 # ------------------------------------------------------------------ DIgSILENT abierto o sin conexión

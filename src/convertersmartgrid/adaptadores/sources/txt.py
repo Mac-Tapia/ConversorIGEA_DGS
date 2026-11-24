@@ -41,9 +41,9 @@ class TxtSourceAdapter:
             required={'red', 'loads', 'equipment'},
         )
         from ...aplicacion.catalog_merge import completar, diagnosticar
-        from ..dataset import CymdistDataset
+        from ..dataset import DatasetRed
 
-        dataset = CymdistDataset.from_files(
+        dataset = DatasetRed.from_files(
             snapshot.path_for('red'),
             snapshot.path_for('loads'),
             snapshot.path_for('equipment'),

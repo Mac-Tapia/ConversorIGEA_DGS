@@ -1,6 +1,6 @@
 # Spec 001 — Reorganización: una responsabilidad, un sitio
 
-Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) y RF-28 a RF-33 (T24–T26, 2026-10-15) · Fecha: 2026-10-07 · Origen: `docs/DIAGNOSTICO_SDD_2026-10-07.md`
+Estado: cumplida (2026-10-08), con los cambios RF-17 a RF-27 (T13–T23) y RF-28 a RF-33 (T24–T26, 2026-10-15) · Fecha: 2026-10-07 · Origen: retirado el 2026-11-24, en git: `git show 2fd22a65:docs/DIAGNOSTICO_SDD_2026-10-07.md`
 
 ## Contexto y objetivo
 

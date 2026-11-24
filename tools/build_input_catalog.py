@@ -32,8 +32,8 @@ def cargar_dataset(args: argparse.Namespace):
     if args.mdb:
         from convertersmartgrid.adaptadores.access import read_access_dataset
         return read_access_dataset(args.mdb, equipment_path=args.equipment_mdb)
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
-    return CymdistDataset.from_files(args.red, args.cargas, args.equipos)
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
+    return DatasetRed.from_files(args.red, args.cargas, args.equipos)
 
 
 def main(argv: list[str] | None = None) -> int:

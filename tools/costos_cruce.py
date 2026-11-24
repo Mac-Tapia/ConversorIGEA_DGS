@@ -25,14 +25,14 @@ from pathlib import Path
 
 
 def _metrados(args, tabla) -> int:
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from convertersmartgrid.aplicacion.metrados import metrados_de_lineas, valorar_metrados
     from convertersmartgrid.dominio.model import build_feeder_model
 
     if not (args.cargas and args.equipos and args.alimentador):
         print('ERROR: los metrados piden --red, --cargas, --equipos y --alimentador')
         return 2
-    modelo = build_feeder_model(CymdistDataset.from_files(args.red, args.cargas, args.equipos), args.alimentador)
+    modelo = build_feeder_model(DatasetRed.from_files(args.red, args.cargas, args.equipos), args.alimentador)
     m = metrados_de_lineas(modelo.lines)
     v = valorar_metrados(m['por_codigo'], tabla, sector=args.sector, estructura=args.estructura)
     print(f"{args.alimentador}: {m['tramos']} tramos, {m['km']:.2f} km, {len(m['por_codigo'])} códigos; "

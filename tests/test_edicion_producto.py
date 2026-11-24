@@ -24,6 +24,7 @@ from convertersmartgrid.adaptadores.digital_twin import integration, temporal
 from convertersmartgrid.presentacion.web import services
 from convertersmartgrid.presentacion.web.app import create_app
 from convertersmartgrid.presentacion.web.jobs import EventLog
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 #: Las rutas que la 1.0 negaba en la edición de producto hasta el 2026-11-13; ahora se atienden.
@@ -662,7 +663,7 @@ def test_los_avisos_de_la_corrida_no_llevan_codigos(tmp_path):
     """086:RF-12 — la web los enseña ahora, y también van al Word: «(086:RF-11)» no le dice nada a quien lo lee."""
     avisos = services._avisos_de_la_corrida(None, {'sin': {'_fichero': 'f.json', 'medidas': {'A1': {}}}}, 'A1')
     assert avisos and 'sin registro' in avisos[0] and not re.search(r'\d{3}:RF-', avisos[0])
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     ini = fuente.index('def _avisos_de_la_corrida')
     fin = fuente.index('\ndef ', ini + 10)
     # Los comentarios sí citan el requisito: se comprueba solo lo que va entre comillas.

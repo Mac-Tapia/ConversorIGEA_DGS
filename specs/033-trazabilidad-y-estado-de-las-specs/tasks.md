@@ -3,7 +3,7 @@
 - [x] T1. `tools/estado_specs.py` y `tests/test_trazabilidad_specs.py`, que fallan con cada
       hallazgo de la revisión. (RF-1 a RF-21)
       Hecho cuando: las comprobaciones reproducen los hallazgos de
-      `docs/REVISION_SPECS_2026-10-29.md` antes de corregir nada.
+      retirado el 2026-11-24, en git: `git show 2fd22a65:docs/REVISION_SPECS_2026-10-29.md` antes de corregir nada.
 - [x] T2. Numeración: aclaraciones, huecos declarados, 003 y 031 reservadas, 014 T8d.
       (RF-1 a RF-4)
       Hecho cuando: `pytest -q tests/test_trazabilidad_specs.py -k "numero or huecos or define or forma"` en verde.

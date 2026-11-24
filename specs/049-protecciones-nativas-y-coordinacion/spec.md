@@ -53,7 +53,7 @@ No declarar promoción, entrenamiento ni aceptación eléctrica a partir del pla
 
 ## Fundamento científico y técnico
 
-El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la [investigación](../../docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md#8-fundamento-académico-consultado). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
+El fundamento general incluye la [tesis de maestría de Zhang (UCR, 2024)](https://escholarship.org/uc/item/4g839337), la [tesis doctoral de Stiasny (DTU, 2023)](https://orbit.dtu.dk/en/publications/physics-informed-neural-networks-for-power-system-dynamics/) y los artículos de revistas indexadas citados en la investigación (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/INVESTIGACION_IA_GEMELO_CONVERSOR_2026-10-31.md`). Justifican evaluar modelos físicos/híbridos y su trazabilidad; no sustituyen evidencia local ni fijan límites normativos.
 
 La [tesis doctoral de Wan (PolyU, 2007)](https://ira.lib.polyu.edu.hk/handle/10397/84834) sustenta aportes de generación y coordinación. [Aminian et al., Journal of Cloud Computing (2024)](https://doi.org/10.1186/s13677-024-00672-2) estudia coordinación y heurísticas. [DIgSILENT oficial](https://www.digsilent.de/en/protection-functions.html) documenta capacidades, sin acreditar la licencia instalada.
 

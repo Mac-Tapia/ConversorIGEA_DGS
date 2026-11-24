@@ -1117,7 +1117,7 @@ def medir(y: np.ndarray, p: np.ndarray, escala: float | None = None) -> dict[str
             'error_abs': float(np.abs(e).sum()), 'energia': suma, 'mase': float(np.abs(e).mean()) / escala if escala else None, 'escala_mase': escala}
 
 
-def _arreglos(o: Objetivo) -> tuple[np.ndarray, np.ndarray]:
+def arreglos(o: Objetivo) -> tuple[np.ndarray, np.ndarray]:
     if isinstance(o.curva, CurvaCompacta):
         return o.curva.t, o.curva.columnas[0]
     orden = sorted(o.curva, key=lambda f: f[0])
@@ -1131,7 +1131,7 @@ def _malla(desde: np.datetime64, hasta: np.datetime64) -> np.ndarray:
 def backtest_objetivo(o: Objetivo, *, horizonte_dias: int = HORIZONTE_DIAS, origenes: int = ORIGENES,
                       exogenas: Exogenas | None = None) -> dict:
     """Compite los métodos en orígenes sucesivos, elige sin el último y mide en él (089:RF-38 a RF-43, RF-48, RF-49)."""
-    t, y = _arreglos(o)
+    t, y = arreglos(o)
     base = {'objetivo': o.nombre, 'clase': o.clase, 'magnitud': o.magnitud, 'horizonte_dias': horizonte_dias}
     if len(t) < 2:
         return {**base, 'status': 'HISTORIA_INSUFICIENTE', 'motivo': 'sin registros'}
@@ -1239,7 +1239,7 @@ def pronosticar(o: Objetivo, evaluado: Mapping, *, dias: int = HORIZONTE_DIAS, e
     """Las filas del pronóstico con el método elegido, con su marca (089:RF-50, RF-51; 046:RF-20)."""
     if evaluado.get('status') != 'EVALUADO':
         return []
-    t, y = _arreglos(o)
+    t, y = arreglos(o)
     futuro = _malla(t[-1], t[-1] + np.timedelta64(dias, 'D'))
     p = predecir(evaluado['metodo'], t, y, futuro, exogenas)
     r = evaluado.get('residuos') or {'q05': 0.0, 'q95': 0.0}
@@ -1296,7 +1296,7 @@ def _resto_normalizado(o: Objetivo, hasta: np.datetime64, exogenas: Exogenas | N
 
 def _resto_y_perfil(o: Objetivo, hasta: np.datetime64, exogenas: Exogenas | None):
     """Lo de ``_resto_normalizado`` y, además, el perfil anclado en cada punto de la malla (031:RF-28)."""
-    t, y = _arreglos(o)
+    t, y = arreglos(o)
     antes = t <= hasta
     t, y = t[antes], y[antes]
     if len(t) < 96:
@@ -2032,12 +2032,12 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
     """Compite los candidatos con los perfiles en los mismos orígenes y decide con la puerta fijada (089:RF-56 a RF-67, RF-69)."""
     h = np.timedelta64(horizonte_dias, 'D')
     pasos = horizonte_dias * 96
-    ultimo = max(_arreglos(o)[0][-1] for o in objetivos if len(o.curva))
+    ultimo = max(arreglos(o)[0][-1] for o in objetivos if len(o.curva))
     fechas = sorted(ultimo - h * k for k in range(1, origenes + 1))
     def evaluables(fecha):
         salida = []
         for o in objetivos:
-            t, _y = _arreglos(o)
+            t, _y = arreglos(o)
             inicio = np.datetime64(o.fuente['inicio_base']) if o.fuente.get('inicio_base') else (t[0] if len(t) else fecha)
             if len(t) and fecha >= inicio and fecha - t[0] >= np.timedelta64(HISTORIA_MINIMA_DIAS, 'D') and t[-1] > fecha:
                 salida.append(o)
@@ -2052,7 +2052,7 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
     reales = {}
     for f in fechas:
         for o in evaluables(f):
-            t, y = _arreglos(o)
+            t, y = arreglos(o)
             futuro = _malla(f, f + h)
             ventana = (t > f) & (t <= f + h)
             r = np.full(len(futuro), np.nan)
@@ -2177,7 +2177,7 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
 
 
 #: 031:RF-3: la capa anual mide con las mismas funciones; se publican en vez de copiarlas (la guarda de capas veda lo privado).
-arreglos, error_de_maxima, malla, sin_infinitos = _arreglos, _error_de_maxima, _malla, _sin_infinitos
+error_de_maxima, malla, sin_infinitos = _error_de_maxima, _malla, _sin_infinitos   # arreglos ya es pública (auditoría D.2)
 
 
 def _liberar_gpu() -> None:
@@ -2220,7 +2220,7 @@ def huella_de_objetivos(objetivos: Iterable[Objetivo]) -> str:
 
     huella = hashlib.sha256()
     for o in sorted(objetivos, key=lambda x: x.nombre):
-        t, v = _arreglos(o)
+        t, v = arreglos(o)
         huella.update(o.nombre.encode())
         huella.update(t.astype('int64').tobytes())
         huella.update(v.tobytes())
@@ -2228,7 +2228,7 @@ def huella_de_objetivos(objetivos: Iterable[Objetivo]) -> str:
 
 
 def _perfil_de_serie(o: Objetivo) -> dict[str, Any]:
-    t, v = _arreglos(o)
+    t, v = arreglos(o)
     orden = np.argsort(t, kind='stable')
     t, v = t[orden], np.asarray(v, dtype=float)[orden]
     fila: dict[str, Any] = {'objetivo': o.nombre, 'clase': o.clase, 'magnitud': o.magnitud, 'registros': int(len(v))}
@@ -2300,7 +2300,7 @@ def guardar_dataset(dataset: Dataset, carpeta: Path | str, *, anuales: Any = Non
     carpeta.mkdir(parents=True, exist_ok=True)
     tablas, indice = [], []
     for o in sorted(dataset.objetivos, key=lambda x: x.nombre):
-        t, v = _arreglos(o)
+        t, v = arreglos(o)
         tablas.append(pd.DataFrame({'objetivo': o.nombre, 't': t, 'v': v}))
         indice.append({'clase': o.clase, 'ident': o.ident, 'magnitud': o.magnitud, 'unidad': o.unidad, 'fuente': o.fuente})
     texto = huella_de_objetivos(dataset.objetivos)

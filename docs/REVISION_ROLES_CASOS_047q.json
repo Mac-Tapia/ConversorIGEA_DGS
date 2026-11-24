@@ -1,0 +1,319 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T25 de la spec 047: el conjunto de aceptación de la revisión con el código de RF-89 a RF-103 (2026-11-24), con 24 casos (12 sanos y 12 con un error: 3 por clase). En cada sano cada dato tiene su evidencia. Del 047 al 047p orientaron esas reglas, así que este se escribió aparte, sin copiar sus propuestas ni sus evidencias, y se declara antes de medir. Ni son órdenes reales ni datos de una distribuidora.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "eb04a0a39151cedf0e6ed31b449c91b860e23f2b5a32d62165795cc89ea23b0a",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "q01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "renovar 11 puestas a tierra de las estructuras del ramal M31",
+        "puestas": 11,
+        "coste_usd": 2420
+      },
+      "evidencia": {
+        "e1": "Puesta a tierra con varilla de cobre y conector, instalada: 220 USD por puesta a tierra.",
+        "e2": "La medición de M31 dio 11 estructuras con resistencia de tierra fuera de norma."
+      }
+    },
+    {
+      "id": "q02",
+      "defecto": null,
+      "propuesta": {
+        "accion": "construir 0,9 km de red de 22,9 kV hasta el pozo M35",
+        "caida_tension_pct": 1.8,
+        "coste_usd": 18900
+      },
+      "evidencia": {
+        "e1": "Red de 22,9 kV con postes de concreto: 21 000 USD el kilómetro.",
+        "e2": "Con la red nueva, la caída de tensión hasta M35 es de 1,8 % en la máxima; el máximo admisible es 5 %."
+      }
+    },
+    {
+      "id": "q03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el transformador de la SED T-9110 por uno de 100 kVA",
+        "carga_final_pct": 74,
+        "coste_usd": 4460
+      },
+      "evidencia": {
+        "e1": "Transformador de 100 kVA: 3 650 USD; izaje y conexión: 540 USD; pruebas: 270 USD.",
+        "e2": "Con 100 kVA, la T-9110 trabaja al 74 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "q04",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 3 reconectadores trifásicos en el alimentador N410",
+        "reconectadores": 3,
+        "coste_usd": 37500
+      },
+      "evidencia": {
+        "e1": "Reconectador trifásico con su control y montaje: USD 12 500 cada reconectador.",
+        "e2": "N410 tiene 3 ramales con fallas transitorias que hoy disparan la cabecera."
+      }
+    },
+    {
+      "id": "q05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco automático de 600 kvar en la barra de la SET U71",
+        "tension_final_pu": 0.99,
+        "coste_usd": 9300
+      },
+      "evidencia": {
+        "e1": "Con el banco, la tensión de la barra de la U71 en la máxima es 0,99 pu.",
+        "e2": "Banco automático de 600 kvar con su controlador: 9 300 USD en total."
+      }
+    },
+    {
+      "id": "q06",
+      "defecto": null,
+      "propuesta": {
+        "accion": "abrir el seccionador S-410 durante 50 minutos para cambiar un pararrayos del tramo M40",
+        "coste_usd": 310
+      },
+      "evidencia": {
+        "e1": "Durante la apertura de S-410, sus usuarios pasan por el enlace E-41 al alimentador vecino.",
+        "e2": "Cambio de un pararrayos con la línea abierta: 310 USD; la interrupción no debe superar 90 minutos."
+      }
+    },
+    {
+      "id": "q07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reconductorar 2,5 km del tramo M44 a 70 mm²",
+        "corriente_final_a": 150,
+        "coste_usd": 27500
+      },
+      "evidencia": {
+        "e1": "Con 70 mm², la corriente del tramo M44 en la máxima es 150 A; capacidad del conductor 210 A.",
+        "e2": "Reconductorado sobre los postes existentes: 11 000 USD por kilómetro."
+      }
+    },
+    {
+      "id": "q08",
+      "defecto": null,
+      "propuesta": {
+        "accion": "que el centro de despacho abra el enlace E-50 entre N415 y N416 en la madrugada",
+        "cargabilidad_n416_pct": 61,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Solo el centro de despacho puede ordenar la apertura de los enlaces; la maniobra es remota y sin gasto.",
+        "e2": "Con el enlace abierto de madrugada, la salida del N416 queda al 61 % de su capacidad."
+      }
+    },
+    {
+      "id": "q09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 24 espaciadores en la línea doble del alimentador N420",
+        "espaciadores": 24,
+        "coste_usd": 1680
+      },
+      "evidencia": {
+        "e1": "Espaciador para línea doble de 22,9 kV, montado: US$ 70 por espaciador.",
+        "e2": "La línea doble de N420 requiere 24 espaciadores según el estudio de vibración."
+      }
+    },
+    {
+      "id": "q10",
+      "defecto": null,
+      "propuesta": {
+        "accion": "poner en servicio la SED T-9200 nueva tras verificar su protección",
+        "corriente_ajuste_a": 40,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El reglamento exige verificar la protección antes de poner en servicio una subestación nueva.",
+        "e2": "La verificación de la T-9200 dejó la protección ajustada en 40 A; la puesta en servicio no lleva materiales."
+      }
+    },
+    {
+      "id": "q11",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la celda C-72 de la SET U75",
+        "demanda_max_kw": 1900,
+        "coste_usd": 7600
+      },
+      "evidencia": {
+        "e1": "Registro anual de la celda C-72 de la SET U75: demanda máxima de 1,9 MW.",
+        "e2": "Ampliación de la celda con relé y transformadores de corriente: 7 600 USD."
+      }
+    },
+    {
+      "id": "q12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un regulador de 200 A en la troncal del alimentador N425",
+        "tension_final_pu": 0.97,
+        "coste_usd": 15800
+      },
+      "evidencia": {
+        "e1": "Con el regulador, la tensión más baja de la troncal de N425 queda en 0,97 pu en la máxima y en 1,02 pu en el valle.",
+        "e2": "Regulador monofásico de 200 A con montaje y protecciones: USD 15 800 en total."
+      }
+    },
+    {
+      "id": "q13",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "cambiar 9 aisladores de suspensión del ramal M55",
+        "aisladores": 9,
+        "coste_usd": 120
+      },
+      "evidencia": {
+        "e1": "Aislador polimérico de suspensión, colocado: 120 USD por aislador.",
+        "e2": "En M55 hay 9 aisladores de suspensión contorneados."
+      }
+    },
+    {
+      "id": "q14",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 2,5 km de red de 13,2 kV hasta el anexo M60",
+        "coste_usd": 29000
+      },
+      "evidencia": {
+        "e1": "Red de 13,2 kV con postes de concreto: 16 000 USD por kilómetro.",
+        "e2": "El trazado hasta M60 mide 2,5 km."
+      }
+    },
+    {
+      "id": "q15",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 8 indicadores de falla en el alimentador N430",
+        "indicadores": 8,
+        "coste_usd": 2100
+      },
+      "evidencia": {
+        "e1": "Indicador de falla para red aérea, colocado: USD 410 cada indicador.",
+        "e2": "N430 tiene 8 tramos sin señalización de falla."
+      }
+    },
+    {
+      "id": "q16",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la planta de alimentos M62 de 140 kVA a la SED T-9300",
+        "carga_t9300_pct": 79,
+        "coste_usd": 1050
+      },
+      "evidencia": {
+        "e1": "Con M62, la SED T-9300 de 100 kVA trabaja al 162 % de su potencia nominal.",
+        "e2": "Acometida y medidor de M62: 1 050 USD."
+      }
+    },
+    {
+      "id": "q17",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar el bombeo M65 de 1,4 MW al final del alimentador N435",
+        "tension_final_pu": 0.98,
+        "coste_usd": 6500
+      },
+      "evidencia": {
+        "e1": "Con M65, la tensión al final de N435 cae a 0,90 pu en la máxima; el mínimo es 0,95 pu.",
+        "e2": "Celda de medición y acometida para M65: 6 500 USD."
+      }
+    },
+    {
+      "id": "q18",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "reemplazar el interruptor de la celda C-80 por uno de 25 kA",
+        "cortocircuito_ka": 21,
+        "coste_usd": 15200
+      },
+      "evidencia": {
+        "e1": "Cortocircuito trifásico máximo en la barra de la celda C-80: 29,6 kA.",
+        "e2": "Interruptor de 25 kA instalado en la celda: 15 200 USD."
+      }
+    },
+    {
+      "id": "q19",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "dejar sin servicio el alimentador N440 durante 7 horas para cambiar su celda",
+        "coste_usd": 3300
+      },
+      "evidencia": {
+        "e1": "N440 alimenta una planta de oxígeno; el contrato admite a lo sumo 4 horas de corte programado.",
+        "e2": "Cambio de la celda con grúa y cuadrilla: 3 300 USD."
+      }
+    },
+    {
+      "id": "q20",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "poner en servicio la SED T-9400 nueva sin verificar antes su protección",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El reglamento exige verificar la protección antes de poner en servicio cualquier subestación nueva.",
+        "e2": "La puesta en servicio no consume materiales."
+      }
+    },
+    {
+      "id": "q21",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "abrir el seccionador S-450 durante 3 horas para cambiar postes del tramo M70",
+        "coste_usd": 2100
+      },
+      "evidencia": {
+        "e1": "Aguas abajo de S-450 hay 1 700 usuarios sin enlace con otro alimentador ni generación propia.",
+        "e2": "Cambio de tres postes con la línea abierta: 2 100 USD."
+      }
+    },
+    {
+      "id": "q22",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "bajar a la toma 1 el transformador de la SED T-9510",
+        "tension_actual_pu": 1.08,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro del analizador en la SED T-9501 a las 3:30: 1,08 pu en baja tensión.",
+        "e2": "El cambio de toma lo realiza la guardia nocturna, sin materiales."
+      }
+    },
+    {
+      "id": "q23",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar el transformador TP-7 de la SET U80 de 10 a 15 MVA",
+        "demanda_max_kw": 11200,
+        "coste_usd": 260000
+      },
+      "evidencia": {
+        "e1": "Registro anual del transformador TP-7 de la SET U80: demanda máxima de 8,7 MW.",
+        "e2": "Transformador de 15 MVA con su montaje y pruebas: 260 000 USD."
+      }
+    },
+    {
+      "id": "q24",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "instalar un banco de 450 kvar en la barra U85",
+        "tension_final_pu": 0.99,
+        "coste_usd": 5300,
+        "reduccion_perdidas_kw": 55
+      },
+      "evidencia": {
+        "e1": "Con el banco de 450 kvar en U85, la tensión mínima queda en 0,99 pu; el mínimo es 0,95 pu.",
+        "e2": "Banco de 450 kvar instalado: 5 300 USD en total."
+      }
+    }
+  ]
+}

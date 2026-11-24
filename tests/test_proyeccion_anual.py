@@ -18,6 +18,7 @@ from convertersmartgrid.aplicacion.proyeccion_mercado import REFERENCIA, SerieMe
 
 sys.path.insert(0, str(Path(__file__).parent))
 from pronostico_sintetico import SEMILLA  # noqa: E402
+from apoyo import fuente_servicios_web
 
 RAIZ = Path(__file__).resolve().parents[1]
 
@@ -453,7 +454,7 @@ def test_obras_leen_la_proyeccion_aceptada_y_sin_ella_la_tasa_del_perfil(crece, 
 
 def test_obras_los_tres_sitios_del_alcance_pasan_por_la_proyeccion():
     """031:RF-11 — el alcance de las obras y el año en que vuelve a fallar leen la misma tasa, no la del perfil directamente."""
-    fuente = (RAIZ / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    fuente = fuente_servicios_web()
     assert 'plan_de_corto_plazo(f, p.tasa_largo_plazo' not in fuente
     assert "alt['tasa_horizonte'] = p.tasa_largo_plazo" not in fuente
     assert 'tasa, horizonte = p.tasa_largo_plazo' not in fuente

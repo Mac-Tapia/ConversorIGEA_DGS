@@ -6,16 +6,16 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.reconstruction import EvidenceLevel, ReconstructionPolicy, reconstruct_dataset
 
 
 NETWORK = 'UTILITY_X_F-A'
 
 
-def _dataset(nodes, sections, *, source='N0') -> CymdistDataset:
+def _dataset(nodes, sections, *, source='N0') -> DatasetRed:
     section_ids = tuple(sections)
-    return CymdistDataset(
+    return DatasetRed(
         red_path=Path('red.txt'), loads_path=Path('loads.txt'),
         equipment_path=Path('equipment.txt'),
         headnodes={source: NETWORK},

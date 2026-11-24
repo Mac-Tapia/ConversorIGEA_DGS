@@ -20,7 +20,7 @@ from contextlib import contextmanager
 from typing import Any
 from pathlib import Path
 
-from ..dominio.dataset import CymdistDataset
+from ..dominio.dataset import DatasetRed
 from ..dominio.model import ModelBuildError, build_feeder_model
 from ..dominio.naming import feeder_short_name, sort_key_feeder
 from ..dominio.perfil_empresa import SIN_PERFIL, PerfilEmpresa
@@ -105,7 +105,7 @@ def load_aliases(path: Path | str | None) -> dict[str, str]:
     }
 
 
-def _selection(dataset: CymdistDataset, selectors: Sequence[str] | None, all_feeders: bool) -> list[str]:
+def _selection(dataset: DatasetRed, selectors: Sequence[str] | None, all_feeders: bool) -> list[str]:
     if all_feeders:
         networks = sorted(dataset.feeder_ids(), key=sort_key_feeder)
     elif not selectors:
@@ -168,7 +168,7 @@ class _FeederOptions:
 
 
 def _convert_feeder(
-    dataset: CymdistDataset, network_id: str, feeder: str, out_dir: Path, opts: _FeederOptions,
+    dataset: DatasetRed, network_id: str, feeder: str, out_dir: Path, opts: _FeederOptions,
 ) -> tuple[dict, list[str]]:
     """Convierte un alimentador y devuelve (entrada del manifiesto, cambios de catálogo).
 
@@ -343,10 +343,10 @@ def _convert_feeder(
 
 # El dataset se envía una vez a cada proceso, no una vez por alimentador: en una red
 # real ocupa cientos de MB y serializarlo 200 veces costaría más que convertir.
-_WORKER_STATE: tuple[CymdistDataset, _FeederOptions] | None = None
+_WORKER_STATE: tuple[DatasetRed, _FeederOptions] | None = None
 
 
-def _init_worker(dataset: CymdistDataset, opts: _FeederOptions, modulos: Resolucion | None = None) -> None:
+def _init_worker(dataset: DatasetRed, opts: _FeederOptions, modulos: Resolucion | None = None) -> None:
     global _WORKER_STATE
     _WORKER_STATE = (dataset, opts)
     instalar_en_proceso(modulos)      # 002:RF-29: lo que resolvió el principal, sin releer nada
@@ -404,7 +404,7 @@ def _un_hilo_de_calculo() -> Iterator[None]:
 
 
 def _convert_parallel(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     networks: Sequence[str],
     names: Mapping[str, str],
     out_dir: Path,
@@ -448,7 +448,7 @@ def _convert_parallel(
         return cancelled
 
 def convert_selection(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     selectors: Sequence[str] | None,
     out_dir: Path | str,
     *,
@@ -664,7 +664,7 @@ def convert_selection(
 # ---------------------------------------------------------------------------
 
 def convert_group(
-    dataset: CymdistDataset,
+    dataset: DatasetRed,
     selectors: Sequence[str],
     out_dir: Path | str,
     *,

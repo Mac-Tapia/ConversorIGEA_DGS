@@ -416,3 +416,28 @@ def intentar_cerrojo(ruta: Path | str, contenido: str | bytes, *, valido: Callab
     finally:
         muerto.unlink(missing_ok=True)
     return ('tomado', None) if tomado else ('otra_vez', None)
+
+
+def raiz_union(padre, i: int) -> int:
+    """La raíz de ``i`` en un bosque de unión y búsqueda, comprimiendo el camino (``padre`` se modifica).
+
+    Auditoría D.2 (2026-11-24): estaba copiada, anidada, en cuatro sitios (los lazos del gemelo, el flujo y los repartos
+    del dataset y de la validación cruzada del asistente).
+    """
+    while padre[i] != i:
+        padre[i] = padre[padre[i]]
+        i = int(padre[i])
+    return i
+
+
+def avisar(mensaje: str) -> None:
+    """El avance a quien escuche; si la web que lo lanzó ya no está, se sigue igual.
+
+    2026-10-24: con la web parada a mitad, el primer ``print`` dio «OSError 22» en la salida rota y el entrenamiento se
+    perdió aunque la GPU seguía libre. Auditoría D.2 (2026-11-24): estaba copiada en asistente_entrenar y en
+    digital_twin_entrenar.
+    """
+    try:
+        print(mensaje, flush=True)
+    except OSError:
+        pass

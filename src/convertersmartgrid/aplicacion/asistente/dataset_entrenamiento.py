@@ -15,6 +15,7 @@ from collections.abc import Mapping
 from typing import Any
 
 from .calidad_datos import CALIDADES, auditar_contaminacion, texto_canonico
+from ...dominio.util import raiz_union
 
 
 ESQUEMA = 'convertersmartgrid-training-record-v2'
@@ -601,10 +602,7 @@ def particionar_dataset(
     padre = list(range(len(elegibles)))
 
     def raiz(i: int) -> int:
-        while padre[i] != i:
-            padre[i] = padre[padre[i]]
-            i = padre[i]
-        return i
+        return raiz_union(padre, i)
 
     def unir(a: int, b: int) -> None:
         x, y = raiz(a), raiz(b)

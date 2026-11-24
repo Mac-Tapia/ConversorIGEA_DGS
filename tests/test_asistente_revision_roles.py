@@ -333,8 +333,18 @@ def test_bloquear_sin_hallazgo_no_cuenta_como_deteccion(tmp_path):
         return lambda rol, p, ev, ctx, ronda: {'decision': 'bloqueada', 'evidencia_ids': sorted(ev),
                                                'incertidumbres': [], 'contradicciones': []}
     r = comparar_revision(casos, fabrica, rondas=1)
+    # 047:RF-103 (2026-11-24): donde el código ya halló el defecto, el bloqueo vacío lleva ese hallazgo: la detección es
+    # del código, como cuenta la medida con «comprobaciones_fallidas». El bloqueo vacío sigue sin hallar nada por sí
+    # mismo: los demás quedan sin respuesta y ningún sano se cuenta como falsa alarma.
+    from convertersmartgrid.aplicacion.asistente import contradicciones as C
+    def halla_el_codigo(c):
+        return any(not x['coincide'] for f in (C.comprobar_coste, C.comprobar_datos, C.comprobar_prohibiciones,
+                                                C.comprobar_elementos, C.comprobar_magnitudes)
+                   for x in f(c['propuesta'], c['evidencia']))
+    del_codigo = sum(halla_el_codigo(c) for c in casos)
+    assert all(c['defecto'] is not None for c in casos if halla_el_codigo(c)), 'el código alarma en un sano'
     for modo in ('rol_unico', 'equipo'):
-        assert r[modo]['sin_respuesta'] == len(casos) and r[modo]['detectados'] == 0
+        assert r[modo]['detectados'] == del_codigo and r[modo]['sin_respuesta'] == len(casos) - del_codigo
         assert r[modo]['falsas_alarmas'] == 0
         assert all('sin hallazgo' in m for m in r[modo]['motivos_sin_respuesta'])
 

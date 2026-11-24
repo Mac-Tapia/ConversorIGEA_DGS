@@ -11,3 +11,8 @@
       Hecho cuando: `pytest -q tests/test_inventario.py -k documentacion` en verde.
 - [x] T5. Validación: `grep -rnoE "009:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-15; suite completa.
       Hecho cuando: `grep -rnoE "009:RF-[0-9]+" tests | sort -u` lista RF-1 a RF-15 y la suite completa, en verde.
+- [x] T6. Ningún documento huérfano en `docs/` (auditoría de limpieza, 2026-11-24). (RF-16)
+      Hecho cuando: `tests/test_docs_vivos.py` (009:RF-16) pasa sobre el árbol y falla con un documento que no cita nadie.
+      Hecho el 2026-11-24 (d8, N11): pasa (1 passed, 17 s) tras retirar 47 históricos y fundir VNR-GIS en producción y la
+      aceptación universal de carga en `docs/MANUAL_COMANDOS.md`; con un documento de ensayo sin citas añadido al índice
+      falla y lo nombra (ensayo retirado después).

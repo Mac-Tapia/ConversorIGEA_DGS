@@ -12,7 +12,7 @@ import csv
 from ..dominio import dataset as estructura
 from ..dominio.dataset import TABLAS_TIPOS_AEREO, TABLAS_TIPOS_LINEA, TABLAS_TIPOS_SUBTERRANEO
 
-__all__ = ['CymdistDataset', 'TABLAS_TIPOS_AEREO', 'TABLAS_TIPOS_LINEA', 'TABLAS_TIPOS_SUBTERRANEO']
+__all__ = ['DatasetRed', 'TABLAS_TIPOS_AEREO', 'TABLAS_TIPOS_LINEA', 'TABLAS_TIPOS_SUBTERRANEO']
 
 
 def _split(line: str) -> list[str]:
@@ -48,17 +48,17 @@ def _parse_simple(path: Path | str) -> dict[str, list[dict[str, str]]]:
     return dict(tables)
 
 
-class CymdistDataset(estructura.CymdistDataset):
+class DatasetRed(estructura.DatasetRed):
     """El dataset del dominio con su lector de los TXT (002:RF-1).
 
     Los campos, los índices y la resolución de alimentadores son los de
-    :class:`convertersmartgrid.dominio.dataset.CymdistDataset`; aquí solo se añade
+    :class:`convertersmartgrid.dominio.dataset.DatasetRed`; aquí solo se añade
     ``from_files``. Las instancias se siguen serializando con esta ruta, la de siempre, para
     que los pickles de ``workers>1`` y los espacios guardados no cambien.
     """
 
     @classmethod
-    def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'CymdistDataset':
+    def from_files(cls, red: Path | str, loads: Path | str, equipment: Path | str) -> 'DatasetRed':
         red_path = Path(red)
         loads_path = Path(loads)
         equipment_path = Path(equipment)

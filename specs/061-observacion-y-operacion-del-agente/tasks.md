@@ -11,4 +11,4 @@
 - [x] T5. Incorporar evidencia real y verificar entrega. (RF-1 a RF-10)
       Hecho cuando: informes reales de060 están custodiados, regresiones e índice pasan y una prueba HTTP demuestra la integración servida, sin anunciar aceptación nativa o autonomía no acreditadas.
 
-Evidencia de cierre: `docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md`; `output/integracion_monitor_20261101/entrega.xml` (176 pruebas sin omisiones), build TypeScript/Vite, `http_reinicio.json`, `websocket_real.json` y `http_principal.json`. La aceptación aquí corresponde al alcance de observación supervisada de061; no cierra050.
+Evidencia de cierre: retirado el 2026-11-24, en git: `git show 2fd22a65:docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md`; `output/integracion_monitor_20261101/entrega.xml` (176 pruebas sin omisiones), build TypeScript/Vite, `http_reinicio.json`, `websocket_real.json` y `http_principal.json`. La aceptación aquí corresponde al alcance de observación supervisada de061; no cierra050.

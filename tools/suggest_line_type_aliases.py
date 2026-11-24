@@ -25,7 +25,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT / 'src'))
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset  # noqa: E402
+from convertersmartgrid.adaptadores.dataset import DatasetRed  # noqa: E402
 from convertersmartgrid.dominio.model import suggest_catalog_code  # noqa: E402
 
 
@@ -54,7 +54,7 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     red, loads, equip = _paths(args)
-    ds = CymdistDataset.from_files(red, loads, equip)
+    ds = DatasetRed.from_files(red, loads, equip)
     catalog = sorted({(row.get('ID') or '').strip()
                       for table in ('LINE', 'CONCENTRIC NEUTRAL CABLE')
                       for row in ds.equipment_tables.get(table, ())} - {''})

@@ -666,10 +666,10 @@ def EQUIP(csg_paths: tuple[Path, Path, Path]) -> Path:
 
 @pytest.fixture(scope='session')
 def ds(csg_paths: tuple[Path, Path, Path]):
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
     red, loads, equip = csg_paths
-    dataset = CymdistDataset.from_files(red, loads, equip)
+    dataset = DatasetRed.from_files(red, loads, equip)
     if not dataset.feeder_ids():
         pytest.skip('El dataset cargado no contiene alimentadores')
     return dataset
@@ -710,10 +710,10 @@ def sample_model(ds, sample_feeder):
 
 @pytest.fixture(scope='module')
 def txt_dataset(csg_paths):
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
 
     red, loads, equip = csg_paths
-    return CymdistDataset.from_files(red, loads, equip)
+    return DatasetRed.from_files(red, loads, equip)
 
 
 @pytest.fixture(scope='module')

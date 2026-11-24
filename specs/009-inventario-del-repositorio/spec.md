@@ -93,6 +93,10 @@ Código
 - RF-15: SI una función o clase de nivel superior de `src/` no la usa nada (ni su
   módulo, ni otro módulo, ni `tools/`, ni las pruebas, ni el front), ENTONCES la suite
   fallará nombrándola. Las rutas de FastAPI cuentan como usadas.
+- RF-16: EL SISTEMA no tendrá en `docs/` ningún fichero versionado que no alcance algo vivo (el código, una prueba, una
+  spec, un manual, una configuración o lo que el código lee por carpeta), directamente o por una cadena de citas. Con la
+  auditoría de limpieza del 2026-11-24 se retiraron 47 documentos históricos (sus citas apuntan a git) y se fundieron en
+  `docs/MANUAL_COMANDOS.md` los dos procedimientos que seguían vigentes.
 
 ## Casos límite
 

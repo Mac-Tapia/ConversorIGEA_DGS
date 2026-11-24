@@ -8,6 +8,7 @@ from types import SimpleNamespace
 
 import docx
 import openpyxl
+from apoyo import fuente_servicios_web
 
 from convertersmartgrid.adaptadores.libro_informe import (ConfigLibro, comprobar_libro, generar_libro, plan_del_libro,
                                               rellenar_con_excel)
@@ -174,7 +175,7 @@ def test_web_ofrece_el_libro_junto_al_word():
     raiz = Path(__file__).resolve().parents[1]
     front = (raiz / 'frontend/src/features/powerfactory/InformesPF.tsx').read_text(encoding='utf-8')
     assert 'Descargar libro' in front and 'Sin libro:' in front and 'Revise el libro:' in front
-    servicios = (raiz / 'src/convertersmartgrid/presentacion/web/services.py').read_text(encoding='utf-8')
+    servicios = fuente_servicios_web()
     assert servicios.count('_libro_del_informe(ctx, destino,') == 2
     assert 'celda_precio' not in servicios and 'G183' not in servicios, 'las celdas van en el perfil'
 

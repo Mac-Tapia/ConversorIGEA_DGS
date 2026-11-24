@@ -9,7 +9,7 @@ import math
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.adaptadores.geography import build_geography
 from convertersmartgrid.dominio.model import ModelBuildError, build_feeder_model, prove_mt_connections
 from convertersmartgrid.adaptadores.dgs import write_dgs
@@ -74,7 +74,7 @@ def _write_mini_feeder(tmp_path, *, length_txt: float = 52.0, location: str = '1
         ]),
         encoding='utf-8',
     )
-    return CymdistDataset.from_files(red, loads, equip)
+    return DatasetRed.from_files(red, loads, equip)
 
 
 def test_georef_length_replaces_txt_length(tmp_path):
@@ -150,7 +150,7 @@ def test_sed_location_0_connects_to_from_node(tmp_path):
         ]),
         encoding='utf-8',
     )
-    ds = CymdistDataset.from_files(red, loads, tmp_path / 'BD_Equipo.txt')
+    ds = DatasetRed.from_files(red, loads, tmp_path / 'BD_Equipo.txt')
     model = build_feeder_model(ds, 'NA999')
     assert model.seds[0].node_id == 'N2'
     assert prove_mt_connections(model, ds)['ok'] is True
@@ -161,7 +161,7 @@ def test_missing_node_coords_fail_strict_proof(tmp_path):
     red = tmp_path / 'RED.txt'
     text = red.read_text(encoding='utf-8').replace('N2,30,40', 'N2,,')
     red.write_text(text, encoding='utf-8')
-    ds = CymdistDataset.from_files(red, tmp_path / 'CARGA.txt', tmp_path / 'BD_Equipo.txt')
+    ds = DatasetRed.from_files(red, tmp_path / 'CARGA.txt', tmp_path / 'BD_Equipo.txt')
     try:
         build_feeder_model(ds, 'NA999', strict=True)
         raise AssertionError('expected ModelBuildError for missing georef')

@@ -146,12 +146,12 @@ def reproducir_red(trio: tuple[Path | str, Path | str, Path | str], carpeta: Pat
                    perfil: PerfilEmpresa | None = None, perfil_neutro: PerfilEmpresa | None = None,
                    tolerancia: Mapping[str, Any] | None = None) -> InformeReproduccion:
     """Corre el estudio en el origen y en el benchmark de ``carpeta`` y los compara con la tolerancia."""
-    from ..dataset import CymdistDataset
+    from ..dataset import DatasetRed
 
     tol = tolerancia_para(tolerancia)
     carpeta = Path(carpeta)
-    original = estudiar_red(CymdistDataset.from_files(*trio), perfil)
-    bench = estudiar_red(CymdistDataset.from_files(carpeta / 'RED.txt', carpeta / 'CARGA.txt',
+    original = estudiar_red(DatasetRed.from_files(*trio), perfil)
+    bench = estudiar_red(DatasetRed.from_files(carpeta / 'RED.txt', carpeta / 'CARGA.txt',
                                                    carpeta / 'BD_Equipo.txt'), perfil_neutro)
     por_seudonimo = {str(mapa('alimentador', red)): m for red, m in original.items()}
     return InformeReproduccion(tol, por_seudonimo, bench, comparar(por_seudonimo, bench, tol))

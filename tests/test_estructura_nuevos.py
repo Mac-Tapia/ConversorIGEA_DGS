@@ -116,7 +116,7 @@ def test_completar_no_cambia_la_estructura_y_es_determinista():
 def test_las_cabeceras_salen_del_inventario(tmp_path):
     """022:RF-77 — el inventario da la cabecera de cada alimentador, la misma para TXT, MDB y
     VNR-GIS, que llegan como el mismo dataset; en las dos disposiciones del export."""
-    from convertersmartgrid.adaptadores.dataset import CymdistDataset
+    from convertersmartgrid.adaptadores.dataset import DatasetRed
     from convertersmartgrid.aplicacion.inventory import build_dataset_inventory
     from synthetic_export import ExportSpec, write_export
 
@@ -124,7 +124,7 @@ def test_las_cabeceras_salen_del_inventario(tmp_path):
     for layout in ('reducido', 'completo'):
         spec = ExportSpec(feeders=rng.randint(1, 5), layout=layout)
         red, loads, equip = write_export(spec, tmp_path / layout)
-        inv = build_dataset_inventory(CymdistDataset.from_files(red, loads, equip))
+        inv = build_dataset_inventory(DatasetRed.from_files(red, loads, equip))
         cab = es.cabeceras_de_inventario(inv['feeders'])
         assert len(cab) == spec.feeders
         assert all(isinstance(xy, tuple) and len(xy) == 2 for xy in cab.values()), SEMILLA

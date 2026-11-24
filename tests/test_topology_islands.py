@@ -24,7 +24,7 @@ from __future__ import annotations
 import pytest
 
 from convertersmartgrid.aplicacion.batch import convert_selection
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.model import (
     IslandWithLoadsError,
     ModelBuildError,
@@ -77,7 +77,7 @@ def _write_feeder(tmp_path, *, island_has_load: bool, with_island: bool = True):
         '[LINE]\nFORMAT_LINE=ID,R1,R0,X1,X0,B1,B0,Amps\nDEFAULT,0.3,0.5,0.4,1.4,0,0,250\n',
         encoding='utf-8',
     )
-    return CymdistDataset.from_files(red, carga, equipo)
+    return DatasetRed.from_files(red, carga, equipo)
 
 
 class TestIslandDetection:

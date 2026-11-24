@@ -8,7 +8,7 @@
 
 **Tech Stack:** Python 3.11+, pytest, dataclasses, JSON/SHA-256, FastAPI, React/TypeScript/Vite, API Python de DIgSILENT PowerFactory 2024, DGS 1.8.4.
 
-**Spec:** `docs/superpowers/specs/2026-09-27-grid-adaptativo-y-columna-alimentador-design.md`
+**Spec:** retirado el 2026-11-24, en git: `git show 2fd22a65:docs/superpowers/specs/2026-09-27-grid-adaptativo-y-columna-alimentador-design.md`
 
 ## Global Constraints
 

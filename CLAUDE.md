@@ -14,7 +14,6 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 - `.claude/skills/convertersmartgrid-backend/SKILL.md`: reglas del motor, la escala y la API. **Léelo antes de tocar `src/convertersmartgrid/`.**
 - `.claude/skills/convertersmartgrid-frontend/SKILL.md`: UX y checklist de la interfaz web (React en `frontend/`). Léelo antes de tocar `frontend/src/` o `src/convertersmartgrid/presentacion/web/`.
 - `.claude/skills/convertersmartgrid-spec/SKILL.md`: desarrollo guiado por especificaciones. Toda funcionalidad o reorganización que no sea un arreglo de una línea empieza por `specs/NNN-*/spec.md` (requisitos `RF-n` en EARS), luego plan y tareas; las pruebas citan `NNN:RF-n`.
-- Las copias de `.cursor/skills/` son solo punteros a estas: el texto vigente es uno.
 
 ## Especificaciones
 
@@ -24,7 +23,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   retirada); `specs/README.md` lo reúne con sus RF y tareas abiertas y lo genera
   `python tools/estado_specs.py --escribir` (spec 033). Esta tabla debe decir lo mismo: la suite lo
   comprueba. El detalle y la evidencia de cada spec están en sus tareas; la revisión de numeración y
-  trazabilidad, en `docs/REVISION_SPECS_2026-10-29.md`; la arquitectura, en `docs/ARQUITECTURA.md`.
+  trazabilidad, en git (`git show 2fd22a65:docs/REVISION_SPECS_2026-10-29.md`, retirado el 2026-11-24); la arquitectura, en `docs/ARQUITECTURA.md`.
 
   | Spec | Estado | Pendiente |
   | --- | --- | --- |
@@ -88,7 +87,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 058 ConverterSmartGrid: el proyecto sin el nombre de otra empresa | aprobada | falta T6 |
   | 059 La fuente es la del fichero que se carga, sin valor por defecto | cumplida |  |
   | 060 Correcciones verificables del aprendizaje | cumplida |  |
-  | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md |
+  | 061 Observación y operación integrada del agente | cumplida | T1–T5 cerradas; evidencia en git (`git show 2fd22a65:docs/INTEGRACION_MONITOR_AGENTE_2026-11-01.md`, retirado el 2026-11-24) |
   | 062 Retención diaria de ejecuciones y temporales | cumplida | T1–T4 verificadas; primera revisión real sin errores |
   | 063 Evaluación de conexión y operación comercial en un paso, para cualquier alimentador | cumplida |  |
   | 064 Arnés de DIgSILENT sin atajos: un turno para todos y estado restituido | cumplida | — |
@@ -153,8 +152,10 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
 - `docs/ARQUITECTURA_CATALOGO.md` lo genera `tools/generar_arquitectura.py` (spec 090) y no se edita a mano: los ganchos de `.githooks/`
   lo regeneran en cada commit y fusión (`python tools/generar_arquitectura.py --instalar-ganchos`, una vez por clon). Un fichero nuevo
   entra solo; su subsistema se asigna en `docs/architecture/subsistemas.json`.
-- `docs/superpowers/specs/` y `plans/`, y `docs/DIAGNOSTICO_*.md`, son históricos: no tienen
-  requisitos numerados ni casillas al día.
+- Los tres planes que quedan en `docs/superpowers/plans/` y `docs/POWERFACTORY_ACCEPTANCE.md` con
+  `docs/runbooks/three-source-production-acceptance.md` se quedan solo porque la evaluación sellada de la 077
+  (`docs/EVALUACION_ABSTENCION_077.json`) los espera como fuente; no tienen requisitos ni casillas. Lo demás histórico
+  se retiró el 2026-11-24 y sus citas apuntan a git (`git show 2fd22a65:<ruta>`).
 
 ## Pruebas
 

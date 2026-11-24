@@ -191,7 +191,7 @@ alternativas de solución para cumplir las normas sin exceder; se debe optimizar
 
 El PIDE es el Plan de Inversiones en Distribución Eléctrica que la concesionaria presenta a
 Osinergmin; sus criterios están en los Términos de Referencia del VAD (R033-2026-OS-CD, Anexo
-N.º 6), resumidos en `docs/superpowers/plans/2026-09-23-plataforma-planificacion-pide.md`.
+N.º 6), resumidos en git (`git show 2fd22a65:docs/superpowers/plans/2026-09-23-plataforma-planificacion-pide.md`, retirado el 2026-11-24).
 Las alternativas de solución, de menor a mayor intervención, son:
 
 | Orden | Alternativa | Spec que la construye en DIgSILENT |

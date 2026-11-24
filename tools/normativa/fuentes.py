@@ -89,3 +89,16 @@ def sin_rutas(datos, raiz: Path | str):
             raise FuenteAlterada(f'RUTA DE LA MÁQUINA en el registro ({clave or "texto"}): {v[:160]}')
         return v
     return limpiar(datos)
+
+
+def argumentos_de_generador(descripcion: str):
+    """Los argumentos comunes de los generadores de normativa: la carpeta de fuentes oficiales y la raíz del repositorio.
+
+    Auditoría D.2 (2026-11-24): estaba copiada en generar_coes, generar_formatos_217 y generar_reconsideraciones.
+    """
+    import argparse
+    ap = argparse.ArgumentParser(description=descripcion)
+    ap.add_argument('--fuentes', required=True,
+                    help='carpeta raíz de las fuentes oficiales descargadas (fuera de git), con su SHA256SUMS.txt')
+    ap.add_argument('--destino', required=True, help='raíz del repositorio: escribe en <destino>/config/normativa/')
+    return ap.parse_args()

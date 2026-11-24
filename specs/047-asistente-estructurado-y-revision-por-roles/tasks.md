@@ -127,7 +127,7 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       Rojo: las doce pruebas nuevas fallan por aserción (ocho `AssertionError`, cuatro `DID NOT RAISE`) con el esbozo
       del v6 con `TAREAS_HASTA_069`, sin seudónimos, sin custodia propia, sin orígenes ni apartadas; verde con sus vecinas.
 
-- [ ] T7c. Reentrenar en GPU el alumno con el corpus v7 y medirlo en su selección y su prueba sellada. (RF-8, RF-9, RF-19, RF-20, RF-59, RF-69)
+- [x] T7c. Reentrenar en GPU el alumno con el corpus v7 y medirlo en su selección y su prueba sellada. (RF-8, RF-9, RF-19, RF-20, RF-59, RF-69)
       Hecho cuando: `tools/asistente_qlora.py entrenar` termina sobre el corpus v7 sellado con `--experimento-autorizado
       047-T7`, se exporta y publica la versión, `llm_destilar.py evaluar --parte seleccion`, `elegir --dataset <corpus v7>` (RF-60) y `evaluar --parte
       prueba` dan sus informes con el perfil `llm_destilado_v2` y las 67 familias, y la decisión de uso sale de esas
@@ -139,12 +139,18 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       El v6 en uso daba 0,705 y 0,794 en su prueba de 200 con 27 tareas. Falta la comparación con el base fijado
       (Qwen3-4B-Instruct-2507, misma cuantización Q4_K_M) en la misma selección que pide RF-19, con `elegir` entre los
       dos informes: paso 40 de la cola de d8 (`GPU_BLOQUE/047_T7c_base`). La decisión de uso sale de esa elección.
+      Hecho el 2026-11-24 06:14 (d8): el base fijado `hf.co/unsloth/Qwen3-4B-Instruct-2507-GGUF:Q4_K_M`, en la misma
+      selección (201 órdenes, 67 tareas, `llm_destilado_v2`), da acierto de tarea 0,806 y F1 de datos 0,857; el alumno
+      `csg-alumno:t7-v7`, 0,821 y 0,883. `llm_destilar.py elegir` con los dos informes eligió al alumno
+      (`GPU_BLOQUE/047_T7c_base/eleccion/seleccion.json`, criterio «seleccion»), y su prueba sellada (402) da 0,799 y
+      0,895. Decisión de uso, desde esas cifras: el alumno v7 mejora al base y al v6 en uso y es la versión elegida; que se
+      active en la web lo decide la integración de la T7 (solo una versión aprobada).
 
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
 F1 0,864646; humanas 2/3 por separado. Uso asistido **rechazado por calidad**,
 sin activación ni escrituras nativas. El cierre de la tarea de evaluación no
-acredita aceptación del agente. [Informe y pendientes](../../docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md).
+acredita aceptación del agente. Informe y pendientes (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/ACEPTACION_INTEGRAL_AGENTE_2026-10-31.md`).
 
 Continuación T6: selección Qwen3:8b de una etapa (22/27) frente a dos etapas
 (21/27), sin pensamiento, digest fijado. Evaluación completa de 200 propuestas:
@@ -156,7 +162,7 @@ cero fallos/errores/omisiones (`asistente_regresion_completa.xml`). No cierra T1
 
 T5: seis entrenamientos CUDA, semilla elegida por selección, recarga en proceso nuevo,
 prueba separada y diagnóstico híbrido de las 27 tareas. Candidato bloqueado, sin
-promoción. [Metodología y evidencia](../../docs/DESTILACION_AGENTE_2026-10-31.md).
+promoción. Metodología y evidencia (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/DESTILACION_AGENTE_2026-10-31.md`).
 Las tareas T1–T4 conservan pendientes reales; no se cierran por este entrenamiento.
 
 T7, 2026-11-01: corpus real sellado de 1.734/54/54/200 registros; auditoría
@@ -171,7 +177,7 @@ El segundo intento con el código revisado fue rechazado antes de cargar Torch p
 memoria comprometible de 2,00 GiB frente al mínimo de 8 GiB. Registro y API web
 releídos: QLoRA `ERROR_ENTORNO`, sin activo y `complete=false`.
 No se cierran entrenamiento, aceptación ni integración por estos resultados.
-[Evidencia, comandos y continuación](../../docs/DESTILACION_LLM_REAL_2026-11-01.md).
+Evidencia, comandos y continuación (retirado el 2026-11-24, en git: `git show 2fd22a65:docs/DESTILACION_LLM_REAL_2026-11-01.md`).
 La sincronización del ciclo entre familias queda exigida por la nueva spec 050,
 sin atribuirla a la mera existencia del coordinador.
 
@@ -201,9 +207,9 @@ Sin ejecutar o sin completar en esta revisión, por la GPU oculta: `tests/test_a
 
 T3, 2026-11-03, primera medición real, `qwen3:8b`: **no vale como evidencia**. Rol único 11 de 12 sin respuesta y equipo 12 de 12, con unos 505 de 512 tokens por intervención. Causa probable: el razonamiento del modelo agota el tope, sin confirmar con una respuesta capturada (`docs/regresiones/2026-11-03-revision-sin-respuesta-por-razonar.md`). La revisión pide ahora `think: false` y el informe guarda el motivo de cada respuesta no reconocida. T3 sigue abierta hasta repetir la medición.
 
-T3, 2026-11-03, segunda medición, `qwen3:8b` sin razonamiento (corrección 39844656): responden los 12 casos en los dos modos. Rol único: 6 de 6 defectos hallados, 0 perdidos y **6 falsas alarmas de 6 sanos**, 124 s. Equipo: lo mismo (6, 0, 6), 481 s y unas cuatro veces los tokens. Conclusión: la revisión no discrimina, marca defecto en todo, y el equipo no mejora al rol único. Informe en `docs/asistente/COMPARACION_REVISION_047.json`; `autoriza_ejecucion` es falso. La T3 queda medida; la discriminación es la T8.
+T3, 2026-11-03, segunda medición, `qwen3:8b` sin razonamiento (corrección 39844656): responden los 12 casos en los dos modos. Rol único: 6 de 6 defectos hallados, 0 perdidos y **6 falsas alarmas de 6 sanos**, 124 s. Equipo: lo mismo (6, 0, 6), 481 s y unas cuatro veces los tokens. Conclusión: la revisión no discrimina, marca defecto en todo, y el equipo no mejora al rol único. Informe en git (`git show 2fd22a65:docs/asistente/COMPARACION_REVISION_047.json`, retirado el 2026-11-24); `autoriza_ejecucion` es falso. La T3 queda medida; la discriminación es la T8.
 
-T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`qwen3:8b`, 12 casos, huella `102bdfbf…`): **no pasa su puerta**. Rol único: 5 de 6 defectos, 1 perdido (el de riesgo), 3 falsas alarmas de 6 sanos, 0 sin respuesta, 123 s. Equipo: 5 de 6, 1 perdido, 5 falsas alarmas, 1 sin respuesta, 448 s. Informe en `docs/asistente/COMPARACION_REVISION_047_T8.json`. Mejora frente a la medición anterior, que marcaba defecto en todo, pero la T8 sigue abierta y estos 12 casos ya orientaron el diagnóstico: la próxima medida necesita un conjunto nuevo declarado antes de medir.
+T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`qwen3:8b`, 12 casos, huella `102bdfbf…`): **no pasa su puerta**. Rol único: 5 de 6 defectos, 1 perdido (el de riesgo), 3 falsas alarmas de 6 sanos, 0 sin respuesta, 123 s. Equipo: 5 de 6, 1 perdido, 5 falsas alarmas, 1 sin respuesta, 448 s. Informe en git (`git show 2fd22a65:docs/asistente/COMPARACION_REVISION_047_T8.json`, retirado el 2026-11-24). Mejora frente a la medición anterior, que marcaba defecto en todo, pero la T8 sigue abierta y estos 12 casos ya orientaron el diagnóstico: la próxima medida necesita un conjunto nuevo declarado antes de medir.
 - [x] T9. Las puertas dicen el valor medido y los ejemplos, o que falta la métrica. (RF-42)
       Hecho cuando: `tests/test_entrenamiento_dataset_puertas.py` en verde.
 - [ ] T10. Contradicciones estructuradas, decididas por el código, y medida con un conjunto nuevo. (RF-48, RF-49, RF-50, RF-51)
@@ -508,6 +514,23 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       sha256 `e6855d63aebeff55db0fbdf239c47c267c6004fef4426cb76d5071037ce42704` (2026-11-24), la misma en el fichero, en la herramienta y en la prueba. El 047o no vale para la aceptación.
       Lo escribió quien escribió la corrección: limitación declarada. Comprobado después de declararlo y sin
       tocar el código: el código solo halla 12 de los 12 defectos y no da ninguna falsa alarma en los 12 sanos.
+      Medida del 047p, 2026-11-24 06:00 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `e6855d63…42704`; informe en
+      `GPU_BLOQUE/047_T24_noche`): **no pasa**, pero por primera vez con 0 falsas alarmas y 0 perdidos en los dos modos
+      (rol único 12 de 12; equipo 11 de 12 detectados y el duodécimo bloqueado). Quedan 1 y 3 sin respuesta: dos sanos
+      que el reintento resolvió y acabaron aprobados, contados por su primera ronda, y un defecto que el código halló y el
+      rol de coste bloqueó sin motivo. De ahí RF-103; el 047p no vale para la aceptación. Sigue en la T25.
+- [ ] T25. Aceptación con un conjunto de 24 casos tras contar el dictamen final de cada rol. (RF-43, RF-103)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047q.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8q.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T24 a la T16, la T14, la T13, la T11, la T10 y la
+      T8.
+      Código, 2026-11-24 (d8, N11): RF-103 en `revisar_propuesta` y en `_revision_por_modo`. Pruebas:
+      `tests/test_revision_reglas_t22.py`.
+      Conjunto nuevo, 2026-11-24: `docs/REVISION_ROLES_CASOS_047q.json`, 24 casos sintéticos del maestro (12 sanos y 12
+      con un error, 3 por clase), cada dato de cada sano con su evidencia, sin repetir propuestas ni evidencias del 047
+      al 047p, nombres opacos, declarado antes de medir con huella sha256 `eb04a0a39151cedf0e6ed31b449c91b860e23f2b5a32d62165795cc89ea23b0a` (2026-11-24), la misma en el fichero, en
+      la herramienta y en la prueba. El 047p no vale para la aceptación. Lo escribió quien escribió la corrección:
+      limitación declarada.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
 - [x] T15. Retomar el QLoRA desde un punto de control (23-11): `tools/asistente_qlora.py entrenar --reanudar DIR` pasa
       DIR como `desde` a `entrenar_epoca` y lo anota en el informe. (RF-84)

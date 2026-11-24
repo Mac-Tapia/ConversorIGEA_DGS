@@ -101,3 +101,14 @@ def test_106_rf16_la_suite_nocturna_no_hereda_los_almacenes_de_la_web(tmp_path):
     assert salidas, 'la suite no sabe qué variables son salidas de la web'
     assert not set(salidas) & set(vistos[0]), {k: vistos[0][k] for k in set(salidas) & set(vistos[0])}
     assert vistos[0]['CSG_RED'] == 'D:/datos/red.txt', 'los datos de prueba sí pasan'
+
+
+def test_106_rf21_ningun_lanzador_de_tools_toma_el_candado_sin_esperar():
+    """106:RF-21 — el 24-11, la 070 T22 cayó en 19 s con «GPU ocupada» porque tools/asistente_entrenar.py tomaba el
+    candado con BloqueoGPU, sin esperar su turno; otros tres lanzadores hacían lo mismo. Todos piden el turno con
+    turno_gpu, que espera con plazo (CSG_GPU_ESPERA_S) y dice quién lo tiene."""
+    import re
+    from pathlib import Path
+    tools = Path(__file__).resolve().parents[1] / 'tools'
+    directos = [p.name for p in tools.rglob('*.py') if re.search(r'with\s+BloqueoGPU\(', p.read_text(encoding='utf-8'))]
+    assert directos == [], f'toman el candado sin esperar su turno: {directos}'

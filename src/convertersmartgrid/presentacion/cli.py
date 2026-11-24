@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 
 from ..aplicacion.batch import convert_selection, load_aliases
-from ..adaptadores.dataset import CymdistDataset
+from ..adaptadores.dataset import DatasetRed
 from ..aplicacion.inventory import build_dataset_inventory, format_inventory_report, write_inventory
 from ..dominio.naming import feeder_short_name, sort_key_feeder
 from ..dominio.util import cuenta, plural
@@ -236,7 +236,7 @@ def _entrada(args) -> tuple[str, dict[str, str]]:
     return mode, files
 
 
-def load_dataset(args) -> CymdistDataset:
+def load_dataset(args) -> DatasetRed:
     """Lee la entrada con los adaptadores de ``convertersmartgrid.adaptadores.sources``, los mismos de la web."""
     import atexit
     import shutil

@@ -56,6 +56,7 @@ def main(argv=None):
         from convertersmartgrid.aplicacion.asistente.propuestas_maestro import generar_propuestas, VOCABULARIO
         from convertersmartgrid.aplicacion.asistente.ollama import ClienteOllama
         from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
+        from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
         from convertersmartgrid.aplicacion.evaluacion_modelos import huella, texto_canonico
         if args.accion == 'preparar':
             filas, meta = generar_propuestas()
@@ -80,7 +81,9 @@ def main(argv=None):
             from convertersmartgrid.aplicacion.training_coordinator import exigir_memoria_ml
             exigir_memoria_ml(4., minimo_commit_gib=6.)
             ruta_lock = ruta_guardia_gpu()
-            with BloqueoGPU(ruta_lock, 'aceptacion-agente'):
+            # 106:RF-21 (2026-11-24): con BloqueoGPU directo caía al instante con «GPU ocupada» si el turno lo tenía otro (la
+            # 070 T22, en su ensayo, con el gancho de un commit); turno_gpu espera con plazo y dice quién lo tiene.
+            with turno_gpu('aceptacion-agente'):
                 if args.accion == 'seleccionar':
                     datos, fuente = leer_corpus(args.dataset)
                     cuenta, casos = set(), []

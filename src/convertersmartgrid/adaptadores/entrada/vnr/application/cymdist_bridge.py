@@ -14,7 +14,7 @@ from pathlib import Path
 import re
 from typing import Any
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.adaptadores.entrada.vnr.models import CanonicalModel
 # 080:RF-53, RF-55: las reglas de estado y medio, de su módulo de dominio (se reexportan aquí).
 from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import (  # noqa: F401
@@ -24,7 +24,7 @@ from convertersmartgrid.adaptadores.entrada.vnr.reglas_tramo import (  # noqa: F
 
 @dataclass
 class BridgeResult:
-    dataset: CymdistDataset
+    dataset: DatasetRed
     readiness: dict[str, dict[str, Any]]
     issues: list[dict[str, Any]]
 
@@ -424,7 +424,7 @@ def canonical_to_cymdist(
         'Amps': _text(r.corriente_a), 'NominalKV': _text(r.nominal_kv),
         'Status': '1' if r.on_off else '0', 'Norma': r.norma,
     } for r in model.regulators if r.section_id in sections)
-    dataset = CymdistDataset(
+    dataset = DatasetRed(
         red_path=Path(source_path), loads_path=Path(source_path), equipment_path=Path(source_path),
         headnodes=headnodes,
         nodes=nodes,

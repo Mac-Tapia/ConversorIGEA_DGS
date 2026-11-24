@@ -17,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from convertersmartgrid.adaptadores.dataset import CymdistDataset
+from convertersmartgrid.adaptadores.dataset import DatasetRed
 from convertersmartgrid.dominio.model import extract_sed_code
 from convertersmartgrid.dominio.perfil_empresa import PerfilEmpresa
 from synthetic_export import ExportSpec, write_export
@@ -36,15 +36,15 @@ def _generar(trio, destino: Path, *, semilla: int = 31, perfil: PerfilEmpresa | 
     return anonimizar_red(*trio, destino, semilla=semilla, perfil=perfil)
 
 
-def _leer(carpeta: Path) -> CymdistDataset:
-    return CymdistDataset.from_files(carpeta / 'RED.txt', carpeta / 'CARGA.txt', carpeta / 'BD_Equipo.txt')
+def _leer(carpeta: Path) -> DatasetRed:
+    return DatasetRed.from_files(carpeta / 'RED.txt', carpeta / 'CARGA.txt', carpeta / 'BD_Equipo.txt')
 
 
 def _bytes(carpeta: Path) -> dict[str, str]:
     return {p.name: hashlib.sha256(p.read_bytes()).hexdigest() for p in sorted(carpeta.iterdir())}
 
 
-def _identificadores(ds: CymdistDataset) -> set[str]:
+def _identificadores(ds: DatasetRed) -> set[str]:
     ids = set(ds.feeders) | set(ds.nodes) | set(ds.sections)
     for (sid, dev), fila in ds.customer_loads.items():
         ids |= {dev, fila.get('CustomerNumber', '')}
@@ -57,7 +57,7 @@ def test_el_trio_anonimizado_se_lee_y_conserva_la_red(tmp_path, layout, semilla,
     """112:RF-3, RF-2 — el lector abre el benchmark en su disposición y conserva tramos, fases, longitudes y cargas."""
     spec, trio = _origen(tmp_path, semilla=semilla, layout=layout, naming=naming)
     _generar(trio, tmp_path / 'bench')
-    original, bench = CymdistDataset.from_files(*trio), _leer(tmp_path / 'bench')
+    original, bench = DatasetRed.from_files(*trio), _leer(tmp_path / 'bench')
 
     assert len(bench.feeders) == len(original.feeders) == spec.total_feeders
     assert sorted(len(v) for v in bench.feeders.values()) == sorted(len(v) for v in original.feeders.values())
@@ -85,7 +85,7 @@ def test_la_topologia_cuadra_tramo_a_tramo(tmp_path, layout):
     """112:RF-3 — cada alimentador conserva su grafo: los grados de sus nudos y sus cabeceras."""
     _, trio = _origen(tmp_path, semilla=303, layout=layout)
     _generar(trio, tmp_path / 'bench')
-    original, bench = CymdistDataset.from_files(*trio), _leer(tmp_path / 'bench')
+    original, bench = DatasetRed.from_files(*trio), _leer(tmp_path / 'bench')
 
     def firmas(ds):
         salida = []
@@ -107,7 +107,7 @@ def test_bd_equipo_lleva_los_parametros_de_cada_tramo(tmp_path, layout):
     """112:RF-3 — el tipo de cada tramo, con otro nombre, trae las mismas impedancias y la misma ampacidad."""
     _, trio = _origen(tmp_path, semilla=404, layout=layout)
     _generar(trio, tmp_path / 'bench')
-    original, bench = CymdistDataset.from_files(*trio), _leer(tmp_path / 'bench')
+    original, bench = DatasetRed.from_files(*trio), _leer(tmp_path / 'bench')
 
     def parametros(ds):
         tipos = {f['ID']: tuple(float(f[c]) for c in ('R1', 'R0', 'X1', 'X0', 'B1', 'B0', 'Amps'))
@@ -179,7 +179,7 @@ def test_un_solo_alimentador(tmp_path, layout):
     assert len(bench.feeders) == 1 and bench.sections
 
 
-def _codigos_sed(ds: CymdistDataset) -> list[str]:
+def _codigos_sed(ds: DatasetRed) -> list[str]:
     return [extract_sed_code(f.get('CustomerNumber', ''), dev, sid) for (sid, dev), f in ds.customer_loads.items()]
 
 
@@ -192,7 +192,7 @@ def test_perfil_neutro_con_los_prefijos_traducidos(tmp_path, perfil, layout):
     """112:RF-3, RF-2 — las SED de medición siguen siéndolo con el perfil neutro; el perfil no delata a la empresa."""
     _, trio = _origen(tmp_path, semilla=909, layout=layout)
     informe = _generar(trio, tmp_path / 'bench', perfil=perfil)
-    original, bench = CymdistDataset.from_files(*trio), _leer(tmp_path / 'bench')
+    original, bench = DatasetRed.from_files(*trio), _leer(tmp_path / 'bench')
 
     neutro = informe.perfil_neutro
     assert neutro.crs_origen is None and neutro.escala_diagrama is None
@@ -232,7 +232,7 @@ def test_el_estudio_se_reproduce_en_dos_redes(tmp_path, semilla, layout, perfil)
     assert rep.tolerancia.fuente == 'por defecto'
     assert rep.metricas_original and set(rep.metricas_original) == set(rep.metricas_benchmark)
     # Las métricas van por seudónimo: ningún nombre original sale en el informe.
-    originales = set(CymdistDataset.from_files(*trio).feeders)
+    originales = set(DatasetRed.from_files(*trio).feeders)
     assert not originales & set(rep.metricas_original)
     assert all(m['convergio'] for m in rep.metricas_benchmark.values())
 
