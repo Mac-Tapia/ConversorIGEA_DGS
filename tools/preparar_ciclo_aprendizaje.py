@@ -468,8 +468,16 @@ def preparar_corpus(p: Preparacion, corpus: Path) -> None:
         'instante': {'valor': instante, 'origen': 'fecha de sellado de dataset_manifest.json'}}
 
 
-def preparar_casos(p: Preparacion, casos: Path, twin: Path | None, rutas: dict[str, Path]) -> None:
-    """050:RF-13/15: el contexto del caso debe ser el de su episodio; no se acepta otro."""
+def preparar_casos(p: Preparacion, casos: Path, twin: Path | None, rutas: dict[str, Path],
+                   ensenan: dict | None = None) -> None:
+    """050:RF-13/15: el contexto del caso debe ser el de su episodio; no se acepta otro.
+
+    050:RF-2 (2026-11-24): la partición del caso es la de su episodio en el reparto del gemelo. Con un fichero de casos
+    fijo (el del 08-11), el episodio 03bd0 era entrenamiento en la PINN y prueba en evolutivos: una fuga entre familias
+    que la preparación no veía. Un caso cuya partición no es la de su episodio, o cuyo episodio no tiene partición en el
+    gemelo, se aparta con ese motivo; nunca se reasigna en silencio.
+    """
+    particiones = _particion_pinn(ensenan) if ensenan else None
     from convertersmartgrid.dominio.digital_twin.episode import leer_episodio
     from convertersmartgrid.aplicacion.experimentos import ContextoExperimento
     dato = json.loads(casos.read_text(encoding='utf-8'))
@@ -499,6 +507,15 @@ def preparar_casos(p: Preparacion, casos: Path, twin: Path | None, rutas: dict[s
         if distintos:
             p.apartar('evolutivos_casos', rid, f'contexto_043 distinto del episodio en {", ".join(distintos)}')
             continue
+        if particiones is not None:
+            del_gemelo = particiones.get(eid)
+            if del_gemelo is None:
+                p.apartar('evolutivos_casos', rid, f'el episodio {eid} no tiene partición en el reparto del gemelo')
+                continue
+            if caso.get('particion') != del_gemelo:
+                p.apartar('evolutivos_casos', rid, f"fuga entre familias: el caso es «{caso.get('particion')}» y su episodio "
+                                                   f"es «{del_gemelo}» en el reparto del gemelo")
+                continue
         tabla[rid] = _referencia(_anotar_contexto(p, contexto), _sha(ruta), eid, e.creado, caso)
         rutas[eid] = ruta
     p.fuentes['evolutivos_casos'] = str(casos)
@@ -724,7 +741,7 @@ def preparar(args) -> dict:
     elif casos is None:
         p.pendiente('evolutivos_casos', 'falta --casos-evolutivos o --proyecto-casos: no hay casos declarados')
     if casos is not None:
-        preparar_casos(p, casos, args.twin, rutas)
+        preparar_casos(p, casos, args.twin, rutas, leido['ensenan'] if args.twin is not None else None)
     if args.referencia_pinn is not None:
         p.fuentes['referencia_pinn'] = str(args.referencia_pinn)
     if args.twin is not None:

@@ -69,10 +69,18 @@ def test_una_cantidad_que_fija_la_accion_no_es_una_duda(tmp_path):
 
 def test_una_duda_cuyo_valor_no_fija_la_accion_se_mantiene(tmp_path):
     """047:RF-80 — conservador: un campo cuyo valor solo está en una evidencia (que puede ser de otro elemento), o una
-    frase, siguen siendo dudas."""
+    frase, siguen siendo dudas mientras el código no respalde todos los datos; con todos respaldados (RF-89), RF-91 las
+    deja como observaciones."""
+    sin_tension = {**FRAGMENTOS, 'e2': 'Flujo en máxima tras el cambio: sin violaciones en el vano.'}
     for duda in ('tension_final_pu', 'el procedimiento de seguridad de e2 prohíbe el trabajo'):
-        r, _ = _revisar(tmp_path, {'decision': 'revisar', 'incertidumbres': [duda], 'contradicciones': []})
+        r, _ = _revisar(tmp_path, {'decision': 'revisar', 'incertidumbres': [duda], 'contradicciones': []},
+                        fragmentos=sin_tension)
         assert not r['aprobada'] and r['dictamenes'][0]['incertidumbres'] == [duda]
+        r, _ = _revisar(tmp_path, {'decision': 'revisar', 'incertidumbres': [duda], 'contradicciones': []})
+        d = r['dictamenes'][0]
+        # El campo que el código respaldó se descarta (RF-85); la frase queda como observación (RF-91).
+        guardadas = d.get('observaciones', []) + [x['entrada'] for x in d.get('incertidumbres_descartadas', [])]
+        assert d['incertidumbres'] == [] and duda in guardadas, 'RF-91: con todo respaldado la duda no bloquea'
 
 
 def test_un_dictamen_no_valido_se_pide_de_nuevo(tmp_path):

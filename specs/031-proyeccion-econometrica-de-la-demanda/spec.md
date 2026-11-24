@@ -1,6 +1,6 @@
 # Spec 031 — Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas
 
-Estado: aprobada (2026-11-20: RF-24 a RF-26, las redes caben en la GPU, T9; RF-27 a RF-29, horizonte largo en la serie diaria, T10) · Fecha: 2026-11-08 · Origen: usuario, 2026-10-28 (reserva) y 2026-11-08: «primero se deberían pronosticar y esos pronósticos deberían ser usados en cada año de estudio del PIDE» y «deben pronosticar todos los años requeridos en PIDE, pero debe hacer el mejor modelo con las métricas».
+Estado: cumplida (2026-11-23: T5 y T11 cerradas con la corrida en la GPU; RF-30, un año de contexto con relleno; 2026-11-20: RF-24 a RF-26, las redes caben en la GPU, T9; RF-27 a RF-29, horizonte largo en la serie diaria, T10) · Fecha: 2026-11-08 · Origen: usuario, 2026-10-28 (reserva) y 2026-11-08: «primero se deberían pronosticar y esos pronósticos deberían ser usados en cada año de estudio del PIDE» y «deben pronosticar todos los años requeridos en PIDE, pero debe hacer el mejor modelo con las métricas».
 
 ## Contexto y objetivo
 
@@ -37,6 +37,11 @@ El PIDE anual ya exige una proyección por carga y año, con huella y evaluació
 - RF-27: CUANDO una red de neuralforecast pronostique un horizonte de más de 31 días, EL SISTEMA la entrenará y la hará predecir sobre la serie diaria de cada objetivo, con el horizonte en días, una ventana por día y un contexto de 364 días o de la historia más larga del origen si es menor (nunca menos de 28 días); hasta 31 días seguirá a 15 minutos, como en la 089. En la competición del PIDE las redes usarán la serie diaria en todos los orígenes y en la emisión, de modo que cada red se mida con una sola resolución y las cuatro (N-HiTS, TFT, PatchTST y TiDE) con el mismo horizonte, el mismo contexto y las mismas series. (2026-11-20, contado con los parámetros de cada red: con un año a 15 minutos TiDE pide 22,69 GiB, PatchTST 24,37, N-HiTS 4,37 y NBEATSx 53,28 entre la red y el optimizador, sin las ventanas, en una tarjeta de 8 GiB; en la serie diaria, 0,26, 0,04, 0,10 y 0,14.)
 - RF-28: EL SISTEMA dará a la red, por cada objetivo, dos series diarias: la media del resto de cada día sobre el perfil anclado y la máxima del día menos la del perfil, en la escala del objetivo, con los días de menos de la mitad de sus registros enmascarados; y reconstruirá la curva de 15 minutos del horizonte con el perfil anclado del propio objetivo, estirado en cada día alrededor de su media para que la media y la máxima del día sean las que predijo la red. Así la energía y la máxima de cada mes que lee el PIDE salen de la red, y la forma dentro del día, de la historia del objetivo.
 - RF-29: EL SISTEMA anotará en la evaluación, por origen y por red, la resolución, la unidad del contexto y del horizonte, el horizonte en registros de 15 minutos y el número de parámetros de la red.
+- RF-30: CUANDO una red entrene o pronostique con la serie diaria (RF-27), EL SISTEMA usará un año de contexto
+  (`CONTEXTO_DIARIO_DIAS`) para todas las series, con el relleno inicial de la librería y la máscara de disponibles
+  para las que tienen menos historia, y contará ese relleno en la memoria de las ventanas (RF-24). Con la 031 T5
+  (2026-11-22) ninguna red emitió el PIDE: la serie más corta tenía 100 días y la red pedía 364. Meta del operador
+  (2026-11-23): las series del PIDE, de un año.
 
 ## Fuera de alcance
 

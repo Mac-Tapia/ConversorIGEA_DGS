@@ -13,6 +13,7 @@ from __future__ import annotations
 from bisect import bisect_left
 import csv
 import math
+import time
 from collections.abc import Callable, Iterable, Mapping, Sequence
 from dataclasses import dataclass, field
 from datetime import date, datetime, timedelta
@@ -1504,6 +1505,23 @@ def bytes_ventanas_entrenamiento(series_por_lote: int, largo_maximo: int, contex
     return int(series_por_lote) * ventanas * (int(contexto) + int(horizonte)) * int(canales) * BYTES_FLOAT32
 
 
+#: Hasta cuántas veces el paso de sus ventanas se espacian las de un multivariante que no cabe (089:RF-119): con el paso
+#: de un día, una semana; más allá, cada origen vería demasiado pocas ventanas para aprender la forma de la semana.
+VECES_PASO_MAXIMO = 7
+
+
+def paso_de_ventanas_que_cabe(series: int, largo_maximo: int, contexto: int, horizonte: int, canales: int, paso: int,
+                              disponible: int, tope: int) -> int | None:
+    """El menor múltiplo de ``paso`` hasta ``tope`` con el que las ventanas de las ``series`` caben en ``disponible``
+    bytes, o ``None`` si ni con ``tope`` caben (089:RF-119). Un multivariante no parte su lote de series."""
+    k = 2
+    while paso * k <= tope:
+        if bytes_ventanas_entrenamiento(series, largo_maximo, contexto, horizonte, canales, paso * k) <= disponible:
+            return paso * k
+        k += 1
+    return None
+
+
 def memoria_gpu_libre() -> int | None:
     """Bytes libres en la GPU ahora mismo, medidos por CUDA; ``None`` sin CUDA (031:RF-24)."""
     import torch
@@ -1588,7 +1606,8 @@ class ModeloRed:
             if dias_historia < HISTORIA_MINIMA_DIAS:
                 raise ValueError(f'la historia más larga tiene {dias_historia} días; la serie diaria pide {HISTORIA_MINIMA_DIAS}')
             horizonte = len(dias_del_futuro(hasta, horizonte_15min))
-            contexto = min(self.contexto_diario_dias, dias_historia)
+            # 031:RF-30: un año de contexto para todas las redes del PIDE, también con menos historia (relleno abajo).
+            contexto = self.contexto_diario_dias
             covariables, paso = COVARIABLES_DIARIAS, PASO_VENTANAS_DIARIAS
         else:
             tabla = tabla_de_entrenamiento(objetivos, hasta, exogenas)
@@ -1596,6 +1615,12 @@ class ModeloRed:
         unidad = 'días' if resolucion == 'diaria' else 'registros de 15 minutos'
         kw = argumentos_modelo(self.nombre, horizonte=horizonte, contexto_pasos=contexto, semilla=semilla, pasos=self.pasos,
                                lote=self.lote, covariables=covariables)
+        if resolucion == 'diaria':
+            # 031:RF-30: el PIDE pide que las redes vean el año entero (364 días). En la 031 T5 (2026-11-22) ninguna red
+            # emitió: «requires at least 364 training timestamp(s) … the shortest series has only 100». Las series cortas
+            # (clientes que entraron hace poco) se rellenan por el principio y la máscara de disponibles las deja fuera de
+            # la pérdida, así que el contexto sigue siendo de un año para todas y ninguna queda fuera.
+            kw['start_padding_enabled'] = True
         multivariante = self.nombre in self.MULTIVARIANTES
         if multivariante:
             kw['n_series'] = int(tabla['unique_id'].nunique())
@@ -1617,6 +1642,9 @@ class ModeloRed:
         # ve cada paso de entrenamiento (``windows_batch_size``) y los pasos no cambian.
         largos = tabla.groupby('unique_id', sort=False).size()
         canales = len(tabla.columns) - 2
+        # 031:RF-30: con el relleno inicial la librería antepone ``input_size`` registros a cada serie: cuentan en las ventanas.
+        relleno = self.contexto_pasos if kw.get('start_padding_enabled') else 0
+        largos = largos + relleno
         por_serie = bytes_ventanas_entrenamiento(1, int(largos.max()), self.contexto_pasos, horizonte, canales, int(kw['step_size']))
         _liberar_gpu()
         libre = memoria_gpu_libre()
@@ -1641,6 +1669,19 @@ class ModeloRed:
             if multivariante:
                 # Un multivariante ve todas las series a la vez: su lote no se parte (046:RF-26).
                 lote = pedidas
+                if para_ventanas is not None and por_serie * lote > para_ventanas:
+                    # 089:RF-119: iTransformer, con las 84 series de la cabecera, pidió 6,69 GiB y quedaban 6,68 (089 T7,
+                    # 2026-11-23): sus series no se pueden partir, así que se espacian las ventanas (el doble, el triple…
+                    # del paso, hasta una semana) y se entrena con menos ventanas antes de dejar la red sin medir.
+                    otro = paso_de_ventanas_que_cabe(lote, int(largos.max()), self.contexto_pasos, horizonte, canales,
+                                                     int(kw['step_size']), para_ventanas,
+                                                     tope=int(kw['step_size']) * VECES_PASO_MAXIMO)
+                    if otro is not None:
+                        base.update(paso_ventanas_original=int(kw['step_size']), paso_ventanas=otro)
+                        kw['step_size'] = otro
+                        por_serie = bytes_ventanas_entrenamiento(1, int(largos.max()), self.contexto_pasos, horizonte,
+                                                                 canales, otro)
+                        base['bytes_por_serie'] = por_serie
                 if para_ventanas is not None and por_serie * lote > para_ventanas:
                     raise MemoriaGPUInsuficiente(f'no cabe en la GPU: las ventanas de las {lote} series juntas piden '
                                                  f'{por_serie * lote / GIB:.2f} GiB y quedan {para_ventanas / GIB:.2f} GiB '
@@ -1931,6 +1972,55 @@ def _error_de_maxima(real: np.ndarray, p: np.ndarray) -> float:
     return abs(float(p[ok].max()) - float(real[ok].max())) / float(np.abs(real[ok]).max())
 
 
+def metricas_completas(pares: Sequence[tuple[np.ndarray, np.ndarray]], *, q05: float | None = None, q95: float | None = None,
+                       referencia: Sequence[tuple[np.ndarray, np.ndarray]] | None = None) -> dict[str, float | int | None]:
+    """Todas las medidas de precisión de un modelo contra lo ocurrido, sobre los pares (real, pronóstico) (089:RF-120).
+
+    El operador pidió el 2026-11-23 ver, además del WAPE y del error en la máxima que deciden la puerta, todo lo que dice
+    si el pronóstico es verdadero: el error en la unidad de la serie (MAE, RMSE), el relativo (WAPE, sMAPE, RMSE sobre el
+    desvío), el sesgo en valor y en porcentaje, el R², la mejora sobre la referencia (1 − MAE / MAE de la referencia, en
+    los mismos instantes), el error y el desfase de la máxima, y la banda q05–q95: su cobertura, su ancho relativo y la
+    pérdida pinball de sus dos cuantiles. Ninguna entra en la puerta (RF-63 sigue igual): se informan."""
+    reales, pron, maximas, desfases = [], [], [], []
+    for r, p in pares:
+        r, p = np.asarray(r, dtype=float), np.asarray(p, dtype=float)
+        ok = np.isfinite(r) & np.isfinite(p)
+        if not ok.any():
+            continue
+        reales.append(r[ok])
+        pron.append(p[ok])
+        maximas.append(_error_de_maxima(np.where(ok, r, np.nan), np.where(ok, p, -np.inf)))
+        desfases.append(abs(int(np.argmax(np.where(ok, p, -np.inf))) - int(np.argmax(np.where(ok, r, -np.inf)))) * 0.25)
+    if not reales:
+        return {'n': 0}
+    y, p = np.concatenate(reales), np.concatenate(pron)
+    e = p - y
+    suma, mae = float(np.abs(y).sum()), float(np.abs(e).mean())
+    rmse, desvio = float(np.sqrt(np.mean(e ** 2))), float(y.std())
+    denominador = np.abs(y) + np.abs(p)
+    salida: dict[str, float | int | None] = {
+        'n': int(len(y)), 'mae': mae, 'rmse': rmse, 'wape': float(np.abs(e).sum()) / suma if suma else None,
+        'smape': float(np.mean(np.where(denominador > 0, 2 * np.abs(e) / np.where(denominador > 0, denominador, 1), 0.0))),
+        'rmse_relativo': rmse / desvio if desvio else None, 'sesgo': float(e.mean()),
+        'sesgo_pct': float(e.sum()) / suma if suma else None,
+        'r2': 1 - float(np.sum(e ** 2)) / float(np.sum((y - y.mean()) ** 2)) if desvio else None,
+        'error_maxima_mediana': float(np.median([m for m in maximas if math.isfinite(m)])) if any(math.isfinite(m) for m in maximas) else None,
+        'desfase_maxima_h_mediana': float(np.median(desfases)),
+    }
+    if referencia is not None:
+        er = [np.asarray(pr, dtype=float) - np.asarray(rr, dtype=float) for rr, pr in referencia]
+        er = np.concatenate([x[np.isfinite(x)] for x in er]) if er else np.zeros(0)
+        mae_ref = float(np.abs(er).mean()) if er.size else 0.0
+        salida['mejora_sobre_referencia'] = 1 - mae / mae_ref if mae_ref else None
+    if q05 is not None and q95 is not None:
+        bajo, alto = p + q05, p + q95
+        salida['cobertura'] = float(np.mean((y >= bajo) & (y <= alto)))
+        salida['ancho_banda_relativo'] = float(np.mean(alto - bajo)) / float(np.abs(y).mean()) if np.abs(y).mean() else None
+        pinball = [float(np.mean(np.maximum(q * (y - c), (q - 1) * (y - c)))) for q, c in ((0.05, bajo), (0.95, alto))]
+        salida['pinball_q05'], salida['pinball_q95'] = pinball
+    return salida
+
+
 def _resumir(medidas: Sequence[dict], etiqueta: str = 'wape') -> float:
     error, energia = sum(m['error_abs'] for m in medidas if m['n']), sum(m['energia'] for m in medidas if m['n'])
     return error / energia if energia else float('inf')
@@ -1957,6 +2047,7 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
         return {'status': 'HISTORIA_INSUFICIENTE', 'ganador': None, 'motivo': 'no hay dos orígenes con objetivos evaluables; queda el perfil',
                 'modelos': {}, 'perfiles': {}, 'origenes': []}
     predicciones: dict[str, dict] = {}
+    tiempos: dict[str, dict] = {}
     estados: dict[str, dict] = {n: {'status': 'EVALUADO'} for n in nombres}
     reales = {}
     for f in fechas:
@@ -1969,16 +2060,35 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
             reales[(o.nombre, f)] = r
             antes = t <= f
             for m in METODOS:
+                inicio_m = time.perf_counter()
                 predicciones.setdefault(m, {})[(o.nombre, f)] = predecir(m, t[antes], y[antes], futuro, exogenas)
+                tiempos.setdefault(m, {'ajuste_s': [], 'prediccion_s': [], 'objetivos': []})
+                tiempos[m].setdefault('_acumulado', {}).setdefault(f, 0.0)
+                tiempos[m]['_acumulado'][f] += time.perf_counter() - inicio_m
+    for m in METODOS:
+        for f, s in tiempos.get(m, {}).pop('_acumulado', {}).items():
+            tiempos[m]['prediccion_s'].append(s)
+            tiempos[m]['objetivos'].append(len(evaluables(f)))
     for nombre in nombres:
+        tiempos[nombre] = {'ajuste_s': [], 'prediccion_s': [], 'objetivos': []}
         try:
             for f in fechas:
                 objs = evaluables(f)
                 modelo = fabrica(nombre, semilla=semilla, **dict(ajustes or {}))
+                # 089:RF-121: cuánto tarda en aprender y cuánto en pronosticar ya entrenado, por origen.
+                inicio_m = time.perf_counter()
                 modelo.ajustar(objs, f, pasos, exogenas, semilla)
-                for k, v in modelo.predecir_todos(objs, f, pasos, exogenas).items():
+                ajuste = time.perf_counter() - inicio_m
+                inicio_m = time.perf_counter()
+                salida_m = modelo.predecir_todos(objs, f, pasos, exogenas)
+                prediccion = time.perf_counter() - inicio_m
+                tiempos[nombre]['ajuste_s'].append(ajuste)
+                tiempos[nombre]['prediccion_s'].append(prediccion)
+                tiempos[nombre]['objetivos'].append(len(objs))
+                for k, v in salida_m.items():
                     predicciones.setdefault(nombre, {})[(k, f)] = v
-                log(f'{nombre}: origen {str(f)[:10]} listo')
+                del salida_m
+                log(f'{nombre}: origen {str(f)[:10]} listo (aprende {ajuste:.0f} s, pronostica {prediccion:.1f} s)')
                 del modelo
         except Exception as exc:  # noqa: BLE001 - la librería lanza Exception a secas, y un modelo roto no se lleva a los demás (089:RF-61)
             estados[nombre] = {'status': 'ERROR_ENTORNO', 'motivo': f'{type(exc).__name__}: {exc}'[:500]}
@@ -2010,8 +2120,31 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
             corte = dias * 96
             salida[f'{dias}d'] = _resumir([medir(reales[k][:corte], p[:corte]) for k, p in predicciones[metodo].items() if k[1] == prueba and k in reales])
         return salida
+    def metricas_de(metodo, q05=None, q95=None):
+        # 089:RF-120: todas las medidas en la prueba y por horizonte, con la referencia (el perfil elegido) en los mismos
+        # instantes, para que la mejora se mida sobre lo mismo.
+        claves = [k for k in predicciones[metodo] if k[1] == prueba and k in reales and k in predicciones[perfil]]
+        salida = {}
+        for dias in sorted({1, min(7, horizonte_dias), horizonte_dias}):
+            corte = dias * 96
+            salida[f'{dias}d'] = metricas_completas(
+                [(reales[k][:corte], predicciones[metodo][k][:corte]) for k in claves], q05=q05, q95=q95,
+                referencia=[(reales[k][:corte], predicciones[perfil][k][:corte]) for k in claves])
+        return salida
+    def resumen_de_tiempos(metodo):
+        # 089:RF-121: por origen y su mediana; el pronóstico también por objetivo, que es lo que escala con la red.
+        t = tiempos.get(metodo) or {}
+        ajuste, prediccion, cuantos = t.get('ajuste_s') or [], t.get('prediccion_s') or [], t.get('objetivos') or []
+        return {'ajuste_s_por_origen': [round(x, 3) for x in ajuste], 'prediccion_s_por_origen': [round(x, 3) for x in prediccion],
+                'ajuste_s_mediana': float(np.median(ajuste)) if ajuste else None,
+                'prediccion_s_mediana': float(np.median(prediccion)) if prediccion else None,
+                'prediccion_s_por_objetivo': (float(np.median([s / n for s, n in zip(prediccion, cuantos) if n]))
+                                              if any(cuantos) else None),
+                'objetivos_por_origen': list(cuantos)}
     for nombre, estado in estados.items():
         if estado['status'] != 'EVALUADO':
+            if nombre in tiempos:
+                estado['tiempos'] = resumen_de_tiempos(nombre)
             continue
         errores = np.concatenate([reales[k][np.isfinite(reales[k])] - p[np.isfinite(reales[k])] for k, p in predicciones[nombre].items()
                                   if k[1] in eleccion and k in reales] or [np.zeros(1)])
@@ -2027,7 +2160,8 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
         puerta = {'wape': wape <= wape_perfil * (1 - PUERTA['mejora_wape']), 'maxima': error_maximas(nombre) <= maxima_perfil,
                   'cobertura': PUERTA['cobertura'][0] <= cobertura <= PUERTA['cobertura'][1]}
         estado.update(wape_prueba=wape, wape_eleccion=wape_seleccion(nombre), error_maxima=error_maximas(nombre), cobertura=cobertura, puerta=puerta,
-                      supera_puerta=all(puerta.values()), wape_por_horizonte=por_horizonte(nombre))
+                      supera_puerta=all(puerta.values()), wape_por_horizonte=por_horizonte(nombre),
+                      metricas=metricas_de(nombre, q05, q95), tiempos=resumen_de_tiempos(nombre))
     pasan = [n for n, e in estados.items() if e.get('supera_puerta')]
     ganador = min(pasan, key=lambda n: estados[n]['wape_eleccion']) if pasan else None
     return _sin_infinitos({
@@ -2035,7 +2169,8 @@ def backtest_modelos(objetivos: Sequence[Objetivo], nombres: Sequence[str], *, h
         'motivo': f'{ganador} supera al perfil {perfil}' if ganador else f'ningún modelo supera la puerta: queda el perfil {perfil}',
         'modelos': estados, 'origenes': [str(f)[:19] for f in fechas], 'objetivos': len(objetivos),
         'perfiles': {m: {'wape_prueba': _resumir(medidas(m, [prueba])), 'wape_eleccion': wape_seleccion(m), 'error_maxima': error_maximas(m),
-                         'wape_por_horizonte': por_horizonte(m)} for m in METODOS},
+                         'wape_por_horizonte': por_horizonte(m), 'metricas': metricas_de(m),
+                         'tiempos': resumen_de_tiempos(m)} for m in METODOS},
         'mejor_perfil': perfil,
         'orientacion': _resumen_de_orientacion((o.nombre, orientacion_en_origenes(o, fechas)) for o in objetivos),
         'huellas_exogenas': huellas_de_exogenas(exogenas)})

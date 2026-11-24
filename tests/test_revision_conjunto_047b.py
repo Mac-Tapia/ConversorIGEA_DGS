@@ -138,9 +138,11 @@ def test_conjunto_elegido_se_mide_y_su_huella_va_al_informe(tmp_path, ollama_fal
     assert informe['casos'] == 12 and informe['con_defecto'] == 6 and informe['modelo'] == 'falso:1'
     # El falso aprueba todo: 0 falsas alarmas y los 6 defectos perdidos; mide el camino, no la revisión.
     for modo in ('rol_unico', 'equipo'):
-        # 047:RF-77 (MEJ24d): los defectos de coste los halla el código solo, sin el LLM.
+        # 047:RF-77 (MEJ24d): los defectos de coste los halla el código solo, sin el LLM; desde RF-90 (2026-11-23)
+        # también la evidencia de otro alimentador (b07), y desde RF-98 a RF-100 (2026-11-24) la física, los límites y
+        # las salvaguardas que faltan: los seis, con ninguna falsa alarma.
         fallidas = informe[modo].get('comprobaciones_fallidas')
-        assert informe[modo]['falsas_alarmas'] == 0 and fallidas == 2, 'el código no comprueba el coste'
+        assert informe[modo]['falsas_alarmas'] == 0 and fallidas == 6, 'el código no comprueba lo que puede'
         assert informe[modo]['perdidos'] == 6 - fallidas
     assert informe['autoriza_ejecucion'] is False
     assert sum(u.endswith('/api/chat') for u in ollama_falso) > 0

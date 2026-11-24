@@ -311,6 +311,32 @@ común.
   copia de transmisión dos trafos de 200/62,46 kV en la toma +2 de alta llevaban en el motor abierto, con las tensiones
   de DIgSILENT, 94,4 MW donde DIgSILENT da 116,5, y la red de 60 kV que alimentan quedaba descuadrada ±50 MW; los de
   la misma ficha con la toma en el borne ya cuadraban.)
+- RF-39: (corrida de 107 T14 del 22-11; amplía RF-27 y RF-29) CUANDO una compensación en derivación tenga una tensión
+  nominal propia (ushnm) distinta de la de su barra, EL SISTEMA exportará su Q referida a la nominal de la barra,
+  Qact × (kV de la barra / ushnm)², porque DIgSILENT da Qact a ushnm y el motor abierto monta la compensación con la
+  nominal de la barra. (En la copia de transmisión 22 compensaciones la tenían distinta; una reactancia de 10 Mvar a
+  145 kV en una barra de 138 kV y condensadores de 11,25 Mvar a 11,5 kV en una de 10,5 kV dejaban la radial de Iberia
+  0,012 p.u. por debajo de DIgSILENT y Dolorespata 0,0145 por encima; referidas a la barra, las barras fuera de
+  0,005 p.u. bajan de 81 a 20 y esa radial queda por debajo de 0,001.)
+- RF-40: (corrida de 107 T14 del 22-11; amplía RF-32 como RF-34 al SVC) CUANDO un controlador de estación regule
+  su nudo con estatismo (i_droop 1 y ddroop mayor que 0), EL SISTEMA exportará como consigna de sus máquinas la
+  tensión que resolvió DIgSILENT en ese nudo, marcada como aproximada, porque con estatismo el nudo no queda en la
+  consigna. (En la copia de transmisión el STATCOM de Pucallpa, con 1 % sobre 80 Mvar, dejaba su nudo en 0,9927, y el
+  motor abierto, con 1,000, subía 0,006 p.u. el grupo de Pucallpa; con las dos correcciones de RF-39 y RF-40 las barras
+  fuera de 0,005 p.u. bajan de 81 a 12 y las ramas fuera del 1 %, de 20 a 13.)
+- RF-41: (corrida de 107 T14 del 22-11; amplía RF-28 y RF-31) CUANDO un SVC con control de tensión esté en un
+  controlador de estación que regula potencia reactiva (i_ctrl 1 del controlador, que lo nombra en psym o en c_pstac),
+  EL SISTEMA lo exportará como inyección PQ con la Q que resolvió DIgSILENT (m:Q, en convenio de generación), marcada
+  como resuelta, y no como nudo PV a su consigna. (En la copia de transmisión el SVC del horno de Aceros mantenía 0 Mvar
+  en su cubículo de 220 kV absorbiendo 163,9 Mvar y dejaba su barra en 0,982; como PV a 1,000 el motor abierto la
+  subía 0,018 p.u. Con RF-39 a RF-41 las barras fuera de 0,005 p.u. bajan de 81 a 6 y las ramas fuera del 1 %, de 20
+  a 11.)
+- RF-42: (corrida de 107 T14 del 22-11; amplía RF-39) CUANDO la exportación se haga con el flujo de DIgSILENT
+  calculado (m:Q de la compensación y m:u de su barra), EL SISTEMA exportará la Q de cada compensación en la nominal de
+  su barra como −m:Q/u², porque es una admitancia fija y así vale para cualquier tipo de filtro; sin resultados, la de
+  RF-27 y RF-39. (En la copia de transmisión dos filtros amortiguados de 3,5.º armónico daban 11,19 Mvar a 1,0594 p.u.
+  con una Qact que a esa tensión son 9,22, y su barra de 33 kV quedaba 0,006 p.u. baja; con RF-39 a RF-42 las barras
+  fuera de 0,005 p.u. bajan de 81 a 3, dos de ellas internas de un SVC y un STATCOM, y las ramas fuera del 1 %, de 20 a 9.)
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.

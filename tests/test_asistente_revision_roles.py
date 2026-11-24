@@ -472,7 +472,12 @@ def test_dictamen_no_valido_guarda_lo_que_devolvio(tmp_path):
         assert d['fallo_revisor'] and d.get('devuelto') == {'decision': 'favorable', 'incertidumbres':
                                                        ['coste_usd: sin evidencia'], 'contradicciones': []}
     herramienta = _herramienta_comparar()
-    casos = herramienta.materializar(herramienta.leer_casos(), tmp_path)[:1]
+    # 047:RF-85 (2026-11-24): una duda sobre un campo que el código ya comprobó se descarta; el caso tiene que ser uno
+    # cuyo coste el código no comprueba, o la duda «coste_usd: sin evidencia» no deja nada pendiente.
+    from convertersmartgrid.aplicacion.asistente.contradicciones import comprobar_coste
+    casos = [c for c in herramienta.materializar(herramienta.leer_casos(), tmp_path)
+             if not any(x['coincide'] for x in comprobar_coste(c['propuesta'], c['evidencia']))][:1]
+    assert casos, 'el conjunto no tiene un caso cuyo coste no compruebe el código'
     fila = comparar_revision(casos, lambda medir: (lambda rol, p, ev, ctx, ronda: {**pendiente,
                              'evidencia_ids': sorted(ev)}), rondas=1)['equipo']['por_caso'][0]
     assert fila['sin_respuesta'] and all((d.get('devuelto') or {}).get('incertidumbres') == ['coste_usd: sin evidencia']

@@ -23,6 +23,13 @@
       Cambio del 2026-11-13: el permiso de empezar desaparece; `CSG_AUTOENTRENAMIENTO=0` lo para. Pruebas de contrato: `tests/test_aprendizaje_cola.py::test_sin_ninguna_variable_el_ciclo_arranca_con_el_plan_del_equipo`, `test_con_la_orden_de_parar_no_arranca` y `test_vigilancia_comun_activa_por_defecto_y_sin_plan_bloquea`.
       Avance 2026-11-07: GRU/PINN disponen de registro sin publicación individual y salida aislada; lenguaje v2 registra candidatos con puertas y reapertura sin activar. Comparación temporal conectada al conjunto por clase. Contratos verificados, sin acreditar una campaña real. Falta pasar `ciclo=` a `Vigilante` en `web/app.py`, conectar productores y ejecutar el cambio de datos real. Orden, con la GPU libre y RAM suficiente:
       `PYTHONPATH=src .venv/Scripts/python.exe tools/aprendizaje_continuo.py ciclo --contexto <ExperimentoSpec.json> --familias transformer,clasificador,gru,pinn,evolutivos,embeddings,qlora --politica-hash <huella 044> --tiempo-s 21600 --memoria-gib 12 --fuente ...` (las fuentes de T1b).
+      Fuga entre familias, 2026-11-24 (d8, N10): el ensayo del 23-11 con el fichero de casos fijo del 08-11 dio el episodio
+      03bd0 como entrenamiento en la PINN y prueba en evolutivos, porque `preparar_casos` aceptaba la partición del fichero
+      sin contrastarla con el reparto del gemelo (los casos generados ya la heredaban). Ahora `preparar_casos` recibe los
+      episodios que enseñan y aparta, con el motivo «fuga entre familias», el caso cuya partición no es la de su episodio
+      (o cuyo episodio no tiene partición), sin reasignarlo en silencio (RF-2). Prueba:
+      `tests/test_preparar_ciclo_aprendizaje.py::test_050_rf2_caso_evolutivo_con_otra_particion_que_su_episodio_es_fuga`.
+      Lo que falta para la T3b: preparar de nuevo con esta corrección y correr el ciclo en seco y el real.
 - [x] T4. Contrato de retención y publicación del conjunto: retención por contexto, evaluación conjunta sin empate, puntero único con anterior y relectura. (RF-5, RF-6, RF-7)
       Hecho cuando: las pruebas rechazan un contexto que retrocede o falta, un empate o un deterioro, un miembro sin puertas, sin reapertura o sin retención, un ciclo no terminado y un conjunto manipulado; y publicar, volver al anterior y `version_del_conjunto` se comprueban al releer sin tocar el registro individual.
       Hecho el 2026-11-03: `evaluar_retencion`, `evaluar_conjunto`, `publicar_conjunto`, `revertir_conjunto`, `conjunto_activo` y `version_del_conjunto`.

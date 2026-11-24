@@ -132,6 +132,13 @@ Cada tarea exige pruebas primero, evidencia y revisión del diff propio.
       047-T7`, se exporta y publica la versión, `llm_destilar.py evaluar --parte seleccion`, `elegir --dataset <corpus v7>` (RF-60) y `evaluar --parte
       prueba` dan sus informes con el perfil `llm_destilado_v2` y las 67 familias, y la decisión de uso sale de esas
       cifras (no del plan). Las órdenes exactas están en el traspaso de la tarjeta MEJ34.
+      Corrida, 2026-11-24 05:35–05:42 (cola de GPU de d8, paso 26d, `GPU_BLOQUE/047_T7c_noche`, fuera de git): tras
+      apartar la carpeta export/ sin pesos que dejaba la limpieza (rc=2 «destino existente» del 23-11), exportar,
+      publicar `csg-alumno:t7-v7`, evaluar la selección, elegir y evaluar la prueba dieron rc=0 con `llm_destilado_v2` y
+      las 67 familias. Selección (201): acierto de tarea 0,821 y F1 de datos 0,883; prueba sellada (402): 0,799 y 0,895.
+      El v6 en uso daba 0,705 y 0,794 en su prueba de 200 con 27 tareas. Falta la comparación con el base fijado
+      (Qwen3-4B-Instruct-2507, misma cuantización Q4_K_M) en la misma selección que pide RF-19, con `elegir` entre los
+      dos informes: paso 40 de la cola de d8 (`GPU_BLOQUE/047_T7c_base`). La decisión de uso sale de esa elección.
 
 T6: 200 propuestas únicas, 27 tareas, 54 familias; auditoría sin solapamiento de
 texto/grupo con entrenamiento. Evaluación local Llama3.1:8b: 157/200 tareas,
@@ -316,4 +323,193 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       de declaración, declarado antes de medir con huella sha256 `6553d4ae2cdb29b228e56d209cebb15ce53c4ae823deb0d9e17628ed60b4ca8a`
       (2026-11-22), la misma en el fichero, en la herramienta y en la prueba. Lo escribió quien escribió la
       corrección: limitación declarada.
+      Medida del 047g, 2026-11-23 11:51 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `6553d4ae…b4ca8a`; informe en
+      `GPU_BLOQUE/047_T14_noche`): **no pasa**. Rol único 6 de 6, 0 perdidos, 4 falsas alarmas (g01, g03: «coste_usd»
+      como duda con el coste que cuadra; g07, g09: la acción copiada como duda; g01 además 6 picas frente a «3 m»). Equipo
+      5 de 6, 1 perdido (g06: la maniobra prohibida, los cuatro roles favorables), 2 falsas alarmas (g01, g09) y 1 sin
+      respuesta (g12). Sigue en la T16.
+- [ ] T16. El código descarta las dudas sobre lo que comprobó y la acción copiada, la cantidad frente a una magnitud, y halla la acción prohibida; medida con un conjunto nuevo. (RF-85, RF-86, RF-87, RF-88)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047h.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8h.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-23 (d8, N10): `filtrar_incertidumbres` recibe los campos comprobados (RF-85) y descarta la acción
+      repetida (RF-86); `_magnitud_de_la_evidencia` (RF-87); `comprobar_prohibiciones` entra en las comprobaciones del
+      código (RF-88). Pruebas, con dobles y sin LLM: `tests/test_revision_reglas_t16.py`, rojo por aserción
+      (`N10_SINCODEX/T16/rojo_*.log`) y verde, y `tests/test_revision_conjunto_047h.py`. Diagnóstico sin LLM, que no vale
+      como medida: volver a filtrar con este código lo que devolvió el LLM en el 047g deja 0 falsas alarmas y 0 perdidos
+      en el rol único, y 1 falsa alarma en el equipo (g09: dudas que la evidencia no menciona, que solo una medida dirá).
+      Conjunto nuevo, 2026-11-23: el 047g orientó este diagnóstico y no vale para la aceptación, así que la medida es con
+      `docs/REVISION_ROLES_CASOS_047h.json`, 12 casos sintéticos del maestro con las clases del 047g (coste por precio
+      unitario por cantidad y por precio por km, física por tensión bajo el límite y por sobrecarga de una SED, riesgo
+      por una maniobra que la norma no permite, fuentes por la medición de otra SED), cifras escritas de otras formas,
+      sin repetir propuestas ni evidencias del 047 al 047g, nombres opacos, declarado antes de medir con huella sha256
+      `9664d385e0cf5c8bf16fdc306c081c79c5ceeecff45a7f327d41777a9bea1594` (2026-11-23), la misma en el fichero, en la
+      herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Medida del 047h, 2026-11-23 18:15 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `9664d385…a1594`; informe en
+      `GPU_BLOQUE/047_T16_noche`): **no pasa**. Rol único 6 de 6, 0 perdidos, 4 falsas alarmas (h01: «coste_usd: …»
+      con el coste que cuadra; h03: la cargabilidad que da la evidencia; h07: dudas sobre lo que la acción fija; h12: la
+      tensión de la máxima frente a la del valle). Equipo 6 de 6, 0 perdidos, 6 falsas alarmas (h01, h03, h05, h07,
+      h09, h12: dudas sobre lo que la propuesta no dice y datos que da la evidencia). La fuente ajena (h08) solo se
+      bloqueó por una duda sin relación. Sigue en la T17.
+- [ ] T17. El código respalda los datos que da la evidencia o fija la acción, halla la evidencia de otro elemento, y con todo respaldado las dudas sueltas son observaciones; medida con un conjunto nuevo. (RF-89, RF-90, RF-91)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047i.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8i.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T16, la T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-23 (d8, N10): `comprobar_datos` (RF-89) y `comprobar_elementos` (RF-90) entran en las
+      comprobaciones del código; `revisar_propuesta` pasa a observaciones lo que RF-91 dice. Pruebas, con dobles y sin
+      LLM: `tests/test_revision_reglas_t17.py`, rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T17/rojo_base_*.log`) y
+      verde, y `tests/test_revision_conjunto_047i.py`. Diagnóstico sin LLM, que no vale como medida: volver a filtrar
+      con este código lo que devolvió el LLM en el 047h deja 0 falsas alarmas y 0 perdidos en los dos modos, y la
+      fuente ajena (h08) la halla el código. Conjunto nuevo, 2026-11-23: el 047h orientó este diagnóstico
+      y no vale para la aceptación, así que la medida es con `docs/REVISION_ROLES_CASOS_047i.json`, 12 casos sintéticos del
+      maestro con las clases del 047h, cifras escritas de otras formas, sin repetir propuestas ni evidencias del 047 al
+      047h, nombres opacos, declarado antes de medir con huella sha256
+      `eab90f9e2596dd877ad89b04290e6e312f0206e789d5ad56ba86e3efe57dfba4` (2026-11-23), la misma en el fichero, en la
+      herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Medida del 047i, 2026-11-23 19:03 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `eab90f9e…dfba4`; informe en
+      `GPU_BLOQUE/047_T17_noche`): **no pasa**. Rol único y equipo 6 de 6 y 0 perdidos; 4 y 3 falsas alarmas. Tres de
+      ellas (i01, i03, i09) las dio el código del coste, que leía como totales «… la unidad», «… por equipo» y «… el
+      kilómetro»; la cuarta (i07, rol único), sin coste calculado, dejaba sin respaldar todos los datos. La evidencia
+      de otra SED (i08) y la maniobra prohibida (i06) las halló el código. Sigue en la T18.
+- [ ] T18. El coste lee las formas corrientes de un precio por unidad y por km, y ancla el precio unitario en la única cantidad de piezas; medida con un conjunto nuevo. (RF-92)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047j.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8j.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T17, la T16, la T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-23 (d8, N10): `_POR_UNIDAD`, `_POR_KM` y `cantidad_anclada`. Pruebas, sin LLM:
+      `tests/test_revision_reglas_t18.py`, rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T18/rojo_base_*.log`) y
+      verde, y `tests/test_revision_conjunto_047j.py`. Diagnóstico sin LLM, que no vale como medida: volver a filtrar
+      con este código lo que devolvió el LLM en el 047h y en el 047i deja 0 falsas alarmas y 0 perdidos en los dos modos.
+      Conjunto nuevo, 2026-11-23: el 047i orientó este diagnóstico y no vale para la aceptación, así que la medida es con
+      `docs/REVISION_ROLES_CASOS_047j.json`, 12 casos sintéticos del maestro con las clases del 047i, cifras escritas de
+      otras formas, sin repetir propuestas ni evidencias del 047 al 047i, nombres opacos, declarado antes de medir con
+      huella sha256 `db2cdb92c53768d94e21f18cdb449530f5f507d6cfb5866de4fb7faff133333c` (2026-11-23), la misma en el fichero, en
+      la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Medida del 047j, 2026-11-23 21:53 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `db2cdb92…3333c`; informe en
+      `GPU_BLOQUE/047_T18_noche`): **no pasa**. Rol único y equipo 0 falsas alarmas y 0 sin respuesta, 5 de 6 y 1
+      perdido en los dos: la acción de j06 la prohibía la evidencia con «no permiten trabajar … sin puesta a tierra», y
+      el código no leía esa forma. Los costes por unidad, por equipo y por km de RF-92 los leyó bien. Sigue en la T19.
+- [ ] T19. El código lee otras formas corrientes de prohibir y lo prohibido «sin» algo; medida con un conjunto nuevo. (RF-93)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047k.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8k.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T18, la T17, la T16, la T14, la T13, la T11, la
+      T10 y la T8.
+      Código, 2026-11-23 (d8, N10): `_PROHIBE` y `_SIN` en `comprobar_prohibiciones`. Pruebas, sin LLM:
+      `tests/test_revision_reglas_t19.py`, rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T19/rojo_base_*.log`) y
+      verde, y `tests/test_revision_conjunto_047k.py`. Diagnóstico sin LLM, que no vale como medida: con este código la
+      prohibición de j06 la halla el código, y en ningún caso sano del 047b al 047j halla una prohibición.
+      Conjunto nuevo, 2026-11-23: el 047j orientó este diagnóstico y no vale para la aceptación, así que la medida es con
+      `docs/REVISION_ROLES_CASOS_047k.json`, 12 casos sintéticos del maestro con las clases del 047j, cifras escritas de
+      otras formas, la prohibición con palabras que el código no busca, sin repetir propuestas ni evidencias del 047 al
+      047j, nombres opacos, declarado antes de medir con huella sha256 `64602cc65b60b8c70eb6f962f286f864f6b11a5ac02416afe5ea9177f0b03d53` (2026-11-23), la misma en el fichero, en
+      la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación declarada.
+      Medida del 047k, 2026-11-24 03:33 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `64602cc6…03d53`; informe en
+      `GPU_BLOQUE/047_T19_noche`): **no pasa**. Rol único 6 de 6, 0 falsas alarmas, 0 perdidos y 0 sin respuesta;
+      equipo 5 de 6, 0 falsas alarmas, 0 perdidos y 1 sin respuesta: en k06 la evidencia prohibía la acción con
+      «ninguna cuadrilla está autorizada a maniobrar con carga…», el código no leía esa forma y el rol de coste bloqueó
+      sin hallazgo. Sigue en la T20.
+- [ ] T20. El código lee como prohibición una negación con un participio de permiso; medida con un conjunto nuevo. (RF-94)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047l.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8l.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T19, la T18, la T17, la T16, la T14, la T13, la
+      T11, la T10 y la T8.
+      Código, 2026-11-24 (d8, N10): `_PROHIBE` en `comprobar_prohibiciones`. Pruebas, sin LLM:
+      `tests/test_revision_reglas_t20.py`, rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T20/rojo_base_*.log`) y
+      verde, y `tests/test_revision_conjunto_047l.py`. Diagnóstico sin LLM, que no vale como medida: con este código la
+      prohibición de k06 la halla el código, y en ningún caso sano del 047b al 047k halla una prohibición.
+      Conjunto nuevo, 2026-11-24: el 047k orientó este diagnóstico y no vale para la aceptación, así que la medida es con
+      `docs/REVISION_ROLES_CASOS_047l.json`, 12 casos sintéticos del maestro con las clases del 047k, cifras escritas de
+      otras formas, la prohibición como una restricción de quién puede hacerlo, con palabras que el código no busca, sin
+      repetir propuestas ni evidencias del 047 al 047k, nombres opacos, declarado antes de medir con huella sha256
+      `ee537d587cc8724558d68f59a0cfc0b3f5c855abd2e72986e0fc0d96995b9b8c` (2026-11-24), la misma en el fichero, en la herramienta y en la prueba. Lo
+      escribió quien escribió la corrección: limitación declarada.
+      El 047l no se mide (2026-11-24 04:20, d8): su ensayo sin LLM con un revisor que todo lo aprueba dio una falsa
+      alarma del código en un caso sano, «US$ 8 800 por banco» con «instalar 2 bancos…» leído como un total. Ese
+      hallazgo orientó RF-95, así que el 047l ya no vale para la aceptación. Rojo por aserción de RF-94 sobre b5e0c45f
+      (`N10_SINCODEX/T20/rojo_base_0412.log`, 7 failed). Sigue en la T21.
+- [ ] T21. Precio por la pieza que la acción cuenta; medida con un conjunto nuevo. (RF-95)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047m.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8m.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T20, la T19, la T18, la T17, la T16, la T14, la
+      T13, la T11, la T10 y la T8.
+      El 047l orientó RF-95 y no vale para la aceptación.
+      Código, 2026-11-24 (d8, N10): `_POR_PIEZA` y `_por_lo_contado` en `comprobar_coste`. Pruebas, sin LLM:
+      `tests/test_revision_reglas_t20.py` (RF-94 y RF-95) y `tests/test_revision_conjunto_047m.py`. Diagnóstico sin
+      LLM, que no vale como medida: con este código ningún caso sano del 047 al 047m da una falsa alarma del código.
+      Conjunto nuevo, 2026-11-24: `docs/REVISION_ROLES_CASOS_047m.json`, 12 casos sintéticos del maestro con las clases
+      del 047l, cifras escritas de otras formas, la regla de seguridad como algo que se exige antes de la acción, con
+      palabras que el código no busca, sin repetir propuestas ni evidencias del 047 al 047l, nombres opacos, declarado
+      antes de medir con huella sha256 `d36a470b041e921f79241a85f4fbcce7d8b7a99234c2fcad440bfe4d0a491d6a` (2026-11-24), la misma en el fichero, en la herramienta y en la prueba. Lo
+      escribió quien escribió la corrección: limitación declarada.
+      Medida del 047m, 2026-11-24 04:33 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `d36a470b…91d6a`; informe en
+      `GPU_BLOQUE/047_T21_noche`): **no pasa**. En los dos modos, 5 de 6, 1 perdido y 1 falsa alarma, y los dos son del
+      modelo, no del código: aprobó m06 (reponer un fusible sin despejar antes la causa, que la norma exige) y bloqueó el
+      sano m05. Ningún caso quedó sin respuesta y el código no dio ninguna falsa alarma.
+      Decisión (d8, 2026-11-24, lección B80): diez conjuntos (047 a 047m) muestran que lo que falta es del modelo de 8B
+      leyendo riesgos y física sin cifras que el código compruebe; no se escribe otro conjunto. La tarea queda abierta
+      con este diagnóstico hasta un cambio de enfoque (modelo o encargo de los roles) que se ensaye antes de medir.
+- [ ] T22. Cambio de enfoque: el código comprueba lo que no depende de interpretar la red y el modelo solo lo demás.
+      (RF-96, RF-97, RF-98, RF-99, RF-100, RF-101)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047n.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8n.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T21, la T20, la T19, la T18, la T17, la T16, la
+      T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-24 (d8, N10), con lo que hace la literatura de cumplimiento normativo (modalidad de cada frase:
+      obligación, permiso o prohibición, ComplianceNLP arXiv 2604.23585) y de los guardarraíles con lista de
+      comprobación (AGrail arXiv 2502.11448): `_UNIDAD_FISICA`, `_por_lo_contado`, `_obligacion_previa_incumplida`,
+      `_magnitud_del_elemento`, `_limite_superado`, `_salvaguarda_ausente`, `_tema` y el resultado sin fuente de
+      `comprobar_datos`. Pruebas, sin LLM: `tests/test_revision_reglas_t22.py` y `tests/test_revision_conjunto_047n.py`.
+      Del 047 al 047m orientaron estas reglas: el 047m no vale para la aceptación.
+      Diagnóstico sin LLM, que no vale como medida: del 047 al 047m el código halla 76 de los 78 defectos (quedan dos
+      riesgos que son juicio sobre la red) y ninguna falsa alarma en sus sanos.
+      Conjunto nuevo, 2026-11-24: `docs/REVISION_ROLES_CASOS_047n.json`, 12 casos sintéticos del maestro escritos
+      después del código, con las clases de siempre y las cifras y los límites de otras formas, sin repetir propuestas
+      ni evidencias del 047 al 047m, nombres opacos, declarado antes de medir con huella sha256 `3bd4f48e38bd14edb934366df10e2813dfb5a973e1f1289fa276a26211a207fb` (2026-11-24), la
+      misma en el fichero, en la herramienta y en la prueba. Lo escribió quien escribió la corrección: limitación
+      declarada. Comprobado después de declararlo y sin tocar el código: el código no da ninguna falsa alarma en sus 6
+      sanos y halla 5 de sus 6 defectos; el sexto (un límite «admite como máximo 2 horas») queda para el revisor.
+      Medida del 047n, 2026-11-24 05:04 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `3bd4f48e…207fb`; informe en
+      `GPU_BLOQUE/047_T22_noche`): **no pasa**, pero por primera vez sin falsas alarmas ni casos sin respuesta en los dos
+      modos: 5 de 6 y 1 perdido, n06, la cota que el código no leía y el modelo tampoco. Del 047n salió la lectura única de
+      las cotas de RF-99 (en lugar de dos formas sueltas) y el permiso restringido a un agente de RF-100, así que el 047n
+      no vale para la aceptación. Sigue en la T23.
+- [ ] T23. Aceptación con un conjunto de 24 casos, escrito después del código de RF-89 a RF-101. (RF-43, RF-99, RF-100)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047o.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8o.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T22, la T21, la T20, la T19, la T18, la T17, la
+      T16, la T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-24 (d8, N10): `_cantidades`, `_cotas` y `_limite_superado` (una sola lectura de cotas con la
+      cantidad en su unidad base), `_agente_no_autorizado` y `_elementos` (un solo lector de nombres de elementos).
+      Pruebas, sin LLM: `tests/test_revision_reglas_t22.py` y `tests/test_revision_conjunto_047o.py`; con ellas, 254 de
+      la revisión en verde (`N10_SINCODEX/T22/verde_*g.log`). Del 047 al 047n el código halla 77 de los 78 defectos (queda
+      un juicio de diseño) y ninguna falsa alarma; el 047n no vale para la aceptación porque orientó estas reglas.
+      Conjunto nuevo, 2026-11-24: `docs/REVISION_ROLES_CASOS_047o.json`, 24 casos sintéticos del maestro (12 sanos y 12
+      con un error, 3 por clase), con sanos que se parecen a los defectos (una cota cumplida, el agente autorizado, la
+      obligación cumplida, la salvaguarda presente), sin repetir propuestas ni evidencias del 047 al 047n, nombres
+      opacos, declarado antes de medir con huella sha256 `0b2bfe80bb8a44467ef24f454eb1f093f6237e1cadeb95bc57cd4455056557b3` (2026-11-24), la misma en el fichero, en la herramienta y
+      en la prueba. Lo escribió quien escribió la corrección: limitación declarada. Comprobado después de declararlo y
+      sin tocar el código: el código solo halla 12 de los 12 defectos y no da ninguna falsa alarma en los 12 sanos.
+      Medida del 047o, 2026-11-24 05:32 (cola de GPU de d8, `qwen3:8b`, tope 1024, huella `0b2bfe80…557b3`; informe en
+      `GPU_BLOQUE/047_T23_noche`): **no pasa**. En los dos modos, 12 de 12 defectos y 0 perdidos; 1 falsa alarma y 2 sin
+      respuesta. Los dos sin respuesta (o05, o10) eran sanos con todos sus datos respaldados en los que el modelo bloqueó
+      sin ningún motivo también en la segunda ronda: de ahí RF-102. La falsa alarma (o08) es un fallo del conjunto, no del
+      sistema: un sano con coste 0 sin ninguna evidencia de ese coste, y dudar de un dato sin fuente es lo que debe hacer
+      el revisor. El 047o orientó RF-102 y no vale para la aceptación. Sigue en la T24.
+- [ ] T24. Aceptación con un conjunto de 24 casos en el que cada dato de cada sano tiene su evidencia. (RF-43, RF-102)
+      Hecho cuando: `tools/asistente_comparar_revision.py --modelo qwen3:8b --conjunto docs/REVISION_ROLES_CASOS_047p.json --tokens 1024 --salida docs/asistente/COMPARACION_REVISION_047_T8p.json`
+      da 0 falsas alarmas, 0 perdidos y 0 sin respuesta en los dos modos, con el informe en `docs/asistente/` y sin
+      ajustar nada mirando esos casos; entonces se cierran también la T23, la T22, la T21, la T20, la T19, la T18, la
+      T17, la T16, la T14, la T13, la T11, la T10 y la T8.
+      Código, 2026-11-24 (d8, N10): RF-102 en `revisar_propuesta` (bloqueo sin hallazgo tras el reintento con todo
+      respaldado) y `_SIN_COSTE` en `comprobar_coste`. Pruebas: `tests/test_revision_reglas_t22.py`; 295 en verde con las
+      de la revisión, la suite y la preparación del ciclo (`N10_SINCODEX/T22/verde_*i.log`).
+      Conjunto nuevo, 2026-11-24: `docs/REVISION_ROLES_CASOS_047p.json`, 24 casos sintéticos del maestro (12 sanos y 12
+      con un error, 3 por clase); en cada sano cada dato tiene su evidencia (comprobado al escribirlo, sin tocar el
+      código), sin repetir propuestas ni evidencias del 047 al 047o, nombres opacos, declarado antes de medir con huella
+      sha256 `e6855d63aebeff55db0fbdf239c47c267c6004fef4426cb76d5071037ce42704` (2026-11-24), la misma en el fichero, en la herramienta y en la prueba. El 047o no vale para la aceptación.
+      Lo escribió quien escribió la corrección: limitación declarada. Comprobado después de declararlo y sin
+      tocar el código: el código solo halla 12 de los 12 defectos y no da ninguna falsa alarma en los 12 sanos.
       Bloqueada por la medida en su turno de GPU (cola de d8, Ollama con `qwen3:8b`), con la orden de arriba.
+- [x] T15. Retomar el QLoRA desde un punto de control (23-11): `tools/asistente_qlora.py entrenar --reanudar DIR` pasa
+      DIR como `desde` a `entrenar_epoca` y lo anota en el informe. (RF-84)
+      Hecho cuando: rojo por aserción y verde con `tests/test_asistente_qlora.py` (047:RF-84).
+      Hecho (d8, 23-11): rojo por aserción (N10_SINCODEX/REANUDAR/rojo_083518.log) y verde.

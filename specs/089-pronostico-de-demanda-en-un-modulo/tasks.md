@@ -55,3 +55,9 @@
       Hecho el 2026-11-19 (d8, fila MEJ1): rojo por aserción sobre 908f0fa9 (las 14 pruebas nuevas, 14 F por
       AssertionError, D:/csg/PM_IMPL/MEJ1/rojo.log) y verde en el hueco de MEJ1 (D:/csg/PM_IMPL/MEJ1/estado.txt:
       fase 1, verde_nuevas y seleccion_gpu).
+- [ ] T18. Un multivariante que no cabe en la GPU espacia sus ventanas antes de quedarse sin medir. (RF-119)
+      Hecho cuando: `pytest -q tests/test_pronostico_paso_multivariante.py` en verde con su rojo por aserción en la base, y
+      la T7 mide iTransformer en la cabecera con el paso anotado en su informe.
+- [ ] T19. Todas las medidas de precisión y los tiempos de aprender y de pronosticar en la evaluación. (RF-120, RF-121)
+      Hecho cuando: `pytest -q tests/test_pronostico_metricas_tiempos.py` en verde con su rojo por aserción en la base, y
+      el informe de la T7 trae `metricas` y `tiempos` de cada red y de cada perfil.

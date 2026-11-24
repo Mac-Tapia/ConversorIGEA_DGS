@@ -54,7 +54,7 @@ def separar(*, abrir=subprocess.Popen, inicio=None) -> int:
 
 def correr() -> int:
     """Las tandas; una señal de cierre deja «interrumpida» (081:RF-40) en vez de un registro a medias."""
-    from convertersmartgrid.aplicacion.asistente.vigilancia import correr_por_tandas
+    from convertersmartgrid.aplicacion.asistente.vigilancia import correr_por_tandas, esperar_recursos_de_tanda
 
     def al_recibir(numero, _marco):
         raise KeyboardInterrupt(f'señal {numero}')
@@ -63,7 +63,8 @@ def correr() -> int:
         if hasattr(signal, nombre):
             signal.signal(getattr(signal, nombre), al_recibir)
     try:
-        fila = correr_por_tandas(_REPO)
+        # 106:RF-25: cada tanda espera a un entrenamiento con la GPU si falta memoria.
+        fila = correr_por_tandas(_REPO, esperar=esperar_recursos_de_tanda)
     except KeyboardInterrupt:
         return 3
     print(fila.get('resumen'), flush=True)

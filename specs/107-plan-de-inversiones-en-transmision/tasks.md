@@ -560,3 +560,30 @@ adaptador VNR (integrador f9).
       Hecho cuando: rojo por aserción sobre la base de RATFAC y verde con `tests/test_pit_pf_guion.py` y
       `tests/test_interactive_architecture.py` (107:RF-38).
       Hecho en DIG2-TOMAZ (22-11): rojo por aserción (rojo_195414) y verde (verde_195420).
+- [x] T58. Q de la compensación en la nominal de su barra (corrida de T14 del 22-11): `tools/pit_pf.exportar_red`
+      escala la Qact de cada `ElmShnt` por (kV de la barra / ushnm)² cuando su nominal propia es otra. (RF-39)
+      Hecho cuando: rojo por aserción sobre b5e0c45f y verde con `tests/test_pit_pf_guion.py` (107:RF-39); fuera de
+      línea, con la última exportación de T14, las barras fuera de 0,005 p.u. bajan de 81 a 20.
+      Hecho en DIG2-USHNM (d8, 23-11): rojo por aserción (N10_SINCODEX/USHNM/rojo_071714.log) y verde; fuera de línea
+      DIG_BLOQUE2/T14_pit/ushnm/exp_rf39.json (81 → 20 barras, 20 → 17 ramas).
+- [x] T59. Estatismo de los controladores de estación (corrida de T14 del 22-11): `tools/pit_pf._estacion` da a las
+      máquinas de un controlador con i_droop 1 y ddroop > 0 la tensión resuelta de su nudo (m:u) como consigna, marcada
+      `estatismo_aproximado`. (RF-40)
+      Hecho cuando: rojo por aserción sobre b5e0c45f + DIG2-USHNM y verde con `tests/test_pit_pf_guion.py`
+      (107:RF-40); fuera de línea, las barras fuera de 0,005 p.u. bajan de 20 a 12.
+      Hecho en DIG2-STADROOP (d8, 23-11): rojo por aserción (N10_SINCODEX/USHNM/rojo_stadroop_072445.log) y verde;
+      fuera de línea DIG_BLOQUE2/T14_pit/ushnm/exp_rf40.json (12 barras y 13 ramas fuera).
+- [x] T60. SVC en control de Q por su controlador de estación (corrida de T14 del 22-11): `tools/pit_pf.exportar_red`
+      busca el controlador de cada `ElmSvs` (c_pstac o psym de los `ElmStactrl`) y, con i_ctrl 1, lo exporta PQ con
+      −m:Q. (RF-41)
+      Hecho cuando: rojo por aserción sobre el código de T59 y verde con `tests/test_pit_pf_guion.py` (107:RF-41);
+      fuera de línea, las barras fuera de 0,005 p.u. bajan de 12 a 6.
+      Hecho en DIG2-SVCQ (d8, 23-11): rojo por aserción (N10_SINCODEX/USHNM/rojo_svcq_073257.log) y verde; fuera de
+      línea DIG_BLOQUE2/T14_pit/ushnm/exp_rf41_-1.json (6 barras y 11 ramas fuera; HORNO ACER 33 0,9819 frente a
+      0,982).
+- [x] T61. La compensación por su admitancia resuelta (corrida de T14 del 22-11): `tools/pit_pf.exportar_red` da a
+      cada `ElmShnt` −m:Q/u² cuando el flujo está hecho. (RF-42)
+      Hecho cuando: rojo por aserción sobre el código de T60 y verde con `tests/test_pit_pf_guion.py` (107:RF-42);
+      fuera de línea, las barras fuera de 0,005 p.u. bajan de 6 a 3.
+      Hecho en DIG2-SHNTY (d8, 23-11): rojo por aserción (N10_SINCODEX/USHNM/rojo_shnty_081202.log) y verde; fuera de
+      línea DIG_BLOQUE2/T14_pit/ushnm/exp_rf42.json (3 barras y 9 ramas fuera).

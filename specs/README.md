@@ -33,11 +33,11 @@ retirada.
 | [024](024-pinn-gemelo-digital/spec.md) | PINN como oráculo y gemelo digital de la red calibrada | cumplida | 80 | 80 | — |
 | [025](025-calibracion-por-anio/spec.md) | Calibración por año de medición | cumplida | 93 | 93 | — |
 | [026](026-asistente-ordenes/spec.md) | Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | 51 | 51 | — |
-| [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 78 | 71 | T11, T26 |
+| [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 78 | 71 | T11 |
 | [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | cumplida | 44 | 44 | — |
 | [029](029-crecimiento-por-alimentador/spec.md) | Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida | 7 | 7 | — |
 | [030](030-pide-por-anios-en-digsilent/spec.md) | Los años del PIDE en casos y escenarios de DIgSILENT | cumplida | 15 | 15 | — |
-| [031](031-proyeccion-econometrica-de-la-demanda/spec.md) | Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | 29 | 29 | T5 |
+| [031](031-proyeccion-econometrica-de-la-demanda/spec.md) | Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | cumplida | 30 | 30 | — |
 | [032](032-caso-base-original-fichas-en-sin-proyecto/spec.md) | «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida | 29 | 29 | — |
 | [033](033-trazabilidad-y-estado-de-las-specs/spec.md) | Trazabilidad y estado de las specs | cumplida | 22 | 22 | — |
 | [034](034-motor-base-y-contrato-de-fuentes/spec.md) | Motor base de conversión y contrato universal de fuentes | cumplida | 42 | 42 | — |
@@ -53,7 +53,7 @@ retirada.
 | [044](044-evaluacion-causal-y-verificacion-completa/spec.md) | Evaluación causal y verificación completa | cumplida | 12 | 12 | — |
 | [045](045-gemelo-fisico-y-contratos-pinn-gnn/spec.md) | Gemelo físico y contratos PINN/GNN | cumplida | 18 | 18 | — |
 | [046](046-pronostico-causal-multihorizonte/spec.md) | Pronóstico causal multihorizonte | cumplida | 26 | 26 | — |
-| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 83 | 83 | T4, T8, T7, T7c, T10, T11, T13, T14 |
+| [047](047-asistente-estructurado-y-revision-por-roles/spec.md) | Asistente estructurado y revisión por roles | aprobada | 102 | 102 | T4, T8, T7, T7c, T10, T11, T13, T14, T16, T17, T18, T19, T20, T21, T22, T23, T24 |
 | [048](048-optimizacion-mixta-evolutiva-y-pnl/spec.md) | Optimización mixta evolutiva y PNL | cumplida | 9 | 9 | — |
 | [049](049-protecciones-nativas-y-coordinacion/spec.md) | Protecciones nativas y coordinación | cumplida | 10 | 10 | — |
 | [050](050-aprendizaje-continuo-integrado/spec.md) | Aprendizaje continuo integrado | aprobada | 35 | 35 | T3b, T4b, T5b |
@@ -95,7 +95,7 @@ retirada.
 | [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 134 | 131 | T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T79, T32 (DIgSILENT), T34, T105 (DIgSILENT) |
 | [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida | 57 | 57 | — |
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 14 | 14 | — |
-| [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 105 | 105 | T7 |
+| [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 108 | 107 | T7, T18, T19 |
 | [090](090-arquitectura-generada/spec.md) | La arquitectura se cataloga sola: todos los módulos, el asistente y su equipo | cumplida | 19 | 19 | — |
 | [091](091-flujo-calibracion-a-estudio/spec.md) | De la calibración al estudio, en su orden y sin avisos que engañen | cumplida | 33 | 33 | — |
 | [092](092-caso-base-de-una-red-reconstruida/spec.md) | El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida | 4 | 4 | — |
@@ -112,8 +112,8 @@ retirada.
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
-| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 24 | 24 | — |
-| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 38 | 38 | T14 (DIgSILENT) |
+| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 25 | 25 | — |
+| [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | 42 | 42 | T14 (DIgSILENT) |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | 26 | 26 | — |
 | [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | 14 | 14 | — |

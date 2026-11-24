@@ -44,11 +44,45 @@ HUELLA_047F = '05c423913e4e49d4ebb370fd8d760f89e4cfb3319ce9001395dde08da33afea6'
 #: 047 T14, MEJ24e: la medida del 047f (2026-11-22) orientó las reglas de RF-79 a RF-83, así que la siguiente es con
 #: otro conjunto, declarado el 2026-11-22 antes de medir.
 HUELLA_047G = '6553d4ae2cdb29b228e56d209cebb15ce53c4ae823deb0d9e17628ed60b4ca8a'
+#: 047 T16: la medida del 047g (2026-11-23) orientó las reglas de RF-85 a RF-88, así que la siguiente es con otro
+#: conjunto, declarado el 2026-11-23 antes de medir.
+HUELLA_047H = '9664d385e0cf5c8bf16fdc306c081c79c5ceeecff45a7f327d41777a9bea1594'
+#: 047 T17: la medida del 047h (2026-11-23) orientó las reglas de RF-89 a RF-91, así que la siguiente es con otro
+#: conjunto, declarado el 2026-11-23 antes de medir.
+HUELLA_047I = 'eab90f9e2596dd877ad89b04290e6e312f0206e789d5ad56ba86e3efe57dfba4'
+#: 047 T18: la medida del 047i (2026-11-23) orientó la regla de RF-92, así que la siguiente es con otro conjunto,
+#: declarado el 2026-11-23 antes de medir.
+HUELLA_047J = 'db2cdb92c53768d94e21f18cdb449530f5f507d6cfb5866de4fb7faff133333c'
+#: 047 T19: la medida del 047j (2026-11-23) orientó la regla de RF-93, así que la siguiente es con otro conjunto,
+#: declarado el 2026-11-23 antes de medir.
+HUELLA_047K = '64602cc65b60b8c70eb6f962f286f864f6b11a5ac02416afe5ea9177f0b03d53'
+#: 047 T20: la medida del 047k (2026-11-24) orientó la regla de RF-94, así que la siguiente es con otro conjunto,
+#: declarado el 2026-11-24 antes de medir.
+HUELLA_047L = 'ee537d587cc8724558d68f59a0cfc0b3f5c855abd2e72986e0fc0d96995b9b8c'
+#: 047 T21: el ensayo sin LLM del 047l (2026-11-24) orientó la regla de RF-95, así que la medida es con otro conjunto,
+#: declarado el 2026-11-24 antes de medir.
+HUELLA_047M = 'd36a470b041e921f79241a85f4fbcce7d8b7a99234c2fcad440bfe4d0a491d6a'
+#: 047 T22: del 047 al 047m orientaron las reglas de RF-96 a RF-101; la medida es con otro conjunto, escrito después
+#: del código y declarado el 2026-11-24 antes de medir.
+HUELLA_047N = '3bd4f48e38bd14edb934366df10e2813dfb5a973e1f1289fa276a26211a207fb'
+#: 047 T23: el 047n orientó la lectura única de cotas y el permiso restringido; la aceptación es con otro conjunto, de 24
+#: casos, escrito después del código y declarado el 2026-11-24 antes de medir.
+HUELLA_047O = '0b2bfe80bb8a44467ef24f454eb1f093f6237e1cadeb95bc57cd4455056557b3'
+#: 047 T24: el 047o orientó RF-102; la aceptación es con otro conjunto de 24 casos, declarado el 2026-11-24 antes de medir.
+HUELLA_047P = 'e6855d63aebeff55db0fbdf239c47c267c6004fef4426cb76d5071037ce42704'
 #: Conjuntos declarados, por nombre de fichero; el de siempre usa ``HUELLA``.
 DECLARADOS = {'REVISION_ROLES_CASOS_047b.json': HUELLA_047B, 'REVISION_ROLES_CASOS_047c.json': HUELLA_047C,
               'REVISION_ROLES_CASOS_047d.json': HUELLA_047D, 'REVISION_ROLES_CASOS_047e.json': HUELLA_047E,
               'REVISION_ROLES_CASOS_047f.json': HUELLA_047F,
-              'REVISION_ROLES_CASOS_047g.json': HUELLA_047G}
+              'REVISION_ROLES_CASOS_047g.json': HUELLA_047G, 'REVISION_ROLES_CASOS_047h.json': HUELLA_047H,
+              'REVISION_ROLES_CASOS_047i.json': HUELLA_047I,
+              'REVISION_ROLES_CASOS_047j.json': HUELLA_047J,
+              'REVISION_ROLES_CASOS_047k.json': HUELLA_047K,
+              'REVISION_ROLES_CASOS_047l.json': HUELLA_047L,
+              'REVISION_ROLES_CASOS_047m.json': HUELLA_047M,
+              'REVISION_ROLES_CASOS_047n.json': HUELLA_047N,
+              'REVISION_ROLES_CASOS_047o.json': HUELLA_047O,
+              'REVISION_ROLES_CASOS_047p.json': HUELLA_047P}
 #: La clave del fichero que declara su huella; no entra en la huella.
 DECLARACION = 'declaracion'
 DEFECTOS = {None, 'fuentes', 'fisica', 'coste', 'riesgo'}

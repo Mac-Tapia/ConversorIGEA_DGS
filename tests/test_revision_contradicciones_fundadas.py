@@ -20,6 +20,10 @@ from test_asistente_revision_roles import _cliente, _dictamen_llm
 PROPUESTA = {'accion': 'cambiar 4 aisladores del vano V18 por aisladores de 450 kvar de prueba', 'aisladores': 4,
              'coste_usd': 520, 'demanda_kw': 1450, 'tension_pu': 0.97,
              'restricciones_deterministas': {'plan_completo': True}}
+#: 047:RF-98 (2026-11-24): PROPUESTA trae a propósito una demanda que su evidencia contradice (1450 kW frente a «vano V18:
+#: demanda máxima 1,25 MW»), y ahora el código la ve solo. Las pruebas del filtro de lo que dice el LLM usan esta, que
+#: es coherente con su evidencia, para seguir probando el filtro y no esa contradicción real.
+COHERENTE = {**PROPUESTA, 'demanda_kw': 1250}
 FRAGMENTOS = {'e1': 'Medición del vano V18: demanda máxima 1,25 MW; tensión mínima 0,97 p.u.',
               'e2': 'Aislador polimérico de 25 kV, instalado: 130 USD por unidad.',
               'e3': 'El vano V18 requiere 4 aisladores; banco de prueba de 300 kvar.'}
@@ -41,7 +45,7 @@ def _c(campo, propuesta, evidencia, fuente, base=None):
     return {**dato, 'base': base} if base else dato
 
 
-def _dictamen(tmp_path, contradicciones, propuesta=PROPUESTA, fragmentos=FRAGMENTOS):
+def _dictamen(tmp_path, contradicciones, propuesta=COHERENTE, fragmentos=FRAGMENTOS):
     contexto, evidencia = _paquete(tmp_path, fragmentos)
     dictamen = {'decision': 'bloqueada', 'evidencia_ids': sorted(evidencia), 'incertidumbres': [],
                 'contradicciones': contradicciones}
@@ -96,7 +100,8 @@ def test_sin_texto_de_la_fuente_se_mantiene(tmp_path):
 
 def test_el_valor_de_un_campo_de_la_propuesta_lo_pone_el_codigo(tmp_path):
     """047:RF-54 — el modelo escribía «Shekels» o «N/A» como valor de la propuesta: si el campo es suyo, vale el suyo."""
-    r, d = _dictamen(tmp_path, [_c('demanda_kw', 'Shekels', '1,25 MW', 'e1'), _c('aisladores', 'N/A', '4', 'e3')])
+    r, d = _dictamen(tmp_path, [_c('demanda_kw', 'Shekels', '1,25 MW', 'e1'), _c('aisladores', 'N/A', '4', 'e3')],
+                     propuesta=PROPUESTA)
     assert not r['aprobada'], 'una contradicción real con el valor de la propuesta mal copiado se pierde'
     assert d['contradicciones'] == [{**_c('demanda_kw', 1450, '1,25 MW', 'e1'), 'valor_propuesta_devuelto': 'Shekels'}]
     assert _motivos(d) and _motivos(d)[0].startswith('valores iguales')
@@ -111,7 +116,7 @@ def test_un_total_no_se_compara_con_un_precio_por_unidad(tmp_path):
     assert r['aprobada'] and _motivos(d)[0].startswith('valores iguales')
     r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '5 × 130', 'e2', 'total')])
     assert r['aprobada'] and _motivos(d)[0].startswith('no fundada'), 'una cantidad que no está en ningún sitio cuenta'
-    r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '4 × 130', 'e2')], propuesta={**PROPUESTA, 'coste_usd': 390})
+    r, d = _dictamen(tmp_path, [_c('coste_usd', '520', '4 × 130', 'e2')], propuesta={**COHERENTE, 'coste_usd': 390})
     assert not r['aprobada'] and d['contradicciones'][0]['valor_evidencia'] == '4 × 130'
 
 

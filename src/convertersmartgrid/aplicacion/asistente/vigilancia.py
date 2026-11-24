@@ -207,7 +207,72 @@ FICHEROS_POR_TANDA = 25
 LIMITE_TANDA_S = 3600.0
 #: Sin esto, cada proceso de numpy reserva un hilo por núcleo: medido al correr pruebas por fichero (spec 081).
 ENTORNO_SUITE = {'OPENBLAS_NUM_THREADS': '1'}
+#: 106:RF-16: dónde escribe la web; la suite nocturna no los hereda (cada sesión de pytest crea los suyos).
+VARIABLES_DE_SALIDA_DE_LA_WEB = ('CSG_RUNTIME_HOME', 'CSG_ASISTENTE_DATA', 'CSG_TWIN_DATA', 'CSG_SUITE_DATOS')
 EMPEZADA, INTERRUMPIDA = 'empezada', 'interrumpida'
+#: 106:RF-25: memoria disponible (GiB) por debajo de la cual una tanda espera a un entrenamiento con el turno de GPU;
+#: ``CSG_SUITE_MEMORIA_MIN_GIB`` la cambia. Plazo de esa espera, tras el que la tanda corre igual y lo dice.
+MEMORIA_MIN_TANDA_GIB = 4.0
+ESPERA_RECURSOS_S = 3 * 3600.0
+
+
+def _memoria_disponible_gib() -> float:
+    import psutil
+    return psutil.virtual_memory().available / 2 ** 30
+
+
+def _otro_con_la_gpu() -> str | None:
+    """El dueño vivo del turno de GPU de la máquina si no es este proceso (106:RF-25); si no, ``None``."""
+    import json
+
+    from ..training_coordinator import proceso_vivo, ruta_guardia_gpu
+    from ..trabajadores_ml import quien_tiene_la_gpu
+    ruta = ruta_guardia_gpu()
+    try:
+        dueno = json.loads(ruta.read_text(encoding='utf-8'))
+        pid = int(dueno.get('pid'))
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+    if pid == os.getpid() or not proceso_vivo(pid, creado=dueno.get('creado')):
+        return None
+    return quien_tiene_la_gpu(ruta)
+
+
+def esperar_recursos_de_tanda(*, memoria: Callable[[], float] = _memoria_disponible_gib,
+                              dueno_gpu: Callable[[], str | None] = _otro_con_la_gpu, minimo_gib: float | None = None,
+                              plazo_s: float = ESPERA_RECURSOS_S, pausa_s: float = 60.0, aviso_cada_s: float = 600.0,
+                              reloj: Callable[[], float] = time.monotonic, dormir: Callable[[float], Any] = time.sleep,
+                              avisar: Callable[[str], Any] = lambda m: print(m, file=sys.stderr, flush=True)) -> float:
+    """106:RF-25 — antes de una tanda, espera mientras un entrenamiento tiene la GPU y falta memoria; da los segundos.
+
+    La noche del 23 al 24-11, la suite por tandas corrió pytest junto a las redes del 089 T7 con menos de 1,5 GiB libres
+    en 16 GiB, y la guardia de la cola de GPU cortó por memoria cinco entrenamientos seguidos. Con memoria suficiente,
+    o sin nadie con el turno, no espera; al vencer el plazo corre igual y lo dice, para no dejar la suite sin hacer.
+    """
+    if minimo_gib is None:
+        try:
+            minimo_gib = float(os.environ.get('CSG_SUITE_MEMORIA_MIN_GIB') or MEMORIA_MIN_TANDA_GIB)
+        except ValueError:
+            minimo_gib = MEMORIA_MIN_TANDA_GIB
+    inicio = reloj()
+    ultimo = None
+    while True:
+        libre = memoria()
+        otro = dueno_gpu() if libre < minimo_gib else None
+        espera = reloj() - inicio
+        if otro is None:
+            if espera > 0:
+                avisar(f'suite: la tanda sigue tras esperar {espera:.0f} s ({libre:.1f} GiB disponibles).')
+            return espera
+        if espera >= plazo_s:
+            avisar(f'suite: plazo de {plazo_s:.0f} s vencido esperando memoria ({libre:.1f} de {minimo_gib:.1f} GiB; '
+                   f'la GPU la tiene {otro}); la tanda corre igual.')
+            return espera
+        if ultimo is None or reloj() - ultimo >= aviso_cada_s:
+            avisar(f'suite: la tanda espera: {libre:.1f} de {minimo_gib:.1f} GiB disponibles y la GPU la tiene {otro} '
+                   f'({espera:.0f} de {plazo_s:.0f} s).')
+            ultimo = reloj()
+        dormir(pausa_s)
 
 
 def tandas_de_pruebas(repo: Path, por_tanda: int = FICHEROS_POR_TANDA) -> list[list[str]]:
@@ -218,8 +283,9 @@ def tandas_de_pruebas(repo: Path, por_tanda: int = FICHEROS_POR_TANDA) -> list[l
 
 def correr_por_tandas(repo: Path, *, tandas: list[list[str]] | None = None,
                       ejecutar: Callable[..., dict[str, Any]] = correr_suite,
-                      env: Mapping[str, str] | None = None) -> dict[str, Any]:
-    """Cada tanda en su proceso y el total al acabar (081:RF-38, RF-39).
+                      env: Mapping[str, str] | None = None,
+                      esperar: Callable[[], float] | None = None) -> dict[str, Any]:
+    """Cada tanda en su proceso y el total al acabar (081:RF-38, RF-39); ``esperar``, antes de cada una (106:RF-25).
 
     Si algo la corta o revienta, queda «interrumpida» con su motivo (RF-40) y con las tandas que
     sí acabaron: la suite del 2026-11-03 murió con la web y su registro quedó en «empezada».
@@ -228,10 +294,18 @@ def correr_por_tandas(repo: Path, *, tandas: list[list[str]] | None = None,
     # Heredada del servidor, cada prueba que abre la web arrancaba la vigilancia del de verdad, y una suite que se
     # lanzara de noche podía lanzar otra: es la web, no las pruebas, quien vigila.
     entorno.pop('CSG_ASISTENTE_VIGILANCIA', None)
+    # 106:RF-16 (2026-11-24): heredados de la web, el runtime y los almacenes del asistente y del gemelo de la suite
+    # eran los del usuario: la noche del 23 al 24 las carpetas pytest-of-… estaban dentro del runtime real de la web y
+    # test_el_runtime_de_la_suite_es_de_la_sesion falló. Son salidas de la web, no entradas de las pruebas: cada sesión
+    # de pytest crea las suyas en su carpeta temporal (tests/conftest.py). Los datos de prueba (CSG_RED…) se quedan.
+    for variable in VARIABLES_DE_SALIDA_DE_LA_WEB:
+        entorno.pop(variable, None)
     tandas = tandas_de_pruebas(repo) if tandas is None else tandas
     hechas: list[dict[str, Any]] = []
     try:
         for tanda in tandas:
+            if esperar is not None:
+                esperar()
             hechas.append(ejecutar(repo, argumentos=('-q', '-rs', '-p', 'no:cacheprovider', *tanda),
                                    limite_s=LIMITE_TANDA_S, env=entorno, registro='suite_tandas'))
     except BaseException as exc:  # noqa: BLE001 - también la señal de cierre: el registro no puede quedar a medias

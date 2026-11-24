@@ -105,6 +105,39 @@ def test_entrenar_admite_el_corpus_de_redaccion(tmp_path, sin_gpu, monkeypatch):
     assert informe['candidate_status'] == 'CANDIDATO' and informe['gates'] == {'approved': False}
 
 
+def test_entrenar_reanuda_desde_un_punto_de_control(tmp_path, sin_gpu, monkeypatch):
+    """047:RF-84 — `entrenar --reanudar DIR` retoma la época desde ese punto de control (entrenar_epoca con desde=DIR,
+    que verifica configuración, base y época); sin la opción, desde cero. (23-11: una suspensión del equipo cortó la
+    época 1 de 047 T7c en el ejemplo 1 352 de 3 280 con un punto de control en la actualización 128.)"""
+    import contextlib
+    from convertersmartgrid.aplicacion import trabajadores_ml
+    from convertersmartgrid.aplicacion.asistente import llm_destilacion
+    dataset = _corpus_redaccion_sellado(tmp_path)
+    punto = tmp_path / 'previa' / 'epoca_1' / 'progreso_000128'
+    punto.mkdir(parents=True)
+    llamadas = []
+
+    def entrenar(ds, destino, **k):
+        llamadas.append((k['epoca'], k.get('desde')))
+        destino.mkdir(parents=True)
+        return {'checkpoint': str(destino), 'epoca': k['epoca']}
+
+    monkeypatch.setattr(llm_destilacion, 'entrenar_epoca', entrenar)
+    monkeypatch.setattr(trabajadores_ml, 'turno_gpu', lambda _n: contextlib.nullcontext())
+    try:
+        codigo = _herramienta().main(['entrenar', '--dataset', str(dataset), '--salida', str(tmp_path / 'q1'),
+                                      '--reanudar', str(punto)])
+    except SystemExit as exc:      # sin la opción, argparse sale con 2
+        codigo = exc.code
+    assert codigo == 0
+    assert llamadas == [(1, punto)]
+    informe = json.loads((tmp_path / 'q1' / 'training_manifest.json').read_text(encoding='utf-8'))
+    assert informe['reanudado_desde'] == str(punto) and informe['promovido'] is False
+    llamadas.clear()
+    assert _herramienta().main(['entrenar', '--dataset', str(dataset), '--salida', str(tmp_path / 'q2')]) == 0
+    assert llamadas == [(1, None)]
+
+
 class _Tok:
     """Doble de tokenizador: un token por carácter y la plantilla de chat a la vista."""
     eos_token = '¶'

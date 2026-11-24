@@ -43,6 +43,7 @@ class _NeuralForecastFalso:
         kw = self.models[0].kw
         _DOBLE['ajustes'].append({'red': type(self.models[0]).__name__, 'freq': self.freq, 'h': int(kw['h']),
                                   'contexto': int(kw['input_size']), 'paso': int(kw['step_size']),
+                                  'relleno': bool(kw.get('start_padding_enabled')),
                                   'series': tuple(sorted(df['unique_id'].unique())), 'columnas': tuple(df.columns),
                                   'tipos': {c: str(df[c].dtype) for c in df.columns if c not in ('unique_id', 'ds')}})
 
@@ -120,7 +121,8 @@ def test_031_rf27_hasta_31_dias_a_15_minutos_y_mas_alla_la_serie_diaria(doble):
     pd_.fabrica_modelo('nhits', pasos=2, lote=8).ajustar(objs, hasta, 365 * 96, None, 0)
     a = doble['ajustes'][-1]
     assert (a['freq'], a['h'], a['paso']) == ('D', 365, 1), a
-    assert a['contexto'] == 90, 'el contexto diario se acorta a la historia más larga del origen'
+    # 031:RF-30 (2026-11-23): el contexto diario es de un año aunque la historia sea más corta; lo que falta va rellenado.
+    assert a['contexto'] == pd_.CONTEXTO_DIARIO_DIAS and a['relleno'], a
     assert len(a['series']) == 4 and {s for s in a['series'] if s.endswith(SUFIJO)} == {o.nombre + SUFIJO for o in objs}
     try:
         pd_.fabrica_modelo('nhits', resolucion='horaria')
@@ -228,3 +230,20 @@ def test_031_rf27_las_cuatro_redes_del_pide_compiten_con_la_misma_serie_diaria(d
         for r in memoria:
             assert r['resolucion'] == 'diaria' and r['unidad'] == 'días' and r['horizonte_15min'] % 96 == 0
             assert r['parametros'] == 1000 + r['horizonte'], 'la evaluación no anota los parámetros de la red'
+
+
+def test_031_rf30_un_anio_de_contexto_tambien_para_las_series_cortas(doble):
+    """031:RF-30 — en la 031 T5 (2026-11-22) ninguna red emitió el PIDE porque la serie más corta tenía 100 días y el
+    contexto era de 364. Con una serie de 400 días y otra de 100, la red diaria entrena con un año de contexto, el relleno
+    inicial activo y las dos series dentro."""
+    largos = _objetivos(n=1, dias=400)
+    corta = _objetivos(n=2, dias=100)[1]
+    inicio = largos[0].curva.t[-1] - np.timedelta64(100, 'D')
+    corta = Objetivo(corta.clase, 'S9', 'kW', 'kW', CurvaCompacta(corta.curva.t - corta.curva.t[0] + inicio, corta.curva.columnas[0]), {})
+    objs = [*largos, corta]
+    hasta = largos[0].curva.t[-1 - 96]
+    pd_.fabrica_modelo('nhits', pasos=2, lote=8).ajustar(objs, hasta, 365 * 96, None, 0)
+    a = doble['ajustes'][-1]
+    assert a['freq'] == 'D' and a['contexto'] == pd_.CONTEXTO_DIARIO_DIAS and a['relleno'], a
+    # El nombre de la serie es «clase:SED:magnitud», con «|maxima_diaria» en la de la máxima.
+    assert {p for s in a['series'] for p in s.replace('|', ':').split(':')} >= {'S0', 'S9'}, 'la serie corta quedó fuera'

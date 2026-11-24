@@ -1,0 +1,166 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T18 de la spec 047: el conjunto con que se mide la revisión después de que el código lee las formas corrientes de un precio unitario y por km y ancla el precio unitario en la única cantidad de piezas de la propuesta (2026-11-23). El 047i orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047i y las cifras van escritas de otras formas. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-23",
+    "sha256": "db2cdb92c53768d94e21f18cdb449530f5f507d6cfb5866de4fb7faff133333c",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "j01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir 10 conectores bimetálicos en la bajada de la SED V-6120",
+        "conectores": 10,
+        "coste_usd": 450
+      },
+      "evidencia": {
+        "e1": "Conector bimetálico de compresión para 70 mm², colocado: 45 USD por pieza.",
+        "e2": "La bajada de la V-6120 tiene 10 conectores con signos de calentamiento en la termografía."
+      }
+    },
+    {
+      "id": "j02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 5 transformadores de corriente en la celda de llegada de la SET W14",
+        "transformadores": 5,
+        "coste_usd": 2600
+      },
+      "evidencia": {
+        "e1": "Transformador de corriente de 24 kV, clase 0,2S, montado: 830 dólares cada uno.",
+        "e2": "La celda de llegada de W14 necesita 5 transformadores de corriente para la medición."
+      }
+    },
+    {
+      "id": "j03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el conductor de 1,8 km del ramal H62 a 95 mm²",
+        "cargabilidad_final_pct": 54,
+        "coste_usd": 19800
+      },
+      "evidencia": {
+        "e1": "Cambio a conductor de 95 mm² aprovechando las estructuras: US$ 11.000 por kilómetro.",
+        "e2": "Tras el cambio, el tramo más cargado de H62 queda al 54 % en la máxima; el máximo admisible es 100 %."
+      }
+    },
+    {
+      "id": "j04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la bomba de riego R27 de 400 kW al final del ramal H70",
+        "tension_final_pu": 0.96,
+        "coste_usd": 2900
+      },
+      "evidencia": {
+        "e1": "Flujo en la hora de máxima con R27: la tensión al final de H70 baja a 0,91 pu; el mínimo exigido es 0,95 pu.",
+        "e2": "Medidor, protección y acometida para R27: USD 2.900."
+      }
+    },
+    {
+      "id": "j05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar el transformador de la SED V-6215 por uno de 160 kVA",
+        "carga_final_pct": 74,
+        "coste_usd": 6150
+      },
+      "evidencia": {
+        "e1": "Presupuesto: transformador de 160 kVA 5 100 USD; transporte e izaje 700 USD; pruebas en sitio 350 USD.",
+        "e2": "Con 160 kVA, la V-6215 trabaja al 74 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "j06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "trabajar sin puesta a tierra temporal en el tramo H75 para cambiar 2 crucetas",
+        "crucetas": 2,
+        "coste_usd": 260
+      },
+      "evidencia": {
+        "e1": "Las reglas de seguridad no permiten trabajar en una línea desenergizada sin puesta a tierra temporal.",
+        "e2": "Cruceta de madera tratada, montada: 130 USD cada una."
+      }
+    },
+    {
+      "id": "j07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 6 detectores de paso de falla en la troncal del alimentador F310",
+        "detectores": 6,
+        "coste_usd": 3300
+      },
+      "evidencia": {
+        "e1": "Detector de paso de falla con señalización remota: 550 dólares la unidad, instalado.",
+        "e2": "La troncal de F310 tiene 6 puntos de seccionamiento sin indicación de falla."
+      }
+    },
+    {
+      "id": "j08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "cambiar a la toma 2 el transformador de la SED V-6301",
+        "tension_actual_pu": 1.06,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro de la SED V-6310 en la madrugada: 1,06 pu en baja tensión.",
+        "e2": "El cambio de toma lo hace la cuadrilla de turno sin materiales."
+      }
+    },
+    {
+      "id": "j09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 2 seccionalizadores en la derivación G18 del alimentador F320",
+        "seccionalizadores": 2,
+        "coste_usd": 9400
+      },
+      "evidencia": {
+        "e1": "Seccionalizador electrónico de 27 kV: 4.700 USD por equipo, con su montaje.",
+        "e2": "La derivación G18 tiene 2 ramales con fallas frecuentes que hoy despejan el interruptor de cabecera."
+      }
+    },
+    {
+      "id": "j10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "construir 0,6 km de red subterránea de 22,9 kV entre la SET W20 y la SED V-6402",
+        "coste_usd": 30000
+      },
+      "evidencia": {
+        "e1": "Red subterránea de 22,9 kV con su canalización: USD 71.000 el kilómetro.",
+        "e2": "La ruta entre la SET W20 y la SED V-6402 mide 0,6 km."
+      }
+    },
+    {
+      "id": "j11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "abastecer el taller nuevo R33 de 110 kVA desde la SED V-6410",
+        "carga_v6410_pct": 88,
+        "coste_usd": 640
+      },
+      "evidencia": {
+        "e1": "Con R33, la SED V-6410 de 75 kVA queda al 167 % de su potencia; el límite es 100 %.",
+        "e2": "Acometida en baja tensión para R33: 640 USD."
+      }
+    },
+    {
+      "id": "j12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un regulador de tensión de 200 A en el ramal H88",
+        "tension_final_pu": 0.97,
+        "coste_usd": 18600
+      },
+      "evidencia": {
+        "e1": "Con el regulador en H88, la tensión mínima en máxima demanda queda en 0,97 pu y en mínima demanda en 1,01 pu.",
+        "e2": "Regulador monofásico de 200 A, banco de tres con su montaje: USD 18 600 en total."
+      }
+    }
+  ]
+}

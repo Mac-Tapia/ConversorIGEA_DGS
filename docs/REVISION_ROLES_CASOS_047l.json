@@ -1,0 +1,165 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T20 de la spec 047: el conjunto con que se mide la revisión después de que el código lee como prohibición una negación con un participio de permiso (2026-11-24). El 047k orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047k, las cifras van escritas de otras formas y la prohibición es una restricción de quién puede hacerlo, con palabras que el código no busca. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "ee537d587cc8724558d68f59a0cfc0b3f5c855abd2e72986e0fc0d96995b9b8c",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "l01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar 6 crucetas de madera por crucetas de concreto en el ramal P27",
+        "crucetas": 6,
+        "coste_usd": 1710
+      },
+      "evidencia": {
+        "e1": "Cruceta de concreto armado de 2,4 m, colocada: 285 USD la pieza.",
+        "e2": "En el ramal P27 hay 6 crucetas de madera podridas en la inspección de octubre."
+      }
+    },
+    {
+      "id": "l02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "colocar 5 seccionadores fusible tipo cut-out en las derivaciones del alimentador G530",
+        "seccionadores": 5,
+        "coste_usd": 900
+      },
+      "evidencia": {
+        "e1": "Seccionador fusible cut-out de 27 kV, montado en poste: USD 310 cada uno.",
+        "e2": "Las 5 derivaciones del G530 salen hoy sin protección propia."
+      }
+    },
+    {
+      "id": "l03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "tender 0,8 km de red aérea nueva de 70 mm² hasta el caserío P31",
+        "caida_tension_pct": 3.1,
+        "coste_usd": 15200
+      },
+      "evidencia": {
+        "e1": "Red aérea de 70 mm² con postes de concreto, instalada: 19.000 USD el kilómetro.",
+        "e2": "Con la red nueva, la caída de tensión hasta P31 es de 3,1 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "l04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "alimentar el pozo de bombeo B12 de 90 kW desde la SED T-8840",
+        "carga_t8840_pct": 70,
+        "coste_usd": 1300
+      },
+      "evidencia": {
+        "e1": "Con el pozo B12, la SED T-8840 de 75 kVA queda al 158 % de su potencia nominal en la máxima.",
+        "e2": "Acometida en baja tensión y medidor para B12: 1.300 USD."
+      }
+    },
+    {
+      "id": "l05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 2 bancos de condensadores automáticos de 300 kvar en el alimentador G532",
+        "bancos": 2,
+        "coste_usd": 17600
+      },
+      "evidencia": {
+        "e1": "Banco automático de 300 kvar con su controlador, montado: US$ 8 800 por banco.",
+        "e2": "Con los 2 bancos, el factor de potencia de G532 pasa de 0,88 a 0,96 en la máxima."
+      }
+    },
+    {
+      "id": "l06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "que la cuadrilla de campo abra el reconectador R-215 para aislar la derivación P34",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Solo el centro de control puede ordenar la apertura de los reconectadores; las cuadrillas de campo no tienen esa atribución.",
+        "e2": "La apertura no requiere materiales."
+      }
+    },
+    {
+      "id": "l07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el transformador de la SED T-8902 por uno de 160 kVA",
+        "carga_final_pct": 72,
+        "coste_usd": 6150
+      },
+      "evidencia": {
+        "e1": "Transformador de 160 kVA: 5 200 USD; montaje y traslado: 650 USD; pruebas de puesta en servicio: 300 USD.",
+        "e2": "Con 160 kVA, la T-8902 trabaja al 72 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "l08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "subir a la toma 2 el transformador de la SED T-8957",
+        "tension_actual_pu": 0.93,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro del analizador en la SED T-8975 a las 19:30: 0,93 pu en el lado de baja.",
+        "e2": "El cambio de toma lo hace el turno de mantenimiento sin materiales."
+      }
+    },
+    {
+      "id": "l09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 10 aisladores poliméricos de suspensión en el vano costero del alimentador G535",
+        "aisladores": 10,
+        "coste_usd": 1450
+      },
+      "evidencia": {
+        "e1": "Aislador polimérico de suspensión de 25 kV, puesto en obra: 145 USD c/u.",
+        "e2": "El vano costero de G535 tiene 10 aisladores de porcelana con contorneos por salinidad."
+      }
+    },
+    {
+      "id": "l10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "reconductorar 3,2 km del alimentador G537 a 150 mm²",
+        "coste_usd": 38000
+      },
+      "evidencia": {
+        "e1": "Reconductorado a 150 mm² reutilizando los postes: 16.500 USD por kilómetro.",
+        "e2": "El tramo de G537 a reconductorar mide 3,2 km."
+      }
+    },
+    {
+      "id": "l11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "pasar 400 kW del alimentador G540 al G541 cerrando el seccionador de enlace",
+        "cargabilidad_g541_pct": 74,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Tras el traspaso, la salida del G541 en la SET Z12 trabaja al 109 % de su capacidad.",
+        "e2": "El cierre del enlace lo ejecuta el centro de control sin gasto."
+      }
+    },
+    {
+      "id": "l12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar un regulador de tensión de 100 A en la derivación P39",
+        "tension_final_pu": 0.97,
+        "coste_usd": 11300
+      },
+      "evidencia": {
+        "e1": "Con el regulador en P39, la tensión más baja de la derivación queda en 0,97 pu en la máxima y en 1,01 pu en el valle.",
+        "e2": "Regulador monofásico de 100 A con su montaje y protección: USD 11 300 en total."
+      }
+    }
+  ]
+}

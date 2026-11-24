@@ -1,0 +1,165 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T22 de la spec 047: el conjunto con que se mide la revisión después de que el código comprueba cantidades de la pieza nombrada, obligaciones previas, magnitudes del mismo elemento, límites cuantitativos, salvaguardas que faltan y resultados sin fuente (2026-11-24). Del 047 al 047m orientaron esas reglas, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las de siempre y las cifras y los límites van escritos de otras formas. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "3bd4f48e38bd14edb934366df10e2813dfb5a973e1f1289fa276a26211a207fb",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "n01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir 12 aisladores de pin por aisladores poliméricos en el ramal U14",
+        "aisladores": 12,
+        "coste_usd": 1020
+      },
+      "evidencia": {
+        "e1": "Aislador polimérico tipo pin de 25 kV puesto en la cruceta: 85 USD por aislador.",
+        "e2": "En U14 se contaron 12 aisladores de porcelana fisurados en la última inspección."
+      }
+    },
+    {
+      "id": "n02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "montar 2 reconectadores trifásicos en el alimentador F870",
+        "reconectadores": 2,
+        "coste_usd": 15400
+      },
+      "evidencia": {
+        "e1": "Reconectador trifásico con su control y montaje en poste: USD 15 400 cada reconectador.",
+        "e2": "F870 tiene 2 ramales con fallas frecuentes que hoy sacan de servicio toda la salida."
+      }
+    },
+    {
+      "id": "n03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "construir 3,5 km de línea de 22,9 kV hasta la planta de agua U20",
+        "caida_tension_pct": 3.4,
+        "coste_usd": 70000
+      },
+      "evidencia": {
+        "e1": "Línea de 22,9 kV en postes de concreto con conductor de 70 mm²: 20 000 USD el kilómetro.",
+        "e2": "Con la línea, la caída de tensión hasta U20 es de 3,4 % en la máxima; el admisible es 5 %."
+      }
+    },
+    {
+      "id": "n04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la carga industrial U25 de 1,8 MW a la barra de 10 kV de la SET Y61",
+        "carga_trafo_pct": 82,
+        "coste_usd": 6400
+      },
+      "evidencia": {
+        "e1": "Con U25, el transformador de potencia de la SET Y61 opera al 118 % de su potencia nominal en la máxima.",
+        "e2": "Celda de salida y medición para U25: 6 400 USD."
+      }
+    },
+    {
+      "id": "n05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 2 bancos automáticos de 600 kvar en la barra de 22,9 kV de la SET Y63",
+        "bancos": 2,
+        "coste_usd": 23000
+      },
+      "evidencia": {
+        "e1": "Banco automático de 600 kvar en celda, con sus pasos y controlador: 11 500 USD por banco.",
+        "e2": "Con los 2 bancos, el factor de potencia de la SET Y63 sube a 0,97 en la máxima."
+      }
+    },
+    {
+      "id": "n06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "desconectar el alimentador F880 durante 4 horas para cambiar la celda de salida",
+        "coste_usd": 2800
+      },
+      "evidencia": {
+        "e1": "F880 alimenta una planta de oxígeno medicinal cuyo contrato admite como máximo 2 horas de corte programado.",
+        "e2": "Cambio de la celda con su cuadrilla y grúa: 2 800 USD."
+      }
+    },
+    {
+      "id": "n07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar el transformador de la SED X-5120 por uno de 75 kVA",
+        "carga_final_pct": 68,
+        "coste_usd": 3560
+      },
+      "evidencia": {
+        "e1": "Transformador de 75 kVA: 2 900 USD; traslado e izaje: 410 USD; ensayos de recepción: 250 USD.",
+        "e2": "Con 75 kVA, la X-5120 queda al 68 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "n08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar la capacidad de la celda C21 de la SET Y66",
+        "demanda_max_kw": 3200,
+        "coste_usd": 9400
+      },
+      "evidencia": {
+        "e1": "Registro anual de la celda C12 de la SET Y66: demanda máxima de 3,2 MW.",
+        "e2": "Ampliación de la celda con transformadores de corriente y relé nuevos: 9 400 USD."
+      }
+    },
+    {
+      "id": "n09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 8 seccionadores fusible en las derivaciones del alimentador F884",
+        "seccionadores": 8,
+        "coste_usd": 2240
+      },
+      "evidencia": {
+        "e1": "Seccionador fusible de expulsión de 27 kV, montado: US$ 280 la unidad.",
+        "e2": "F884 tiene 8 derivaciones sin protección propia en su arranque."
+      }
+    },
+    {
+      "id": "n10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "soterrar 0,6 km de red de media tensión en el casco urbano de U30",
+        "coste_usd": 27000
+      },
+      "evidencia": {
+        "e1": "Red subterránea de media tensión con zanja y reposición de pavimento: USD 75 000 por km.",
+        "e2": "El tramo aéreo a soterrar en U30 mide 0,6 km."
+      }
+    },
+    {
+      "id": "n11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "unir los alimentadores F890 y F891 cerrando el enlace E-40 en la hora de máxima",
+        "cargabilidad_f891_pct": 72,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Con el enlace cerrado en la máxima, la salida del F891 alcanza el 126 % de su corriente admisible.",
+        "e2": "El cierre del enlace se hace desde el centro de control, sin materiales."
+      }
+    },
+    {
+      "id": "n12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar un banco de reguladores de 300 A en la troncal del alimentador F895",
+        "tension_final_pu": 0.98,
+        "coste_usd": 41000
+      },
+      "evidencia": {
+        "e1": "Con los reguladores, la tensión más baja de la troncal de F895 queda en 0,98 pu en la máxima y en 1,01 pu en el valle.",
+        "e2": "Banco de tres reguladores monofásicos de 300 A con su plataforma y protecciones: USD 41 000 en total."
+      }
+    }
+  ]
+}

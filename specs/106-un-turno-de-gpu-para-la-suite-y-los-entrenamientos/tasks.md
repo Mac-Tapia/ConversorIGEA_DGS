@@ -49,3 +49,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       (D:/csg/PM_IMPL/MEJ28_TURNO/rojo.log); verde, 117 passed y 495 passed, 0 omitidas
       (D:/csg/PM_IMPL/MEJ28_TURNO/verde.log); repetidos sobre la punta que se integra en el hueco N2
       (D:/csg/PM_IMPL/N2/estado.txt). La suite completa con un entrenamiento esperando es la T2, también cerrada.
+- [x] T8. Cada tanda de la suite nocturna espera a un entrenamiento con la GPU si falta memoria. (RF-25)
+      Hecho cuando: `tests/test_suite_espera_recursos.py` (106:RF-25) en verde con su rojo por aserción sobre b5e0c45f,
+      y una comprobación real con el turno de GPU tomado por un entrenamiento y poca memoria dice que la tanda espera.
+      Hecho el 2026-11-24 (d8, N10): rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T106_8/rojo_base_0412.log`, 6 failed)
+      y verde (`N10_SINCODEX/T22/verde_0455f.log`, 245 passed con las pruebas de la revisión y de la suite). Comprobación real, 04:20, con el
+      turno de GPU en manos de un entrenamiento del 089 (pronóstico) y 2,2 de 4 GiB disponibles: la tanda dice quién
+      tiene la GPU y espera (`N10_SINCODEX/T106_8/real_0346.log`).

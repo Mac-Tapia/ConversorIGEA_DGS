@@ -1,0 +1,165 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T21 de la spec 047: el conjunto con que se mide la revisión después de que el código lee como precio por unidad la cifra «por» o «cada» una pieza que la acción cuenta (2026-11-24). El 047l orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047l, las cifras van escritas de otras formas y la regla de seguridad exige algo antes de la acción, con palabras que el código no busca. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "d36a470b041e921f79241a85f4fbcce7d8b7a99234c2fcad440bfe4d0a491d6a",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "m01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar 9 postes de madera por postes de concreto de 12 m en el ramal N52",
+        "postes": 9,
+        "coste_usd": 5850
+      },
+      "evidencia": {
+        "e1": "Poste de concreto de 12 m con su izado: 650 USD por poste.",
+        "e2": "La inspección de N52 halló 9 postes de madera con pudrición en la base."
+      }
+    },
+    {
+      "id": "m02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 4 seccionalizadores en las derivaciones del alimentador K610",
+        "seccionalizadores": 4,
+        "coste_usd": 3100
+      },
+      "evidencia": {
+        "e1": "Seccionalizador electrónico de 27 kV, instalado: USD 2 750 cada seccionalizador.",
+        "e2": "K610 tiene 4 derivaciones que hoy dejan sin servicio a toda la troncal cuando fallan."
+      }
+    },
+    {
+      "id": "m03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "construir 1,2 km de línea aérea de 95 mm² hasta el centro poblado N60",
+        "caida_tension_pct": 2.8,
+        "coste_usd": 26400
+      },
+      "evidencia": {
+        "e1": "Línea aérea de 95 mm² con postes de concreto y ferretería: USD 22 000 por km construido.",
+        "e2": "Con la línea nueva, la caída de tensión hasta N60 queda en 2,8 % en la máxima."
+      }
+    },
+    {
+      "id": "m04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar el taller de soldadura W77 de 60 kVA a la SED V-3318",
+        "carga_v3318_pct": 64,
+        "coste_usd": 950
+      },
+      "evidencia": {
+        "e1": "Con W77, la SED V-3318 de 50 kVA trabaja al 141 % de su potencia en la hora de máxima.",
+        "e2": "Acometida, caja y medidor de W77: 950 USD."
+      }
+    },
+    {
+      "id": "m05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 3 bancos de condensadores fijos de 150 kvar en el alimentador K612",
+        "bancos": 3,
+        "coste_usd": 7800
+      },
+      "evidencia": {
+        "e1": "Banco fijo de 150 kvar, con su seccionador y montaje en poste: USD 2 600 por banco.",
+        "e2": "Con los 3 bancos, la tensión más baja de K612 sube de 0,94 a 0,97 pu en la máxima."
+      }
+    },
+    {
+      "id": "m06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "reponer el fusible de la derivación N63 sin revisar antes la causa de la falla",
+        "coste_usd": 40
+      },
+      "evidencia": {
+        "e1": "La norma de operación exige ubicar y despejar la causa de la falla antes de reponer cualquier fusible de media tensión.",
+        "e2": "Fusible tipo K de 10 A: 40 USD."
+      }
+    },
+    {
+      "id": "m07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir el transformador de la SED V-3402 por uno de 100 kVA",
+        "carga_final_pct": 75,
+        "coste_usd": 4480
+      },
+      "evidencia": {
+        "e1": "Transformador de 100 kVA: 3 700 USD; transporte y montaje: 520 USD; ensayos: 260 USD.",
+        "e2": "Con 100 kVA, la V-3402 queda al 75 % en la máxima."
+      }
+    },
+    {
+      "id": "m08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "bajar a la toma 3 el transformador de la SED V-3461",
+        "tension_actual_pu": 1.06,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Lectura del registrador en la SED V-3416 a las 4:00: 1,06 pu en baja tensión.",
+        "e2": "El cambio de toma se hace en la ronda de mantenimiento, sin materiales."
+      }
+    },
+    {
+      "id": "m09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 6 indicadores de falla en el alimentador K615",
+        "indicadores": 6,
+        "coste_usd": 2340
+      },
+      "evidencia": {
+        "e1": "Indicador de paso de falla para red aérea: US$ 390 por indicador, colocado.",
+        "e2": "K615 tiene 6 tramos largos donde hoy se recorre la línea a pie para hallar las fallas."
+      }
+    },
+    {
+      "id": "m10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 2,5 km de cable subterráneo de 22,9 kV entre la SET Y40 y la SED V-3520",
+        "coste_usd": 61000
+      },
+      "evidencia": {
+        "e1": "Cable subterráneo de 22,9 kV con zanja, ducto y reposición de veredas: USD 58 000 por kilómetro.",
+        "e2": "El trazado entre la SET Y40 y la V-3520 mide 2,5 km."
+      }
+    },
+    {
+      "id": "m11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "traspasar 300 kW del alimentador K618 al K619 por el enlace E-12",
+        "cargabilidad_k619_pct": 79,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Con el traspaso, la cabecera del K619 llega al 112 % de su capacidad en la hora de máxima.",
+        "e2": "La maniobra del enlace la hace el despacho sin costo."
+      }
+    },
+    {
+      "id": "m12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un regulador de tensión de 50 A en la derivación N68",
+        "tension_final_pu": 0.96,
+        "coste_usd": 8900
+      },
+      "evidencia": {
+        "e1": "Con el regulador en N68, la tensión más baja queda en 0,96 pu en la máxima y en 1,02 pu en el valle.",
+        "e2": "Regulador monofásico de 50 A con montaje y protecciones: USD 8 900 en total."
+      }
+    }
+  ]
+}

@@ -604,3 +604,28 @@ def test_congelar_y_ciclo_comparten_una_sola_copia(tmp_path):
     orden[orden.index('--familias') + 1] = 'transformer'
     assert cli.main(['--raiz', str(raiz), *orden]) == 0
     assert len(list((raiz / 'instantaneas').iterdir())) == 1
+
+
+def test_050_rf2_caso_evolutivo_con_otra_particion_que_su_episodio_es_fuga(tmp_path, monkeypatch):
+    """050:RF-2 — con el fichero de casos fijo del 08-11, el episodio 03bd0 era entrenamiento en la PINN y prueba en
+    evolutivos: el caso cuya partición no es la de su episodio en el reparto del gemelo se aparta, sin reasignarlo; y
+    sin episodios que enseñan no hay reparto del gemelo con el que chocar (la PINN no entrena), así que no se aparta."""
+    import inspect
+    assert 'ensenan' in inspect.signature(pc.preparar_casos).parameters, 'los casos no se contrastan con el reparto del gemelo'
+    twin, (e,) = _bufer(tmp_path, _que_ensena())
+    f = e.contexto_fisico
+    bueno = ContextoExperimento('run-1', 'txt', e.fuente['source_fingerprint'], 'P', ('A1', 'A2'), f['case_id'],
+        'sin_proyecto', None, 'no_aplica', 'no_aplica', 'a' * 64, f['topology_hash'], f['controls_hash'], f['scenario_hash'])
+    monkeypatch.setattr(pc, '_particion_pinn', lambda ensenan: dict.fromkeys(ensenan, 'prueba'))
+    casos = tmp_path / 'casos.json'
+    fuga = _caso(e, bueno)                                     # dice «entrenamiento»; su episodio es «prueba»
+    coherente = {**_caso(e, bueno), 'record_id': 'caso2', 'particion': 'prueba'}
+    casos.write_text(json.dumps({'schema': 'convertersmartgrid-optimization-learning-cases-v1',
+                                 'casos': [fuga, coherente]}), encoding='utf-8')
+    p = pc.Preparacion(tmp_path / 'salida', {})
+    pc.preparar_casos(p, casos, twin, {}, {e.episode_id: (e, bueno)})
+    assert any(c['registro'] == 'caso1' and 'fuga entre familias' in c['motivo'] for c in p.cuarentena), p.cuarentena
+    assert list(p.referencias['evolutivos_casos']) == ['caso2']
+    p = pc.Preparacion(tmp_path / 'salida2', {})
+    pc.preparar_casos(p, casos, twin, {}, {})
+    assert sorted(p.referencias['evolutivos_casos']) == ['caso1', 'caso2'] and not p.cuarentena

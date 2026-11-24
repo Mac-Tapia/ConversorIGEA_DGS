@@ -54,11 +54,11 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 024 PINN como oráculo y gemelo digital de la red calibrada | cumplida |  |
   | 025 Calibración por año de medición | cumplida | T27 cerrada (22-11, en DIgSILENT) y T30; todas sus tareas cerradas |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | T16 cerrada (21-11, e2e F04 ampliada de MEJ19b); todas sus tareas cerradas |
-  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11, T26 |
+  | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11 (T26 cerrada el 22-11 sin Codex, por orden del usuario) |
   | 028 Escaneo del alimentador antes de recalibrar | cumplida | — |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
-  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | aprobada | falta T5 |
+  | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | cumplida | T5 y T11 cerradas (23-11, corrida en la GPU); todas sus tareas cerradas |
   | 032 «Caso base» con los datos originales; fichas y potencias en «Sin proyecto» | cumplida |  |
   | 033 Trazabilidad y estado de las specs | cumplida |  |
   | 034 Motor base de conversión y contrato universal de fuentes | cumplida |  |
@@ -133,7 +133,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
-  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | T2 y T7 cerradas (21-11, bloque GPU y MEJ28); todas sus tareas cerradas |
+  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | T8 cerrada (24-11, RF-25: la suite espera si un entrenamiento tiene la GPU y falta memoria); todas sus tareas cerradas |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | implementada | falta T14 (DIgSILENT) |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |

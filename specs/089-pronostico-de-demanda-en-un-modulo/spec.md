@@ -1,6 +1,6 @@
 # Spec 089 — Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método
 
-Estado: aprobada (2026-11-19: RF-116 a RF-118, trazabilidad de la evaluación, T15 a T17; 2026-11-18: RF-115, objetivos ausentes fuera de la pérdida de la GRU, T14) · Fecha: 2026-11-05
+Estado: aprobada (2026-11-23: RF-119 a RF-121, paso de ventanas de un multivariante que no cabe, medidas y tiempos, T18, T19; 2026-11-19: RF-116 a RF-118, trazabilidad de la evaluación, T15 a T17; 2026-11-18: RF-115, objetivos ausentes fuera de la pérdida de la GRU, T14) · Fecha: 2026-11-05
 
 ## Contexto y objetivo
 
@@ -188,6 +188,18 @@ exacto. El mes ya lo daban la carpeta del año y el nombre (104:RF-27); el trasp
 - RF-118: (MEJ-089) CUANDO ajusta un modelo multivariante de neuralforecast, EL SISTEMA anotará en lo que el ajuste
   devuelve para el registro las exógenas quitadas, las usadas y el motivo «exógenas quitadas en multivariante» (fallo de
   escala de neuralforecast 3.3); un univariante anotará las exógenas que usa.
+- RF-119: SI las ventanas de un modelo multivariante no caben en la memoria libre de la GPU con su paso, ENTONCES EL
+  SISTEMA usará el menor múltiplo de ese paso, hasta siete veces, con el que caben, y anotará en lo que el ajuste devuelve
+  el paso original y el usado; solo si ni así caben dirá que la red no cabe, con la cuenta. Con la 089 T7 (2026-11-23),
+  iTransformer y las 84 series de la cabecera pedían 6,69 GiB y quedaban 6,68: sus series no se parten (046:RF-26).
+- RF-120: EL SISTEMA informará de cada modelo y de cada perfil, en la prueba y a cada horizonte medido, el MAE y el RMSE en
+  la unidad de la serie, el WAPE, el sMAPE, el RMSE relativo al desvío, el sesgo en valor y en porcentaje, el R², el error
+  y el desfase en horas de la máxima, la mejora sobre el perfil elegido en los mismos instantes (1 − MAE / MAE del perfil)
+  y, con su banda q05–q95, la cobertura, el ancho relativo y la pérdida pinball de cada cuantil. Solo se informan: la
+  puerta sigue siendo la de RF-63. Pedido del operador del 2026-11-23: ver todo lo que dice si el pronóstico es verdadero.
+- RF-121: EL SISTEMA medirá en cada origen cuánto tarda cada modelo en aprender y cuánto en pronosticar ya entrenado, y
+  los perfiles en pronosticar, y los informará por origen, con su mediana y con la del pronóstico por objetivo. Pedido del
+  operador del 2026-11-23: en cuánto tiempo pronostica un modelo una vez entrenado.
 
 ## Fuera de alcance
 

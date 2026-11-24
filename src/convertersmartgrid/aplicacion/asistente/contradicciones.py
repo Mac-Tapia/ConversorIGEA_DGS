@@ -42,10 +42,20 @@ _NUM = re.compile(r'(?<![\d.,])[-+]?(?:\d{1,3}(?: \d{3})+(?:[.,]\d+)?|\d+(?:[.,]
 _UNIDAD_TRAS = re.compile(r'\s*(p\.\s*u\b\.?|%|[a-zμω²$]+(?:/[a-z]+)?)')
 #: Un elemento de la red («A71», «S-702», «P412», «e2») no es una cifra del valor.
 _IDENTIFICADOR = re.compile(r'(?<![\w])[a-záéíóúñ]+-?\d+\w*')
+#: 047:RF-98, RF-100: el nombre de un elemento de la red («V-3318», «A140», «Q7»), sin guion, para comparar el de la
+#: acción o el del campo con el de la evidencia. Una sola definición para todas las comprobaciones que lo usan.
+_ELEMENTO = re.compile(r'\b[a-z]{1,4}-?\d{1,6}\b')
+
+
+def _elementos(texto: str) -> set[str]:
+    return {i.replace('-', '') for i in _ELEMENTO.findall(_normal(texto))}
 _VERSUS = re.compile(r'\s+(?:vs\.?|versus|frente a)\s+', re.IGNORECASE)
 #: 047:RF-55: lo que sigue a una cifra que es por unidad y no un total.
-_POR_UNIDAD = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por\s+(?:unidad|kil[oó]metro|km|metro|poste|cada)\b|c/u\b|'
-                         r'cada\s+un[oa]\b|unitari[oa]|/\s*(?:km|u|m|unidad)\b)')
+#: 047:RF-92: con el 047i (2026-11-23), «185 dólares la unidad» y «12.500 USD por equipo» se leían como totales y el
+#: código daba por malo el coste de propuestas sanas; son formas corrientes de un precio unitario.
+_POR_UNIDAD = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por\s+(?:unidad|kil[oó]metro|km|metro|poste|cada|equipo|pieza|juego|'
+                         r'elemento|aparato)\b|c/u\b|(?:la|cada)\s+(?:unidad|pieza)\b|cada\s+un[oa]\b|unitari[oa]|'
+                         r'/\s*(?:km|u|m|unidad)\b)')
 
 
 def _normal(texto) -> str:
@@ -326,10 +336,16 @@ def cifras_sin_respaldo(texto, fuente) -> list[str]:
 
 
 #: 047:RF-76: lo que sigue a una cifra que es un precio por kilómetro, y el total explícito de una obra.
-_POR_KM = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por\s+(?:kil[oó]metro|km)\b|/\s*km\b)')
+#: 047:RF-92: «9.000 USD el kilómetro» (047i) también es un precio por km.
+_POR_KM = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:(?:por|el|cada)\s+(?:cada\s+)?(?:kil[oó]metro|km)\b|/\s*km\b)')
 _EN_TOTAL = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?en\s+total\b')
 #: Un campo de la propuesta que es una magnitud, no una cantidad de piezas.
 _MAGNITUD_DE_CAMPO = re.compile(r'(?:_(?:pct|pu|a|kw|kva|kvar|mw|mva|usd|ohm|km|h|kv|v|m)$)|^(?:coste|costo)|_final|carga')
+
+
+#: 047:RF-96: unidades de una magnitud física que siguen a una cifra de la acción («150 kvar», «250 kva»).
+_UNIDAD_FISICA = re.compile(r'(?:k|m)?(?:va|var|vars|w|v|vac|vdc)|kvar|kvars|amperios?|voltios?|vatios?|metros?|'
+                            r'kil[oó]metros?|mil[ií]metros?|ohmios?|hertz|grados?')
 
 
 def _tipo_de_cifra(texto: str, fin: int) -> str:
@@ -360,6 +376,13 @@ def _raiz(palabra: str) -> str:
     return sin_tildes[:5]
 
 
+def _tema(palabra: str) -> str:
+    """047:RF-99: el tema léxico de un infinitivo o de su sustantivo («podar» y «poda» → «pod»; «trabajar» y «trabajo»
+    → «trabaj»), sin tildes: sin la terminación del infinitivo, ni la vocal final ni el plural del sustantivo."""
+    t = ''.join(c for c in unicodedata.normalize('NFKD', palabra.casefold()) if not unicodedata.combining(c))
+    return re.sub(r'(?:ar|er|ir)$|(?:[aoe]s?)$', '', t)
+
+
 def _raices(texto: str) -> set[str]:
     return {_raiz(p) for p in re.findall(r'[a-záéíóúñ]{4,}', _IDENTIFICADOR.sub(' ', _normal(texto)))}
 
@@ -378,8 +401,15 @@ def cantidad_anclada(propuesta, texto) -> float | None:
     accion = propuesta.get(ACCION)
     if isinstance(accion, str):
         for m in re.finditer(r'(?<![\w.,])(\d+)\s+([a-záéíóúñ]{4,})', _normal(accion)):
-            if _raiz(m[2]) in contexto:
+            # 047:RF-96: «3 bancos … de 150 kvar»: 150 es una magnitud, no 150 piezas.
+            if _raiz(m[2]) in contexto and not _UNIDAD_FISICA.fullmatch(m[2]):
                 valores.add(float(m[1]))
+    if not valores:
+        # 047:RF-92: con el 047i, «Analizador de calidad… USD 2.200 cada uno» y ``medidores: 4``: el fragmento no nombra
+        # la pieza con la palabra del campo. Si la propuesta tiene una sola cantidad de piezas, el precio unitario es suyo.
+        piezas = {float(v) for k, v in propuesta.items() if k != ACCION and isinstance(v, int) and not isinstance(v, bool)
+                  and v > 0 and not _MAGNITUD_DE_CAMPO.search(k) and _es_cantidad(k)}
+        return piezas.pop() if len(piezas) == 1 else None
     return valores.pop() if len(valores) == 1 else None
 
 
@@ -493,6 +523,12 @@ def _motivo_por_valores(campo, valor_p, valor_e, fuente, propuesta, evidencia) -
         return 'la acción no es un dato: solo cuenta una cifra suya distinta de la de la evidencia', {}
     if propuesta is not None and _del_campo(campo, propuesta) is None and not _aparece(valor_p, texto_de(propuesta)):
         return f'no fundada: «{valor_p}» no está en la propuesta', {}
+    accion = propuesta.get(ACCION) if isinstance(propuesta, dict) else None
+    if (_del_campo(campo, propuesta) is None and isinstance(valor_p, str) and not re.search(r'\d', valor_p)
+            and isinstance(accion, str) and _repite_la_accion(_normal(valor_p), accion)):
+        # 047:RF-86: con el 047g, «conductor de enlace» (palabras de la acción, sin cifra ni elemento) se enfrentaba
+        # a la descripción del conductor en la evidencia; eso no es un dato de la propuesta (RF-56).
+        return 'repite la acción que se revisa: no es un dato', {}
     texto = None
     if evidencia is not None:
         texto, error = _texto_de_fuentes(fuente, evidencia)
@@ -505,6 +541,9 @@ def _motivo_por_valores(campo, valor_p, valor_e, fuente, propuesta, evidencia) -
             f'{texto} ; {texto_de(propuesta)}')
         if donde is not None and not _aparece(valor_e, donde):
             return f'no fundada: «{valor_e}» no está en {fuente or "la evidencia"}', {}
+    magnitud = _magnitud_de_la_evidencia(campo, valor_p, valor_e, texto)
+    if magnitud:
+        return f'magnitudes distintas: {_clave(campo)} es una cantidad y la evidencia da {magnitud}', {}
     base_p = _base_de_campo(campo)
     tipo = _tipo_por_unidad(valor_e, texto)
     if tipo and base_p == 'total':
@@ -528,8 +567,37 @@ def _motivo_por_valores(campo, valor_p, valor_e, fuente, propuesta, evidencia) -
     return None, {}
 
 
-def filtrar_incertidumbres(incertidumbres, propuesta=None) -> tuple[list, list[dict]]:
-    """047:RF-80 — las incertidumbres que cuentan y las descartadas, con su motivo.
+#: 047:RF-87: raíces de las palabras de un campo que dicen su magnitud aunque no lleve la unidad en el nombre.
+_RAICES_DE_MAGNITUD = ('longi', 'dista', 'largo', 'tensi', 'volta', 'corri', 'poten', 'energ', 'secci', 'tiemp',
+                       'durac', 'imped', 'carga', 'cosen', 'facto', 'coste', 'costo', 'preci', 'impor', 'monto')
+
+
+def _magnitud_de_la_evidencia(campo, valor_p, valor_e, texto) -> str | None:
+    """047:RF-87: la magnitud de la cifra de la evidencia si el campo es una cantidad de elementos y ella no lo es.
+
+    Con el 047g, el LLM enfrentaba una cantidad de picas con los metros de cada pica. Un campo es una cantidad si su
+    nombre no lleva unidad ni una palabra de magnitud y su valor es un entero sin unidad; la unidad de la evidencia es
+    la de su valor o, si viene sin unidad («3»), la de esa cifra en el texto de la fuente.
+    """
+    partes = [x for x in re.split(r'[_\W]+', _normal(_clave(campo))) if x]
+    if not partes or any(x in _UNIDADES for x in partes) or any(x.startswith(_RAICES_DE_MAGNITUD) for x in partes):
+        return None
+    lp = _leer(valor_p)
+    if lp is None or lp.unidad is not None or lp.cuenta or not all(float(v).is_integer() for v in lp.lecturas):
+        return None
+    le = _leer(valor_e)
+    if le is None or le.cuenta:
+        return None
+    unidad = le.unidad
+    if unidad is None and texto:
+        unidades = {u for c, u, _f in _cifras(_limpio(texto)) if c & le.lecturas}
+        unidad = unidades.pop() if len(unidades) == 1 else None
+    magnitud = _UNIDADES.get(unidad)
+    return magnitud[0] if magnitud else None
+
+
+def filtrar_incertidumbres(incertidumbres, propuesta=None, comprobados=()) -> tuple[list, list[dict]]:
+    """047:RF-80, RF-85 y RF-86 — las incertidumbres que cuentan y las descartadas, con su motivo.
 
     Con el 047f, un rol dejó «buzones» como incertidumbre cuando la acción dice «construir 2 buzones»: la acción es lo
     que se revisa (RF-46) y fija esa cantidad. Solo se descarta una incertidumbre que es únicamente el nombre de un
@@ -543,9 +611,24 @@ def filtrar_incertidumbres(incertidumbres, propuesta=None) -> tuple[list, list[d
         valor = _del_campo(clave, propuesta) if clave and ' ' not in clave else None
         if valor is not None and isinstance(accion, str) and _aparece(valor, accion):
             descartadas.append({'entrada': texto, 'motivo': f'la acción fija {clave} ({valor}): no es una incertidumbre'})
+        elif clave and clave in comprobados:
+            # 047:RF-85: con el 047g, el LLM dejaba «coste_usd» como duda en propuestas sanas cuyo coste el código ya
+            # había calculado con la evidencia y cuadraba (RF-77); la contradicción sobre ese campo ya se descartaba.
+            descartadas.append({'entrada': texto,
+                                'motivo': f'el código comprobó {clave} con la evidencia y cuadra: no es una incertidumbre'})
+        elif isinstance(accion, str) and _repite_la_accion(clave, accion):
+            # 047:RF-86: con el 047g, un rol copiaba la acción entera como incertidumbre; la acción es lo que se revisa
+            # (RF-46), así que repetirla no dice qué falta saber.
+            descartadas.append({'entrada': texto, 'motivo': 'repite la acción que se revisa: no es una incertidumbre'})
         else:
             quedan.append(texto)
     return quedan, descartadas
+
+
+def _repite_la_accion(texto: str, accion: str) -> bool:
+    """047:RF-86: la duda es la acción, o un trozo suyo de tres palabras o más, sin nada más."""
+    palabras = re.findall(r'\w+', texto)
+    return len(palabras) >= 3 and ' '.join(palabras) in ' '.join(re.findall(r'\w+', _normal(accion)))
 
 
 def filtrar_contradicciones(entradas, propuesta=None, evidencia=None, comprobados=()) -> tuple[list, list[dict]]:
@@ -603,6 +686,31 @@ def _partidas_de(importes: list[tuple[set, str]]) -> list[tuple[set, str]]:
     return importes
 
 
+#: 047:RF-95: «… por banco», «… cada reconectador»: el precio va por la pieza que se nombra tras «por» o «cada».
+_POR_PIEZA = re.compile(r'^\s*(?:[a-z$.]+\s*){0,2}?(?:por|cada)\s+(?:(?:el|la|un|una)\s+)?([a-záéíóúñ]{4,})\b')
+
+
+def _por_lo_contado(resto: str, propuesta) -> float | None:
+    """047:RF-95, RF-96 — si la cifra va «por» o «cada» una pieza que la acción cuenta («2 bancos»), esa cantidad.
+
+    Con el 047l, «US$ 8 800 por banco» y «instalar 2 bancos…» se leía como un total de 8 800 frente a 17 600; la lista
+    fija de palabras de RF-76 («por unidad», «por equipo»…) no puede traer cada pieza de una red. Con el 047m, «USD 2 600
+    por banco» y «montar 3 bancos … de 150 kvar» no se comprobaba: la cantidad es la de la pieza nombrada, no otra cifra.
+    """
+    m = _POR_PIEZA.match(resto)
+    accion = propuesta.get(ACCION) if isinstance(propuesta, dict) else None
+    if not m or not isinstance(accion, str):
+        return None
+    cantidades = {float(x[1]) for x in re.finditer(r'(?<![\w.,])(\d+)\s+([a-záéíóúñ]{4,})', _normal(accion))
+                  if _raiz(x[2]) == _raiz(m[1])}
+    return cantidades.pop() if len(cantidades) == 1 else None
+
+
+#: 047:RF-102: la evidencia que dice que algo no tiene coste.
+_SIN_COSTE = re.compile(r'\bsin\s+(?:ning[uú]n\s+)?(?:gasto|coste|costo|materiales|compra|costo\s+de\s+obra)\b|'
+                        r'\bno\s+(?:necesita|requiere|tiene|lleva)\s+(?:ning[uú]n\s+)?(?:materiales|coste|costo|gasto)\b')
+
+
 def comprobar_coste(propuesta, evidencia) -> list[dict]:
     """047:RF-77 — el coste de la propuesta frente al que sale de la evidencia, calculado sin el LLM.
 
@@ -627,8 +735,19 @@ def comprobar_coste(propuesta, evidencia) -> list[dict]:
             if not lecturas:
                 continue
             tipo = 'en_total' if _EN_TOTAL.match(t[m.end():m.end() + 40]) else _tipo_de_cifra(t, m.end())
+            piezas = _por_lo_contado(t[m.end():m.end() + 60], propuesta) if tipo in ('total', 'unidad') else None
+            if piezas is not None:
+                tipo = f'pieza:{piezas:g}'
             importes.append((fuente, m['num'], lecturas, tipo, fragmento))
     if not importes:
+        # 047:RF-102: un coste 0 lo respalda la evidencia que dice que no lo hay («sin materiales», «sin costo», «la
+        # maniobra no necesita materiales»); sin eso queda sin comprobar, como cualquier coste sin importe.
+        sin_coste = next((f for f, r in evidencia.items() if isinstance(r, dict) and isinstance(r.get('fragmento'), str)
+                          and _SIN_COSTE.search(_normal(r['fragmento']))), None)
+        if coste == 0 and sin_coste is not None:
+            return [{'campo': campo, 'valor_propuesta': coste, 'valor_calculado': 0.0,
+                     'calculo': f'{sin_coste} dice que no tiene coste', 'fuentes': [sin_coste], 'coincide': True,
+                     'origen': 'codigo'}]
         return []
     totales = [i for i in importes if i[3] == 'en_total']
     if len(totales) > 1:
@@ -644,13 +763,423 @@ def comprobar_coste(propuesta, evidencia) -> list[dict]:
                 if tipo == 'total':
                     del_fragmento.append((lecturas, f'{cifra} ({fuente})'))
                     continue
-                factor = longitud_anclada(propuesta) if tipo == 'km' else cantidad_anclada(propuesta, fragmento)
+                factor = (float(tipo[6:]) if tipo.startswith('pieza:') else longitud_anclada(propuesta) if tipo == 'km'
+                          else cantidad_anclada(propuesta, fragmento))
                 if factor is None:
                     return []
-                del_fragmento.append(({v * factor for v in lecturas}, f'{factor:g} × {cifra} ({fuente}, por {tipo})'))
+                base = 'unidad' if tipo.startswith('pieza:') else tipo
+                del_fragmento.append(({v * factor for v in lecturas}, f'{factor:g} × {cifra} ({fuente}, por {base})'))
             partes.extend(_partidas_de(del_fragmento))
     esperados = {sum(c) for c in itertools.islice(itertools.product(*(p[0] for p in partes)), _MAX_LECTURAS)}
     cercano = min(esperados, key=lambda v: abs(v - coste))
     return [{'campo': campo, 'valor_propuesta': coste, 'valor_calculado': round(cercano, 6),
              'calculo': ' + '.join(p[1] for p in partes), 'fuentes': sorted({i[0] for i in importes}),
              'coincide': any(_cerca(float(coste), v, TOLERANCIA_RELATIVA) for v in esperados), 'origen': 'codigo'}]
+
+
+#: 047:RF-88: frases de la evidencia que prohíben algo.
+#: 047:RF-93: con el 047j (2026-11-23), «las reglas de seguridad no permiten trabajar … sin puesta a tierra» no se leía
+#: como prohibición; «no permite(n)», «no autoriza(n)», «no admite(n)», «queda prohibido», «está vedado», «en ningún caso»
+#: y «jamás» también lo son.
+_PROHIBE = re.compile(r'\b(?:proh[ií]b\w*|no se permite|no est[aá] permitid[oa]|est[aá] proh[ií]bid[oa]|no debe|no se debe|'
+                      r'no puede|no se puede|nunca se|no (?:se )?permit\w*|no (?:se )?autoriz\w*|no (?:se )?admit\w*|'
+                      r'quedan? proh[ií]bid\w*|est[aá]n? vedad\w*|en ning[uú]n caso|jam[aá]s|'
+                      # 047:RF-94: con el 047k (2026-11-24), «ninguna cuadrilla está autorizada a maniobrar con carga…»
+                      # no se leía: una negación («ningún», «nadie», «no») con un participio de permiso también prohíbe.
+                      r'(?:ning[uú]n[oa]?|nadie)\b[^.;:]{0,60}?\b(?:est[aá]n?|quedan?|es|son|se encuentran?)\s+'
+                      r'(?:autorizad|habilitad|facultad|permitid|acreditad)\w*|'
+                      r'no\s+(?:est[aá]n?|quedan?|es|son|se encuentran?)\s+(?:autorizad|habilitad|facultad|acreditad)\w*)\b')
+#: 047:RF-93: lo prohibido es hacerlo «sin» algo; la acción que lo hace con ello no está prohibida.
+_SIN = re.compile(r'\bsin\s+(?:(?:el|la|los|las|su|sus)\s+)?([a-záéíóúñ]{3,})')
+#: 047:RF-97: una obligación previa («la norma exige X antes de reponer…», «se debe X antes de…»). Los sistemas de
+#: cumplimiento normativo clasifican cada frase por su modalidad (obligación, permiso, prohibición) con sus disparadores
+#: (ComplianceNLP, arXiv 2604.23585; LEXDEMOD); aquí falta la obligación: con el 047m, el modelo aprobó en los dos modos
+#: «reponer el fusible sin revisar antes la causa» frente a «exige … despejar la causa … antes de reponer».
+_OBLIGA = re.compile(r'\b(?:exigen?|requieren?|obligan?|es obligatori[oa]|son obligatori[oa]s|se debe|deben?|tienen? que|'
+                     r'hay que|ha de|han de|es necesario|es imprescindible)\b')
+_ANTES_DE = re.compile(r'\bantes\s+de\s+([a-záéíóúñ]{2,}(?:ar|er|ir))(?:lo|la|los|las|le|les|se)?\b')
+#: Un infinitivo, con un pronombre pegado o no («abrirlo», «trabajar»).
+_INFINITIVO = re.compile(r'\b([a-záéíóúñ]{2,}(?:ar|er|ir))(?:lo|la|los|las|le|les|se)?\b')
+
+
+#: 047:RF-89: una cifra de la evidencia que es un límite o una norma no respalda el dato de la propuesta.
+_LIMITE = re.compile(r'\b(?:l[ií]mite|admisible|norma|m[aá]ximo permitido|m[ií]nimo permitido|tolerancia)\b')
+
+
+def _en_un_fragmento(valor, evidencia) -> str | None:
+    """047:RF-89: la fuente cuyo fragmento trae ``valor`` fuera de una cláusula de límite, o None."""
+    for fuente, registro in evidencia.items():
+        fragmento = registro.get('fragmento') if isinstance(registro, dict) else None
+        if not isinstance(fragmento, str):
+            continue
+        for clausula in re.split(r'[;:]\s+|,\s+(?=[a-záéíóúñ])', fragmento):
+            if not _LIMITE.search(_normal(clausula)) and _aparece(valor, clausula):
+                return fuente
+    return None
+
+
+def _es_cantidad(campo: str) -> bool:
+    partes = [x for x in re.split(r'[_\W]+', _normal(campo)) if x]
+    return bool(partes) and not any(x in _UNIDADES for x in partes) and not any(
+        x.startswith(_RAICES_DE_MAGNITUD) for x in partes)
+
+
+def comprobar_datos(propuesta, evidencia) -> list[dict]:
+    """047:RF-89 — los datos de la propuesta que el código respalda sin el LLM.
+
+    Con el 047h (2026-11-23), en propuestas sanas el LLM dudaba de «cargabilidad_final_pct» (63 % en la evidencia),
+    enfrentaba «tension_final_pu» 0,99 con el 1,03 del valle del mismo fragmento y pedía «cuántos reconectadores hacen
+    falta» cuando la acción dice 2. Un dato cuenta como respaldado si es una cantidad de elementos que la acción fija o
+    si su cifra está en un fragmento, fuera de una cláusula de límite o de norma. Lo que no se respalda así no se
+    comprueba aquí (lo sigue revisando el LLM): faltar en la evidencia no es una contradicción.
+    """
+    if not isinstance(propuesta, dict) or not isinstance(evidencia, dict):
+        return []
+    accion = propuesta.get(ACCION) if isinstance(propuesta.get(ACCION), str) else ''
+    salida = []
+    for campo, valor in propuesta.items():
+        if campo in (ACCION, *CAMPOS_DE_COSTE) or isinstance(valor, bool) or not isinstance(valor, (int, float)):
+            continue
+        if _es_cantidad(campo) and float(valor).is_integer() and _aparece(valor, accion):
+            salida.append({'campo': campo, 'valor_propuesta': valor, 'valor_calculado': valor,
+                           'calculo': 'la acción fija la cantidad', 'fuentes': [], 'coincide': True, 'origen': 'codigo'})
+            continue
+        fuente = _en_un_fragmento(valor, evidencia)
+        if fuente is not None:
+            salida.append({'campo': campo, 'valor_propuesta': valor, 'valor_calculado': valor,
+                           'calculo': f'la cifra está en {fuente}', 'fuentes': [fuente], 'coincide': True,
+                           'origen': 'codigo'})
+    return salida
+
+
+def comprobar_magnitudes(propuesta, evidencia) -> list[dict]:
+    """047:RF-98, RF-101 — los resultados físicos de la propuesta que la evidencia contradice o que nada respalda.
+
+    Aparte de ``comprobar_datos`` (lo que la evidencia respalda): aquí solo hay lo que no cuadra. Solo con evidencia en
+    texto: si ningún fragmento trae texto (un fichero con su huella), el código no puede leerla y no decide nada.
+    """
+    if not isinstance(propuesta, dict) or not isinstance(evidencia, dict):
+        return []
+    if not any(isinstance(r, dict) and isinstance(r.get('fragmento'), str) and r['fragmento'].strip()
+               for r in evidencia.values()):
+        return []
+    accion = propuesta.get(ACCION) if isinstance(propuesta.get(ACCION), str) else ''
+    respaldados = {c['campo'] for c in comprobar_datos(propuesta, evidencia)}
+    salida = []
+    for campo, valor in propuesta.items():
+        if (campo in (ACCION, *CAMPOS_DE_COSTE) or campo in respaldados or isinstance(valor, bool)
+                or not isinstance(valor, (int, float))):
+            continue
+        distinto = _magnitud_del_elemento(campo, valor, evidencia, accion)
+        if distinto is not None:
+            salida.append({'campo': campo, 'valor_propuesta': valor, 'valor_calculado': distinto[1],
+                           'calculo': f'{distinto[0]} da {distinto[1]:g} {distinto[2]} para el mismo elemento',
+                           'fuentes': [distinto[0]], 'coincide': False, 'origen': 'codigo'})
+            continue
+        # 047:RF-101: con el 047, «reduccion_perdidas_kw: 120» no estaba en ninguna evidencia y el modelo lo aprobó. Un
+        # resultado físico que nada respalda ni contradice no se aprueba: queda sin fuente y lo ve el operador.
+        if re.search(r'_(?:kw|kva|kvar|mw|mva|pu|pct|porcentaje|a|ka|kv)$', campo.casefold()) and not _es_cantidad(campo):
+            salida.append({'campo': campo, 'valor_propuesta': valor, 'valor_calculado': None,
+                           'calculo': 'ningún fragmento de la evidencia da este resultado', 'fuentes': [],
+                           'coincide': False, 'origen': 'codigo'})
+    return salida
+
+
+#: 047:RF-98: una cláusula que empieza por un límite o por lo exigido («límite 100 %», «el mínimo exigido es 0,95 pu»,
+#: «capacidad del conductor de 35 mm² 125 A») no es el dato del elemento.
+_CLAUSULA_LIMITE = re.compile(r'\s*(?:(?:el|la|los|las|su)\s+)?(?:l[ií]mite|admisible|norma|m[aá]xim[oa]\s+(?:permitid|admisible|exigid)|'
+                              r'm[ií]nim[oa]\s+(?:permitid|admisible|exigid)|m[ií]nimo exigido|tolerancia|capacidad|'
+                              r'(?<=el |la )m[ií]nim[oa]\s+(?:es|son|de)|(?<=el |la )m[aá]xim[oa]\s+(?:es|son|de))\b')
+#: 047:RF-98: la unidad de un campo por su sufijo, el patrón de su cifra en la evidencia y el factor a la unidad del campo.
+_UNIDADES_DE_CAMPO = (
+    (re.compile(r'_(?:pct|porcentaje)$'), r'(\d+(?:[.,]\d+)?)\s*%', {'': 1.0}, '%'),
+    (re.compile(r'_pu$'), r'(\d+[.,]\d+)\s*p\.?\s?u\b', {'': 1.0}, 'pu'),
+    (re.compile(r'_ka$'), r'(\d+(?:[.,]\d+)?)\s*(k)a\b', {'k': 1.0}, 'kA'),
+    (re.compile(r'_a$'), r'(\d+(?:[.,]\d+)?)\s*()a\b', {'': 1.0}, 'A'),
+    (re.compile(r'_kw$'), r'(\d+(?:[.,]\d+)?)\s*([km])w\b', {'k': 1.0, 'm': 1000.0}, 'kW'),
+    (re.compile(r'_kva$'), r'(\d+(?:[.,]\d+)?)\s*([km])va\b', {'k': 1.0, 'm': 1000.0}, 'kVA'),
+    (re.compile(r'_mw$'), r'(\d+(?:[.,]\d+)?)\s*([km])w\b', {'m': 1.0, 'k': 0.001}, 'MW'),
+    (re.compile(r'^usuarios'), r'(\d{1,3}(?:[ .]\d{3})*|\d+)\s*()usuarios\b', {'': 1.0}, 'usuarios'),
+)
+
+
+def _magnitud_del_elemento(campo: str, valor, evidencia, accion: str = '') -> tuple[str, float, str] | None:
+    """047:RF-98 — la cifra que la evidencia da al mismo elemento en la unidad del campo, si es otra.
+
+    Con el 047m, «carga_v3318_pct: 64» frente a «la SED V-3318 de 50 kVA trabaja al 141 %», y «cargabilidad_k619_pct:
+    79» frente a «la cabecera del K619 llega al 112 %»: el modelo aprobó los dos en ambos modos. Vale para %, pu, kA, A,
+    kW, kVA, MW y usuarios. El elemento es el que nombra el campo o, si no nombra ninguno, el de la acción. Solo decide si
+    el fragmento nombra ese elemento y, fuera de las cláusulas de límite, da una única cifra de esa unidad.
+    """
+    regla = next((r for r in _UNIDADES_DE_CAMPO if r[0].search(campo.casefold())), None)
+    if regla is None:
+        return None
+    _sufijo, patron, factores, unidad = regla
+    propios = {p for p in campo.casefold().split('_') if re.fullmatch(r'[a-z]+\d+', p)}
+    if not propios:
+        propios = _elementos(accion)
+    if not propios:
+        return None
+    for fuente, registro in evidencia.items():
+        fragmento = registro.get('fragmento') if isinstance(registro, dict) else None
+        if not isinstance(fragmento, str):
+            continue
+        t = _normal(fragmento)
+        if not propios & _elementos(t):
+            continue
+        clausulas = [c for c in re.split(r'[;:]\s+|,\s+', t) if not _CLAUSULA_LIMITE.match(c)]
+        cifras = set()
+        for cl in clausulas:
+            for m in re.finditer(patron, cl):
+                numero = m[1].replace(' ', '').replace('.', '') if unidad == 'usuarios' else m[1].replace(',', '.')
+                prefijo = m[2] if m.lastindex and m.lastindex >= 2 else ''
+                if prefijo in factores:
+                    cifras.add(round(float(numero) * factores[prefijo], 9))
+        if len(cifras) == 1:
+            otra = cifras.pop()
+            if not _cerca(float(valor), otra, TOLERANCIA_RELATIVA):
+                return fuente, otra, unidad
+    return None
+
+
+def _prefijo(identificador: str) -> str:
+    return re.match(r'[a-záéíóúñ]+', identificador)[0]
+
+
+def comprobar_elementos(propuesta, evidencia) -> list[dict]:
+    """047:RF-90 — la evidencia que es de otro elemento del mismo tipo que el de la acción, hallada sin el LLM.
+
+    Con el 047h, la medición de la SED S-2209 respaldaba subir el tap de la S-2290; el LLM no lo vio y la revisión solo
+    se bloqueó por una duda sin relación. Cuenta si un fragmento nombra un elemento con el mismo prefijo que uno de la
+    acción («s-2209» frente a «s-2290») y no nombra ninguno de la acción con ese prefijo. Queda como no coincidente.
+    """
+    if not isinstance(propuesta, dict) or not isinstance(evidencia, dict) or not isinstance(propuesta.get(ACCION), str):
+        return []
+    propios = set(_IDENTIFICADOR.findall(_normal(propuesta[ACCION])))
+    prefijos = {_prefijo(i) for i in propios}
+    salida = []
+    for fuente, registro in evidencia.items():
+        fragmento = registro.get('fragmento') if isinstance(registro, dict) else None
+        if not isinstance(fragmento, str):
+            continue
+        nombrados = set(_IDENTIFICADOR.findall(_normal(fragmento)))
+        for prefijo in sorted(prefijos):
+            ajenos = sorted(i for i in nombrados - propios if _prefijo(i) == prefijo)
+            if ajenos and not any(_prefijo(i) == prefijo for i in nombrados & propios):
+                salida.append({'campo': ACCION, 'valor_propuesta': propuesta[ACCION],
+                               'valor_calculado': fragmento.strip(),
+                               'calculo': f'{fuente} es de {", ".join(ajenos)}, no del elemento de la acción',
+                               'fuentes': [fuente], 'coincide': False, 'origen': 'codigo'})
+                break
+    return salida
+
+
+def comprobar_prohibiciones(propuesta, evidencia) -> list[dict]:
+    """047:RF-88 — la acción que una evidencia prohíbe, hallada por el código y sin el LLM.
+
+    Con el 047g, en el modo equipo ningún rol vio que el procedimiento prohibía la maniobra de la acción, aunque el
+    encargo lo pide (RF-82). Cuenta si una frase de la evidencia prohíbe un verbo (en infinitivo, con pronombre o no) y
+    la acción lleva ese mismo verbo; queda en ``comprobaciones_del_codigo`` como no coincidente, así que la revisión no
+    se aprueba. Una prohibición de otro verbo no cuenta.
+    """
+    if not isinstance(propuesta, dict) or not isinstance(evidencia, dict):
+        return []
+    accion = propuesta.get(ACCION)
+    if not isinstance(accion, str):
+        return []
+    verbos = {_raiz(m[1]) for m in _INFINITIVO.finditer(_normal(accion))}
+    salida = []
+    for fuente, registro in evidencia.items():
+        fragmento = registro.get('fragmento') if isinstance(registro, dict) else None
+        if not isinstance(fragmento, str):
+            continue
+        for frase in re.split(r'(?<=[.;])\s+', fragmento):
+            m = _PROHIBE.search(_normal(frase))
+            if not m:
+                continue
+            prohibido = _normal(frase)[m.end():]
+            comunes = verbos & {_raiz(x[1]) for x in _INFINITIVO.finditer(prohibido)}
+            # 047:RF-99: «prohíbe el trabajo en caliente»: lo prohibido es el sustantivo del verbo de la acción.
+            # El tema léxico, no las 5 primeras letras: «la poda» y «podar» comparten «pod-».
+            nombre = re.match(r'\s*(?:(?:el|la|los|las|un|una|todo|toda|cualquier)\s+)?([a-záéíóúñ]{4,})', prohibido)
+            temas = {_tema(m[1]) for m in _INFINITIVO.finditer(_normal(accion))}
+            if nombre and len(_tema(nombre[1])) >= 3 and _tema(nombre[1]) in temas:
+                comunes = comunes | {_tema(nombre[1])}
+            sin = _SIN.search(prohibido)
+            if comunes and sin and not re.search(r'\bsin\s+(?:(?:el|la|los|las|su|sus)\s+)?' + re.escape(sin[1]), _normal(accion)):
+                # 047:RF-93: «no se permite trabajar sin puesta a tierra» no prohíbe trabajar con ella.
+                continue
+            if comunes:
+                salida.append({'campo': ACCION, 'valor_propuesta': accion, 'valor_calculado': frase.strip(),
+                               'calculo': f'{fuente} prohíbe lo que la acción hace ({", ".join(sorted(comunes))}…)',
+                               'fuentes': [fuente], 'coincide': False, 'origen': 'codigo'})
+                break
+        else:
+            sin_salvaguarda = _salvaguarda_ausente(fragmento, accion) or _agente_no_autorizado(fragmento, accion)
+            if sin_salvaguarda:
+                salida.append({'campo': ACCION, 'valor_propuesta': accion, 'valor_calculado': sin_salvaguarda,
+                               'calculo': f'{fuente} dice que al elemento que la acción maniobra le falta una salvaguarda',
+                               'fuentes': [fuente], 'coincide': False, 'origen': 'codigo'})
+                continue
+            superado = _limite_superado(fragmento, accion)
+            if superado:
+                salida.append({'campo': ACCION, 'valor_propuesta': accion, 'valor_calculado': superado[0],
+                               'calculo': f'{fuente} pone un límite de {superado[1]:g} {superado[3]} y la acción llega a '
+                                          f'{superado[2]:g} {superado[3]}', 'fuentes': [fuente], 'coincide': False,
+                               'origen': 'codigo'})
+                continue
+            incumplida = _obligacion_previa_incumplida(fragmento, accion, verbos)
+            if incumplida:
+                salida.append({'campo': ACCION, 'valor_propuesta': accion, 'valor_calculado': incumplida[0],
+                               'calculo': f'{fuente} exige {incumplida[1]} antes de lo que la acción hace, y la acción lo '
+                                          f'hace sin ello', 'fuentes': [fuente], 'coincide': False, 'origen': 'codigo'})
+    return salida
+
+
+#: 047:RF-100: lo que protege una maniobra o un corte y la evidencia dice que falta («sin seccionador ni interruptor»,
+#: «sin enlace con otro alimentador», «queda sin enlace de respaldo», «sin grupo electrógeno»).
+_SIN_SALVAGUARDA = re.compile(r'\bsin\s+(?:(?:un|una|el|la|ning[uú]n[oa]?)\s+)?(?:enlace|respaldo|seccionador|interruptor|'
+                              r'reconectador|protecci[oó]n|grupo\s+electr[oó]geno|generaci[oó]n\s+propia|puesta\s+a\s+tierra|'
+                              r'transferencia|alimentaci[oó]n\s+alternativa)\b')
+#: 047:RF-100: verbos de maniobra, corte o trabajo sobre la red.
+_MANIOBRA = re.compile(r'\b(?:abr\w*|cerr\w*|transfer\w*|traspas\w*|desenergiz\w*|cort\w*|interrump\w*|desconect\w*|'
+                       r'manio\w*|aisl\w*|trabaj\w*|reemplaz\w*|cambi\w*)\b')
+
+
+#: 047:RF-100: un permiso restringido a un agente («solo el centro de control puede ordenar la apertura…»): para los
+#: demás es una prohibición (modalidad PERMISSION con su agente, como en LEXDEMOD).
+_SOLO_AGENTE = re.compile(r'\b(?:solo|s[oó]lo|[uú]nicamente|exclusivamente)\s+(?:(?:el|la|los|las)\s+)?(.{3,60}?)\s+'
+                          r'(?:puede|pueden|podr[aá]n?|est[aá]n?\s+(?:autorizad|habilitad|facultad)\w*(?:\s+(?:a|para))?)\s+([^.;]{3,120})')
+_VACIAS = {'de', 'del', 'la', 'las', 'los', 'el', 'en', 'con', 'por', 'para', 'que', 'una', 'uno', 'unos', 'unas', 'sus', 'ordenar'}
+
+
+def _palabras(texto: str) -> set[str]:
+    return {_tema(p) for p in re.findall(r'[a-záéíóúñ]{4,}', texto)} - {_tema(v) for v in _VACIAS}
+
+
+def _agente_no_autorizado(fragmento: str, accion: str) -> str | None:
+    """047:RF-100 — la frase que solo permite algo a un agente, si la acción trata de lo mismo y no la hace ese agente.
+
+    Con el 047l, «solo el centro de control puede ordenar la apertura de los reconectadores» frente a «que la cuadrilla de
+    campo abra el reconectador R-215»: lo permitido y la acción comparten su objeto (el reconectador) y la acción no nombra
+    al agente autorizado. Si la acción lo nombra, o no comparte nada con lo permitido, no decide.
+    """
+    propia = _normal(accion)
+    de_la_accion = _palabras(propia)
+    for frase in re.split(r'(?<=[.;])\s+', fragmento):
+        m = _SOLO_AGENTE.search(_normal(frase))
+        if not m:
+            continue
+        agente, permitido = _palabras(m[1]), _palabras(m[2])
+        if agente and permitido & de_la_accion and not agente & de_la_accion:
+            return frase.strip()
+    return None
+
+
+def _salvaguarda_ausente(fragmento: str, accion: str) -> str | None:
+    """047:RF-100 — la frase que dice que al elemento que la acción maniobra le falta una salvaguarda.
+
+    Con el 047b, «el nodo N45 es un empalme de conductores, sin seccionador ni interruptor» frente a «transferir el ramal
+    R4 … abriendo y cerrando en el nodo N45»; con el 047d, «aguas abajo de S40 quedan 1 350 usuarios, sin enlace con otro
+    alimentador» frente a «abrir el seccionador S40 durante 3 h». Cuenta si la frase nombra un elemento de la acción y la
+    acción lo maniobra, lo corta o trabaja en él; no aprueba sola: lo ve el operador.
+    """
+    propia = _normal(accion)
+    if not _MANIOBRA.search(propia):
+        return None
+    propios = _elementos(propia)
+    for frase in re.split(r'(?<=[.;])\s+', fragmento):
+        t = _normal(frase)
+        if _SIN_SALVAGUARDA.search(t) and propios & _elementos(t):
+            return frase.strip()
+    return None
+
+
+#: 047:RF-99: una cantidad con su unidad, llevada a una unidad base por magnitud: el tiempo a minutos, la corriente a
+#: amperios, la potencia a kW o kVA. Una sola lectura para todas las cotas, en lugar de una regla por redacción: con el
+#: 047n, «el contrato admite como máximo 2 horas de corte» se escapaba a las dos formas que había.
+_CANTIDAD = re.compile(r'(?<![\w.,])(\d+(?:[.,]\d+)?)\s*(horas?|h|minutos?|min|ka|a|kw|mw|kva|mva|kv|%|pu|k)(?![\w])')
+_BASE = {'hora': ('min', 60.0), 'horas': ('min', 60.0), 'h': ('min', 60.0), 'minuto': ('min', 1.0),
+         'minutos': ('min', 1.0), 'min': ('min', 1.0), 'ka': ('A', 1000.0), 'a': ('A', 1.0), 'kw': ('kW', 1.0),
+         'mw': ('kW', 1000.0), 'kva': ('kVA', 1.0), 'mva': ('kVA', 1000.0), 'kv': ('kV', 1.0), '%': ('%', 1.0),
+         'pu': ('pu', 1.0), 'k': ('K', 1.0)}
+#: 047:RF-99: lo que pone una cota superior o inferior justo antes de la cantidad, se escriba como se escriba.
+_COTA_SUPERIOR = re.compile(
+    r'\b(?:como\s+m[aá]ximo|(?:un\s+)?m[aá]ximo\s+de|a\s+lo\s+sumo|no\s+m[aá]s\s+de|no\s+mayor\s+(?:de|que|a)|tope\s+de|'
+    r'(?:un\s+)?l[ií]mite\s+de|hasta\s+un\s+m[aá]ximo\s+de|'
+    r'no\s+(?:puede|pueden|debe|deben|podr[aá]n?|debe\s+de)\s+(?:pasar\s+de|superar|exceder|sobrepasar|ser\s+mayor\s+(?:que|de)|durar\s+m[aá]s\s+de))'
+    r'\s+(?:(?:en|de|a|el|la|los|las|un|una)\s+){0,2}$')
+_COTA_INFERIOR = re.compile(
+    r'\b(?:como\s+m[ií]nimo|(?:un\s+)?m[ií]nimo\s+de|al\s+menos|no\s+menos\s+de|no\s+inferior\s+(?:a|de)|'
+    r'no\s+(?:puede|pueden|debe|deben|podr[aá]n?)\s+(?:bajar\s+de|ser\s+menor\s+(?:que|de)))\s+(?:(?:en|de|a|el|la|los|las|un|una)\s+){0,2}$')
+#: «con un fusible mayor de 40 K … se pierde la coordinación»: una cota que la evidencia da por su consecuencia.
+_COTA_POR_CONSECUENCIA = re.compile(r'\b(?:mayor(?:es)?|m[aá]s|superior(?:es)?)\s+(?:de|que|a)\s+$')
+_CONSECUENCIA = re.compile(r'\b(?:se\s+pierde|pierde|se\s+abre|abre|dispara|falla|se\s+da[nñ]a|no\s+coordina|no\s+cumple)\b')
+
+
+def _cantidades(texto: str) -> list[tuple[float, str, int, int]]:
+    """Las cantidades de un texto normalizado: (valor en la unidad base, unidad base, inicio, fin)."""
+    salida = []
+    for m in _CANTIDAD.finditer(texto):
+        base, factor = _BASE[m[2]]
+        salida.append((float(m[1].replace(',', '.')) * factor, base, m.start(), m.end()))
+    return salida
+
+
+def _cotas(frase: str) -> list[tuple[str, float, str]]:
+    """047:RF-99 — las cotas de una frase: («max» o «min», valor en la unidad base, unidad base)."""
+    t = _normal(frase)
+    cotas = []
+    for valor, base, inicio, fin in _cantidades(t):
+        antes = t[max(0, inicio - 60):inicio]
+        if _COTA_SUPERIOR.search(antes) or (_COTA_POR_CONSECUENCIA.search(antes) and _CONSECUENCIA.search(t[fin:])):
+            cotas.append(('max', valor, base))
+        elif _COTA_INFERIOR.search(antes):
+            cotas.append(('min', valor, base))
+    return cotas
+
+
+def _limite_superado(fragmento: str, accion: str) -> tuple[str, float, float, str] | None:
+    """047:RF-99 — la frase que pone una cota cuantitativa y la cifra de la acción, en su unidad, que la incumple.
+
+    Con el 047b, «su interrupción programada no puede pasar de 1 h» frente a «… desenergizado durante 6 h»; con el 047c,
+    «con un fusible mayor de 40 K en D12 se pierde la coordinación» frente a «de 25 K a 65 K»; con el 047n, «admite como
+    máximo 2 horas de corte» frente a «durante 4 horas». Las unidades se llevan a una base (2 h son 120 min). Para una
+    cota superior cuenta la mayor cifra de la acción en esa magnitud y para una inferior la menor; si la acción no tiene
+    esa magnitud, no decide.
+    """
+    propias = _cantidades(_normal(accion))
+    for frase in re.split(r'(?<=[.;])\s+', fragmento):
+        for sentido, limite, base in _cotas(frase):
+            cifras = [v for v, b, _i, _f in propias if b == base]
+            if not cifras:
+                continue
+            if sentido == 'max' and max(cifras) > limite * (1 + 1e-9):
+                return frase.strip(), limite, max(cifras), base
+            if sentido == 'min' and min(cifras) < limite * (1 - 1e-9):
+                return frase.strip(), limite, min(cifras), base
+    return None
+
+
+def _obligacion_previa_incumplida(fragmento: str, accion: str, verbos: set[str]) -> tuple[str, str] | None:
+    """047:RF-97 — la frase que exige algo antes del verbo de la acción, si la acción lo hace «sin» eso.
+
+    Solo decide cuando la acción lleva el verbo guardado y dice «sin» algo que comparte una palabra con lo exigido
+    («sin revisar antes la causa» frente a «despejar la causa … antes de reponer»). Si la acción no dice «sin», el
+    código no da por incumplida la obligación: lo decide el revisor.
+    """
+    propia = _normal(accion)
+    sin = re.search(r'\bsin\s+(.{3,80})', propia)
+    if not sin:
+        return None
+    lo_que_falta = {_raiz(p) for p in re.findall(r'[a-záéíóúñ]{4,}', sin[1])} - {'antes', 'despu'}
+    for frase in re.split(r'(?<=[.;])\s+', fragmento):
+        t = _normal(frase)
+        o = _OBLIGA.search(t)
+        a = _ANTES_DE.search(t, o.end()) if o else None
+        if not a or _raiz(a[1]) not in verbos:
+            continue
+        exigido = t[o.end():a.start()]
+        if lo_que_falta & {_raiz(p) for p in re.findall(r'[a-záéíóúñ]{4,}', exigido)}:
+            return frase.strip(), exigido.strip(' ,')
+    return None

@@ -1,0 +1,319 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T24 de la spec 047: el conjunto de aceptación de la revisión con el código de RF-89 a RF-102 (2026-11-24), con 24 casos (12 sanos y 12 con un error: 3 por clase). En cada sano cada dato tiene su evidencia, también el coste 0 («sin materiales»). Del 047 al 047o orientaron esas reglas, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Hay sanos que se parecen a los defectos (una cota cumplida, el agente autorizado, la obligación cumplida, la salvaguarda presente). Ni son órdenes reales ni datos de una distribuidora.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "e6855d63aebeff55db0fbdf239c47c267c6004fef4426cb76d5071037ce42704",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "p01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar 7 postes de madera por postes de concreto de 11 m en el ramal K31",
+        "postes": 7,
+        "coste_usd": 4060
+      },
+      "evidencia": {
+        "e1": "Poste de concreto de 11 m con su izado y retiro del viejo: 580 USD por poste.",
+        "e2": "La patrulla de K31 marcó 7 postes de madera con pudrición en la base."
+      }
+    },
+    {
+      "id": "p02",
+      "defecto": null,
+      "propuesta": {
+        "accion": "construir 2,2 km de red de 22,9 kV hasta la escuela K35",
+        "caida_tension_pct": 3.2,
+        "coste_usd": 41800
+      },
+      "evidencia": {
+        "e1": "Red de 22,9 kV con postes de concreto y conductor de 50 mm²: 19 000 USD por kilómetro.",
+        "e2": "Con la red, la caída de tensión hasta K35 es 3,2 % en la máxima; el máximo admisible es 5 %."
+      }
+    },
+    {
+      "id": "p03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir el transformador de la SED W-7110 por uno de 250 kVA",
+        "carga_final_pct": 66,
+        "coste_usd": 8350
+      },
+      "evidencia": {
+        "e1": "Transformador de 250 kVA: 7 200 USD; grúa y montaje: 800 USD; ensayos: 350 USD.",
+        "e2": "Con 250 kVA, la W-7110 queda al 66 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "p04",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 4 seccionalizadores en las derivaciones del alimentador L310",
+        "seccionalizadores": 4,
+        "coste_usd": 10400
+      },
+      "evidencia": {
+        "e1": "Seccionalizador electrónico de 27 kV, instalado: USD 2 600 cada seccionalizador.",
+        "e2": "L310 tiene 4 derivaciones cuyas fallas hoy dejan sin servicio toda la troncal."
+      }
+    },
+    {
+      "id": "p05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar un banco fijo de 450 kvar en la barra de la SET Z71",
+        "tension_final_pu": 1.0,
+        "coste_usd": 6100
+      },
+      "evidencia": {
+        "e1": "Con el banco, la tensión de la barra de la Z71 en la máxima queda en 1,00 pu.",
+        "e2": "Banco fijo de 450 kvar con su celda: 6 100 USD en total."
+      }
+    },
+    {
+      "id": "p06",
+      "defecto": null,
+      "propuesta": {
+        "accion": "abrir el seccionador S-330 durante 40 minutos para cambiar una cruceta del tramo K40",
+        "coste_usd": 380
+      },
+      "evidencia": {
+        "e1": "Aguas abajo de S-330 los usuarios pasan al enlace E-33 durante la apertura.",
+        "e2": "Cambio de una cruceta con la línea abierta: 380 USD; el corte programado no puede pasar de 2 horas."
+      }
+    },
+    {
+      "id": "p07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reconductorar 1,5 km del tramo K44 a 95 mm²",
+        "corriente_final_a": 180,
+        "coste_usd": 18000
+      },
+      "evidencia": {
+        "e1": "Con 95 mm², la corriente del tramo K44 en la máxima es 180 A; capacidad del conductor 250 A.",
+        "e2": "Reconductorado sobre los postes existentes: 12 000 USD el kilómetro."
+      }
+    },
+    {
+      "id": "p08",
+      "defecto": null,
+      "propuesta": {
+        "accion": "que el despacho cierre el enlace E-40 entre L315 y L316 en el valle",
+        "cargabilidad_l316_pct": 58,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Solo el despacho puede ordenar el cierre de los enlaces entre alimentadores; la maniobra es telemandada y sin materiales.",
+        "e2": "Con el enlace cerrado en el valle, la salida del L316 queda al 58 % de su capacidad."
+      }
+    },
+    {
+      "id": "p09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar 30 amortiguadores en los vanos largos del alimentador L320",
+        "amortiguadores": 30,
+        "coste_usd": 1200
+      },
+      "evidencia": {
+        "e1": "Amortiguador de vibración para conductor de 70 mm², colocado: US$ 40 la unidad.",
+        "e2": "Los vanos largos de L320 necesitan 30 amortiguadores según la inspección."
+      }
+    },
+    {
+      "id": "p10",
+      "defecto": null,
+      "propuesta": {
+        "accion": "energizar la SED W-7200 nueva tras ensayar su transformador",
+        "resistencia_aislamiento_mohm": 900,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "La norma exige ensayar el aislamiento del transformador antes de energizar una subestación nueva.",
+        "e2": "El ensayo del transformador de la W-7200 dio 900 Mohm de aislamiento; la energización no tiene coste de materiales."
+      }
+    },
+    {
+      "id": "p11",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la celda C-52 de la SET Z75",
+        "demanda_max_kw": 3100,
+        "coste_usd": 9100
+      },
+      "evidencia": {
+        "e1": "Registro anual de la celda C-52 de la SET Z75: demanda máxima de 3,1 MW.",
+        "e2": "Ampliación de la celda con relé y transformadores de corriente: 9 100 USD."
+      }
+    },
+    {
+      "id": "p12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un regulador de 150 A en la derivación K50",
+        "tension_final_pu": 0.98,
+        "coste_usd": 12600
+      },
+      "evidencia": {
+        "e1": "Con el regulador, la tensión más baja de K50 queda en 0,98 pu en la máxima y en 1,01 pu en el valle.",
+        "e2": "Regulador monofásico de 150 A con montaje y protecciones: USD 12 600 en total."
+      }
+    },
+    {
+      "id": "p13",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "cambiar 12 aisladores del ramal K55 por aisladores poliméricos",
+        "aisladores": 12,
+        "coste_usd": 95
+      },
+      "evidencia": {
+        "e1": "Aislador polimérico de 25 kV colocado: 95 USD por aislador.",
+        "e2": "En K55 hay 12 aisladores de porcelana fisurados."
+      }
+    },
+    {
+      "id": "p14",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 3 km de red de 13,2 kV hasta el centro poblado K60",
+        "coste_usd": 39000
+      },
+      "evidencia": {
+        "e1": "Red de 13,2 kV en postes de concreto: 18 000 USD por kilómetro.",
+        "e2": "El trazado hasta K60 mide 3 km."
+      }
+    },
+    {
+      "id": "p15",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 5 reconectadores en el alimentador L330",
+        "reconectadores": 5,
+        "coste_usd": 41000
+      },
+      "evidencia": {
+        "e1": "Reconectador trifásico con su control, instalado: USD 12 500 por reconectador.",
+        "e2": "L330 tiene 5 ramales con fallas frecuentes."
+      }
+    },
+    {
+      "id": "p16",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar el aserradero K62 de 90 kVA a la SED W-7300",
+        "carga_w7300_pct": 72,
+        "coste_usd": 850
+      },
+      "evidencia": {
+        "e1": "Con K62, la SED W-7300 de 75 kVA trabaja al 146 % de su potencia nominal.",
+        "e2": "Acometida y medidor de K62: 850 USD."
+      }
+    },
+    {
+      "id": "p17",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la planta de agua K65 de 1,6 MW al final del alimentador L335",
+        "tension_final_pu": 0.97,
+        "coste_usd": 6800
+      },
+      "evidencia": {
+        "e1": "Con K65, la tensión al final de L335 cae a 0,91 pu en la máxima; el mínimo es 0,95 pu.",
+        "e2": "Celda de medición y acometida para K65: 6 800 USD."
+      }
+    },
+    {
+      "id": "p18",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "reemplazar el interruptor de la celda C-60 por uno de 20 kA",
+        "cortocircuito_ka": 16,
+        "coste_usd": 13500
+      },
+      "evidencia": {
+        "e1": "Cortocircuito trifásico máximo en la barra de la celda C-60: 24,5 kA.",
+        "e2": "Interruptor de 20 kA instalado en la celda: 13 500 USD."
+      }
+    },
+    {
+      "id": "p19",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "dejar sin servicio el alimentador L340 durante 5 horas para cambiar su celda",
+        "coste_usd": 2900
+      },
+      "evidencia": {
+        "e1": "L340 alimenta un hospital; el convenio fija como máximo 120 minutos de corte programado.",
+        "e2": "Cambio de la celda con grúa y cuadrilla: 2 900 USD."
+      }
+    },
+    {
+      "id": "p20",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "energizar la SED W-7400 nueva sin ensayar antes el aislamiento de su transformador",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El procedimiento exige ensayar el aislamiento del transformador antes de energizar cualquier subestación nueva.",
+        "e2": "Poner en servicio la subestación no consume materiales."
+      }
+    },
+    {
+      "id": "p21",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "que la cuadrilla de turno cierre el enlace E-45 entre L345 y L346",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Únicamente el despacho puede ordenar el cierre de los enlaces entre alimentadores.",
+        "e2": "El cierre no necesita materiales."
+      }
+    },
+    {
+      "id": "p22",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "subir a la toma 4 el transformador de la SED W-7510",
+        "tension_actual_pu": 0.92,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro del analizador en la SED W-7501 a las 20:00: 0,92 pu en baja tensión.",
+        "e2": "El cambio de toma lo hace el turno de guardia, sin materiales."
+      }
+    },
+    {
+      "id": "p23",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar el transformador TP-5 de la SET Z80 de 25 a 30 MVA",
+        "demanda_max_kw": 27500,
+        "coste_usd": 420000
+      },
+      "evidencia": {
+        "e1": "Registro anual del transformador TP-5 de la SET Z80: demanda máxima de 22,4 MW.",
+        "e2": "Transformador de 30 MVA con su montaje y pruebas: 420 000 USD."
+      }
+    },
+    {
+      "id": "p24",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "instalar un banco de 300 kvar en la barra Z85",
+        "tension_final_pu": 0.99,
+        "coste_usd": 4200,
+        "reduccion_perdidas_kw": 40
+      },
+      "evidencia": {
+        "e1": "Con el banco de 300 kvar en Z85, la tensión mínima queda en 0,99 pu; el mínimo es 0,95 pu.",
+        "e2": "Banco de 300 kvar instalado: 4 200 USD en total."
+      }
+    }
+  ]
+}

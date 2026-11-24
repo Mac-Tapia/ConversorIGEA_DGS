@@ -1,0 +1,319 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T23 de la spec 047: el conjunto de aceptación de la revisión con el código de RF-89 a RF-101 (2026-11-24), con 24 casos (12 sanos y 12 con un error: 3 por clase), el doble que los anteriores. Del 047 al 047n orientaron esas reglas, así que este se escribió aparte, después del código, sin copiar sus propuestas, y se declara antes de medir. Hay sanos que se parecen a los defectos (una cota cumplida, el agente autorizado, la obligación cumplida, la salvaguarda presente). Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-24",
+    "sha256": "0b2bfe80bb8a44467ef24f454eb1f093f6237e1cadeb95bc57cd4455056557b3",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "o01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "renovar 15 retenidas oxidadas del ramal J31",
+        "retenidas": 15,
+        "coste_usd": 1350
+      },
+      "evidencia": {
+        "e1": "Retenida completa con su varilla y anclaje, instalada: 90 USD por retenida.",
+        "e2": "La patrulla de J31 marcó 15 retenidas con corrosión avanzada."
+      }
+    },
+    {
+      "id": "o02",
+      "defecto": null,
+      "propuesta": {
+        "accion": "tender 1,8 km de línea de 13,2 kV hasta la granja J35",
+        "caida_tension_pct": 2.9,
+        "coste_usd": 30600
+      },
+      "evidencia": {
+        "e1": "Línea de 13,2 kV con postes de concreto: 17.000 USD por kilómetro.",
+        "e2": "Con la línea, la caída de tensión hasta J35 es 2,9 % en la máxima; el máximo admisible es 5 %."
+      }
+    },
+    {
+      "id": "o03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar el transformador de la SED G-6110 por uno de 160 kVA",
+        "carga_final_pct": 71,
+        "coste_usd": 6020
+      },
+      "evidencia": {
+        "e1": "Partidas: transformador de 160 kVA 5 100 USD; montaje 560 USD; pruebas 360 USD.",
+        "e2": "Con 160 kVA, la G-6110 trabaja al 71 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "o04",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 3 reconectadores monofásicos en las derivaciones del alimentador H210",
+        "reconectadores": 3,
+        "coste_usd": 16500
+      },
+      "evidencia": {
+        "e1": "Reconectador monofásico con control electrónico: USD 5 500 cada reconectador, instalado.",
+        "e2": "H210 tiene 3 derivaciones largas con fallas transitorias frecuentes."
+      }
+    },
+    {
+      "id": "o05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "colocar un banco fijo de 300 kvar en la barra de la SED G-6150",
+        "tension_final_pu": 0.99,
+        "coste_usd": 3900
+      },
+      "evidencia": {
+        "e1": "Con el banco, la tensión de la G-6150 en la máxima queda en 0,99 pu.",
+        "e2": "Banco fijo de 300 kvar con su protección: 3 900 USD en total."
+      }
+    },
+    {
+      "id": "o06",
+      "defecto": null,
+      "propuesta": {
+        "accion": "abrir el seccionador S-210 por 30 minutos para cambiar un aislador en el tramo J40",
+        "coste_usd": 260
+      },
+      "evidencia": {
+        "e1": "Aguas abajo de S-210 los usuarios quedan alimentados por el enlace E-21 durante el corte.",
+        "e2": "Cambio de un aislador con la línea abierta: 260 USD; el corte no puede pasar de 1 hora."
+      }
+    },
+    {
+      "id": "o07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reconductorar 2 km del tramo J44 a 120 mm²",
+        "corriente_final_a": 210,
+        "coste_usd": 26000
+      },
+      "evidencia": {
+        "e1": "Con 120 mm², la corriente del tramo J44 en la máxima es 210 A; capacidad del conductor 290 A.",
+        "e2": "Reconductorado sobre los postes existentes: 13 000 USD el kilómetro."
+      }
+    },
+    {
+      "id": "o08",
+      "defecto": null,
+      "propuesta": {
+        "accion": "que el centro de control cierre el enlace E-30 entre H215 y H216 en la madrugada",
+        "cargabilidad_h216_pct": 64,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Solo el centro de control puede ordenar el cierre de los enlaces entre alimentadores.",
+        "e2": "Con el enlace cerrado de madrugada, la salida del H216 queda al 64 % de su capacidad."
+      }
+    },
+    {
+      "id": "o09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 20 separadores de fase en el vano largo del alimentador H220",
+        "separadores": 20,
+        "coste_usd": 1100
+      },
+      "evidencia": {
+        "e1": "Separador de fase polimérico, montado: US$ 55 la unidad.",
+        "e2": "El vano largo de H220 tiene choques de fase con viento y necesita 20 separadores."
+      }
+    },
+    {
+      "id": "o10",
+      "defecto": null,
+      "propuesta": {
+        "accion": "energizar la SED G-6200 nueva tras medir su puesta a tierra",
+        "resistencia_tierra_ohm": 8,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "La norma exige medir la puesta a tierra antes de energizar una subestación de distribución.",
+        "e2": "La medición de la puesta a tierra de la G-6200 dio 8 ohm; el máximo permitido es 25 ohm."
+      }
+    },
+    {
+      "id": "o11",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la celda C-31 de la SET V20",
+        "demanda_max_kw": 2400,
+        "coste_usd": 8700
+      },
+      "evidencia": {
+        "e1": "Registro anual de la celda C-31 de la SET V20: demanda máxima de 2,4 MW.",
+        "e2": "Ampliación con transformadores de corriente y relé nuevos: 8 700 USD."
+      }
+    },
+    {
+      "id": "o12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un regulador de 100 A en la derivación J50",
+        "tension_final_pu": 0.97,
+        "coste_usd": 9800
+      },
+      "evidencia": {
+        "e1": "Con el regulador, la tensión más baja de J50 queda en 0,97 pu en la máxima y en 1,02 pu en el valle.",
+        "e2": "Regulador monofásico de 100 A con montaje y protecciones: USD 9 800 en total."
+      }
+    },
+    {
+      "id": "o13",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "cambiar 10 crucetas de madera del ramal J55 por crucetas metálicas",
+        "crucetas": 10,
+        "coste_usd": 410
+      },
+      "evidencia": {
+        "e1": "Cruceta metálica galvanizada de 2,4 m, colocada: 410 USD por cruceta.",
+        "e2": "En J55 hay 10 crucetas de madera partidas."
+      }
+    },
+    {
+      "id": "o14",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 4 km de red aérea de 22,9 kV hasta el pueblo J60",
+        "coste_usd": 56000
+      },
+      "evidencia": {
+        "e1": "Red aérea de 22,9 kV en postes de concreto: 21 000 USD por kilómetro.",
+        "e2": "El trazado hasta J60 mide 4 km."
+      }
+    },
+    {
+      "id": "o15",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "instalar 6 indicadores de falla en el alimentador H230",
+        "indicadores": 6,
+        "coste_usd": 1500
+      },
+      "evidencia": {
+        "e1": "Indicador de falla para red aérea, colocado: USD 420 por indicador.",
+        "e2": "H230 tiene 6 tramos sin señalización de falla."
+      }
+    },
+    {
+      "id": "o16",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la cámara frigorífica J62 de 120 kVA a la SED G-6300",
+        "carga_g6300_pct": 77,
+        "coste_usd": 900
+      },
+      "evidencia": {
+        "e1": "Con J62, la SED G-6300 de 100 kVA trabaja al 153 % de su potencia nominal.",
+        "e2": "Acometida y medidor de J62: 900 USD."
+      }
+    },
+    {
+      "id": "o17",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la planta J65 de 2 MW al final del alimentador H235",
+        "tension_final_pu": 0.96,
+        "coste_usd": 7300
+      },
+      "evidencia": {
+        "e1": "Con J65, la tensión al final de H235 cae a 0,92 pu en la máxima; el mínimo es 0,95 pu.",
+        "e2": "Celda de medición y acometida de media tensión para J65: 7 300 USD."
+      }
+    },
+    {
+      "id": "o18",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "reemplazar el interruptor de la celda C-40 por uno de 16 kA",
+        "cortocircuito_ka": 13.5,
+        "coste_usd": 11000
+      },
+      "evidencia": {
+        "e1": "Cortocircuito trifásico máximo en la barra de la celda C-40: 19,8 kA.",
+        "e2": "Interruptor de 16 kA instalado en la celda: 11 000 USD."
+      }
+    },
+    {
+      "id": "o19",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "dejar sin servicio el alimentador H240 durante 6 horas para cambiar su celda",
+        "coste_usd": 3100
+      },
+      "evidencia": {
+        "e1": "H240 alimenta una planta de diálisis; su contrato fija un tope de 3 horas de corte programado.",
+        "e2": "Cambio de la celda con grúa y cuadrilla: 3 100 USD."
+      }
+    },
+    {
+      "id": "o20",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "energizar la SED G-6400 nueva sin medir antes su puesta a tierra",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El procedimiento obliga a medir la puesta a tierra antes de energizar cualquier subestación nueva.",
+        "e2": "La energización no tiene coste de materiales."
+      }
+    },
+    {
+      "id": "o21",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "abrir el seccionador S-250 durante 2 horas para cambiar postes del tramo J70",
+        "coste_usd": 1800
+      },
+      "evidencia": {
+        "e1": "Aguas abajo de S-250 hay 2 100 usuarios sin enlace con otro alimentador.",
+        "e2": "Cambio de dos postes con la línea abierta: 1 800 USD."
+      }
+    },
+    {
+      "id": "o22",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "bajar a la toma 2 el transformador de la SED G-6510",
+        "tension_actual_pu": 1.07,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro del analizador en la SED G-6501 a las 2:00: 1,07 pu en baja tensión.",
+        "e2": "El cambio de toma lo hace la ronda de mantenimiento sin materiales."
+      }
+    },
+    {
+      "id": "o23",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "ampliar el transformador TP-3 de la SET V30 de 15 a 20 MVA",
+        "demanda_max_kw": 16800,
+        "coste_usd": 310000
+      },
+      "evidencia": {
+        "e1": "Registro anual del transformador TP-3 de la SET V30: demanda máxima de 13,9 MW.",
+        "e2": "Transformador de 20 MVA con su montaje y pruebas: 310 000 USD."
+      }
+    },
+    {
+      "id": "o24",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "instalar un banco de 600 kvar en la barra V35",
+        "tension_final_pu": 0.98,
+        "coste_usd": 7400,
+        "reduccion_perdidas_kw": 85
+      },
+      "evidencia": {
+        "e1": "Con el banco de 600 kvar en V35, la tensión mínima queda en 0,98 pu; el mínimo es 0,95 pu.",
+        "e2": "Banco de 600 kvar instalado: 7 400 USD en total."
+      }
+    }
+  ]
+}

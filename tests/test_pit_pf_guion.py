@@ -553,6 +553,46 @@ def test_la_reactancia_en_derivacion_absorbe_su_q_real_y_lo_fuera_de_servicio_no
     assert [e['nombre'] for e in exportada if e['tipo'] == 'linea'] == ['L1']
 
 
+def test_la_compensacion_con_otra_nominal_sale_con_su_q_en_la_nominal_de_la_barra():
+    """107:RF-39 — la Q de una compensación con tensión nominal propia (ushnm) distinta de la de su barra sale referida a
+    la nominal de la barra, (kV de la barra / ushnm)²: el motor abierto la monta con la nominal de la barra. Sin
+    ushnm, como antes. (Copia de transmisión: una reactancia de 10 Mvar a 145 kV en una barra de 138 kV y unos
+    condensadores de 11,25 Mvar a 11,5 kV en una de 10,5 kV.)"""
+    app = _AppTransmision()
+    kv = app.b[('SY', '1')].uknom
+    app.objetos['*.ElmShnt'] = [
+        Obj(None, 'ElmShnt', 'R', app.b[('SY', '1')].GetParent(), shtype=1, qcapn=0.0, qrean=10.0, Qact=10.0,
+            ushnm=kv * 145.0 / 138.0, bus1=_Cub(app.b[('SY', '1')])),
+        Obj(None, 'ElmShnt', 'C', app.b[('SX', '3')].GetParent(), shtype=2, qcapn=3.75, Qact=11.25,
+            ushnm=app.b[('SX', '3')].uknom * 11.5 / 10.5, bus1=_Cub(app.b[('SX', '3')])),
+        Obj(None, 'ElmShnt', 'S', app.b[('SX', '3')].GetParent(), shtype=2, qcapn=2.0, Qact=2.0,
+            bus1=_Cub(app.b[('SX', '3')]))]
+    q = {e['nombre']: e['q_mvar'] for e in guion.exportar_red(app, _PLAN_T) if e['tipo'] == 'compensacion'}
+    assert q['R'] == pytest.approx(-10.0 * (138.0 / 145.0) ** 2), q
+    assert q['C'] == pytest.approx(11.25 * (10.5 / 11.5) ** 2), q
+    assert q['S'] == 2.0, q
+
+
+def test_rf42_con_el_flujo_hecho_la_compensacion_sale_con_su_admitancia_resuelta():
+    """107:RF-42 — con el flujo de DIgSILENT hecho (m:Q de la compensación y m:u de su barra), la Q en la nominal de la
+    barra es −m:Q/u², sea cual sea el tipo de filtro; sin resultados, la de RF-27 y RF-39. (Copia de transmisión: dos
+    filtros amortiguados de 3,5.º armónico daban 11,19 Mvar a 1,0594 p.u. con una Qact que a esa tensión son 9,22.)"""
+    app = _AppTransmision()
+    barra = app.b[('SX', '3')]
+    setattr(barra, 'm:u', 1.0594)
+    app.objetos['*.ElmShnt'] = [
+        Obj(None, 'ElmShnt', 'F', barra.GetParent(), shtype=4, qcapn=7.745, Qact=8.21, bus1=_Cub(barra),
+            **{'m_Q:bus1': -11.193}),
+        Obj(None, 'ElmShnt', 'R', barra.GetParent(), shtype=1, qrean=10.0, Qact=10.0, bus1=_Cub(barra),
+            **{'m_Q:bus1': 11.2236}),
+        Obj(None, 'ElmShnt', 'S', app.b[('SY', '1')].GetParent(), shtype=2, qcapn=2.0, Qact=2.0,
+            bus1=_Cub(app.b[('SY', '1')]))]
+    q = {e['nombre']: e['q_mvar'] for e in guion.exportar_red(app, _PLAN_T) if e['tipo'] == 'compensacion'}
+    assert q['F'] == pytest.approx(11.193 / 1.0594 ** 2), q
+    assert q['R'] == pytest.approx(-11.2236 / 1.0594 ** 2), q
+    assert q['S'] == 2.0, q
+
+
 # --- 107:RF-28: los SVC como nudos PV y el desfase de los grupos de conexión (corrida de 107 T14, 22-11) --------------
 # En la copia de transmisión hay 13 SVC (hasta 315 Mvar en 500 kV) que regulan la tensión de su barra y no se exportaban;
 # y los trafos tienen grupos de 1, 5, 7 y 11 h: DIgSILENT da en baja el ángulo de alta menos 30° × grupo horario
@@ -796,6 +836,25 @@ def test_rf31_el_svc_regula_su_nudo_remoto_y_el_de_q_constante_sale_pq():
     assert abs(r.tensiones_pu[guion._id(barra)] - 1.0) > 1e-3
 
 
+def test_rf41_el_svc_de_un_controlador_de_estacion_en_control_de_q_entrega_su_q_resuelta():
+    """107:RF-41 — un SVC con control de tensión propio que un controlador de estación lleva en control de Q (i_ctrl 1
+    del ElmStactrl, que lo nombra en psym) sale PQ con la Q que resolvió DIgSILENT (m:Q, convenio de carga: +163,9
+    absorbe), no PV a su consigna; el que no tiene controlador sigue PV. (Copia de transmisión: el SVC del horno de
+    Aceros absorbía 163,9 Mvar para dejar 0 en su cubículo de 220 kV.)"""
+    app = _AppTransmision()
+    barra = app.b[('SY', '3')]
+    sub = barra.GetParent()
+    svc = Obj(None, 'ElmSvs', 'SVA', sub, usetp=1.0, i_ctrl=1, qmax=170.0, qmin=0.0, bus1=_Cub(barra),
+              **{'m_Q:bus1': 163.9})
+    libre = Obj(None, 'ElmSvs', 'SVL', sub, usetp=1.0, i_ctrl=1, qmax=10.0, qmin=10.0, bus1=_Cub(barra),
+                **{'m_Q:bus1': 2.0})
+    app.objetos['*.ElmSvs'] = [svc, libre]
+    app.objetos['*.ElmStactrl'] = [Obj(None, 'ElmStactrl', 'QC', sub, outserv=0, i_ctrl=1, qsetp=0.0, psym=[svc])]
+    por_nombre = {e['nombre']: e for e in _red_t(app).de_tipo('red_externa')}
+    assert (por_nombre['SVA']['tipo_barra'], por_nombre['SVA'].get('q_mvar')) == ('PQ', -163.9), por_nombre['SVA']
+    assert por_nombre['SVL']['tipo_barra'] == 'PV', por_nombre['SVL']
+
+
 def test_rf31_el_pv_en_su_limite_de_q_deja_de_sostener_la_tension():
     """107:RF-31 — el motor abierto aplica los límites de Q: un SVC con 0,5 Mvar como mucho no sostiene una consigna que
     pide más, y su barra queda por debajo de ella."""
@@ -861,6 +920,22 @@ def test_rf32_un_controlador_con_maquinas_en_dos_barras_reparte_el_ajuste():
     r = _flujo_t(_red_t(app), app)
     assert not isinstance(r, Exception) and r.converge, r
     assert r.tensiones_pu[guion._id(remoto)] == pytest.approx(1.03, abs=1e-4)
+
+
+def test_rf40_el_controlador_con_estatismo_deja_su_nudo_en_la_tension_resuelta():
+    """107:RF-40 — un controlador de estación con estatismo (i_droop 1, ddroop > 0) no deja su nudo en la consigna: sus
+    máquinas salen con la tensión que resolvió DIgSILENT en el nudo (m:u) y marcadas como aproximadas; sin estatismo,
+    con la consigna. (Copia de transmisión: el STATCOM de Pucallpa, 1 % sobre 80 Mvar, dejaba su nudo en 0,9927 y el
+    motor abierto, con 1,000, subía el grupo de Pucallpa 0,006 p.u.)"""
+    app, remoto = _app_estacion([('SY', '3')])
+    ctrl = app.objetos['*.ElmSym'][-1].c_pstac
+    ctrl.i_droop, ctrl.ddroop = 1, 1.0
+    setattr(remoto, 'm:u', 1.021)
+    ge = [e for e in _red_t(app).de_tipo('red_externa') if e['nombre'].startswith('GE')]
+    assert [(e['vm_pu'], e.get('estatismo_aproximado')) for e in ge] == [(1.021, True)], ge
+    ctrl.ddroop = 0.0
+    ge = [e for e in _red_t(app).de_tipo('red_externa') if e['nombre'].startswith('GE')]
+    assert [(e['vm_pu'], e.get('estatismo_aproximado')) for e in ge] == [(1.03, None)], ge
 
 
 # --- 107:RF-33: la solución de tensión alta (corrida de 107 T14, 22-11) -------------------------------------------------

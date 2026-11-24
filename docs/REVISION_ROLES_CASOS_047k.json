@@ -1,0 +1,165 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T19 de la spec 047: el conjunto con que se mide la revisión después de que el código lee otras formas corrientes de prohibir y lo prohibido «sin» algo (2026-11-23). El 047j orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047j, las cifras van escritas de otras formas y la prohibición, con palabras que el código no busca. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-23",
+    "sha256": "64602cc65b60b8c70eb6f962f286f864f6b11a5ac02416afe5ea9177f0b03d53",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "k01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "cambiar 8 pararrayos de óxido metálico en la troncal del alimentador F412",
+        "pararrayos": 8,
+        "coste_usd": 1040
+      },
+      "evidencia": {
+        "e1": "Pararrayos de óxido metálico de 21 kV, instalado: 130 USD c/u.",
+        "e2": "La troncal de F412 tiene 8 pararrayos de carburo de silicio fuera de su vida útil."
+      }
+    },
+    {
+      "id": "k02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "colocar 3 bancos de condensadores fijos de 150 kvar en el ramal H91",
+        "bancos": 3,
+        "coste_usd": 5200
+      },
+      "evidencia": {
+        "e1": "Banco fijo de 150 kvar con su seccionador fusible, montado: 2.400 USD por unidad.",
+        "e2": "Con los 3 bancos, el factor de potencia del ramal H91 sube a 0,97 en la máxima."
+      }
+    },
+    {
+      "id": "k03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reconductorar 2,4 km del ramal H95 a 120 mm²",
+        "cargabilidad_final_pct": 61,
+        "coste_usd": 31200
+      },
+      "evidencia": {
+        "e1": "Reconductorado a 120 mm² sobre los postes existentes: USD 13.000 por km.",
+        "e2": "Tras el reconductorado, el tramo más cargado de H95 queda al 61 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "k04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "trasladar 250 kW de carga del alimentador F415 al F416 por el seccionador de enlace",
+        "cargabilidad_f416_pct": 78,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Con la transferencia, la cabecera del F416 queda al 104 % de su capacidad.",
+        "e2": "La maniobra la hace el centro de control, sin gasto de materiales."
+      }
+    },
+    {
+      "id": "k05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "sustituir el transformador de la SED Q-7105 por uno de 250 kVA",
+        "carga_final_pct": 69,
+        "coste_usd": 8420
+      },
+      "evidencia": {
+        "e1": "Partidas: transformador de 250 kVA 7 300 USD; grúa y cuadrilla 820 USD; ensayos 300 USD.",
+        "e2": "Con 250 kVA, la Q-7105 queda al 69 % en la hora de máxima."
+      }
+    },
+    {
+      "id": "k06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "maniobrar con carga el seccionador unipolar S-77 para aislar el ramal H97",
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Ninguna cuadrilla está autorizada a maniobrar con carga los seccionadores unipolares.",
+        "e2": "La maniobra no necesita materiales."
+      }
+    },
+    {
+      "id": "k07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 4 indicadores de falla en el alimentador F418",
+        "indicadores": 4,
+        "coste_usd": 1880
+      },
+      "evidencia": {
+        "e1": "Indicador de falla para red aérea, colocado: US$ 470 cada uno.",
+        "e2": "El F418 tiene 4 derivaciones largas sin indicación de falla."
+      }
+    },
+    {
+      "id": "k08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "bajar a la toma 4 el transformador de la SED Q-7230",
+        "tension_actual_pu": 1.07,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Medición de la SED Q-7203 a las 3:00: 1,07 pu en baja tensión.",
+        "e2": "El cambio de toma lo realiza la cuadrilla de guardia, sin materiales."
+      }
+    },
+    {
+      "id": "k09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 3 reconectadores en el alimentador F420",
+        "reconectadores": 3,
+        "coste_usd": 39000
+      },
+      "evidencia": {
+        "e1": "Reconectador trifásico de 27 kV con su control: 13.000 USD por equipo.",
+        "e2": "El F420 tiene 3 ramales con salidas repetidas que hoy dispara la cabecera."
+      }
+    },
+    {
+      "id": "k10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 1,5 km de cable subterráneo de 10 kV entre la SET W31 y la SED Q-7311",
+        "coste_usd": 54000
+      },
+      "evidencia": {
+        "e1": "Cable subterráneo de 10 kV con zanja y reposición: 52.000 USD por kilómetro.",
+        "e2": "El trazado entre la SET W31 y la Q-7311 mide 1,5 km."
+      }
+    },
+    {
+      "id": "k11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar la planta de hielo R41 de 180 kVA a la SED Q-7402",
+        "carga_q7402_pct": 81,
+        "coste_usd": 720
+      },
+      "evidencia": {
+        "e1": "Con R41, la SED Q-7402 de 100 kVA trabaja al 172 % de su potencia nominal.",
+        "e2": "Acometida y medidor para R41: 720 USD."
+      }
+    },
+    {
+      "id": "k12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de reguladores de 150 A en el ramal H99",
+        "tension_final_pu": 0.98,
+        "coste_usd": 14900
+      },
+      "evidencia": {
+        "e1": "Con los reguladores en H99, la tensión mínima en la máxima queda en 0,98 pu y en la mínima en 1,02 pu.",
+        "e2": "Banco de tres reguladores monofásicos de 150 A con su montaje: USD 14 900 en total."
+      }
+    }
+  ]
+}

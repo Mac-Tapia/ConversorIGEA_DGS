@@ -234,11 +234,12 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       acierta 0,982 frente a 0,983 sin destilar en la prueba fija de 541, así que se queda sin
       destilar (RF-60) y el modelo en uso (0,987) sigue. Con 11 órdenes frente a 4070 sintéticas la
       destilación aún no aporta: hará falta con las 200 órdenes reales de RF-17.
-- [ ] T26. Claude y Codex como maestros de la destilación: etiquetas de Claude en
+- [x] T26. Claude y Codex como maestros de la destilación: etiquetas de Claude en
       `etiquetas_maestro`, Codex por su CLI con los nombres de la red enmascarados y anotado, y
       `tools/asistente_entrenar.py --destilar --maestro claude|codex|ollama`. (RF-56, RF-63, RF-64, RF-78)
       Hecho cuando: pruebas en verde (enmascarado y restitución, etiquetas de archivo) y una
-      corrida real con las etiquetas de Claude y otra con Codex.
+      corrida real con las etiquetas de Claude. (La corrida con Codex se retiró por orden del usuario del
+      2026-11-22: no se usa Codex; `MaestroCodex` queda con sus pruebas de enmascarado de RF-63.)
       Avance del 2026-10-28: `MaestroArchivo`, `MaestroCodex` (con `enmascarar` y `reponer`) y
       `--maestro claude|codex|ollama`, `--modelo-codex`; 9 pruebas en verde. Claude etiquetó las 13
       órdenes sin confirmar (5 votos cada una) y, con él de maestro, el alumno acierta 0,985 frente a
@@ -250,6 +251,10 @@ Estado: aprobadas el 2026-10-28; se empieza por T0 y T19. Una tarea cada vez, pr
       esa corrida: no pasan por `MaestroCodex` ni por el enmascarado de RF-63. De
       `tests/test_asistente_destilacion.py` aprueban 5 sin GPU; las 2 que entrenan exigen CUDA (`SinGPU`),
       que esta revisión ocultó.
+      Cerrada el 2026-11-22 por orden del usuario («ya no uses Codex»): la última sonda de la cola de GPU
+      (22-11, 19:49) volvió a fallar por la cuenta (401 sin credenciales) y no se reintenta. Queda hecha con la
+      corrida real con Claude de maestro del 2026-10-28 (alumno 0,985 frente a 0,980 sin destilar) y las pruebas
+      de enmascarado y restitución de `tests/test_asistente_destilacion.py`.
 - [x] T27. Conjunto fijo de 200 órdenes del maestro en el entrenamiento y en la prueba fija, con
       su huella en el registro del modelo. (RF-65 a RF-67)
       Hecho cuando: pruebas en verde (200, todas las tareas, reparto 160/40, no cambian RF-19) y

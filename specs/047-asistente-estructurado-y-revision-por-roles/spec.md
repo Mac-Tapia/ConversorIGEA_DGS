@@ -213,7 +213,8 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
   comparaba el coste total con cada partida («18900» frente a «16.400») y bloqueaba una propuesta sana.
 - RF-80: SI una incertidumbre es solo el nombre de un campo de la propuesta cuyo valor está en la acción, ENTONCES EL
   SISTEMA la descartará con su motivo, porque la acción fija ese valor (RF-46); si el valor solo está en una
-  evidencia, se mantiene. Con algo descartado, la decisión sale de las listas que quedan (RF-50).
+  evidencia, se mantiene (y, si el código respalda todos los datos, queda como observación: RF-91). Con algo
+  descartado, la decisión sale de las listas que quedan (RF-50).
 - RF-81: SI un dictamen no es válido y el revisor respondió (por ejemplo, «bloqueada» sin hallazgo), ENTONCES EL
   SISTEMA se lo pedirá de nuevo en la ronda siguiente, que le muestra el motivo, sin convertirlo en ninguna decisión.
   Con el 047f, un rol de riesgo bloqueó un caso sano sin decir qué estaba mal y no hubo otra ronda.
@@ -223,6 +224,90 @@ RF-9 mientras haya menos de 200 humanas; las del maestro nunca son humanas ni se
 - RF-83: SI una contradicción enfrenta un valor de la acción que no es solo una cifra con su unidad (y, como mucho, dos
   palabras), ENTONCES EL SISTEMA la descartará como texto de la acción (RF-56): con el 047f, la frase de la acción
   «… para cambiar 2 aisladores» se leía como la cifra 2 frente a los «22,9 kV» de la evidencia.
+
+- RF-84: (23-11, 047 T7c cortada por una suspensión del equipo) CUANDO se pida `entrenar --reanudar` con un punto de
+  control de una época sin terminar, EL SISTEMA retomará esa época desde él, con la verificación de datos, base,
+  configuración y época de la reanudación, y lo dirá en el informe (`reanudado_desde`); sin la opción, desde cero.
+  (La época 1 de 047 T7c se cortó en el ejemplo 1 352 de 3 280 con un punto de control en la actualización 128.)
+- RF-85: SI una incertidumbre es solo el nombre de un campo que el código comprobó con la evidencia y cuadra (RF-77),
+  ENTONCES EL SISTEMA la descartará con su motivo, como ya descarta las contradicciones sobre ese campo (RF-79). Con
+  el 047g (2026-11-23), el LLM dejaba «coste_usd» como duda en propuestas sanas cuyo coste cuadraba.
+- RF-86: SI una incertidumbre, o el valor de la propuesta de una contradicción sobre un campo que la propuesta no tiene,
+  es solo la acción o un trozo suyo de tres palabras o más, sin cifras, ENTONCES EL SISTEMA la descartará: la acción es
+  lo que se revisa (RF-46). Con el 047g, un rol copiaba la acción entera como duda, y otro enfrentaba «conductor de
+  enlace» con la descripción del conductor en la evidencia. Un elemento de la red («estructura E19») sigue contando.
+- RF-87: SI una contradicción enfrenta un campo que es una cantidad de elementos (sin unidad ni palabra de magnitud en
+  su nombre y con un entero sin unidad) con una cifra de la evidencia que tiene unidad, la del valor o la de esa cifra
+  en la fuente, ENTONCES EL SISTEMA la descartará como magnitudes distintas. Con el 047g, la cantidad de picas se
+  enfrentaba con la longitud de cada pica.
+- RF-88: SI una frase de la evidencia prohíbe un verbo (en infinitivo, con pronombre o no: «prohíbe abrirlo», «no está
+  permitido cortar») y la acción lleva ese verbo, ENTONCES EL SISTEMA lo hallará sin el LLM y lo guardará en
+  `comprobaciones_del_codigo` como no coincidente, así que la revisión no se aprobará. Con el 047g, en el modo equipo
+  ningún rol vio la maniobra prohibida, aunque el encargo lo pide (RF-82).
+- RF-89: EL SISTEMA respaldará sin el LLM cada dato numérico de la propuesta que sea una cantidad de elementos fijada
+  por la acción o cuya cifra esté en un fragmento de la evidencia fuera de una cláusula de límite o de norma, y lo
+  guardará en `comprobaciones_del_codigo` como coincidente; una duda o una contradicción sobre ese dato se descartará
+  como las del coste (RF-79, RF-85). Con el 047h (2026-11-23), el LLM dudaba de una cargabilidad que la evidencia daba
+  y enfrentaba la tensión de la máxima con la del valle del mismo fragmento. Faltar en la evidencia no es contradicción.
+- RF-90: SI un fragmento de la evidencia nombra un elemento con el mismo prefijo que uno de la acción («S-2209» frente a
+  «S-2290») y ninguno de la acción con ese prefijo, ENTONCES EL SISTEMA lo guardará sin el LLM como comprobación no
+  coincidente y la revisión no se aprobará. Con el 047h, la medición de otra SED respaldaba el cambio de tap y la
+  revisión solo se bloqueó por una duda sin relación.
+- RF-91: SI el código respalda cada dato numérico de la propuesta (RF-77, RF-89) y ninguna de sus comprobaciones falla,
+  ENTONCES EL SISTEMA guardará como observaciones, sin bloquear, las incertidumbres del LLM y sus contradicciones sobre
+  un campo que la propuesta no tiene; las contradicciones sobre un dato siguen contando, y aprobar no autoriza la
+  ejecución (RF-6, la confirma el operador). Con el 047h, los roles bloqueaban propuestas sanas preguntando por lo que
+  la propuesta no dice («tipo de aislador», «si hacen falta más reconectadores»).
+- RF-92: EL SISTEMA leerá como precio por unidad, al calcular el coste (RF-77), «la unidad», «cada una», «por pieza»,
+  «por equipo», «por juego», «por elemento» y «por aparato», y como precio por km «el kilómetro» y «cada kilómetro»; y
+  SI el fragmento de un precio unitario no nombra la pieza con la palabra de un campo, ENTONCES tomará la cantidad de la
+  única cantidad de piezas de la propuesta, y con varias no calculará nada. Con el 047i (2026-11-23), el código daba por
+  malo el coste de tres propuestas sanas («185 dólares la unidad», «12.500 USD por equipo», «9.000 USD el kilómetro»).
+- RF-93: EL SISTEMA leerá también como prohibición de RF-88 «no permite(n)», «no autoriza(n)», «no admite(n)», «queda(n)
+  prohibido», «está(n) vedado», «en ningún caso» y «jamás»; y SI lo prohibido es hacerlo «sin» algo, ENTONCES solo
+  contará cuando la acción también lo hace «sin» eso. Con el 047j (2026-11-23), «las reglas de seguridad no permiten
+  trabajar … sin puesta a tierra temporal» no se leía como prohibición y en los dos modos se aprobó la acción que lo hacía.
+- RF-94: EL SISTEMA leerá también como prohibición de RF-88 una negación («ningún(a)», «nadie», «no») seguida de «está(n)»,
+  «queda(n)», «es», «son» o «se encuentra(n)» y un participio de permiso («autorizado», «habilitado», «facultado»,
+  «permitido», «acreditado»). Con el 047k (2026-11-24), «ninguna cuadrilla está autorizada a maniobrar con carga los
+  seccionadores unipolares» no se leía, y en el modo equipo el caso quedó sin respuesta.
+- RF-95: EL SISTEMA leerá como precio por unidad de RF-76 la cifra que va «por» o «cada» una pieza que la acción cuenta
+  («US$ 8 800 por banco» con «instalar 2 bancos…»), además de las palabras fijas de RF-76. Con el 047l (2026-11-24),
+  antes de medir, la comprobación del código sin LLM leía ese precio como un total y daba una falsa alarma en un caso sano.
+- RF-96: EL SISTEMA no tomará como cantidad de piezas una cifra de la acción seguida de una unidad física («150 kvar»,
+  «200 A»), y la cifra que va «por» o «cada» una pieza tomará la cantidad de esa pieza. Con el 047m (2026-11-24),
+  «USD 2 600 por banco» y «montar 3 bancos … de 150 kvar» no se comprobaban y el modelo bloqueó el caso sano.
+- RF-97: SI una frase de la evidencia exige algo («exige», «requiere», «debe», «es obligatorio»…) antes del verbo de la
+  acción Y la acción lo hace «sin» algo que comparte una palabra con lo exigido, ENTONCES EL SISTEMA lo contará como
+  incumplimiento (sin el LLM); si la acción no dice «sin», lo decide el revisor. Los sistemas de cumplimiento normativo
+  clasifican cada frase por su modalidad (obligación, permiso, prohibición) con sus disparadores (ComplianceNLP,
+  arXiv 2604.23585; LEXDEMOD). Con el 047m, el modelo aprobó en los dos modos reponer un fusible sin despejar la causa.
+- RF-98: SI un dato de la propuesta en %, pu, A, kA, kW, kVA o MW (o de usuarios) nombra un elemento, o la acción lo
+  nombra, Y un fragmento da para ese elemento, fuera de las cláusulas que empiezan por un límite («límite…», «capacidad
+  del…», «el mínimo es…»), una única cifra distinta en esa unidad, ENTONCES EL SISTEMA lo contará como contradicción
+  (sin el LLM). Con el 047m, el modelo aprobó «carga 64 %» frente a «la SED … trabaja al 141 %».
+- RF-99: EL SISTEMA leerá con una sola regla las cotas cuantitativas de la evidencia, se escriban como se escriban
+  (superiores: «como máximo», «a lo sumo», «no más de», «límite de», «no puede pasar de», «no debe superar»…; inferiores:
+  «como mínimo», «al menos», «no menos de»…; y la que se da por su consecuencia, «mayor de 40 K … se pierde la
+  coordinación»), con la cantidad llevada a una unidad base por magnitud (minutos, A, kW, kVA, kV, %, pu, K), y contará
+  como incumplimiento la acción cuya cifra en esa magnitud la pase; también la prohibición dicha con el sustantivo del
+  verbo de la acción («prohíbe la poda»), por su tema léxico. Con el 047n (2026-11-24), «admite como máximo 2 horas de
+  corte» frente a «desconectar … 4 horas» se escapó a las dos formas sueltas que había antes, y al modelo en los dos modos.
+- RF-100: SI la acción maniobra, corta o trabaja en un elemento Y la evidencia dice que a ese elemento le falta una
+  salvaguarda («sin seccionador ni interruptor», «sin enlace con otro alimentador», «sin respaldo»), ENTONCES EL SISTEMA
+  no la aprobará sola: queda para el operador. Es la lista de comprobación de seguridad que el código arma antes del
+  revisor (AGrail, arXiv 2502.11448): los riesgos que no dependen de interpretar la red no se dejan al modelo de 8B.
+  Lo mismo SI la evidencia solo permite algo a un agente («solo el centro de control puede ordenar la apertura…») Y la
+  acción trata de lo mismo sin nombrar a ese agente: un permiso restringido es una prohibición para los demás.
+- RF-101: SI un resultado físico de la propuesta (kW, kVA, kvar, MW, MVA, pu, %, A, kA, kV) no lo respalda ni lo
+  contradice ningún fragmento, ENTONCES EL SISTEMA no lo aprobará: queda sin fuente. Con el 047, el modelo aprobó una
+  «reducción de pérdidas de 120 kW» que ninguna evidencia daba.
+- RF-102: SI tras el reintento de RF-81 un revisor sigue diciendo «bloqueada» o «revisar» sin ninguna contradicción
+  ni incertidumbre Y el código respalda todos los datos de la propuesta sin ninguna comprobación fallida, ENTONCES EL
+  SISTEMA lo guardará como observación y decidirá la comprobación del código; en la primera ronda, o sin todo
+  respaldado, sigue sin respuesta (RF-38). EL SISTEMA dará también por respaldado un coste 0 cuando la evidencia diga
+  que no lo hay («sin materiales», «sin costo», «no necesita materiales»). Con el 047o (2026-11-24), en los dos modos,
+  dos sanos con todos sus datos respaldados quedaron sin respuesta porque el modelo bloqueó sin motivo en las dos rondas.
 
 ## Requisitos no funcionales
 

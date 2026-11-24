@@ -1,6 +1,6 @@
 # Spec 106 — Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene
 
-Estado: cumplida (2026-11-21: T2 cerrada con la suite de la puerta CIE y un entrenamiento que esperó su turno, y T7 con MEJ28; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
+Estado: cumplida (2026-11-24: T8 cerrada con RF-25; todas sus tareas cerradas) · antes cumplida (2026-11-21: T2 cerrada con la suite de la puerta CIE y un entrenamiento que esperó su turno, y T7 con MEJ28; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
 2026-11-12: «las correcciones deben ser sólidas, estables y robustas», «corregir todos los fallos, de fondo».
 
 ## Contexto y objetivo
@@ -116,6 +116,11 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   el error estándar, en un apartado del resumen final de pytest y, una línea JSON por suceso, en
   `CSG_GPU_REGISTRO_SUITE` o, sin ella, en `<guardia de la máquina>.suite.jsonl`; si ese fichero no se puede escribir,
   la suite sigue y lo dice.
+- RF-25: ANTES de cada tanda de la suite nocturna (081:RF-38), MIENTRAS otro proceso vivo tenga el turno de GPU de la
+  máquina Y la memoria disponible sea menor que `CSG_SUITE_MEMORIA_MIN_GIB` (4 GiB sin ella), EL SISTEMA esperará,
+  diciendo cada 10 min cuánta hay y quién tiene la GPU; al vencer un plazo de 3 h, la tanda correrá igual y lo dirá.
+  (La noche del 23 al 24-11, la suite por tandas corrió pytest junto a las redes del 089 T7 con menos de 1,5 GiB
+  disponibles en 16 GiB, y la guardia de la cola de GPU cortó por memoria cinco entrenamientos seguidos.)
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

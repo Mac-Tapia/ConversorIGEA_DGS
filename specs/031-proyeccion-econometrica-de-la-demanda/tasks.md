@@ -18,9 +18,22 @@
       Hecho en esta entrega (LOTE-2); pruebas: tests/test_proyeccion_anual.py -k ciclo. RF-2: compiten en la etapa `gru` del
       ciclo (`orden_temporal`); RF-10: `proyeccion_anual.ganador_del_ciclo` lee el conjunto activo (`miembro_en_uso`) y su
       `pronostico.json`, y la evaluación anota `ciclo_comun`. La corrida real con GPU es la T5.
-- [ ] T5. Corrida real: proyección de un sistema con sus métricas por modelo y el ganador anotados aquí. (Todos)
+- [x] T5. Corrida real: proyección de un sistema con sus métricas por modelo y el ganador anotados aquí. (Todos)
       Hecho cuando: el informe está fuera de git y el resumen, sin datos de la distribuidora, anotado aquí.
       Bloqueada por datos y carril (2026-11-14, T0b de e6): la corrida real necesita los libros de la empresa, el registro de PBI y población del INEI y el BCRP de su región y el turno de GPU; el encargo prohíbe descargas, datos reales pesados y GPU (`D:/csg/PM_IMPL/ENCARGOS_E6.md`, «Prohibiciones»). Siguiente acción: el operador carga el registro y e6 la pone en el corredor.
+      Hecho el 2026-11-23 (d8, corrida de la T11, informe `GPU_BLOQUE/031_T11_noche/corrida_p6`, fuera de git, con su
+      espejo verificado por sha256 en Drive). Horizonte de 30 años, paso de 6 meses entre orígenes, 4 orígenes por modelo.
+      WAPE de la demanda media mensual en los orígenes de elección (%), por grupo:
+      cliente kW: sin crecimiento 31,0 · TiDE 31,5 · perfil calendario 31,8 · perfil anclado 31,9 · semanal 32,2 ·
+      TFT 33,2 · N-HiTS 35,0 · PatchTST 35,7. Cliente kVAR: perfil calendario 35,5 · perfil anclado 35,9 · sin
+      crecimiento, semanal y TiDE 36,4 · TFT 37,3 · N-HiTS 40,9 · PatchTST 41,5. Escaladas kW: perfil anclado y semanal
+      18,6 · perfil calendario 18,7 · TiDE 18,9 · sin crecimiento 19,4 · N-HiTS 19,7 · PatchTST 20,0 · TFT 28,2.
+      Escaladas kVAR: PatchTST 64,2 · N-HiTS 66,0 · perfil anclado 71,7 · semanal 72,2 · TiDE 75,5 · perfil calendario
+      76,9 · sin crecimiento 79,4 · TFT 114,9. Las tasas anuales no aplican: con esta historia no alcanzan 3 orígenes.
+      Ganador en los cuatro grupos: **sin crecimiento**, la referencia, porque ninguno pasa la regla (mejora de 2 % o más
+      sin peor error en la máxima y con cobertura); en escaladas kVAR N-HiTS baja el WAPE de 79,4 a 66,0, pero su error en la máxima es 21,8 frente a 21,7.
+      Estado `sin_aceptar`: 0 de 30 años validados (10 meses medidos); validarlos pide más historia o la orden expresa
+      del operador (RF de aceptación), sin PBI ni población del INEI, que no se cargaron.
 - [x] T9. Las redes del PIDE caben en la GPU de 8 GiB: lote de series por la memoria libre medida, reintento y causa escrita, y predicción con solo su contexto. (RF-24, RF-25, RF-26)
       Hecho cuando: `pytest -q tests/test_pronostico_memoria_gpu.py` en verde, con su rojo sobre la base sin el cambio. La corrida real con la GPU es la T5.
       Hecho el 2026-11-20 (MEJ14-GPU031): rojo con 8 fallos por aserción sobre la base y verde con 9; ensayo corto en la GPU con el dataset de la T12 (10 pasos): N-HiTS entrena en los cuatro grupos, donde antes los clientes daban «no disponible», y abrir el dataset baja de 3,07 a 1,72 GiB.
@@ -33,3 +46,11 @@
 - [x] T8. PBI y población como exógenas anuales, con su fuente, su huella y su fecha de publicación, en la competición y en la emisión. (RF-19, RF-20, RF-21, RF-22, RF-23)
       Hecho cuando: `pytest -q tests/test_proyeccion_anual_exogenas.py` en verde, con la prueba de que una cifra publicada después del origen se rechaza.
       Hecho en 8985d25f (F v11: suite 11 035, 0 F, 0 omitidas); pruebas: tests/test_proyeccion_anual_exogenas.py.
+- [x] T11. Un año de contexto para todas las series del PIDE, con relleno inicial. (RF-30)
+      Hecho cuando: `pytest -q tests/test_pronostico_horizonte_largo.py` en verde con su rojo por aserción en la base, y
+      la emisión de la T5 sale con las redes y sin «requires at least 364 training timestamp(s)».
+      Hecho el 2026-11-23 (d8, N10): rojo por aserción sobre b5e0c45f (`N10_SINCODEX/T17/rojo_base_1825.log`) y verde
+      (`N10_SINCODEX/T19/verde_2155.log`). Corrida real en la GPU, 2026-11-23 19:03–20:45 (cola de d8, paso
+      `32_031T11_pide_n10`, informe en `GPU_BLOQUE/031_T11_noche/corrida_p6`, fuera de git): N-HiTS, TFT, PatchTST y
+      TiDE entrenan y emiten en los cuatro grupos y en sus cuatro orígenes, con contexto de 364 días, sin ningún
+      «requires at least 364 training timestamp(s)» y sin `memoria_gpu`.

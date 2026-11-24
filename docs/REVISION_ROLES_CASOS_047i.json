@@ -1,0 +1,166 @@
+{
+  "descripcion": "Casos sintéticos del maestro para la T17 de la spec 047: el conjunto con que se mide la revisión después de que el código respalda los datos que da la evidencia o fija la acción, halla la evidencia de otro elemento y deja como observaciones las dudas sueltas cuando todo está respaldado (2026-11-23). El 047h orientó ese diagnóstico, así que este se escribió aparte, sin copiar sus propuestas, y se declara antes de medir. Las clases de error son las del 047h y las cifras van escritas de otras formas. Ni son órdenes reales ni datos de una distribuidora. El error de cada caso que lo tiene solo se ve leyendo la evidencia.",
+  "declaracion": {
+    "origen": "maestro",
+    "fecha": "2026-11-23",
+    "sha256": "eab90f9e2596dd877ad89b04290e6e312f0206e789d5ad56ba86e3efe57dfba4",
+    "regla": "sha256 del JSON del fichero sin la clave «declaracion», con sort_keys y ensure_ascii=False (huella de tools/asistente_comparar_revision.py)."
+  },
+  "casos": [
+    {
+      "id": "i01",
+      "defecto": null,
+      "propuesta": {
+        "accion": "reemplazar 6 pararrayos de óxido metálico en la estructura P58 del alimentador B402",
+        "pararrayos": 6,
+        "coste_usd": 1110
+      },
+      "evidencia": {
+        "e1": "Pararrayos de óxido metálico de 21 kV, instalado: 185 dólares la unidad.",
+        "e2": "Inspección de la P58: 6 pararrayos con la envolvente agrietada."
+      }
+    },
+    {
+      "id": "i02",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "colocar 9 seccionadores fusibles en las derivaciones del alimentador B410",
+        "seccionadores": 9,
+        "coste_usd": 3150
+      },
+      "evidencia": {
+        "e1": "Seccionador fusible tipo expulsión de 27 kV con su montaje: USD 410 por unidad.",
+        "e2": "El alimentador B410 tiene 9 derivaciones sin protección propia."
+      }
+    },
+    {
+      "id": "i03",
+      "defecto": null,
+      "propuesta": {
+        "accion": "repotenciar 2,6 km del ramal L77 con conductor de 70 mm²",
+        "caida_tension_pct": 3.8,
+        "coste_usd": 23400
+      },
+      "evidencia": {
+        "e1": "Repotenciación con conductor de 70 mm² sobre postes existentes: 9.000 USD el kilómetro.",
+        "e2": "Flujo en máxima con el ramal repotenciado: caída de tensión al final de L77 de 3,8 %; máximo admisible 5 %."
+      }
+    },
+    {
+      "id": "i04",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "conectar el centro comercial Q31 de 1,2 MW a la troncal del alimentador B415",
+        "tension_final_pu": 0.97,
+        "coste_usd": 5600
+      },
+      "evidencia": {
+        "e1": "Con Q31 conectado, la tensión más baja de la troncal de B415 cae a 0,93 pu en la máxima; el mínimo es 0,95 pu.",
+        "e2": "Celda de medición y acometida en media tensión para Q31: USD 5 600."
+      }
+    },
+    {
+      "id": "i05",
+      "defecto": null,
+      "propuesta": {
+        "accion": "ampliar la SED T-4411 a 400 kVA",
+        "carga_final_pct": 67,
+        "coste_usd": 11300
+      },
+      "evidencia": {
+        "e1": "Costos de la ampliación: transformador de 400 kVA, 9 800 USD; obras civiles, 1 100 USD; ensayos, 400 USD.",
+        "e2": "Con 400 kVA la T-4411 trabaja al 67 % de su potencia en la hora punta."
+      }
+    },
+    {
+      "id": "i06",
+      "defecto": "riesgo",
+      "propuesta": {
+        "accion": "abrir con carga el seccionador unipolar S19 para transferir el ramal L80",
+        "usuarios_afectados": 230,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "El reglamento de operación prohíbe abrir un seccionador unipolar bajo carga.",
+        "e2": "El ramal L80 abastece a 230 usuarios, todos aguas abajo del S19."
+      }
+    },
+    {
+      "id": "i07",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar 4 medidores de calidad en las barras de la SET M21",
+        "medidores": 4,
+        "coste_usd": 8800
+      },
+      "evidencia": {
+        "e1": "Analizador de calidad de energía clase A con su instalación: USD 2.200 cada uno.",
+        "e2": "La SET M21 tiene 4 barras de media tensión sin registro de calidad."
+      }
+    },
+    {
+      "id": "i08",
+      "defecto": "fuentes",
+      "propuesta": {
+        "accion": "cambiar a la toma 3 el transformador de la SED T-4480",
+        "tension_actual_pu": 0.93,
+        "coste_usd": 0
+      },
+      "evidencia": {
+        "e1": "Registro de la SED T-4408 en la hora punta: 0,93 pu en el lado de baja tensión.",
+        "e2": "El cambio de toma lo hace el personal de turno y no consume materiales."
+      }
+    },
+    {
+      "id": "i09",
+      "defecto": null,
+      "propuesta": {
+        "accion": "montar 3 interruptores de recierre en la derivación N44 del alimentador B420",
+        "interruptores": 3,
+        "coste_usd": 37500
+      },
+      "evidencia": {
+        "e1": "Interruptor de recierre de 27 kV con su gabinete de control: 12.500 USD por equipo.",
+        "e2": "La derivación N44 registró 3 tramos con fallas transitorias repetidas este año."
+      }
+    },
+    {
+      "id": "i10",
+      "defecto": "coste",
+      "propuesta": {
+        "accion": "tender 1,4 km de cable seco de 10 kV entre la SET M25 y la SED T-4502",
+        "coste_usd": 61000
+      },
+      "evidencia": {
+        "e1": "Cable seco de 10 kV enterrado, con zanja y empalmes: 52 000 USD por km.",
+        "e2": "El trazo entre la SET M25 y la SED T-4502 tiene 1,4 km."
+      }
+    },
+    {
+      "id": "i11",
+      "defecto": "fisica",
+      "propuesta": {
+        "accion": "atender la panadería nueva Q36 de 75 kVA desde la SED T-4510",
+        "carga_t4510_pct": 90,
+        "coste_usd": 850
+      },
+      "evidencia": {
+        "e1": "La SED T-4510, de 100 kVA, pasaría al 142 % de su potencia con Q36; el límite es 100 %.",
+        "e2": "Acometida en baja tensión para Q36: 850 USD."
+      }
+    },
+    {
+      "id": "i12",
+      "defecto": null,
+      "propuesta": {
+        "accion": "instalar un banco de condensadores de 600 kvar en la troncal del alimentador B425",
+        "tension_final_pu": 0.98,
+        "coste_usd": 14700
+      },
+      "evidencia": {
+        "e1": "Con el banco de 600 kvar en B425, la tensión mínima en la máxima sube a 0,98 pu y en la madrugada queda en 1,02 pu.",
+        "e2": "Banco automático de 600 kvar en 22,9 kV con su montaje: USD 14 700."
+      }
+    }
+  ]
+}

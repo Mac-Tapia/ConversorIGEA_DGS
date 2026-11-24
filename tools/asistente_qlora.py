@@ -30,6 +30,8 @@ def main(argv=None):
     # experimento autorizado por su id (plan de la 047, T7); la decisión real del 2026-11-03 es «bloqueada».
     a.add_argument('--decision',type=Path,help='JSON de decidir_ajuste/decidir_aceptacion (047:RF-59)')
     a.add_argument('--experimento-autorizado',help='Id del experimento autorizado en el plan (p. ej. 047-T7)')
+    a.add_argument('--reanudar',type=Path,help='punto de control (progreso_NNNNNN) desde el que se retoma su época; '
+                   'entrenar_epoca verifica que sean los mismos datos, base y configuración (047:RF-84)')
     a=sub.add_parser('preflight')
     a.add_argument('--dataset',type=Path,required=True)
     a.add_argument('--salida',type=Path,required=True)
@@ -91,7 +93,9 @@ def main(argv=None):
                 if d!='necesaria' and not args.experimento_autorizado:
                     raise ValueError('decidir_ajuste no dice «necesaria» (%s): el ajuste de órdenes pide esa decisión '
                                      'o --experimento-autorizado'%(d or 'sin decisión'))
-            checkpoints=[];desde=None
+            # 047:RF-84: una suspensión del equipo cortó 047 T7c a mitad de la época 1 (23-11); se retoma desde su
+            # punto de control y no desde cero.
+            checkpoints=[];desde=args.reanudar
             with turno_gpu('qlora-generativo'):
                 for epoca in range(1,args.epocas+1):
                     estado=entrenar_epoca(args.dataset,args.salida/f'epoca_{epoca}',epoca=epoca,
@@ -101,6 +105,7 @@ def main(argv=None):
                 'training_completed':True,'promovido':False,'base':base,'auditoria':auditoria,
                 'checkpoints':checkpoints,'gates':{'approved':False},
                 'decision_ajuste':decision_ajuste,'experimento_autorizado':args.experimento_autorizado,
+                'reanudado_desde':str(args.reanudar) if args.reanudar else None,
                 'reason':'pesos conservados; faltan seleccion, recarga/exportacion y aceptacion independiente'}
         codigo=0
     except Exception as exc:

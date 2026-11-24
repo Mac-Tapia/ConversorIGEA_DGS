@@ -103,6 +103,16 @@ def _objeto(obj, attr):
     return v if hasattr(v, 'GetClassName') else None
 
 
+def _lista(obj, attr) -> list:
+    """107:RF-41: un atributo de lista de objetos (psym de un controlador de estación), o vacía."""
+    try:
+        v = obj.GetAttribute(attr)
+    except Exception:  # noqa: BLE001  # justificado: la API de PowerFactory da errores propios por un atributo que no
+        # existe en esta versión; se intenta leerlo como atributo de Python.
+        v = getattr(obj, attr, None)
+    return list(v) if isinstance(v, (list, tuple)) else []
+
+
 def _estacion(maquina) -> dict:
     """107:RF-32: la máquina de un controlador de estación (``c_pstac``) en servicio y con control de tensión
     (``i_ctrl`` 0) regula el nudo del controlador (``rembar``) con su consigna (``usetp``); la consigna propia de la
@@ -114,6 +124,11 @@ def _estacion(maquina) -> dict:
     nudo, consigna = _objeto(ctrl, 'rembar'), _num(ctrl, 'usetp')
     if nudo is None or consigna is None:
         return {}
+    if _num(ctrl, 'i_droop') == 1 and (_num(ctrl, 'ddroop') or 0) > 0 and _num(nudo, 'm:u'):
+        # 107:RF-40: con estatismo el controlador no deja su nudo en la consigna, como el SVC de RF-34: el STATCOM de
+        # Pucallpa (1 % sobre 80 Mvar) lo dejaba en 0,9927 y con 1,000 el motor abierto subía el grupo 0,006 p.u.
+        return {'barra_control': _id(nudo), 'vm_pu': _num(nudo, 'm:u'), 'estatismo_aproximado': True,
+                'controlador': _id(ctrl)}
     return {'barra_control': _id(nudo), 'vm_pu': consigna, 'controlador': _id(ctrl)}
 
 
@@ -395,6 +410,10 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
                                         'kv': _kv_barra(m, 'bus1'), 'vm_pu': _num(m, 'usetp'), 'tipo_barra': 'PV',
                                         'p_mw': None if p is None else p * unidades, **_limites_q(m, unidades),
                                         'maquina': True, **_estacion(m), **comun, 'fuente': fuente(m)}))
+    # 107:RF-41: el controlador de estación de cada SVC, por si el SVC no lo enlaza en c_pstac (los controladores de la
+    # copia de transmisión nombran sus equipos en psym).
+    ctrl_de_svc = {_id(x): c for c in _objetos(app, '*.ElmStactrl')
+                   for x in (_lista(c, 'psym') or []) if hasattr(x, 'GetClassName') and x.GetClassName() == 'ElmSvs'}
     for s in _objetos(app, '*.ElmSvs'):
         # 107:RF-28: el SVC regula la tensión de su barra: nudo PV sin potencia activa, con su consigna (usetp) y sus
         # límites de Q (qmax capacitiva; qmin, la inductiva, en negativo). En la copia de transmisión había 13, de hasta
@@ -406,6 +425,15 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
         if _num(s, 'i_ctrl') == 2:
             # 107:RF-31: con control de Q, el SVC da su Q (qsetp, convenio de generación) y no regula tensión.
             out.append(_sin_vacios({**base, 'tipo_barra': 'PQ', 'q_mvar': _num(s, 'qsetp') or 0.0}))
+            continue
+        ctrl = _objeto(s, 'c_pstac') or ctrl_de_svc.get(_id(s))
+        if (ctrl is not None and not _fuera_de_servicio(ctrl) and _num(ctrl, 'i_ctrl') == 1
+                and _num(s, 'm:Q:bus1') is not None):
+            # 107:RF-41: un controlador de estación que regula Q (i_ctrl 1) manda sobre la consigna de tensión del SVC:
+            # entrega la Q que resolvió DIgSILENT (m:Q, convenio de carga). El del horno de Aceros mantenía 0 Mvar en su
+            # cubículo de 220 kV absorbiendo 163,9; como PV a 1,000 el motor abierto subía la barra 0,018 p.u.
+            out.append(_sin_vacios({**base, 'tipo_barra': 'PQ', 'q_mvar': -_num(s, 'm:Q:bus1'),
+                                    'controlador': _id(ctrl), 'q_resuelta': True}))
             continue
         qmin = _num(s, 'qmin')
         limites = {'q_max_mvar': _num(s, 'qmax'), 'q_min_mvar': None if qmin is None else -abs(qmin)}
@@ -499,8 +527,21 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             q_real = _num(q, 'qcapn')
         if q_real is not None and _num(q, 'shtype') == 1:
             q_real = -abs(q_real)
+        # 107:RF-39: Qact es la de su nominal propia (ushnm); el motor abierto la monta con la de la barra. En la copia de
+        # transmisión una reactancia de 145 kV en una barra de 138 y condensadores de 11,5 kV en una de 10,5 dejaban la
+        # radial de Iberia 0,012 p.u. baja y Dolorespata 0,0145 alta; referidas a la barra, por debajo de 0,001.
+        kv = _kv_barra(q, 'bus1')
+        propia = _num(q, 'ushnm')
+        if q_real is not None and kv and propia and abs(propia / kv - 1.0) > 1e-6:
+            q_real *= (kv / propia) ** 2
+        # 107:RF-42: con el flujo de DIgSILENT hecho, la compensación es una admitancia fija y su Q en la nominal de la
+        # barra es −m:Q/u²: vale para cualquier tipo de filtro. Los dos filtros amortiguados de 3,5.º armónico de
+        # Antapacay (tipo 4) daban 11,19 Mvar con una Qact que, a su tensión, son 9,22, y la barra quedaba 0,006 baja.
+        medida, u = _num(q, 'm:Q:bus1'), _num(_terminal(q, 'bus1'), 'm:u')
+        if medida is not None and u and u > 0.05:
+            q_real = -medida / u ** 2
         out.append(_sin_vacios({**ident(q), 'tipo': 'compensacion', 'barra': _barra(q, 'bus1'),
-                                'kv': _kv_barra(q, 'bus1'), 'q_mvar': q_real, **comun,
+                                'kv': kv, 'q_mvar': q_real, **comun,
                                 'fuente': fuente(q)}))
     vistos: dict[str, int] = {}
     for e in out:

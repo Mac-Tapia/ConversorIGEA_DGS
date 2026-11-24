@@ -15,7 +15,8 @@ import time
 from .equipo import ROLES_REVISION
 # 047:RF-48 a RF-55: qué contradicción cuenta lo decide ``contradicciones``; los nombres se reexportan.
 from .contradicciones import (  # noqa: F401
-    CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, comprobar_coste, evaluar_cuenta, filtrar_contradicciones,
+    CAMPOS_CONTRADICCION, TOLERANCIA_RELATIVA, comprobar_coste, comprobar_datos, comprobar_elementos,
+    comprobar_magnitudes, comprobar_prohibiciones, evaluar_cuenta, filtrar_contradicciones,
     filtrar_incertidumbres, valores_coinciden)
 
 PRESUPUESTO_S = 60.0
@@ -125,8 +126,21 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
     dictamenes = []
     final = {}
     # 047:RF-79: lo que el código ya comprobó y cuadra no lo vuelve a decidir el LLM.
-    comprobaciones = comprobar_coste(propuesta, evidencia)
+    # 047:RF-88: la acción que la evidencia prohíbe la halla también el código, como el coste que no cuadra.
+    # 047:RF-89, RF-90: los datos que la evidencia o la acción respaldan, y la evidencia que es de otro elemento.
+    comprobaciones = (comprobar_coste(propuesta, evidencia) + comprobar_datos(propuesta, evidencia)
+                      + comprobar_prohibiciones(propuesta, evidencia) + comprobar_elementos(propuesta, evidencia)
+                      # 047:RF-98, RF-101: el resultado físico que la evidencia contradice o que nada respalda.
+                      + comprobar_magnitudes(propuesta, evidencia))
     comprobados = {c['campo'] for c in comprobaciones if c['coincide']}
+    # 047:RF-91: con el 047h, en propuestas sanas cuyos datos el código ya había respaldado todos, el LLM seguía
+    # bloqueando con dudas sobre lo que la propuesta no dice («tipo de aislador», «si D17 necesita más reconectadores»).
+    # Si el código respalda cada dato y ninguna comprobación falla, esas dudas pasan a observaciones: se guardan, no
+    # bloquean. Las contradicciones siguen contando, y aprobar nunca autoriza la ejecución (la confirma el operador).
+    datos = [c for c, v in propuesta.items() if c not in ('accion', 'restricciones_deterministas')
+             and isinstance(v, (int, float)) and not isinstance(v, bool)]
+    todo_respaldado = (bool(datos) and all(c in comprobados for c in datos)
+                       and all(c['coincide'] for c in comprobaciones))
     inicio = time.monotonic()
     ronda = 0
     cancelada = agotado = False
@@ -163,7 +177,25 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                 contradicciones, descartadas = filtrar_contradicciones(raw['contradicciones'], propuesta, evidencia,
                                                                        comprobados)
                 # 047:RF-80: una incertidumbre que es solo un campo que la acción fija no es una duda.
-                incertidumbres, inc_descartadas = filtrar_incertidumbres(raw['incertidumbres'], propuesta)
+                incertidumbres, inc_descartadas = filtrar_incertidumbres(raw['incertidumbres'], propuesta, comprobados)
+                observaciones = []
+                if todo_respaldado and incertidumbres:
+                    observaciones, incertidumbres = incertidumbres, []
+                    inc_descartadas = [*inc_descartadas, *({'entrada': x, 'motivo': 'el código respalda todos los datos: '
+                                                            'queda como observación'} for x in observaciones)]
+                if todo_respaldado:
+                    # 047:RF-91: con el 047h, el equipo enfrentaba el aislador «polimérico» de la acción con la
+                    # «porcelana» del que se retira: un campo que la propuesta no tiene describe lo que la acción
+                    # cambia, no un dato. Con todos los datos respaldados y el elemento de la evidencia comprobado
+                    # (RF-90), pasa a observación.
+                    sin_dato = [x for x in contradicciones if isinstance(x, dict)
+                                and str(x.get('campo', '')).rpartition(':')[2].strip() not in propuesta]
+                    if sin_dato:
+                        contradicciones = [x for x in contradicciones if x not in sin_dato]
+                        observaciones = [*observaciones, *sin_dato]
+                        descartadas = [*descartadas, *({'entrada': x, 'motivo': 'campo que la propuesta no tiene, con '
+                                                        'todos sus datos respaldados: queda como observación'}
+                                                       for x in sin_dato)]
                 decision = raw['decision']
                 if descartadas or inc_descartadas:
                     # 047:RF-50: la decisión del modelo salía de unas listas que el código corrigió; la regla de RF-40
@@ -173,6 +205,15 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                     raise ValueError('dictamen favorable con incertidumbres o contradicciones pendientes')
                 # 047:RF-38: bloquear sin decir qué está mal no es hallar un defecto; el informe de T8 contaba
                 # «6 de 6 hallados» con el mismo dictamen que bloqueaba las 6 sanas.
+                if (decision != 'favorable' and not (incertidumbres or contradicciones) and todo_respaldado
+                        and ronda > 1):
+                    # 047:RF-102: con el 047o (2026-11-24), en sanos cuyos datos el código respaldaba todos, el modelo
+                    # bloqueó sin decir por qué también en la segunda ronda, que ya le mostraba el motivo (RF-81). Un
+                    # bloqueo sin hallazgo no es un defecto (RF-38): tras el reintento queda como observación y decide
+                    # la comprobación del código, como las dudas de RF-91. Aprobar no autoriza ejecutar nada.
+                    observaciones = [*observaciones, f'el revisor dijo «{decision}» sin ningún hallazgo tras el '
+                                                     'reintento; el código respalda todos los datos']
+                    decision = 'favorable'
                 if decision != 'favorable' and not (incertidumbres or contradicciones):
                     raise ValueError(f"dictamen {decision} sin hallazgo: ninguna contradicción ni incertidumbre")
                 dato = {**deepcopy(raw), 'decision': decision, 'contradicciones': contradicciones,
@@ -181,6 +222,8 @@ def revisar_propuesta(propuesta, evidencia, *, contexto, max_rondas=2,
                     dato['contradicciones_descartadas'] = descartadas
                 if inc_descartadas:
                     dato['incertidumbres_descartadas'] = inc_descartadas
+                if observaciones:
+                    dato['observaciones'] = observaciones
                 if decision != raw['decision']:
                     dato['decision_devuelta'] = raw['decision']
             except (ValueError, TypeError, KeyError, OSError, RuntimeError, TimeoutError) as exc:
