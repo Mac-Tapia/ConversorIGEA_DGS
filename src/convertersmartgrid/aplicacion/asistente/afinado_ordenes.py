@@ -9,10 +9,12 @@ cruzada que heredara el tramo de otra ya habría leído las órdenes que examina
 from __future__ import annotations
 
 from collections import Counter
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, MutableMapping, Sequence
 from dataclasses import asdict
+from pathlib import Path
 import random
 import time
+from typing import Any
 
 from . import codificador_ordenes as co
 from .datos_por_palabra import ETIQUETAS
@@ -35,28 +37,119 @@ def _torch():
     return torch
 
 
+class FilasPrefijo(MutableMapping):
+    """Las filas de la caché del prefijo: por frase, ``(estados, índices, tramos)``, con los estados en la RAM o en disco.
+
+    070:RF-94: el 2026-11-24 la corrida de la 070 T28 la cortó la guardia con 0,85 GiB libres. Medido en el arranque:
+    abrir el codificador deja el proceso en 1,25 GiB y la caché de 65 086 frases añade 2,75 GiB (2,09 GiB de estados
+    en float16, 22,5 piezas por frase), en un equipo de 15,7 GiB con 5,8 libres. Con ``carpeta``, los estados van a un
+    fichero por tanda y se leen con lecturas normales: los bytes quedan en la caché de ficheros del sistema, que Windows
+    da por disponible y suelta cuando falta memoria, en vez de en la memoria privada del proceso. Una proyección
+    (``mmap``) no sirve: sus páginas cuentan en el conjunto de trabajo del proceso hasta que el sistema lo recorta. Los
+    índices, los tramos y el largo siguen en la RAM (son pocos bytes), así que el largo de cada frase no lee el disco. Los
+    valores son los mismos bit a bit que en la RAM."""
+
+    def __init__(self, carpeta: Path | None = None):
+        self.carpeta, self._ram, self._meta, self._ficheros = carpeta, {}, {}, []
+        if carpeta is not None:
+            Path(carpeta).mkdir(parents=True, exist_ok=True)
+
+    def guardar(self, filas: Sequence[tuple[str, Any, Any, Any]]) -> None:
+        """Una tanda de ``(texto, estados, índices, tramos)``; en disco, un fichero por tanda."""
+        if self.carpeta is None:
+            for t, e, i, tr_ in filas:
+                self._ram[t] = (e, i, tr_)
+            return
+        ruta = Path(self.carpeta) / f'tanda_{len(self._ficheros):04d}.f16'
+        desplazamiento = 0
+        with ruta.open('wb') as f:
+            for t, e, i, tr_ in filas:
+                datos = e.contiguous().numpy().tobytes()
+                f.write(datos)
+                self._meta[t] = (len(self._ficheros), desplazamiento, tuple(e.shape), i, tr_)
+                desplazamiento += len(datos)
+        self._ficheros.append(ruta.open('rb'))
+
+    def largo(self, texto: str) -> int:
+        return len(self._ram[texto][0]) if texto in self._ram else self._meta[texto][2][0]
+
+    def tramos(self, texto: str):
+        return self._ram[texto][2] if texto in self._ram else self._meta[texto][4]
+
+    def __getitem__(self, texto: str):
+        if texto in self._ram:
+            return self._ram[texto]
+        n, desde, forma, indices, tramos = self._meta[texto]
+        torch = _torch()
+        f = self._ficheros[n]
+        f.seek(desde)
+        crudo = bytearray(f.read(2 * forma[0] * forma[1]))
+        return torch.frombuffer(crudo, dtype=torch.float16).view(*forma), indices, tramos
+
+    def __setitem__(self, texto: str, fila) -> None:
+        self._meta.pop(texto, None)
+        self._ram[texto] = fila
+
+    def __delitem__(self, texto: str) -> None:
+        if texto in self._ram:
+            del self._ram[texto]
+        else:
+            del self._meta[texto]
+
+    def __iter__(self):
+        yield from self._ram
+        yield from self._meta
+
+    def __len__(self) -> int:
+        return len(self._ram) + len(self._meta)
+
+    def __contains__(self, texto) -> bool:
+        return texto in self._ram or texto in self._meta
+
+    def clear(self) -> None:
+        """Suelta la RAM y borra los ficheros: tras la última vuelta la caché ya no hace falta."""
+        self._ram.clear()
+        self._meta.clear()
+        for f in self._ficheros:
+            ruta = Path(f.name)
+            f.close()
+            ruta.unlink(missing_ok=True)
+        self._ficheros.clear()
+        if self.carpeta is not None and Path(self.carpeta).is_dir() and not any(Path(self.carpeta).iterdir()):
+            Path(self.carpeta).rmdir()
+
+
 class CachePrefijo:
     """Por frase, una vez por ejecución y en la CPU, solo la salida de las capas congeladas (079:RF-15, RF-16).
 
     Trae también con qué parar: las filas de selección y la medida que elige al candidato, para que una vuelta de la validación
-    cruzada, que solo conoce ``co.entrenar``, pare igual que un candidato (079:RF-49).
+    cruzada, que solo conoce ``co.entrenar``, pare igual que un candidato (079:RF-49). Con ``carpeta``, los estados van a
+    disco (070:RF-94, ``FilasPrefijo``).
     """
 
-    def __init__(self, codificador, capas: int, seleccion: Sequence[dict], medir: Callable, *, lote: int = 64):
-        self.codificador, self.capas, self.seleccion, self.medir, self.lote, self.filas = codificador, capas, seleccion, medir, lote, {}
+    def __init__(self, codificador, capas: int, seleccion: Sequence[dict], medir: Callable, *, lote: int = 64,
+                 carpeta: Path | None = None):
+        self.codificador, self.capas, self.seleccion, self.medir, self.lote = codificador, capas, seleccion, medir, lote
+        self.filas = FilasPrefijo(carpeta)
 
     def entrenar(self, ejemplos: Sequence[Ejemplo], cfg: co.Configuracion, log: Callable[[str], None], dispositivo):
         return entrenar_afinado(ejemplos, cfg, log, cache=self, dispositivo=dispositivo)
 
     def asegurar(self, textos: Sequence[str], log: Callable[[str], None] = lambda _m: None) -> None:
         pendientes = sorted({t for t in textos if t not in self.filas}, key=len)
+        nuevas = []
         for inicio in range(0, len(pendientes), self.lote):
             trozo = pendientes[inicio:inicio + self.lote]
             p = self.codificador.prefijo(trozo, self.capas)
             for i, t in enumerate(trozo):
                 largo = int(p.atencion[i].sum())
                 # float16 sin el relleno: son decenas de miles de frases, medidas en 1,2 GB, y al equipo le falta memoria.
-                self.filas[t] = (p.estados[i, :largo].half().cpu(), p.indices[i], p.tramos[i])
+                nuevas.append((t, p.estados[i, :largo].half().cpu(), p.indices[i], p.tramos[i]))
+            if self.filas.carpeta is None or len(nuevas) >= 4096:
+                self.filas.guardar(nuevas)
+                nuevas = []
+        if nuevas:
+            self.filas.guardar(nuevas)
         if pendientes:
             log(f'  congeladas: {len(pendientes)} frases nuevas, {len(self.filas)} en total')
 
@@ -211,9 +304,9 @@ def entrenar_afinado(ejemplos: Sequence[Ejemplo], cfg: co.Configuracion, log: Ca
     peso_etiqueta[1:] = 4.
     ce_datos = torch.nn.CrossEntropyLoss(weight=peso_etiqueta, ignore_index=-100)
     parecidas = tareas_parecidas(tareas)
-    largos = [len(cache.filas[t][0]) for t in textos]
-    formas = {t: torch.tensor([co.rasgos_de_forma(t[a:b]) for a, b in cache.filas[t][2]], dtype=torch.float32) for t in set(textos)
-              if cache.filas[t][2]}
+    largos = [cache.filas.largo(t) for t in textos]                                   # 070:RF-94: sin leer el disco
+    formas = {t: torch.tensor([co.rasgos_de_forma(t[a:b]) for a, b in cache.filas.tramos(t)], dtype=torch.float32)
+              for t in set(textos) if cache.filas.tramos(t)}
     historial, mejor, mejor_puntaje, mejor_epoca, sin_mejorar = [], None, None, -1, 0
     for epoca in range(cfg.afinar_epocas):
         comienzo, total, n = time.monotonic(), 0., 0

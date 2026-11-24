@@ -122,7 +122,7 @@
       D:/csg/PM_IMPL/N12/070_T27/verde.log. Con el modelo real en uso (prov-8fd8a405, 49 de 68 tareas),
       `motivo_no_disponible()` pasa de ese error a ninguno.
 - [ ] T28 [GPU] Mejorar el candidato rechazado en la T22: separar las tareas vecinas que confunde y repetir la corrida
-  con la no regresión ya medible (T27). (RF-84, RF-92, RF-93)
+  con la no regresión ya medible (T27). (RF-84, RF-92, RF-93, RF-94)
   Causas medidas el 2026-11-24 (asistente_integral_20261124.json): en calibración buscar_maxima→sistema_completo (40),
   cruzar_clientes→alimentadores_completo (36), descargar_resultados→unir (36), proyecto_entero→enviar_informe (11);
   en selección estado→ninguna (10), proyecto_entero→sistema_completo (10), leer_solicitud→pit_expediente (7) y
@@ -134,4 +134,11 @@
       `curriculo_hash`) y las paráfrasis en `fuga_evaluacion.textos_que_entrenan`. Pruebas:
       `tests/test_curriculo_070_t28.py` (070:RF-93), rojo por aserción de la fuga con el código anterior
       (D:/csg/PM_IMPL/N12/t28_rojo.log) y verde con sus vecinas (269 passed, D:/csg/PM_IMPL/N12/t28_vecinas.log).
+      Corrida del 2026-11-24 14:19 (wt_d8_t28, fd9126de): ensayo rc=0; la corrida la cortó la guardia a las 15:33 en la
+      vuelta 2 de 5 (0,85 GiB libres, rc=137; D:/csg/PM_IMPL/GPU_BLOQUE/070_T28_noche). Medido con su corpus: el
+      codificador deja el proceso en 1,25 GiB y la caché del prefijo añade 2,75 GiB (D:/csg/PM_IMPL/N12/medir_memoria_t28.py).
+      Código (RF-94): `afinado_ordenes.FilasPrefijo` con los estados en disco; la corrida la pide en su carpeta
+      `cache_prefijo`. Con el mismo corpus el proceso queda en 1,91 GiB en vez de 4,00 y los 2,09 GiB de estados están en
+      disco (D:/csg/PM_IMPL/N12/memoria_disco.txt). Pruebas: `tests/test_cache_prefijo_disco.py` (070:RF-94), con sus
+      vecinas 206 passed (D:/csg/PM_IMPL/N12/rf94_vecinas.log).
       Queda la corrida en la GPU con la no regresión ya medible (T27).

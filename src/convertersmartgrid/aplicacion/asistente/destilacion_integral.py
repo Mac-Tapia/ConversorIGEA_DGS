@@ -561,6 +561,9 @@ def decidir_selectiva(selectiva: dict, decide: str, sinteticas: dict, en_uso: di
 #: 069:RF-38: nivel de la prueba de McNemar exacta, unilateral (solo interesa que el candidato empeore).
 ALFA_NO_REGRESION = 0.05
 
+#: 070:RF-94: carpeta de la corrida donde el afinado deja los estados congelados; ni se copia a Drive ni se conserva.
+CARPETA_CACHE_PREFIJO = 'cache_prefijo'
+
 
 def aciertos_de_tarea(modelo, registros: Sequence[dict]) -> list[bool]:
     """069:RF-39: acierto de la tarea orden por orden, con el criterio de ``transformer.evaluar``."""
@@ -1055,7 +1058,9 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     nombre_cod, revision_cod = co.CODIFICADORES[cfg.codificador]                              # 069:RF-33
     codificador = co.obtener_codificador(nombre_cod, revision_cod, disp)
     # 079:RF-15: con afinado solo se guarda lo que dan las capas congeladas; las que cambian se recorren en cada paso.
-    cache = (af.CachePrefijo(codificador, cfg.afinar_capas, por_parte['seleccion'], evaluar_alumno) if cfg.afinar_capas
+    # 070:RF-94: con afinado, los estados congelados van a disco, dentro de la corrida; se borran al soltar la caché.
+    cache = (af.CachePrefijo(codificador, cfg.afinar_capas, por_parte['seleccion'], evaluar_alumno,
+                             carpeta=Path(destino) / CARPETA_CACHE_PREFIJO) if cfg.afinar_capas
              else co.CacheCodificada(codificador))
     base = [r for r in por_parte['entrenamiento'] if not r['del_maestro']]
     maestro = [r for r in por_parte['entrenamiento'] if r['del_maestro']]

@@ -203,6 +203,11 @@ le estaban cerradas aunque el operador confirmara.
   confundidas, cada una con la pista que la separa de su vecina, solo en entrenamiento y con su origen y su maestro; una
   que coincida por texto, por familia o por la familia ancha de la 075 con lo que mide no entra. La comprobación de fugas
   hacia las pruebas selladas contará también todas las paráfrasis que solo entrenan.
+- RF-94: (070 T28, 2026-11-24: la guardia cortó la corrida con 0,85 GiB libres; la caché del prefijo ocupaba 2,75 GiB del
+  proceso) MIENTRAS se afine el intérprete en una corrida, EL SISTEMA guardará los estados congelados de cada frase en
+  ficheros de la corrida, con los mismos valores bit a bit, y los leerá por lotes, de modo que no ocupen la memoria del
+  proceso; el largo y los tramos de cada frase seguirán en la memoria, y al soltar la caché se borrarán sus ficheros, que
+  no se copian a Drive.
 
 ## Fuera de alcance
 
