@@ -354,6 +354,9 @@ instalador recibió `/DVersion` a mano; y «Acerca de» enseñaba las notas del 
   visible y manejo por teclado (flechas, Inicio, Fin e Intro), una alternativa de una sola pulsación a cada arrastre,
   objetivos de al menos 24 px y contraste AA en los temas claro y oscuro, y comunicará cada estado con texto o icono
   además del color (WCAG 2.2 AA; Plan Maestro V1, F-11; T0c, 2026-11-14).
+  Aclaración (CI de 14f92ddd, 2026-11-24): la opción que se elige con las flechas queda marcada al momento, sin esperar
+  al servidor, y solo cuenta la respuesta de la última elección; una respuesta atrasada no cambia la opción marcada ni
+  la separa de la que tiene el foco.
 - RF-107: CUANDO se publique un candidato, EL SISTEMA habrá recorrido en un navegador real F01 (VNR), F02 (simulación sobre
   el plano), F03 (planificación) y F04 (asistente) sobre una web aislada y sin red, con axe-core sin infracciones graves ni
   críticas de WCAG 2.2 AA, y guardará las capturas y el resultado por SHA (Plan Maestro V1, F-12; T0c, 2026-11-14).

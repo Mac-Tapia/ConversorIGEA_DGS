@@ -210,3 +210,14 @@ def test_048_t3b_csg_ipopt_manda_sobre_la_carpeta(tmp_path, monkeypatch):
     assert pnl.ejecutable_ipopt() == str(falso)
     monkeypatch.setenv('CSG_IPOPT', str(tmp_path / 'no_existe.exe'))
     assert pnl.ejecutable_ipopt() != str(tmp_path / 'no_existe.exe')
+
+
+def test_048_rf2_el_benchmark_completa_el_mejor_candidato_con_su_tramo_continuo():
+    """048:RF-2, RF-4 — auditoría D.3 (2026-11-24): el tramo PNL no lo llamaba ningún flujo; el benchmark lo usa con
+    las discretas del mejor candidato fijas, y el resultado dice su alcance (o ERROR_ENTORNO sin el solucionador)."""
+    from convertersmartgrid.adaptadores.digital_twin import benchmark_optimizacion as bo
+    r = bo.tramo_continuo(problema_conocido(), {'k': 1, 'u': 1.0, 'w': 0.9})
+    assert r['estado'] in ('LOCAL_CONVERGIDO', 'NO_CONVERGIDO', 'ERROR_ENTORNO'), r
+    if r['estado'] != 'ERROR_ENTORNO':
+        assert r.get('alcance') == 'local_continuo' and r.get('optimo_global') is False, r
+    assert bo.tramo_continuo(problema_conocido(), {'u': 1.0})['estado'] == 'NO_APLICA', 'sin la discreta no se resuelve'

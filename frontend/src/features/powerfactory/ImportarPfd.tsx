@@ -15,13 +15,14 @@ import { FileDrop } from '../../shared/ui';
 export function ImportarPfd({ onImportado }: { onImportado: () => void }) {
   const { ws, startJob, active, jobs } = useApp();
   const [reimportar, setReimportar] = useState(false);
+  const [expediente, setExpediente] = useState('');
   const pfBusy = Boolean(active.powerfactory);
   const ultimo = Object.values(jobs).filter((j) => j.kind === 'pfd_diagnostico' && j.status === 'done' && j.result).pop();
   const resultado = (ultimo?.result ?? null) as PfdResultado | null;
   const r = resultado?.resumen;
 
   const importar = async (file: File) => {
-    if (await startJob(() => api.pfdImportar(ws.id, file, reimportar))) onImportado();
+    if (await startJob(() => api.pfdImportar(ws.id, file, reimportar, expediente))) onImportado();
   };
 
   return (
@@ -33,6 +34,11 @@ export function ImportarPfd({ onImportado }: { onImportado: () => void }) {
       <label className="small">
         <input type="checkbox" checked={reimportar} onChange={(e) => setReimportar(e.target.checked)} />
         {' '}En un proyecto nuevo, aunque ya esté importado
+      </label>
+      <label className="small">
+        Carpeta del expediente (opcional, en este equipo)
+        <input type="text" value={expediente} onChange={(e) => setExpediente(e.target.value)}
+          placeholder="D:\\proyectos\\expediente" disabled={pfBusy} />
       </label>
       {r && (
         <div className="small">
@@ -53,6 +59,23 @@ export function ImportarPfd({ onImportado }: { onImportado: () => void }) {
               <ul>{r.avisos.map((a) => <li key={a.aviso}>{a.aviso}{a.veces > 1 && <strong> ×{a.veces}</strong>}</li>)}</ul>
             </details>
           )}
+          {(resultado?.vinculos ?? []).map((v) => (
+            <details key={`v-${v.proyecto ?? ''}`}>
+              <summary>Expediente de {v.proyecto}: {cuenta(v.vinculos.length, 'vínculo', 'vínculos')}
+                {v.sin_vinculo.length > 0 && ` · ${cuenta(v.sin_vinculo.length, 'nombre', 'nombres')} sin fichero`}</summary>
+              <ul>
+                {v.vinculos.map((x) => (
+                  <li key={`${x.tipo}-${x.nombre}-${x.fichero}-${String(x.ubicacion)}`}>
+                    {x.tipo} «{x.nombre}» → {x.fichero}{x.ubicacion ? ` (${x.ubicacion})` : ''}: «{x.texto}»
+                  </li>
+                ))}
+              </ul>
+              {v.ficheros.filter((f) => f.estado !== 'ok').length > 0 && (
+                <p>Sin leer: {v.ficheros.filter((f) => f.estado !== 'ok').map((f) => `${f.fichero} (${f.motivo ?? f.estado})`).join('; ')}</p>
+              )}
+              {v.sin_vinculo.length > 0 && <p>Sin fichero que lo nombre: {v.sin_vinculo.join(', ')}</p>}
+            </details>
+          ))}
           {resultado?.informe_texto && (
             <a className="link" href={api.fileUrl(ws.id, resultado.informe_texto, true)}>Descargar el informe</a>
           )}

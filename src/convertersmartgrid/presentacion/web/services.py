@@ -7203,7 +7203,8 @@ def pfd_resumen(informe: Mapping[str, Any]) -> dict:
             'errores': list(informe.get('errores') or [])}
 
 
-def pfd_importar(ws: Workspace, ctx: JobContext, ruta: Path, *, reimportar: bool = False) -> dict:
+def pfd_importar(ws: Workspace, ctx: JobContext, ruta: Path, *, reimportar: bool = False,
+                 expediente: Path | None = None) -> dict:
     """004:RF-118: importa un ``.pfd`` subido al espacio en la carpeta de DIgSILENT de su empresa y lo diagnostica.
 
     Es ``tools/pfd_diagnostico.py`` (RF-81 a RF-107), el mismo guion de la prueba del 20-11 (004 T30), lanzado desde
@@ -7234,7 +7235,36 @@ def pfd_importar(ws: Workspace, ctx: JobContext, ruta: Path, *, reimportar: bool
                  f'No se diagnosticó {ruta.name}')
     texto = report.with_suffix('.txt')
     return {'returncode': rc, 'report': report.name, 'informe_texto': texto.name if texto.is_file() else None,
-            'resumen': pfd_resumen(informe)}
+            'resumen': pfd_resumen(informe),
+            'vinculos': pfd_vinculos_del_expediente(ws, expediente, informe, ctx) if expediente else []}
+
+
+def pfd_vinculos_del_expediente(ws: Workspace, carpeta: Path, informe: dict, ctx: JobContext | None = None) -> list[dict]:
+    """004:RF-109, RF-110: el proyecto de cada ``.pfd`` vinculado con los ficheros de la carpeta de su expediente por su
+    contenido, con la evidencia de cada vínculo.
+
+    Auditoría D.3 (2026-11-24): ``adaptadores/pfd_vinculos.py`` existía con sus pruebas (T28), pero ningún flujo lo
+    llamaba y la web nunca enseñaba los vínculos que pide la prueba real (T30). La carpeta la indica el operador al
+    importar (el ``.pfd`` subido se guarda aparte, con otros ``.pfd``, y esa no es su expediente); un fichero que no se
+    puede leer va aparte con su motivo, nunca vinculado por suposición.
+    """
+    from ...adaptadores.pfd_vinculos import nombres_del_diagnostico, vincular
+
+    carpeta = Path(carpeta)
+    if not carpeta.is_dir():
+        return []
+    try:
+        sets = sorted(estructura_del_espacio(ws).sets)
+    except Exception:  # noqa: BLE001 - sin estructura del espacio se vincula sin SET; no para el diagnóstico
+        sets = []
+    salida = []
+    for diag in informe.get('proyectos') or ():
+        resultado = vincular(nombres_del_diagnostico(diag, sets), carpeta)
+        salida.append({'proyecto': diag.get('proyecto'), **resultado})
+        if ctx is not None:
+            ctx.log(f"Expediente de «{diag.get('proyecto')}»: {_cuenta(len(resultado['vinculos']), 'vínculo', 'vínculos')} "
+                    f"por contenido; {_cuenta(len(resultado['sin_vinculo']), 'nombre', 'nombres')} sin fichero que los nombre.")
+    return salida
 
 
 #: 002:RF-5 (spec 111): ``guion_pf`` es el nombre público para los demás módulos. El privado se queda como alias: lo

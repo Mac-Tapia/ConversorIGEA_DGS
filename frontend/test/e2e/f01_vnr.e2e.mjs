@@ -83,3 +83,38 @@ test('F01 VNR: un fichero que no es un paquete se rechaza con un mensaje claro, 
     // El error esperado no es un fallo de la página: solo cuentan los de JavaScript, no la respuesta 4xx de la API.
     sinRedNiErrores(externas, errores.filter((e) => !/status of 4\d\d/.test(e)));
   });
+
+test('F01 086 F-12: con el servidor lento, la opción elegida con flechas se marca al momento y una respuesta atrasada no la cambia',
+  async ({ web: page, externas, errores }) => {
+    // En el CI (14f92ddd) el servidor tardó en responder al cambio de entrada: la opción enfocada y la elegida dejaron de
+    // coincidir. Aquí la primera elección responde tarde y la segunda al momento, como pasó allí.
+    const grupo = page.getByRole('radiogroup', { name: 'Alternativa de entrada' });
+    const opciones = grupo.getByRole('radio');
+    await expect(opciones).toHaveCount(3);
+    const nombres = await opciones.allTextContents();
+    const marcadas = await opciones.evaluateAll((rs) => rs.map((r) => r.getAttribute('aria-checked')));
+    // Un espacio nuevo no trae fuente elegida (059): se sale de la primera opción.
+    const i = Math.max(marcadas.indexOf('true'), 0);
+    const destino = grupo.getByRole('radio', { name: nombres[(i + 2) % 3], exact: true });
+
+    let pedidos = 0;
+    await page.route('**/options', async (ruta) => {
+      if (ruta.request().method() !== 'PUT') return ruta.fallback();
+      pedidos += 1;
+      if (pedidos === 1) await new Promise((listo) => setTimeout(listo, 2_000));
+      return ruta.fallback();
+    });
+    await opciones.nth(i).focus();
+    await page.keyboard.press('ArrowRight');
+    await page.keyboard.press('ArrowRight');
+    // Marcada antes de que conteste el servidor, y con el foco.
+    await expect(destino).toHaveAttribute('aria-checked', 'true', { timeout: 1_000 });
+    await expect(destino).toBeFocused();
+    // Cuando llegan las dos respuestas, sigue siendo la elegida y la que tiene el foco.
+    await expect.poll(() => pedidos).toBe(2);
+    await page.waitForTimeout(3_000);
+    await expect(destino).toHaveAttribute('aria-checked', 'true');
+    await expect(destino).toBeFocused();
+    await expect(grupo.locator('[aria-checked="true"]')).toHaveCount(1);
+    sinRedNiErrores(externas, errores);
+  });

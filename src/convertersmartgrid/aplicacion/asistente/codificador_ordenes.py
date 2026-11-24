@@ -253,6 +253,18 @@ def tareas_del_modelo() -> list[str]:
     return [*sorted(TAREAS), NINGUNA]
 
 
+def contrato_compatible(tareas, etiquetas, contrato: Sequence[str] | None = None) -> bool:
+    """070:RF-92: un modelo guardado vale si sus tareas son una parte del contrato, sin repetir, y sus entidades las de hoy.
+
+    El contrato crece con cada tarea nueva y el modelo predice con su propia lista (``self.tareas``), así que uno
+    entrenado antes sigue sirviendo para lo que conoce; lo nuevo lo reconoce la frase literal (RF-84). El 2026-11-24 el
+    modelo en uso tenía 49 de las 68 tareas, se exigía la lista idéntica y el asistente se quedó sin modelo de órdenes.
+    Una tarea que el contrato ya no tiene, o entidades distintas, sí lo hacen incompatible."""
+    contrato = tareas_del_modelo() if contrato is None else list(contrato)
+    return (isinstance(tareas, list) and bool(tareas) and len(set(tareas)) == len(tareas)
+            and set(tareas) <= set(contrato) and etiquetas == list(ETIQUETAS))
+
+
 def construir_cabezas(dim: int, n_tareas: int, n_etiquetas: int, cfg: Configuracion):
     torch = _torch()
     nn = torch.nn
@@ -491,7 +503,7 @@ def _abrir_tramo(meta: dict, pesos: dict, cfg: Configuracion, base, disp) -> tup
 
 def modelo_desde(meta: dict, pesos: dict, version: str, dispositivo) -> ModeloCodificador:
     """Reabre un modelo guardado: sus cabezas, y el codificador de su nombre y su revisión, sin red (069:RF-4, RF-5)."""
-    if meta.get('etiquetas') != list(ETIQUETAS) or meta.get('tareas') != tareas_del_modelo():
+    if not contrato_compatible(meta.get('tareas'), meta.get('etiquetas')):
         raise ValueError('contrato de tareas o entidades incompatible')
     datos = meta['codificador']
     disp = dispositivo

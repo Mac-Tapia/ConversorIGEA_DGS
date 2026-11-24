@@ -216,6 +216,23 @@ def _resumen(ejecuciones: list[dict[str, Any]], nombres: list[str]) -> dict[str,
     return r
 
 
+def tramo_continuo(problema: ProblemaOptimizacion, vector: Mapping[str, Any]) -> dict[str, Any]:
+    """048:RF-2, RF-4: el tramo continuo del mejor candidato, con sus discretas fijas, por el solucionador PNL.
+
+    Auditoría D.3 (2026-11-24): ``adaptador_pnl`` tenía sus pruebas (048 T3) pero ningún flujo lo llamaba. El benchmark
+    es donde se comparan las soluciones: si el problema declara un tramo continuo (``modelo_pnl``), el mejor candidato
+    se completa con su solución local continua, que dice siempre su alcance (``local_continuo``); sin Pyomo o sin el
+    solucionador queda ``ERROR_ENTORNO`` para ese problema y el benchmark sigue.
+    """
+    from .adaptador_pnl import resolver_continuo
+
+    discretas = {v.nombre: vector[v.nombre] for v in problema.variables if v.discreta and v.nombre in vector}
+    try:
+        return resolver_continuo(problema, discretas_fijas=discretas, opciones_solver={})
+    except ValueError as exc:
+        return {'estado': 'NO_APLICA', 'motivo': str(exc)}
+
+
 def _candidatos(ejecuciones: list[dict[str, Any]], nombres: list[str]) -> list[dict[str, Any]]:
     """Lo mejor del frente de todas las ejecuciones, sin repetir, para la verificación de la 044."""
     filas = [f for e in ejecuciones for f in e['frente']]
@@ -304,6 +321,8 @@ def comparar_optimizadores(problemas: Sequence[ProblemaOptimizacion], *, semilla
             break
         todas = [e for a in fila['algoritmos'].values() for e in a['ejecuciones']]
         fila['candidatos'] = _candidatos(todas, nombres)
+        if fila['candidatos'] and p.modelo_pnl is not None and any(not v.discreta for v in p.variables):
+            fila['tramo_continuo'] = tramo_continuo(p, fila['candidatos'][0]['vector'])
     if estado == 'cancelado':
         for fila in salida:
             fila['candidatos'] = []

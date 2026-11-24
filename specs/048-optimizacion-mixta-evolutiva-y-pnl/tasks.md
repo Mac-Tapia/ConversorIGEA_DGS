@@ -115,4 +115,12 @@ simulación que solo converge.
   (`test_pf_servidor.py`, por `tools/powerfactory_acceptance.py`; `test_valle_front.py`, por el frontend).
 - Limitaciones: el doble reabre el proyecto sin releer de una base; que DIgSILENT guarde las variaciones, que la foto
   real no varíe entre dos lecturas de la misma red y el tiempo de la foto en un proyecto grande los mide la T4.
-
+- [x] T5. El tramo continuo en el flujo: el benchmark completa su mejor candidato con la solución PNL (auditoría D.3:
+      `adaptador_pnl` no lo llamaba ningún flujo). (RF-2, RF-4)
+      Hecho cuando: `tests/test_adaptador_pnl.py` (048:RF-2) en verde, con el benchmark llamando a `tramo_continuo` para
+      los problemas con `modelo_pnl` y variables continuas.
+      Código, 2026-11-24 (d8, N12): `tramo_continuo` en `benchmark_optimizacion.py`, que `comparar_optimizadores` usa
+      con el mejor candidato; sin Pyomo o sin solucionador, `ERROR_ENTORNO` para ese problema y el benchmark sigue.
+      Verde, 2026-11-24 12:10 (d8): D:/csg/PM_IMPL/N12/pytest.log, 236 passed con tests/test_pfd_vinculos_web.py,
+      tests/test_adaptador_pnl.py, test_contrato_api, test_capas, test_inventario y test_matriz_operaciones (los dos
+      fallos del registro son los de la spec cumplida con esta tarea abierta, que se cierra aquí).

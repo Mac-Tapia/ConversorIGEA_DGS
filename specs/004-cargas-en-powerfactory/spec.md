@@ -406,6 +406,11 @@ desde un DGS; los `.pfd` versionados se renombran y se conservan.
 - RF-109: EL SISTEMA vinculará el proyecto de un `.pfd` con los ficheros de su expediente cuando su contenido nombre
   sus casos, escenarios, variaciones, alimentadores, SET o el propio proyecto, como palabra entera y sin distinguir
   mayúsculas ni tildes (T28, texto acordado en el plan).
+  Aclaración (auditoría D.3, 2026-11-24): la carpeta del expediente la indica el operador al importar el `.pfd` desde la
+  web (una ruta de este equipo, solo con la web en local, como el libro de pérdidas de 017:RF-93); el `.pfd` subido se
+  guarda aparte, con otros `.pfd`, y su carpeta no es su expediente. Sin carpeta indicada no hay vínculos. Los vínculos
+  van en el resultado del trabajo y la web los enseña con su evidencia, lo que ningún fichero nombra y lo que no se
+  pudo leer.
 - RF-110: EL SISTEMA guardará con cada vínculo su evidencia (el fichero con su huella, la hoja o la página y el texto
   que lo nombra); el nombre de un fichero parecido no bastará, y un fichero que no se pueda leer se dirá aparte con
   su motivo, nunca vinculado por suposición.

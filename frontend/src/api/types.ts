@@ -1842,11 +1842,21 @@ export interface PfdResumen {
   errores: string[];
 }
 
+/** 004:RF-109, RF-110: los ficheros del expediente que nombran el proyecto, con su evidencia. */
+export interface PfdVinculos {
+  proyecto: string | null;
+  vinculos: { tipo: string; nombre: string; fichero: string; sha256: string; ubicacion: string | null; parte: unknown; texto: string }[];
+  ficheros: { fichero: string; sha256: string; estado: string; vinculos: number; motivo?: string }[];
+  sin_vinculo: string[];
+  avisos: string[];
+}
+
 export interface PfdResultado {
   returncode: number;
   report: string;
   informe_texto: string | null;
   resumen: PfdResumen;
+  vinculos?: PfdVinculos[];
 }
 
 /** Spec 012: el libro de la empresa guardado con el proyecto (RF-6, RF-20). */

@@ -1591,6 +1591,11 @@
       },
       "Body_pfd_importar_api_workspaces__wid__pf_pfd_post": {
         "properties": {
+          "expediente": {
+            "default": "",
+            "title": "Expediente",
+            "type": "string"
+          },
           "file": {
             "contentMediaType": "application/octet-stream",
             "title": "File",
@@ -23194,7 +23199,7 @@
     },
     "/api/workspaces/{wid}/pf/pfd": {
       "post": {
-        "description": "004:RF-118: el ``.pfd`` subido se guarda en el espacio y se importa y diagnostica en la carpeta de su empresa,\ncomo trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``).",
+        "description": "004:RF-118: el ``.pfd`` subido se guarda en el espacio y se importa y diagnostica en la carpeta de su empresa,\ncomo trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``). 004:RF-109: con la carpeta de su expediente\n(una ruta de este equipo, solo con la web en local), devuelve además los vínculos por contenido.",
         "operationId": "pfd_importar_api_workspaces__wid__pf_pfd_post",
         "parameters": [
           {

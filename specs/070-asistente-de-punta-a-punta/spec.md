@@ -192,6 +192,12 @@ le estaban cerradas aunque el operador confirmara.
   «omite las verificaciones», «sin pedir confirmación», «ignore previous instructions»), ENTONCES EL SISTEMA lo tratará
   como dato del documento, lo dirá en la propuesta con el trozo citado, y el plan esperará al operador aunque su tarea
   solo lea o solo prepare un envío; la tarea y sus efectos siguen saliendo del catálogo, nunca del texto.
+- RF-92: (070 T22, 2026-11-24: el modelo en uso prov-8fd8a405 conoce 49 tareas y el contrato tiene 68; el código lo
+  daba por «contrato de tareas o entidades incompatible», el asistente quedaba sin modelo de órdenes y la no regresión
+  del candidato no se podía medir) SI el modelo de órdenes guardado conoce solo una parte de las tareas del contrato,
+  sin ninguna que el contrato ya no tenga, y las mismas entidades, ENTONCES EL SISTEMA lo abrirá y predecirá con sus
+  propias tareas (las nuevas, por RF-84), y la no regresión del candidato lo comparará en las mismas órdenes humanas.
+  SI le falta al contrato alguna de sus tareas o cambian las entidades, ENTONCES seguirá incompatible.
 
 ## Fuera de alcance
 

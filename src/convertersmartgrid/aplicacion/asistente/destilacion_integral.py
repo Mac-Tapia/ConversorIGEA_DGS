@@ -868,7 +868,8 @@ def cargar_alumno(carpeta: Path):
         from .codificador_ordenes import modelo_desde
         return modelo_desde(meta, tr.modulo_torch().load(Path(carpeta) / 'pesos.pt', weights_only=True, map_location='cpu'),
                             meta.get('version', 'candidato'), tr.dispositivo_de_calculo())
-    if meta.get('etiquetas') != list(tr.ETIQUETAS) or meta.get('tareas') != sorted(TAREAS):
+    from .codificador_ordenes import contrato_compatible
+    if not contrato_compatible(meta.get('tareas'), meta.get('etiquetas'), contrato=sorted(TAREAS)):  # 070:RF-92
         raise ValueError('contrato de tareas o entidades incompatible')
     cfg = tr.Configuracion(**meta['cfg'])
     red = tr.construir_red(len(meta['simbolos']) + 3, {'tarea': len(meta['tareas'])}, cfg, len(tr.ETIQUETAS))

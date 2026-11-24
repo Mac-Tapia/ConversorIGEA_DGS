@@ -83,8 +83,14 @@
       como `selladas_nuevas`, y sus ficheros en `codigo_hashes`. Rojo VALIDO (2 failed, 2 passed) en
       D:/csg/PM_IMPL/ASISTENTE_C/070_T21/rojo.log; verde D:/csg/PM_IMPL/ASISTENTE_C/verde/verde_c.log (461 passed, rc=0) con las cuatro pruebas,
       `test_destilacion_integral.py` y `test_afinado_ordenes.py`. La medida real la da la T22 en la GPU.
-- [ ] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)
+- [x] T22 [GPU] Reentrenar el modelo de órdenes con las tareas nuevas y pasar sus puertas (085). (RF-84)
   Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con su diagnóstico.
+      Hecho el 2026-11-24 (d8, corrida limpia de 1 h 49 min en la GPU, rc=0, sin cortes): el candidato queda RECHAZADO
+      y sigue el modelo en uso, con su diagnóstico en D:/csg/PM_IMPL/GPU_BLOQUE/070_T22_noche/diagnostico.md. En las 43
+      humanas, lo que ejecuta solo (umbral 0,95) acierta 29 de 29; falla la ejecución sola en las sintéticas (0,964) y
+      en el examen del maestro (0,946), bajo 0,98, con confusiones entre tareas vecinas del contrato nuevo; la no
+      regresión no se pudo medir porque el modelo en uso no se abría con el contrato de 68 tareas, lo que arregla la T27.
+      La mejora del candidato sigue en la T28.
 - [x] T23 Esperas finitas del asistente (C2 del diagnóstico del 18-11, H03): «interrumpido» termina la espera, cada
   petición lleva su límite, la espera tiene plazo total y una web que no responde se dice. (RF-87)
   Hecho cuando: `pytest -q tests/test_asistente_espera_finita.py` en verde, con su rojo por aserción en la base (las
@@ -106,3 +112,19 @@
   ejecutados sin pytest (B44); el pytest lo corre el integrador d8.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T27 El modelo en uso con una parte de las tareas del contrato se abre y se compara (diagnóstico de la T22 del
+  2026-11-24). (RF-92, RF-84)
+  Hecho cuando: `tests/test_contrato_tareas_compatible.py` (070:RF-92) en verde, con rojo por aserción en la base, y
+  `tests/test_afinado_ordenes.py`, `tests/test_destilacion_integral.py` y `tests/test_modelo_provisional.py` en verde.
+      Hecho el 2026-11-24 (d8): rojo en la base (2 failed: «contrato de tareas o entidades incompatible» al abrir el
+      modelo recortado y en `motivo_no_disponible`), D:/csg/PM_IMPL/N12/070_T27/rojo.log; verde con
+      `codificador_ordenes.contrato_compatible` en `modelo_desde` y en `cargar_alumno` (159 passed con sus vecinas),
+      D:/csg/PM_IMPL/N12/070_T27/verde.log. Con el modelo real en uso (prov-8fd8a405, 49 de 68 tareas),
+      `motivo_no_disponible()` pasa de ese error a ninguno.
+- [ ] T28 [GPU] Mejorar el candidato rechazado en la T22: separar las tareas vecinas que confunde y repetir la corrida
+  con la no regresión ya medible (T27). (RF-84, RF-92)
+  Causas medidas el 2026-11-24 (asistente_integral_20261124.json): en calibración buscar_maxima→sistema_completo (40),
+  cruzar_clientes→alimentadores_completo (36), descargar_resultados→unir (36), proyecto_entero→enviar_informe (11);
+  en selección estado→ninguna (10), proyecto_entero→sistema_completo (10), leer_solicitud→pit_expediente (7) y
+  →subir_fuente_empresa (6). Ejecución sola: sintéticas 0,964 y maestro 0,946, bajo 0,98.
+  Hecho cuando: el candidato pasa sus puertas, o queda el modelo en uso con el diagnóstico de lo que aún confunde.

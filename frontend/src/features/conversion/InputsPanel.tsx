@@ -307,9 +307,19 @@ export function InputsPanel() {
     if (refreshed) setWs(refreshed);
   };
 
+  // 086 F-12, WCAG 2.1.1: la opción elegida con las flechas se marca al momento y solo cuenta la respuesta de la
+  // última elección. En el CI (F01, 14f92ddd) el servidor tardó en responder: la flecha siguiente salía de una opción
+  // aún sin marcar y una respuesta atrasada dejaba elegida una opción distinta de la que tenía el foco.
+  const [elegido, setElegido] = useState<InputMode | null>(null);
+  const pedidoModo = useRef(0);
+  const marcado = elegido ?? mode;
   const setMode = async (m: InputMode) => {
+    const n = ++pedidoModo.current;
+    setElegido(m);
     const r = await run(() => api.setOptions(ws.id, { input_mode: m }));
+    if (n !== pedidoModo.current) return;
     if (r) setWs(r);
+    setElegido(null);
   };
 
   const auto = async (files: File[]) => {
@@ -328,11 +338,11 @@ export function InputsPanel() {
         <h2><span className="step">1</span> Entrada de datos</h2>
         {/* 086 F-12, WCAG 2.1.1: aria-disabled y no disabled, para que el foco siga en la opción elegida mientras el motor trabaja. */}
         <div className="segmented" role="radiogroup" aria-label="Alternativa de entrada">
-          <button role="radio" aria-checked={mode === 'txt'} className={mode === 'txt' ? 'on' : ''}
+          <button role="radio" aria-checked={marcado === 'txt'} className={marcado === 'txt' ? 'on' : ''}
             aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('txt')}>TXT</button>
-          <button role="radio" aria-checked={mode === 'mdb'} className={mode === 'mdb' ? 'on' : ''}
+          <button role="radio" aria-checked={marcado === 'mdb'} className={marcado === 'mdb' ? 'on' : ''}
             aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('mdb')}>Base Access (.mdb)</button>
-          <button role="radio" aria-checked={mode === 'vnr'} className={mode === 'vnr' ? 'on' : ''}
+          <button role="radio" aria-checked={marcado === 'vnr'} className={marcado === 'vnr' ? 'on' : ''}
             aria-disabled={Boolean(active.engine) || undefined} onClick={() => !active.engine && setMode('vnr')}>VNR-GIS</button>
         </div>
       </header>

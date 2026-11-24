@@ -2929,15 +2929,26 @@ def create_app(
                       lambda ctx: services.protecciones_ejecutar(ws, ctx, plan), lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/pfd', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
-    def pfd_importar(wid: str, file: UploadFile = File(...), reimportar: bool = Form(False)) -> dict:
+    def pfd_importar(wid: str, file: UploadFile = File(...), reimportar: bool = Form(False),
+                     expediente: str = Form('')) -> dict:
         """004:RF-118: el ``.pfd`` subido se guarda en el espacio y se importa y diagnostica en la carpeta de su empresa,
-        como trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``)."""
+        como trabajo del carril de DIgSILENT (``tools/pfd_diagnostico.py``). 004:RF-109: con la carpeta de su expediente
+        (una ruta de este equipo, solo con la web en local), devuelve además los vínculos por contenido."""
         ws = ws_or_404(wid)
+        carpeta = None
+        if expediente.strip():
+            if not _server_paths_allowed(host):
+                raise HTTPException(403, 'Este servidor no admite rutas locales: la carpeta del expediente se indica '
+                                         'con la web abierta en este equipo.')
+            carpeta = Path(expediente.strip().strip('"'))
+            if not carpeta.is_dir():
+                raise HTTPException(400, f'No existe la carpeta del expediente: {carpeta}')
         nombre = services.nombre_del_pfd(file.filename or '')
         destino = ws.root / services.CARPETA_PFD / nombre
         _save_upload(destino, file)
         return submit(ws, 'pfd_diagnostico', f'Importar {nombre} en DIgSILENT',
-                      lambda ctx: services.pfd_importar(ws, ctx, destino, reimportar=reimportar),
+                      lambda ctx: services.pfd_importar(ws, ctx, destino, reimportar=reimportar,
+                                                        expediente=carpeta),
                       lane='powerfactory')
 
     @app.get('/api/workspaces/{wid}/pf/datos-empresa')

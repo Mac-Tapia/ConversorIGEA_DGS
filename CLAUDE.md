@@ -96,7 +96,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 067 Asistente operativo: revisión, planes, modelos y tareas que funcionan desde la web | cumplida | |
   | 068 Dataset real del maestro: órdenes del operador, etiquetas de plata y currículo con su estilo | cumplida |  |
   | 069 Intérprete de órdenes con codificador preentrenado y clase «ninguna» | aprobada | falta T7 |
-  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11, T14, T15, T22 (GPU), T26 (pytest del integrador) |
+  | 070 El asistente opera el conversor de punta a punta | aprobada | falta T11 (DIgSILENT) y T28 (GPU); T22 cerrada (24-11: candidato rechazado con su diagnóstico, y el modelo en uso se abre otra vez, T27) |
   | 071 Puertas de los modelos antes de entrenar: PINN en su red, un puntero, sin autoentrenamiento y una guardia de GPU | cumplida |  |
   | 072 PIDE y planeamiento de largo plazo: dos entregables desde un mismo estudio | aprobada | falta T9b |
   | 073 El número de bancos lo define la tensión en las ventanas de valle | cumplida |  |

@@ -203,3 +203,13 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
       verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas);
       la prueba con los dos `.pfd` desde la web es la T30 [DIgSILENT].
+- [x] T37. Los vínculos del expediente en la importación del `.pfd` desde la web (auditoría D.3: el módulo de la T28 no lo
+      llamaba ningún flujo). (RF-109, RF-110)
+      Hecho cuando: `tests/test_pfd_vinculos_web.py` (004:RF-109) en verde, `npx tsc --noEmit -p .` y el contrato de la API
+      sin deriva (`tools/generar_contrato_api.py --check`).
+      Código, 2026-11-24 (d8, N12): `pfd_vinculos_del_expediente` en `services.py`, el campo `expediente` de
+      `POST …/pf/pfd` (solo en local, 400 si la carpeta no existe), `ImportarPfd.tsx` con la carpeta y los vínculos, y
+      el contrato regenerado (`tsc` y `--check` en verde).
+      Verde, 2026-11-24 12:10 (d8): D:/csg/PM_IMPL/N12/pytest.log, 236 passed con tests/test_pfd_vinculos_web.py,
+      tests/test_adaptador_pnl.py, test_contrato_api, test_capas, test_inventario y test_matriz_operaciones (los dos
+      fallos del registro son los de la spec cumplida con esta tarea abierta, que se cierra aquí).

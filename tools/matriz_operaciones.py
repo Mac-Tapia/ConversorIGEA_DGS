@@ -55,7 +55,7 @@ RESPONSABLES: dict[str, str] = {
     '047:T24': 'd8: aceptación en GPU de la revisión con los datos de cada sano respaldados (047p)',
     '047:T25': 'd8: aceptación en GPU de la revisión con el dictamen final de cada rol (047q)',
     '070:T11': 'usuario: candidato en DIgSILENT',
-    '070:T22': 'd8: reentreno en GPU del modelo de órdenes con el contrato de tareas nuevo (cola de d8)',
+    '070:T28': 'd8: mejora en GPU del candidato de la T22, separando las tareas vecinas que confunde (cola de d8)',
 }
 
 _VIA = {'consulta': 'consulta', 'trabajo': 'plan', 'proceso': 'proceso', 'etapas': 'etapas'}

@@ -630,3 +630,12 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       omitidas), npm test 335/335, tsc, build y contrato sin deriva; en navegador real, dos recorridos seguidos en la misma
       web dan 0 errores HTTP y 0 de consola (antes, 8 por carga) y siguen pintando las curvas. Evidencia:
       `D:/csg/PM_IMPL/MEJ33_WEB/` (rojo_b.log, verde_b.log, npm_test_b.log, tsc_b.log, recorrido/t111/).
+- [x] T112 FLECHAS-CON-SERVIDOR-LENTO (CI de 14f92ddd: F01 falló con el foco fuera de la opción elegida): la alternativa
+      de entrada marca la opción al elegirla y descarta las respuestas de elecciones anteriores. (RF-106)
+      Hecho cuando: `frontend/test/e2e/f01_vnr.e2e.mjs` (086 F-12, servidor lento) en rojo por aserción con el
+      componente anterior y en verde con el nuevo, y el recorrido entero de F01 en verde.
+      Código, 2026-11-24 (d8): `InputsPanel.tsx`, `elegido` y `pedidoModo` en `setMode`.
+      Hecho el 2026-11-24 (d8): rojo por aserción con el InputsPanel de HEAD (`aria-checked` «false» donde se esperaba
+      «true»: la opción no se marca hasta que responde el servidor), D:/csg/PM_IMPL/N12/t112/e2e_rojo.log; verde con
+      el arreglo, F01 entero (3 passed), D:/csg/PM_IMPL/N12/t112/e2e_verde.log; `npm test` en verde
+      (D:/csg/PM_IMPL/N12/front_unit.log).
