@@ -111,3 +111,6 @@
 - [x] T24. El escalón que no puede costar menos que la obra ya confirmada no va a DIgSILENT. (RF-51)
       Hecho cuando: `escalera_por_alimentador` lo poda con el costo del oráculo y el margen, y lo dice en el Registro.
       Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T25. El escalón que resuelve la obra ya aplicada lo dice así, no «cumple: candidata por coste». (RF-45)
+      Hecho cuando: el Registro dice que ninguna del escalón cumple y que la obra ya aplicada sí.
+      Cerrada el 2026-11-25: rojo con la frase real de Pisco y verde en `tests/test_seleccion_por_oraculo.py`.

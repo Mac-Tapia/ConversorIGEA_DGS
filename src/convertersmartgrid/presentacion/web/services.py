@@ -9215,11 +9215,16 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                 if resuelto(fila_e):
                     break                                                                      # 087:RF-3
             reg['resuelve'] = resuelto(fila_e)
+            # 098:RF-45: resuelto por la obra que ya tenía aplicada, no por una de este escalón. Pisco (2026-11-25): el
+            # Registro decía «cumplen 0; cumple» y parecía que el escalón daba por buena una variante que no cumplía.
+            por_la_aplicada = reg['resuelve'] and not reg['cumplen'] and not fila_e.get('elegida') and not fila_e.get('ya_cumple')
             ctx.log(f"{f}: escalón {nombre_esc}: " + (f"el oráculo dio {_cuenta(reg['oraculo'], 'candidata', 'candidatas')} y descartó "
                                                       f"{reg.get('descartadas', 0)} (ni cumplen ni son de las más cercanas); "
                                                       if orden else '')
                     + f"DIgSILENT midió {reg['confirmadas']} y cumplen {reg['cumplen']}"
-                    + ('; cumple: candidata por coste' if reg['resuelve'] else '; ninguna cumple') + ' (098:RF-45).')
+                    + ('; ninguna de este escalón cumple, pero la obra ya aplicada sí: se busca una más barata'
+                       if por_la_aplicada else '; cumple: candidata por coste' if reg['resuelve'] else '; ninguna cumple')
+                    + ' (098:RF-45).')
             registro_escalones.append(reg)
             return fila_e
 

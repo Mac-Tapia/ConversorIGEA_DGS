@@ -200,6 +200,28 @@ def _alimentador_y_oraculo_para_rf59():
     return _dos_cargas(), [_alimentador()], _p()
 
 
+def test_098_rf45_el_escalon_resuelto_por_la_obra_ya_aplicada_lo_dice_asi(monkeypatch):
+    """098:RF-45 — Pisco (2026-11-25): con la obra ya aplicada que cumple, el escalón de bancos decía «DIgSILENT midió 1 y
+    cumplen 0; cumple: candidata por coste». Ahora dice que ninguna del escalón cumple y que la aplicada sí."""
+    sel = _seleccion(1)
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: _aplicadas())
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: sel)
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, **k):
+        if aplicar:
+            return {'alimentadores': []}
+        nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+        tabla = [{'nombre': n, 'maxima': False, 'factible': False} for n in nombres]
+        return {'alimentadores': [{'alimentador': feeders[0], 'elegida': None, 'tabla': tabla,
+                                   'vieja': {'nombre': 'obra aplicada: terna', 'factible': True, 'costo_anual': 500.0}}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    ctx = _Ctx()
+    services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    bancos = next(t for t in ctx.textos if 'escalón bancos' in t)
+    assert 'la obra ya aplicada sí' in bancos and 'candidata por coste' not in bancos, bancos
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']
