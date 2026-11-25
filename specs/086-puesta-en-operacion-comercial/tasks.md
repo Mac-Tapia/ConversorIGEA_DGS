@@ -342,6 +342,9 @@ No hacen falta para la 1.0: 025 T21 (PA297 vetado; reformular según D6), 027 T1
       arneses (la del plano en `plano/`) con `resumen_e2e.json`, y solo una corrida en verde la sella con SHA256SUMS
       (`tests/test_ci_e2e_y_evidencias.py`, 086:RF-107). Falta correrlo sobre el SHA candidato, ya en commit:
       `cd frontend && npm run build && npm run e2e:todo`.
+      Avance (2026-11-25, d8): verde y sellada sobre `2f97291f` (los dos arneses, 40 recorridos, 0 fallidos ni
+      omitidos), tras dejar la web de los recorridos con su perfil de empresa en el temporal (F06 leía el del equipo).
+      Falta repetirla sobre el commit de rc7, el candidato.
 - [x] T80 COPIA-PREVIA: previa de la copia en la web (`GET /api/copia-datos/previa` sobre `planificar_copia`, ventana
       `PreviaCopia` con «Copiar» y «Cancelar», la API exige `confirmada`), listado de las copias del destino desde su
       manifiesto (`listar_copias`), el aviso que mira la carpeta recordada (`estado_copia(destino=…)`) y los seis textos.

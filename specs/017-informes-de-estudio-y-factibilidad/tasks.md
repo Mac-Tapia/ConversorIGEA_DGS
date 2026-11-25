@@ -165,3 +165,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T21. Un solo resumen ejecutivo del sistema con los tres casos y un solo botón. (RF-149)
       Hecho cuando: `resumen_del_sistema` da las tres secciones y la web pide el del sistema.
       Cerrada el 2026-11-25: rojo válido y verde en `tests/test_resumen_casos.py`.
+- [x] T22. El resumen del sistema dice lo que está aplicado: calibración válida con su propio aviso, las obras
+      aplicadas con su costo una vez y los nodos de cada tramo desde la lectura guardada. (RF-150, RF-151, RF-152)
+      Hecho cuando: `tests/test_resumen_casos.py` (017:RF-150 a RF-152) en verde y el resumen de Pisco rehecho.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde.

@@ -15094,6 +15094,54 @@ def mapa_leer_en_digsilent(ws: Workspace, ctx: JobContext, project: str, aliment
             'diferencias': diferencias, 'avisos': informe.get('avisos') or []}
 
 
+def _nodos_de_los_tramos(ws: Workspace) -> dict[str, dict[str, tuple[str, str]]]:
+    """017:RF-152: por alimentador, tramo → (nodo de inicio, nodo final), de su última lectura de la escalera guardada en
+    el espacio (``escalera_datos_*.json``: troncal, caminos y sobrecargados); sin DIgSILENT."""
+    por_alim: dict[str, dict[str, tuple[str, str]]] = {}
+    rutas = sorted(ws.root.glob('runs/*/salida/escalera_datos_*.json'), key=lambda p: p.stat().st_mtime)
+    for ruta in rutas:                                                  # la más reciente pisa a las anteriores
+        try:
+            datos = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        for f, d in (datos.get('alimentadores') or {}).items():
+            nodos: dict[str, tuple[str, str]] = {}
+            grupos = [d.get('troncal') or [], d.get('sobrecargados') or [], *((d.get('caminos') or {}).values())]
+            for grupo in grupos:
+                for t in grupo if isinstance(grupo, list) else []:
+                    if isinstance(t, dict) and t.get('nombre') and t.get('desde') and t.get('hasta'):
+                        nodos[str(t['nombre'])] = (str(t['desde']), str(t['hasta']))
+            if nodos:
+                por_alim[str(f)] = nodos
+    return por_alim
+
+
+def _obras_aplicadas_para_resumen(ws: Workspace, project: str) -> dict[str, list[dict]]:
+    """017:RF-151, RF-152: las obras aplicadas del proyecto por alimentador, una por alternativa (las variaciones de una
+    misma elección se juntan y su costo cuenta una vez), con dónde va cada una por sus nodos."""
+    from ...aplicacion.resumen_casos import ubicacion_de_obra
+
+    nodos = _nodos_de_los_tramos(ws)
+    por_alim: dict[str, dict[str, dict]] = {}
+    for a in getattr(ws, 'obras_aplicadas', None) or []:
+        if a.get('project') != project.strip():
+            continue
+        obra = a.get('obra') or {}
+        f = str(obra.get('alimentador') or '')
+        if not f:
+            continue
+        eleccion = a.get('eleccion') or {}
+        nombre = str(eleccion.get('nombre') or a.get('variacion') or '')
+        fila = por_alim.setdefault(f, {}).setdefault(nombre, {
+            'nombre': nombre, 'costo_anual': eleccion.get('costo_anual'), 'inversion': eleccion.get('inversion'),
+            'origen': a.get('origen'), 'variaciones': [], 'ubicacion': []})
+        fila['variaciones'].append(str(a.get('variacion') or ''))
+        donde = ubicacion_de_obra(obra, nodos.get(f) or {})
+        if donde and donde not in fila['ubicacion']:
+            fila['ubicacion'].append(donde)
+    return {f: list(filas.values()) for f, filas in por_alim.items()}
+
+
 def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
     """017:RF-144 a RF-149: el resumen ejecutivo de «Sin proyecto», «Cargas nuevas» o «Con proyecto» con lo guardado en
     el espacio (la calibración aplicada, las cargas aplicadas, las alternativas de la escalera), sin DIgSILENT; en una
@@ -15121,9 +15169,12 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
         for f, a in aparte.items():
             propias.setdefault(f, a)
         datos_caso['alternativas'] = propias
+        # 017:RF-151: lo que se aplica es lo del registro de obras aplicadas (lo que DIgSILENT tiene y retirar quita);
+        # el fichero de alternativas junta corridas distintas.
+        datos_caso['aplicadas'] = _obras_aplicadas_para_resumen(ws, project)
         ajuste = ajuste_aplicado_en_disco(ws, project) or {}
         calibrados = [str(i.get('feeder')) for i in ajuste.get('informes') or [] if i.get('feeder')]
-        datos_caso['sin_obra'] = [f for f in calibrados if f not in propias]
+        datos_caso['sin_obra'] = [f for f in calibrados if f not in datos_caso['aplicadas']]
     try:
         datos = rc.resumen_del_sistema(**datos_caso) if todos else rc.resumen(caso, **datos_caso)
     except rc.ResumenError as exc:

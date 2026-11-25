@@ -632,6 +632,16 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   «Con proyecto» en secciones bajo una sola ficha y unas conclusiones conjuntas; un caso sin datos se dice y el
   resto sale. LA WEB tendrá un solo botón, «Resumen ejecutivo del sistema». Cambia RF-148. Usuario (2026-11-25):
   «tiene que ser un solo resumen ejecutivo; es un solo proyecto de sistema».
+- RF-150: En «Sin proyecto», una calibración cuadrada con un aviso que no bloquea (el de kvar) será válida y dirá su
+  aviso; el motivo o aviso de cada alimentador será el suyo, nunca el de otro. Pisco (2026-11-25): 16 de 17 salían
+  «sin validar» por su aviso de kvar y todos con el aviso del primero.
+- RF-151: En «Con proyecto», lo que se aplica saldrá de las obras aplicadas del proyecto (las que DIgSILENT tiene y
+  retirar quita), con su costo una vez por alternativa aunque vaya en varias variaciones, y la obra del operador
+  dicha como suya; las alternativas guardadas que no se aplican salen como no aplicadas. Pisco (2026-11-25): el
+  fichero de alternativas, de corridas distintas, daba en PA217 la terna de 117 641 como aplicada cuando estaba la
+  sección de 73 727, y SI112 salía sin su obra.
+- RF-152: El nodo de inicio y de fin de cada tramo de una obra aplicada saldrá de la última lectura de su
+  alimentador guardada en el espacio, sin DIgSILENT; el tramo que no esté en ella se nombra solo.
 
 ## Requisitos no funcionales
 
