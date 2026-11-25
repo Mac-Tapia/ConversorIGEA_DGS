@@ -8912,7 +8912,7 @@ def _registrar_corrida(ctx: JobContext, project: str, resultado: dict, t0: float
             fecha=fecha, resultado=resultado, tiempo_s=time.monotonic() - t0, oraculo=escalera.get('oraculo'), memoria_mb=memoria,
             ordenes=[o for o in eo.leer(pf_arnes.ruta_cola()) if o['fecha'] >= fecha],
             tension_min=float(lim['tension_min_pu']), tension_max=float(lim['tension_max_pu']),
-            carga_max=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),
+            carga_max=float(lim['cargabilidad_max_pct']),       # 042:RF-107: el de la obra de corto plazo
             secciones=tuple(esc.get('secciones_normalizadas') or ())))
     except Exception as exc:  # noqa: BLE001 - medir no puede hacer fallar la corrida que mide
         ctx.log(f'No se pudo registrar la medición: {exc} (087:RF-21).')

@@ -133,6 +133,7 @@ class Parametros:
     vida: int
     tension_min_pu: float
     tension_max_pu: float
+    #: 042:RF-107: el de los estudios; con él se elige y dimensiona la de corto plazo.
     cargabilidad_max_pct: float
     precio_perdidas_kwh: float | None = None
     precio_perdidas_kw_mes: float | None = None
@@ -177,6 +178,10 @@ class Parametros:
     #: 042:RF-98: ``escalera.conductor_terna`` del perfil, el código del conductor ``aereo`` y el del ``cable``
     #: con que quedan los dos circuitos de una terna; vacío, la terna es del mismo tipo del tramo (RF-100).
     conductor_terna: Mapping[str, str] = field(default_factory=dict)
+    #: 042:RF-28, RF-107: ``escalera.cargabilidad_planeamiento_pct``, solo para la definitiva de largo plazo; sin él, el
+    #: de los estudios. Pisco (2026-11-25): con el 80 % también en la de corto plazo, una obra «no cubría» por un tramo
+    #: al 80 % en el año 5.
+    cargabilidad_largo_plazo_pct: float | None = None
 
     @property
     def consigna_regulador_pu(self) -> float:
@@ -262,7 +267,8 @@ def parametros(perfil: Mapping[str, Any], tipo_cambio: float | None = None) -> P
         max_variantes=int(esc.get('max_variantes') or 40), tasa=float(plan['tasa_regulada']),
         vida=int(plan['vida_util_anios']), tension_min_pu=float(lim['tension_min_pu']),
         tension_max_pu=float(lim['tension_max_pu']),
-        cargabilidad_max_pct=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),   # 042:RF-28
+        cargabilidad_max_pct=float(lim['cargabilidad_max_pct']),                                          # 042:RF-107
+        cargabilidad_largo_plazo_pct=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),  # RF-28
         precio_perdidas_kwh=_opcional(esc.get('precio_perdidas_kwh')),
         precio_perdidas_kw_mes=_opcional(esc.get('precio_perdidas_kw_mes')),
         coym_pct_anual=_opcional(esc.get('coym_pct_anual')), moneda=moneda,
@@ -1292,13 +1298,18 @@ def plan_de_horizonte(alimentador: str, tasa: float | None, p: Parametros) -> di
     return {'anios': anios, 'factores': {str(a): {alimentador: (1.0 + tasa) ** a} for a in anios}, 'tasa': tasa}
 
 
-def definitiva(con: Mapping[str, Any], p: Parametros) -> tuple[bool, list[str]]:
-    """042:RF-74: en absoluto, no respecto de otro caso: a 20 años no importa quién lo causó."""
+def definitiva(con: Mapping[str, Any], p: Parametros, largo_plazo: bool = False) -> tuple[bool, list[str]]:
+    """042:RF-74: en absoluto, no respecto de otro caso: a 20 años no importa quién lo causó.
+
+    042:RF-107: ``largo_plazo`` (el horizonte de vida útil) juzga la carga con el límite de planeamiento; el corto plazo y
+    el año en que vuelven los problemas, con el de los estudios.
+    """
     if not con.get('converge'):
         return False, ['no converge']
+    limite = (p.cargabilidad_largo_plazo_pct or p.cargabilidad_max_pct) if largo_plazo else p.cargabilidad_max_pct
     motivos = [f'{b} a {u:.3f} p.u.' for b, u in sorted((con.get('u') or {}).items(), key=lambda x: x[1] or 0.0)
                if u is not None and u > 0.05 and not p.tension_min_pu <= u <= p.tension_max_pu]
-    motivos += [f'{e} al {c:.0f} %' for e, c in (con.get('carga') or {}).items() if c > p.cargabilidad_max_pct]
+    motivos += [f'{e} al {c:.0f} %' for e, c in (con.get('carga') or {}).items() if c > limite]
     return not motivos, motivos[:3]
 
 

@@ -1573,7 +1573,7 @@ def test_la_evaluacion_mide_el_alcance_de_cada_clase_de_obra(monkeypatch):
     _actual_no_cumple(monkeypatch)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
     respuestas = iter([(False, ['no converge']), (True, [])])
-    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _con, _p: next(respuestas))
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _con, _p, **_kw: next(respuestas))
     f = alims[0]
     antes = (_activas(app, SIN), _activas(app, CON), _variaciones(app))
     horizonte = {'tasa': 0.03}
@@ -1690,9 +1690,12 @@ def test_con_tres_alternativas_y_una_definitiva_para(monkeypatch):
     app, alims = _calibrada_con_escenario(random.Random(48))
     _actual_no_cumple(monkeypatch)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
-    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (True, []))
+    plazos = []
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p, **kw: plazos.append(kw) or (True, []))
     informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 6))
     assert codigo == 0, informe
+    # 042:RF-107: el horizonte de vida útil se juzga con el límite de planeamiento.
+    assert plazos and all(kw.get('largo_plazo') is True for kw in plazos)
     assert len(informe['variantes']) == 3
     assert informe['variantes'][0]['horizonte']['definitiva'] is True
 
@@ -1704,7 +1707,7 @@ def test_con_tres_y_ninguna_definitiva_sigue_hasta_el_tope(monkeypatch):
     app, alims = _calibrada_con_escenario(random.Random(49))
     _actual_no_cumple(monkeypatch)
     monkeypatch.setitem(guion.CONSTRUCTORES, 'terna', _terna)
-    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p: (False, ['no converge']))
+    monkeypatch.setattr(escalera_optima, 'definitiva', lambda _c, _p, **_kw: (False, ['no converge']))
     perfil = {**PERFIL_ESCALERA, 'escalera': {**PERFIL_ESCALERA['escalera'], 'variantes_tras_cumplir': 4}}
     informe, codigo = guion.evaluar(app, _plan_con_horizonte(alims, 7, perfil))
     assert codigo == 0, informe

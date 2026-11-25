@@ -392,7 +392,8 @@ def test_solo_secciones_normalizadas_y_una_por_codigo():
 
 
 def test_el_planeamiento_limita_al_80_por_ciento():
-    """042:RF-28 — con `cargabilidad_planeamiento_pct` el límite de la escalera es el 80 %, no el de los estudios."""
+    """042:RF-28, RF-107 — con `cargabilidad_planeamiento_pct` el 80 % juzga la definitiva de largo plazo; la de corto
+    plazo va con el de los estudios."""
     from convertersmartgrid.aplicacion import escalera_optima as eo
 
     perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
@@ -400,10 +401,33 @@ def test_el_planeamiento_limita_al_80_por_ciento():
               'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
               'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
     p = eo.parametros(perfil)
-    assert p.cargabilidad_max_pct == 80 and p.secciones == ('AA12003D',)
+    assert p.cargabilidad_largo_plazo_pct == 80 and p.secciones == ('AA12003D',)
+    medida = {'converge': True, 'u': {}, 'carga': {'L1': 85.0}}
+    assert not eo.definitiva(medida, p, largo_plazo=True)[0]
     ok, motivos = eo.cumple({'converge': True, 'u': {}, 'carga': {'L1': 50.0}},
-                            {'converge': True, 'u': {}, 'carga': {'L1': 85.0}}, [], p)
+                            {'converge': True, 'u': {}, 'carga': {'L1': 105.0}}, [], p)
     assert not ok and 'L1' in motivos[0]
+
+
+def test_042_rf107_la_de_corto_plazo_carga_hasta_el_limite_de_los_estudios():
+    """042:RF-107 — Pisco (2026-11-25): la obra de un alimentador «no cubría» por un tramo al 80 % en el año 5; el
+    usuario: «no cubre al corto plazo, se debe considerar al 100 %». El 80 % queda para la definitiva."""
+    from convertersmartgrid.aplicacion import escalera_optima as eo
+
+    perfil = {'escalera': {'cumplimiento': 0.95, 'sorteos': 10, 'tolerancia_pu': 0.005, 'tolerancia_carga_pct': 1.0,
+                           'cargabilidad_planeamiento_pct': 80},
+              'planificacion': {'tasa_regulada': 0.12, 'vida_util_anios': 30},
+              'estudios': {'tension_min_pu': 0.95, 'tension_max_pu': 1.05, 'cargabilidad_max_pct': 100}}
+    p = eo.parametros(perfil)
+    assert p.cargabilidad_max_pct == 100 and getattr(p, 'cargabilidad_largo_plazo_pct', None) == 80
+    al_80 = {'converge': True, 'u': {}, 'carga': {'SEC_1': 80.4}}
+    assert eo.definitiva(al_80, p) == (True, [])                       # corto plazo y año en que vuelven los problemas
+    assert eo.definitiva(al_80, p, largo_plazo=True)[0] is False       # la definitiva, con el de planeamiento
+    assert eo.cumple({'converge': True, 'u': {}, 'carga': {'SEC_1': 50.0}}, al_80, [], p)[0]
+    # Sin límite de planeamiento, los dos son el de los estudios.
+    sin = eo.parametros({**perfil, 'escalera': {k: v for k, v in perfil['escalera'].items()
+                                                 if k != 'cargabilidad_planeamiento_pct'}})
+    assert sin.cargabilidad_max_pct == sin.cargabilidad_largo_plazo_pct == 100
 
 
 def test_el_240_sale_de_su_ficha_y_va_en_doble_terna():
@@ -558,9 +582,11 @@ def test_cada_variante_refuerza_los_tramos_sobrecargados_de_cualquier_ramal():
     doble = {**ramal, 'carga_pct': 200.0}
     p = eo.parametros(perfil)
     assert math.ceil(200.0 / 80.0) - 1 == 2
-    assert eo._ternas_que_faltan(doble, eo.Variante('', (), [], {}), {}, p.cargabilidad_max_pct) == 2
+    assert eo._ternas_que_faltan(doble, eo.Variante('', (), [], {}), {}, p.cargabilidad_largo_plazo_pct) == 2
     con_terna = eo.Variante('t', ('terna',), [{'clase': 'terna', 'tramos': ['R1']}], {})
-    assert eo._ternas_que_faltan(doble, con_terna, {}, p.cargabilidad_max_pct) == 1
+    assert eo._ternas_que_faltan(doble, con_terna, {}, p.cargabilidad_largo_plazo_pct) == 1
+    # 042:RF-107: la de corto plazo, con el 100 % de los estudios, pide una terna menos.
+    assert eo._ternas_que_faltan(doble, eo.Variante('', (), [], {}), {}, p.cargabilidad_max_pct) == 1
     # Un conductor nuevo cinco veces mayor ya lo resuelve: no se añade terna.
     con_seccion = eo.Variante('s', ('seccion',), [{'clase': 'seccion', 'tramos': ['R1'], 'tipo': {'nombre': 'G'}}], {})
     assert eo._ternas_que_faltan(doble, con_seccion, {'G': 500.0}, p.cargabilidad_max_pct) == 0

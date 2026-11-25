@@ -54,7 +54,7 @@ def registrar(args) -> int:
         sistema=args.sistema, revision=args.revision, metodo=args.metodo, estado=str(trabajo.get('status')), fecha=desde,
         resultado=trabajo.get('result') or {}, tiempo_s=(fin - inicio) if inicio and fin else 0.0, ordenes=ordenes,
         tension_min=float(lim['tension_min_pu']), tension_max=float(lim['tension_max_pu']),
-        carga_max=float(esc.get('cargabilidad_planeamiento_pct') or lim['cargabilidad_max_pct']),
+        carga_max=float(lim['cargabilidad_max_pct']),           # 042:RF-107: el de la obra de corto plazo
         secciones=tuple(esc.get('secciones_normalizadas') or ()),
         pruebas=mo.pruebas_de_junit(args.junit) if args.junit else None)
     mo.anadir(_ruta(args), fila)

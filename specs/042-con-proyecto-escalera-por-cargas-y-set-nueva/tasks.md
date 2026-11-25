@@ -168,3 +168,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       decisión del usuario antes de la obra integral, que no es parte de esta tarea.
 
 Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente de propuestas sin capacidades/tensiones elegidas; ver tests/test_universalidad_obras.py y docs/regresiones/2026-11-08-obras-sin-capacidades-de-muestra.md. Conserva los pendientes nativos anteriores; ninguna casilla se cierra con esta corrección.
+- [x] T66. El límite de carga de la de corto plazo es el de los estudios; el de planeamiento, solo de la definitiva. (RF-107)
+      Hecho cuando: `parametros` da los dos límites, `definitiva` juzga con el de largo plazo solo en el horizonte de
+      vida útil, y el guion de obras lo pide así.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_escalera_optima.py`.

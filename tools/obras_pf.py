@@ -4729,7 +4729,9 @@ def evaluar(app, plan: dict, *, cancelado=lambda: False) -> tuple[dict, int]:
             with _Sorteo(app, alims, feeders, existentes) as s:
                 for anios in horizonte['anios']:
                     s.escalar(horizonte['factores'][str(anios)])
-                    bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p)
+                    # 042:RF-107: el horizonte de vida útil, con el límite de planeamiento; el periodo, con el de los estudios.
+                    bien, motivos = definitiva(medida_para_criterio(app, alims, feeders, ligera=True), p,
+                                               largo_plazo=not horizonte.get('periodo'))
                     if bien:
                         return {'definitiva': anios == horizonte['anios'][0], 'aguanta_anios': anios, 'motivos': primeros,
                                 'mas_corto': min(horizonte['anios']), 'probados': sorted(horizonte['anios'])}
