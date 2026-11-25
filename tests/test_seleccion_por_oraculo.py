@@ -139,6 +139,28 @@ def test_el_oraculo_recibe_los_tramos_sobrecargados():
     assert "sobrecargados=d.get('sobrecargados')" in fuente and "'cargabilidad_max_pct'" in fuente
 
 
+def test_087_rf58_la_seleccion_dice_su_avance_y_se_puede_cancelar(monkeypatch):
+    """087:RF-58 — el 2026-11-25 un sistema de 17 alimentadores pasó más de 40 minutos en la selección sin una línea en el
+    Registro y sin atender la cancelación: cada alimentador dice que empieza y cómo acaba, y los bloques de la búsqueda
+    también; el aviso puede cortar el trabajo."""
+    assert hasattr(oo, 'BLOQUE_PROGRESO'), 'la selección no da su avance'
+    monkeypatch.setattr(oo, 'BLOQUE_PROGRESO', 1)
+    lineas: list[str] = []
+    e = oo.seleccion_por_alimentador(_dos_cargas(), [_alimentador(_espacio())], _p(), evaluaciones_bayes=5,
+                                     progreso=lineas.append)['F1']
+    assert e is not None and lineas[0].startswith('F1: selección de obras con el oráculo (1 de 1'), lineas
+    assert any('búsqueda bayesiana' in x for x in lineas) and lineas[-1].startswith('F1: ') and ' s).' in lineas[-1], lineas
+
+    class Cancelado(Exception):
+        pass
+
+    def cortar(texto: str) -> None:
+        if 'búsqueda bayesiana' in texto:
+            raise Cancelado
+    with pytest.raises(Cancelado):
+        oo.seleccion_por_alimentador(_dos_cargas(), [_alimentador(_espacio())], _p(), evaluaciones_bayes=5, progreso=cortar)
+
+
 def test_el_que_ya_cumple_no_gasta_busqueda():
     """087:RF-10, 087:RF-11 — sin bayesiana ni frente para quien ya cumple; con ellas, para quien no."""
     ora = oo.Oraculo(_grafo(r=0.1, x=0.1), [{**NUEVA, 'alimentador': 'F1', 'barra': 'B'}], tipos=TIPOS)

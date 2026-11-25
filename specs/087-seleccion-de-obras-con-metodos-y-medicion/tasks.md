@@ -77,3 +77,6 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
 - [x] T14. [DIgSILENT] Un sistema de otra empresa con el método nuevo. (RF-1, RF-24)
       Hecho cuando: cada alimentador con cargas nuevas termina con obra medida o «ya cumple».
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T36. El avance de la selección con el oráculo y su cancelación. (RF-58)
+      Hecho cuando: `seleccion_por_alimentador` da una línea por alimentador y por bloque, y el aviso puede cortar.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.

@@ -9628,9 +9628,14 @@ def _seleccion_por_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
         if 'p' not in comun:
             raise _SinOraculo('ningún alimentador marcado tiene cargas nuevas')
         prep = _preparar_oraculo(ws, ctx, project, feeders, sn.orden_de_cargas(aplicadas), comun)
+        def progreso(texto: str) -> None:
+            # 087:RF-58: una línea en el Registro y la cancelación atendida, también a mitad de un alimentador.
+            ctx.check_cancel()
+            ctx.log(texto)
+
         alimentadores = oo.seleccion_por_alimentador(
             prep['ora'], prep['alims'], prep['p'], prep['factores'], semilla=prep['p'].semilla, valle=prep['valle'],
-            markov=prep['markov'], evaluaciones_bayes=prep['opciones_eleccion']['evaluaciones_bayes'])
+            markov=prep['markov'], evaluaciones_bayes=prep['opciones_eleccion']['evaluaciones_bayes'], progreso=progreso)
     except JobCancelled:
         raise
     except Exception as exc:  # noqa: BLE001 - 087:RF-4: sin oráculo se mide en DIgSILENT, nunca se queda sin obras

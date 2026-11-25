@@ -102,6 +102,10 @@ sistema?»; «sí, implementa»):
 - RF-57: EL SISTEMA dirá en el registro del trabajo, por alimentador, cuántas barras de media tuvo, cuántas pasaron a la búsqueda y cuáles fueron.
 
 ## Requisitos no funcionales
+- RF-58: MIENTRAS el oráculo elige las obras de varios alimentadores, EL SISTEMA dirá en el Registro cuándo empieza
+  y cómo acaba cada uno, y el avance de sus variantes y de sus búsquedas por bloques, y atenderá la cancelación entre
+  ellos. (2026-11-25: un sistema de 17 alimentadores pasó más de 40 minutos en la selección sin una línea y sin
+  poder cancelarse.)
 - Determinismo: con la misma semilla, misma red y mismo perfil, el oráculo, Optuna, Markov y el árbol dan el mismo resultado.
 - Universal: nada de este método depende de una empresa, sistema o tensión (constitución 13).
 - Escala: nada fijado al número de alimentadores (constitución 2).

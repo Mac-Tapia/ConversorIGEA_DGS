@@ -19,6 +19,7 @@ from __future__ import annotations
 
 import math
 import random
+import time
 from collections import OrderedDict
 from collections.abc import Callable, Mapping, Sequence
 from dataclasses import dataclass, field, fields
@@ -41,6 +42,8 @@ MAX_SISTEMAS = 64
 
 #: Presupuestos por defecto, si el perfil no da los suyos (RF-11, RF-14, RF-15).
 EVALUACIONES_BAYES = 200
+#: 087:RF-58: cada cuántas variantes o combinaciones se da una línea de avance (y se mira si se canceló).
+BLOQUE_PROGRESO = 25
 NIVELES_MARKOV = 5
 PERMUTACIONES_SHAPLEY = 50
 #: 087:RF-56: barras de banco que pasan a la búsqueda, si el perfil no da ``escalera.candidatas_banco``. Las mismas
@@ -829,19 +832,27 @@ def margen_de_demanda(oraculo: Oraculo, obras: Sequence[Mapping[str, Any]], k: i
 def seleccion_por_alimentador(oraculo: Oraculo, alimentadores: Sequence[Alimentador], p: Parametros, factores: Sequence[float] = (),
                               *, evaluaciones_bayes: int = EVALUACIONES_BAYES, semilla: int = 0,
                               valle: Mapping[str, Any] | None = None,
-                              markov: Mapping[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+                              markov: Mapping[str, Any] | None = None,
+                              progreso: Callable[[str], None] | None = None) -> dict[str, dict[str, Any]]:
     """087:RF-1, RF-10, RF-11, RF-13: cada alimentador, con todas las cargas nuevas puestas: el orden en que DIgSILENT lo mide.
 
     El que ya cumple en el oráculo no gasta búsqueda bayesiana ni frente: no le hace falta obra.
+    ``progreso`` (087:RF-58) recibe una línea al empezar y al terminar cada alimentador y cada bloque de variantes; puede
+    lanzar la cancelación del trabajo. El 2026-11-25, un sistema de 17 alimentadores pasó más de 40 minutos aquí sin una
+    línea en el Registro y sin poder cancelarse.
     """
     k = len(oraculo.nuevas)
     out: dict[str, dict[str, Any]] = {}
-    for a in alimentadores:
-        if not oraculo.activas(k, a.nombre):
-            continue
+    con_cargas = [a for a in alimentadores if oraculo.activas(k, a.nombre)]
+    for i, a in enumerate(con_cargas, 1):
+        t0 = time.monotonic()
+        if progreso is not None:
+            progreso(f'{a.nombre}: selección de obras con el oráculo ({i} de {len(con_cargas)} alimentadores con cargas '
+                     f'nuevas): {len(a.variantes)} variantes' + ('' if a.espacio is None else
+                                                                 f' y hasta {evaluaciones_bayes} combinaciones'))
         ya = _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre, valle), p)
         e = elegir_para_k(oraculo, [a], k, p, factores, evaluaciones_bayes=0 if ya else evaluaciones_bayes, permutaciones=0,
-                          semilla=semilla, pareto=not ya, valle=valle).get(a.nombre)
+                          semilla=semilla, pareto=not ya, valle=valle, progreso=progreso).get(a.nombre)
         if e is None:
             continue
         e['ya_cumple'] = ya
@@ -851,6 +862,10 @@ def seleccion_por_alimentador(oraculo: Oraculo, alimentadores: Sequence[Alimenta
         e['perdidas_energia'] = (perdidas_de_energia_markov(oraculo, primera.obras, k, markov, a.nombre)
                                  if primera is not None and markov else None)
         out[a.nombre] = e
+        if progreso is not None:
+            progreso(f'{a.nombre}: ' + ('ya cumple sin obra' if ya else
+                                        f"{'elegida ' + primera.nombre if primera is not None else 'ninguna variante cumple'}")
+                     + f' ({time.monotonic() - t0:.0f} s).')
     return out
 
 
@@ -890,10 +905,11 @@ def _con_solo(oraculo: Oraculo, grupo: frozenset[str]) -> Oraculo:
 def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int, p: Parametros,
                   factores: Sequence[float] = (), *, evaluaciones_bayes: int = EVALUACIONES_BAYES,
                   permutaciones: int = PERMUTACIONES_SHAPLEY, semilla: int = 0,
-                  pareto: bool = True, valle: Mapping[str, Any] | None = None) -> dict[str, dict[str, Any]]:
+                  pareto: bool = True, valle: Mapping[str, Any] | None = None,
+                  progreso: Callable[[str], None] | None = None) -> dict[str, dict[str, Any]]:
     """Por alimentador con cargas entre las k: el orden en que DIgSILENT debe confirmar (RF-5),
     con la bayesiana primero si cumple y cuesta menos (RF-12), el frente (RF-13) y el reparto de
-    Shapley del costo de la elegida entre sus cargas (RF-15)."""
+    Shapley del costo de la elegida entre sus cargas (RF-15). ``progreso``: ver :func:`seleccion_por_alimentador`."""
     campos = ('maxima', 'fraccion', 'motivos', 'perdidas_kw', 'v_min', 'aproximada', 'valle', 'valle_motivos',
               'valle_u_max', 'valle_nodo', 'valle_fecha', 'valle_sin_comprobar', 'valle_casos')   # 073:RF-30
     # Explorar (bayesiana, frente, Shapley) con el flujo físico, en milisegundos; el PINN juzga solo
@@ -906,7 +922,9 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
         if not suyas:
             continue
         tabla = []
-        for v in a.variantes:
+        for n, v in enumerate(a.variantes, 1):
+            if progreso is not None and n % BLOQUE_PROGRESO == 0:
+                progreso(f'{a.nombre}: {n} de {len(a.variantes)} variantes evaluadas con el oráculo.')
             e = oraculo.evaluar(v.obras, k, p, factores, a.nombre, valle)
             tabla.append({'variante': v, 'cumple': _cumple_en(e, p),
                           'costo_anual': a.costo(v, e.get('perdidas_kw')), **{x: e.get(x) for x in campos}})
@@ -914,7 +932,12 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
         if a.espacio is not None and evaluaciones_bayes > 0:
             # Con la máxima, que descarta casi todo; los sorteos, solo a lo que la cumple (abajo).
             # Con los 200 sorteos en cada combinación, NA293 + NA295 (2026-11-01) pasaba de 15 min.
+            vistas = [0]
+
             def valorar(v: Variante, a=a):
+                vistas[0] += 1
+                if progreso is not None and vistas[0] % BLOQUE_PROGRESO == 0:
+                    progreso(f'{a.nombre}: {vistas[0]} de {evaluaciones_bayes} combinaciones de la búsqueda bayesiana.')
                 e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)                 # 073:RF-21
                 return a.costo(v, e.get('perdidas_kw')), _cumple_en(e, p), e
             bayes = buscar_combinacion(a.espacio, valorar, evaluaciones=evaluaciones_bayes, semilla=semilla)
@@ -930,7 +953,12 @@ def elegir_para_k(oraculo: Oraculo, alimentadores: Sequence[Alimentador], k: int
                                          -(t.get('v_min') or 0.0), t['variante'].nombre))
         frente = None
         if pareto and a.espacio is not None:
+            medidas = [0]
+
             def medir(v: Variante, a=a):
+                medidas[0] += 1
+                if progreso is not None and medidas[0] % (4 * BLOQUE_PROGRESO) == 0:
+                    progreso(f'{a.nombre}: {medidas[0]} combinaciones del frente de costo, pérdidas y tensión.')
                 e = rapido.evaluar(v.obras, k, p, (), a.nombre, valle)                 # 073:RF-21
                 return a.costo(v, e.get('perdidas_kw')), e.get('perdidas_kw'), e.get('v_min'), _cumple_en(e, p)
             frente = frente_pareto(a.espacio, medir, semilla=semilla)
