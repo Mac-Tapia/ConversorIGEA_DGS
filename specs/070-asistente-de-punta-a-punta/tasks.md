@@ -142,3 +142,13 @@
       disco (D:/csg/PM_IMPL/N12/memoria_disco.txt). Pruebas: `tests/test_cache_prefijo_disco.py` (070:RF-94), con sus
       vecinas 206 passed (D:/csg/PM_IMPL/N12/rf94_vecinas.log).
       Queda la corrida en la GPU con la no regresión ya medible (T27).
+      Corrida del 2026-11-24 17:49–19:43 (wt_d8_t28, 8de18dec, sin cortes): RECHAZADO por poco y sigue el modelo en uso.
+      Ejecución sola: sintéticas 0,972 y maestro 0,959 (antes 0,964 y 0,946; puerta 0,98); humanas 0,698 (antes 0,651); la no
+      regresión ya se mide y no bloquea; acierto total en sintéticas 0,816 frente a 0,829 del modelo en uso. En selección
+      buscar_maxima, cruzar_clientes y sistema_completo a 1,000 y proyecto_entero de 0,44 a 0,69, pero carga_nueva_sola de
+      0,82 a 0,35: sus paráfrasis decían «sin estudio», «sin evaluar», «sin informe», y el modelo aprende las palabras de
+      evaluar_carga_nueva aunque vayan negadas; descargar_resultados → unir sigue (38 filas) porque «junta» solo va con
+      unir; leer_solicitud 0,65. Evidencia: D:/csg/PM_IMPL/GPU_BLOQUE/070_T28_noche.
+      Segunda vuelta, 2026-11-24 (d8): carga_nueva_sola con sus propios verbos y sin negaciones; descargar_resultados con
+      «junta … para descargarlos»; leer_solicitud sin «documento» ni «papeles». Comprobadas sin choque con lo que se mide
+      (tests/test_curriculo_070_t28.py, 6 passed). Queda su corrida en la GPU.
