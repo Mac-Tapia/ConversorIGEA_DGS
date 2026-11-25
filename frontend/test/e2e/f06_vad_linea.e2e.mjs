@@ -23,8 +23,10 @@ const CON_ENTRADA = { resultados: /^(OK|INCOMPLETO)$/, explotacion: /^OK$/, tabl
 
 // El perfil sintético que carga el recorrido: se quita al terminar, pase o falle, para no dejarlo a los demás.
 let rutaPerfil = null;
+// 086 T79: solo si es el del temporal de la web de prueba (CSG_PERFIL_EMPRESA de playwright.config.mjs), nunca el
+// config/perfil_empresa.json del operador.
 test.afterEach(() => {
-  if (rutaPerfil) rmSync(rutaPerfil, { force: true });
+  if (rutaPerfil && !resolve(rutaPerfil).startsWith(resolve(RAIZ))) rmSync(rutaPerfil, { force: true });
   rutaPerfil = null;
 });
 

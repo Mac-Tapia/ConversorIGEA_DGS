@@ -101,6 +101,10 @@ function servidor(programa, puertoDe, carpetaDe, extra = {}) {
       LOCALAPPDATA: carpetaDe,
       CSG_RUNTIME_HOME: join(carpetaDe, 'runtime'),
       CSG_WEB_DATA: join(carpetaDe, 'web'),
+      // 086 T79: el perfil activo también en el temporal. Lanzada desde el checkout primario, la web leía el
+      // config/perfil_empresa.json real del equipo y F06 («empieza sin perfil de empresa») fallaba el 25-11; y el perfil
+      // sintético que F06 carga y quita al terminar habría caído encima del del operador.
+      CSG_PERFIL_EMPRESA: join(carpetaDe, 'config', 'perfil_empresa.json'),
       // 086:RF-22: sin red. En la edición de desarrollo las teselas salen encendidas por defecto y el mapa de cargas del
       // PIDE pedía su fondo a openstreetmap.org (la guardia lo cazó en F03); como el plano, la web de prueba las apaga.
       CSG_SALIDA_TESELAS: '0',
