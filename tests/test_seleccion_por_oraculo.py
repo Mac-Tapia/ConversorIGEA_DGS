@@ -222,6 +222,42 @@ def test_098_rf45_el_escalon_resuelto_por_la_obra_ya_aplicada_lo_dice_asi(monkey
     assert 'la obra ya aplicada sí' in bancos and 'candidata por coste' not in bancos, bancos
 
 
+def test_098_rf46_la_nueva_mas_barata_gana_a_la_obra_ya_aplicada(monkeypatch):
+    """098:RF-46 con 098:RF-36 — Pisco (2026-11-25), AL209: con la obra ya aplicada que cumple (500 al año), cada escalón
+    salía con el costo de ella y ganaba el de bancos, que no trae obra: «se conserva… sin ella ninguna alternativa
+    cumple», aunque la terna medida (300) cumplía y costaba menos. Ahora gana la terna y es la que se propone sustituir."""
+    def var(nombre, clase):
+        return Variante(nombre, (clase,), [{'clase': clase}], {clase: 1.0})
+
+    orden = [var('b0', 'bancos'), var('t0', 'terna')]
+    tabla = [{'nombre': 'b0', 'cumple': False, 'costo_anual': 100.0, 'v_min': 0.9},
+             {'nombre': 't0', 'cumple': True, 'costo_anual': 300.0, 'v_min': 0.97}]
+    sel = {'alimentadores': {'F1': {'orden': orden, 'tabla': tabla, 'bayesiana': {}, 'pareto': {'frente': []},
+                                    'perdidas_energia': {}, 'ya_cumple': False}}, 'tanda': 3}
+    vieja = {'nombre': 'obra aplicada: terna y regulador', 'variaciones': ['Obra_terna_F1'], 'obras': []}
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: _aplicadas())
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: sel)
+    monkeypatch.setattr(services, '_obras_a_comparar', lambda *a, **k: {'F1': vieja})
+    propuestas = []
+    monkeypatch.setattr(services, '_sustituir', lambda ws, ctx, project, f, v, fila, aplicar, anio: (
+        propuestas.append(fila.get('elegida')) or {'ok': True, 'hecha': None}))
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, **k):
+        nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+        filas = [{'nombre': n, 'maxima': n == 't0', 'fraccion': 1.0 if n == 't0' else None, 'factible': n == 't0',
+                  'costo_anual': 300.0 if n == 't0' else 100.0} for n in nombres]
+        return {'alimentadores': [{'alimentador': feeders[0], 'elegida': 't0' if 't0' in nombres else None,
+                                   'tabla': filas, 'vieja': {'nombre': vieja['nombre'], 'factible': True,
+                                                             'costo_anual': 500.0}}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    ctx = _Ctx()
+    services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    eleccion = next(t for t in ctx.textos if 'se elige la más barata' in t)
+    assert 't0' in eleccion and '300' in eleccion, eleccion
+    assert propuestas == ['t0'], propuestas
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

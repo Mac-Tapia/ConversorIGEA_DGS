@@ -9237,7 +9237,10 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             e = x.get('elegida')
             nombre_e = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
             fila_t = next((t for t in x.get('tabla') or [] if t.get('nombre') == nombre_e), {})
-            if x.get('conserva') or (x.get('vieja') or {}).get('factible'):
+            # 098:RF-46 con RF-36: el escalón que trae una obra propia cuesta lo que ella; la ya aplicada, solo el que no
+            # trae ninguna (o la conserva). Pisco (2026-11-25), AL209: todos salían con el costo de la aplicada (339 017)
+            # y ganaba el de bancos, sin obra: la terna medida, más barata, nunca se comparaba.
+            if x.get('conserva') or (not nombre_e and (x.get('vieja') or {}).get('factible')):
                 fila_t = x.get('vieja') or fila_t
             c = fila_t.get('costo_anual')
             return float(c) if isinstance(c, (int, float)) else float('inf')
@@ -9271,8 +9274,11 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
         if candidatas:
             costo_g, _i, fila, traspaso, tanda = min(candidatas, key=lambda c: (c[0], c[1]))
             e_g = fila.get('elegida')
+            nombre_g = (e_g.get('nombre') if isinstance(e_g, dict) else e_g) or (
+                f"la obra ya aplicada «{(fila.get('vieja') or {}).get('nombre')}»" if (fila.get('vieja') or {}).get('factible')
+                else 'sin obra')
             ctx.log(f"{f}: entre {_cuenta(len(candidatas), 'escalón que cumple', 'escalones que cumplen')} se elige la más barata: "
-                    f"{(e_g.get('nombre') if isinstance(e_g, dict) else e_g) or 'sin obra'}"
+                    f"{nombre_g}"
                     + (f', {costo_g:,.0f} al año' if costo_g not in (0.0, float('inf')) else '') + ' (098:RF-46).')
         for alt in fila.get('alternativas') or []:
             ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"

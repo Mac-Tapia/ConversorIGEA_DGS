@@ -114,3 +114,6 @@
 - [x] T25. El escalón que resuelve la obra ya aplicada lo dice así, no «cumple: candidata por coste». (RF-45)
       Hecho cuando: el Registro dice que ninguna del escalón cumple y que la obra ya aplicada sí.
       Cerrada el 2026-11-25: rojo con la frase real de Pisco y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T26. Con una obra ya aplicada que cumple, la nueva más barata de un escalón gana y la sustituye. (RF-46, RF-36)
+      Hecho cuando: el escalón con obra propia cuesta lo que ella y la elección lo dice con su nombre.
+      Cerrada el 2026-11-25: rojo con el caso de AL209 en Pisco y verde en `tests/test_seleccion_por_oraculo.py`.
