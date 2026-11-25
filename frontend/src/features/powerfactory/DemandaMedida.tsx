@@ -9,6 +9,7 @@ import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 import { AvisosLibros } from './AvisosLibros';
 import { conPropiaDeReferencia, fmtFactor, fueraDelInstante, horaDeLaVentana, modoDeLaTabla, type ResultadoMaxima } from './tablaMaxima';
+import { demasiadosParaLaCoincidente, leerAmbito, OPCIONES_AMBITO, valorDelAmbito, type TipoAnalisis } from './ambitoMaxima';
 
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
@@ -317,7 +318,10 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   const [anio, setAnio] = useState('');
   // 028:RF-27: el operador elige el análisis: alimentadores (1 a 3 juntos), SET (máxima de barra, 022:RF-39
   // a RF-41) o sistema eléctrico (barras de 60 kV coincidentes, RF-31). «Son cosas diferentes, no se mezclan».
-  const [tipoAnalisis, setTipoAnalisis] = useState<'alimentadores' | 'set' | 'sistema'>('alimentadores');
+  const [tipoAnalisis, setTipoAnalisis] = useState<TipoAnalisis>('alimentadores');
+  // 086:RF-126: la no coincidente se elige en el ámbito, antes de buscar; el valor por defecto de cada ámbito no cambia.
+  const [noCoincidente, setNoCoincidente] = useState(false);
+  const ambito = { tipo: tipoAnalisis, noCoincidente };
   const porBarra = tipoAnalisis !== 'alimentadores';
   // 028:RF-30: el último escaneo de cada proyecto, también el automático de una recalibración.
   const [escaneosGuardados, setEscaneosGuardados] = useState<Record<string, Escaneo>>({});
@@ -388,12 +392,13 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   }, [ultimo?.id]);
 
   useEffect(() => {
-    if (!project) { setSistema(null); setTipoAnalisis('alimentadores'); return; }
+    if (!project) { setSistema(null); setTipoAnalisis('alimentadores'); setNoCoincidente(false); return; }
     let vivo = true;
     api.demandaSistema(ws.id, project).then((r) => {
       if (!vivo) return;
       setSistema(r.sistema);
       setTipoAnalisis(r.sistema ? 'sistema' : 'alimentadores');
+      setNoCoincidente(false);
     }).catch(() => { setSistema(null); setTipoAnalisis('alimentadores'); });
     return () => { vivo = false; };
   }, [ws.id, project, ws.demanda?.medidores?.name]);
@@ -475,7 +480,7 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       centrales: Object.fromEntries(feeders.filter((f) => centralCompleta(centrales[f])).map((f) => [f, {
         generacion: centrales[f].generacion, llegada: centrales[f].llegada, salida: centrales[f].salida }])) }));
   };
-  const demasiados = tipoAnalisis === 'alimentadores' && feeders.length > 3;
+  const demasiados = demasiadosParaLaCoincidente(ambito, feeders.length);
   const instanteActual = (ultimo?.result?.instante as string | null | undefined) ?? '';
   const barrasSet = (ultimo?.result?.barras as BarraDeSet[] | undefined) ?? [];
   const periodoBuscado = (ultimo?.result?.periodo as string | null | undefined) ?? '';
@@ -735,16 +740,14 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
       {faltaAnio && <small className="muted">Hay mediciones de {anios.join(', ')}: elija el año antes de buscar la
         máxima, para no mezclar años.</small>}
       <div className="row">
-        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio || demasiados} onClick={() => maxima()}>
+        <button className="btn btn-primary" disabled={!elegidos.length || !ws.demanda?.cabecera || engineBusy || faltaAnio || demasiados} onClick={() => maxima('', ambito.noCoincidente)}>
           Buscar la máxima ({aBuscar.length} medidor{aBuscar.length === 1 ? '' : 'es'})
         </button>
         {/* 072:RF-43: «Tipo de análisis» es corto plazo, PIDE o largo plazo (sus pestañas); aquí se elige dónde se busca la máxima. */}
         <label className="field-inline">Ámbito de la máxima{' '}
-          <select value={tipoAnalisis} disabled={engineBusy}
-            onChange={(e) => setTipoAnalisis(e.target.value as 'alimentadores' | 'set' | 'sistema')}>
-            <option value="alimentadores">Alimentadores (1 a 3 juntos): su máxima coincidente</option>
-            <option value="set">Por SET: máxima de barra de SET (alta tensión → media tensión)</option>
-            <option value="sistema">Sistema eléctrico: máxima coincidente de sus barras de alta tensión</option>
+          <select value={valorDelAmbito(ambito)} disabled={engineBusy}
+            onChange={(e) => { const a = leerAmbito(e.target.value); setTipoAnalisis(a.tipo); setNoCoincidente(a.noCoincidente); }}>
+            {OPCIONES_AMBITO.map((o) => <option key={o.valor} value={o.valor}>{o.rotulo}</option>)}
           </select>
         </label>
         {demasiados && <small className="muted">Son {feeders.length} alimentadores: elija SET o sistema eléctrico, o marque hasta 3.</small>}
@@ -881,8 +884,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
             <label className="row">
               <span>Instante de la calibración</span>
               <select value={instanteElegido} disabled={engineBusy}
-                onChange={(e) => (e.target.value === 'propia' ? maxima('', true)
-                  : maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''))}>
+                onChange={(e) => { setNoCoincidente(e.target.value === 'propia'); return e.target.value === 'propia' ? maxima('', true)
+                  : maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''); }}>
                 <option value="">{tipoAnalisis === 'sistema' ? 'Máxima coincidente del sistema eléctrico'
                   : tipoAnalisis === 'set' ? 'Máxima de la barra de su SET'
                   : 'Máxima coincidente de los seleccionados'}{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>

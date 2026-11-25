@@ -11,8 +11,8 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 472 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 133 |
-| Interfaz | `frontend/src/` | 121 |
-| Pruebas de la interfaz | `frontend/test/` | 65 |
+| Interfaz | `frontend/src/` | 122 |
+| Pruebas de la interfaz | `frontend/test/` | 66 |
 | Pruebas | `tests/` | 689 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
@@ -1010,6 +1010,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/reconexion.test.mjs` | — | 086 | Pruebas de los trabajos al reconectar y de la edición en la web. |
 | `scripts/README.md` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/buildPreservado.test.mjs` | — | 065 | Pruebas de la compilación y sus rutas, con y sin espacios. |
+| `test/ambitoMaxima.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/clientesCatalogo.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/equipoAsistente.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/aprendizaje.test.mjs` | — | 050 | Contrato de consulta sin trabajos y representación de fases, rechazo, versiones y errores de lectura. |
@@ -1155,6 +1156,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/TransferenciaPF.tsx` | — | 011, 104, 123 | Paso 4.3: transferencia de carga entre dos alimentadores. |
 | `src/features/powerfactory/alternativas.ts` | — | 042 | Las palabras y el orden de las alternativas por alimentador, las mismas del informe |
 | `src/features/powerfactory/centralesDeSet.ts` | — | 086, 122 | La SET de cada central térmica del libro en la máxima por barra: las SET de los alimentadores analizados primero, el tramo de un alimentador de la… |
+| `src/features/powerfactory/ambitoMaxima.ts` | — | 086, 126 | El ámbito de la máxima de 2.2 con su variante no coincidente (alimentadores, SET o sistema eléctrico, cada uno con la máxima de cada alimentador) y… |
 | `src/features/powerfactory/clientesCatalogo.ts` | — | 004, 008, 025, 091 | Estado del catálogo mensual de clientes: un solo libro activo e índice vigente antes de cruzar. |
 | `src/features/powerfactory/enviarInformeLogica.ts` | — | 110 | Lo que decide la ventana de envío: cuentas, motivo sin cuenta, petición de la vista previa, anulación al cambiar un campo y textos de estado. |
 | `src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |

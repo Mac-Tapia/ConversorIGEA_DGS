@@ -173,10 +173,13 @@ def test_front_selector_y_lo_detectado_con_el_escaneo_guardado():
 
     raiz = Path(__file__).resolve().parents[1] / 'frontend' / 'src'
     demanda = (raiz / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+    # 086:RF-126 (T113): las opciones del ámbito, con su variante no coincidente, están en ambitoMaxima.ts.
+    ambito = (raiz / 'features' / 'powerfactory' / 'ambitoMaxima.ts').read_text(encoding='utf-8')
     assert 'setPorBarra' not in demanda and 'type="checkbox" checked={porBarra}' not in demanda
+    assert 'OPCIONES_AMBITO.map' in demanda
     for valor in ('alimentadores', 'set', 'sistema'):
-        assert f'<option value="{valor}">' in demanda
-    assert "sistema_60kv: tipoAnalisis === 'sistema'" in demanda and 'feeders.length > 3' in demanda
+        assert f"{{ valor: '{valor}'," in ambito
+    assert "sistema_60kv: tipoAnalisis === 'sistema'" in demanda and 'alimentadores > 3' in ambito
     assert 'api.pfEscaneoGuardado(ws.id)' in demanda and 'function DetectadoEnElEscaneo' in demanda
     assert 'coincidente: !porBarra' in demanda
 

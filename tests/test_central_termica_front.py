@@ -11,7 +11,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 SRC = RAIZ / 'frontend' / 'src'
 APP_PY = (RAIZ / 'src' / 'convertersmartgrid' / 'presentacion' / 'web' / 'app.py').read_text(encoding='utf-8')
-DEMANDA = (SRC / 'features' / 'powerfactory' / 'DemandaMedida.tsx').read_text(encoding='utf-8')
+# 086:RF-126 (T113): el ámbito de la máxima y sus opciones viven en ambitoMaxima.ts; la pantalla se lee con él.
+DEMANDA = '\n'.join((SRC / 'features' / 'powerfactory' / n).read_text(encoding='utf-8')
+                     for n in ('DemandaMedida.tsx', 'ambitoMaxima.ts'))
 AJUSTE = (SRC / 'features' / 'powerfactory' / 'AjusteCabecera.tsx').read_text(encoding='utf-8')
 API = (SRC / 'api' / 'client.ts').read_text(encoding='utf-8')
 TIPOS = (SRC / 'api' / 'types.ts').read_text(encoding='utf-8')
@@ -149,7 +151,7 @@ def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     assert 'Máxima coincidente de los seleccionados' in DEMANDA and '(por defecto)' in DEMANDA
     assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción'
     # 086:RF-126: «propia» pide la máxima de cada alimentador; el resto, el instante elegido como antes.
-    assert "maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''))}" in DEMANDA
+    assert "maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
 
 

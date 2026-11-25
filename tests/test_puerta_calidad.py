@@ -1298,3 +1298,23 @@ def test_102_t20_lo_que_una_prueba_deja_en_el_disco_se_ve(tmp_path):
     (tmp_path / '__pycache__' / 'm.pyc').write_bytes(b'x')
     despues = CS.estado_del_arbol(tmp_path, tmp_path / 'salida')
     assert CS.cambios_del_disco(antes, despues) == ['+ output/x.json', '- docs/b.md', '~ docs/a.md']
+
+
+def test_102_rf8_el_veredicto_se_escribe_en_una_consola_cp1252(tmp_path):
+    """102:RF-8 — un motivo con «→» en la consola cp1252 de Git: se nombra la prueba y la puerta no muere.
+
+    El 2026-11-24 el gancho del commit murió con UnicodeEncodeError al escribir un motivo y no dijo qué prueba fallaba."""
+    import os
+    guion = tmp_path / 'informar.py'
+    guion.write_text('\n'.join([
+        'import importlib.util, sys',
+        f'spec = importlib.util.spec_from_file_location("pc", r"{RAIZ / "tools" / "puerta_calidad.py"}")',
+        'm = importlib.util.module_from_spec(spec); sys.modules["pc"] = m; spec.loader.exec_module(m)',
+        'getattr(m, "_salida_segura", lambda: None)()',
+        'm._informar({"total": 1, "fallidas": [{"prueba": "test_x", "motivo": "a \\u2192 b"}], "omitidas": []},'
+        ' omitidas_cuentan=False)',
+    ]), encoding='utf-8')
+    r = subprocess.run([sys.executable, str(guion)], capture_output=True,
+                       env={**os.environ, 'PYTHONIOENCODING': 'cp1252', 'PYTHONUTF8': '0'})
+    assert r.returncode == 0, r.stderr.decode('cp1252', 'replace')[-400:]
+    assert b'FALLA test_x' in r.stdout

@@ -848,7 +848,20 @@ def puerta_ci(raiz: Path = RAIZ) -> int:
     return 0 if ok else 1
 
 
+def _salida_segura() -> None:
+    """102:RF-8: el veredicto se escribe aunque la consola no tenga un carácter del motivo.
+
+    El 2026-11-24 el gancho del commit murió con UnicodeEncodeError al escribir «→» de un motivo en la consola cp1252 de
+    Git, y no dijo qué prueba fallaba. Lo que no cabe en la codificación de la consola sale sustituido, no tumba la puerta."""
+    for flujo in (sys.stdout, sys.stderr):
+        try:
+            flujo.reconfigure(errors='replace')
+        except (AttributeError, ValueError):
+            pass
+
+
 def main(argv: list[str] | None = None) -> int:
+    _salida_segura()
     parser = argparse.ArgumentParser(description='Puerta de calidad del repositorio (spec 102).')
     modo = parser.add_mutually_exclusive_group(required=True)
     modo.add_argument('--commit', action='store_true', help='gancho pre-commit: gobierno y las pruebas del commit')

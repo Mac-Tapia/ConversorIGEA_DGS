@@ -556,6 +556,7 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `frontend/src/features/powerfactory/formularioOperacionSet.ts` | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. | 063 |
 | `frontend/src/features/powerfactory/alternativas.ts` | Las palabras y el orden de las alternativas por alimentador, las mismas del informe | 042 |
 | `frontend/src/features/powerfactory/centralesDeSet.ts` | La SET de cada central térmica del libro en la máxima por barra: las SET de los alimentadores analizados primero, el tramo de un alimentador de la SET elegida y por qué una central no entra. | 086 (RF-122) |
+| `frontend/src/features/powerfactory/ambitoMaxima.ts` | El ámbito de la máxima de 2.2 con su variante no coincidente (alimentadores, SET o sistema eléctrico, cada uno con la máxima de cada alimentador) y el tope de 3 de la coincidente. | 086 (RF-126) |
 | `frontend/src/features/powerfactory/tablaMaxima.ts` | Cómo se lee la tabla de la máxima de 2.2: su ámbito, el instante común, si la máxima propia va de referencia, la fila fuera del instante y el factor de carga. | 004 (RF-116), 028 (RF-43, RF-44) |
 | `frontend/src/features/powerfactory/tensionFuente.ts` | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. | 021 (RF-79 a RF-82) |
 | `frontend/src/features/powerfactory/obrasEstadoActual.ts` | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. | 086 (RF-77) |

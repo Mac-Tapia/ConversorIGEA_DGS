@@ -547,6 +547,10 @@ mientras los demás casos pasaban a 1,0278.
   una SET y en el de un sistema eléctrico. El valor por defecto de cada análisis no cambia (la coincidente, la barra de la SET o el sistema) y
   la web lo sigue proponiendo según el proyecto. Elegida, la web y el informe de la calibración dicen la fecha y hora de
   cada alimentador y avisan, sin bloquear, de que esos instantes no ocurrieron juntos.
+  Aclaración (usuario, 2026-11-24: no la encontró): la opción se elige en «Ámbito de la máxima», antes de buscar, una por
+  ámbito («Alimentadores», «Por SET» y «Sistema eléctrico»: la máxima de cada alimentador, no coincidente); «Instante
+  de la calibración» la sigue ofreciendo tras buscar. Con la no coincidente no rige el tope de 3 alimentadores de la
+  coincidente.
 - RF-127: (Plan Maestro PM-14 y PM-25, soporte en producción) EL SISTEMA dará a cada petición de la API una referencia
   de soporte: la que trae el cliente en `X-CSG-Traza` si son de 8 a 64 letras, cifras, guiones o guiones bajos, y si no
   una nueva; la respuesta la devuelve en esa cabecera. El trabajo que la petición encola la hereda (uno encolado sin

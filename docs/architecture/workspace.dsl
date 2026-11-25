@@ -63,7 +63,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             frontend = container "Interfaz web" "Selección, seguimiento, confirmación y descarga; compilada en frontend/dist." "React + TypeScript" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src"
                 tags "Web"
-                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (87 ficheros)." "React + TypeScript" {
+                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (88 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src"
                     tags "Web"
                     properties {
@@ -77,7 +77,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: conversión y perfil de la empresa"
                     }
                 }
-                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (28 ficheros)." "React + TypeScript" {
+                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (29 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/ecad83ea11a8ff4b9943ec22e57b427597c938fb/frontend/src/features/powerfactory"
                     tags "Web"
                     properties {

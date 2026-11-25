@@ -639,3 +639,8 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       «true»: la opción no se marca hasta que responde el servidor), D:/csg/PM_IMPL/N12/t112/e2e_rojo.log; verde con
       el arreglo, F01 entero (3 passed), D:/csg/PM_IMPL/N12/t112/e2e_verde.log; `npm test` en verde
       (D:/csg/PM_IMPL/N12/front_unit.log).
+- [ ] T113 AMBITO-NO-COINCIDENTE (usuario, 2026-11-24, con la captura de «Ámbito de la máxima»: la no coincidente pedida el
+      19-11 solo estaba en «Instante de la calibración», tras buscar): el ámbito ofrece la no coincidente de cada uno y
+      «Buscar la máxima» la pide. (RF-126)
+      Hecho cuando: `frontend/test/ambitoMaxima.test.mjs` (086:RF-126) en rojo por aserción con la pantalla anterior y en
+      verde con la nueva, `npm test`, `tsc` y `npm run build` en verde, y la pantalla revisada en el navegador.
