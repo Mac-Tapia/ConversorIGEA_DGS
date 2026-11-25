@@ -112,6 +112,12 @@ sistema?»; «sí, implementa»):
   año en que vuelven los problemas) se toma por turno. Si el oráculo falla a mitad, los que falten los mide
   DIgSILENT (RF-4). Usuario (2026-11-25), Pisco: «cuando el oráculo termina le pasa a DIgSILENT; así van avanzando
   casi en paralelo, ya son diferentes motores».
+- RF-60: EL SISTEMA confirmará en DIgSILENT cada alimentador de «Con proyecto» con las cargas nuevas de todos los
+  alimentadores activas, como las pone el oráculo, para que la confirmación conjunta (RF-45) cumpla a la primera
+  cuando varios comparten su SET; y lo mismo el oráculo y la escalera de varios alimentadores a la vez,
+  que eligen las obras de corto plazo de «Con proyecto», la factibilidad y las alternativas del PIDE, el
+  largo plazo, el PIT y el VAD (lo que se le exige a cada uno sigue siendo de sus cargas). Cambia 025:RF-69. Usuario (2026-11-25), Pisco:
+  con las de los demás apartadas el sistema entero no cumplía y hubo que rehacer obras por rondas («sí, aplica»).
 - Determinismo: con la misma semilla, misma red y mismo perfil, el oráculo, Optuna, Markov y el árbol dan el mismo resultado.
 - Universal: nada de este método depende de una empresa, sistema o tensión (constitución 13).
 - Escala: nada fijado al número de alimentadores (constitución 2).

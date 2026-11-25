@@ -547,8 +547,10 @@ def test_la_escalera_va_por_alimentador(monkeypatch, tmp_path):
             pass
 
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1', 'F2'])
-    assert (('F1',), ('Carga_A',), False) in llamadas and (('F2',), ('Carga_B', 'Carga_C'), False) in llamadas
-    assert (('F1',), ('Carga_A',), True) in llamadas
+    # 087:RF-60: cada uno se mide y se aplica con las cargas nuevas de todos activas (antes, solo con las suyas).
+    todas = ('Carga_A', 'Carga_B', 'Carga_C')
+    assert (('F1',), todas, False) in llamadas and (('F2',), todas, False) in llamadas
+    assert (('F1',), todas, True) in llamadas
     assert vistos_solo == [{'F1': 'bancos'}], '042:RF-29: al aplicar, solo la obra elegida'
     assert r['caben'] == 1 and {c['sed'] for c in r['a_set_nueva']} == {'B', 'C'}
     assert r['por_alimentador']['F2']['cumple'] is False

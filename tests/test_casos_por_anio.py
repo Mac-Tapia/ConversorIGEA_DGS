@@ -967,9 +967,9 @@ def test_sin_el_estado_de_con_proyecto_se_vuelve_a_medir(tmp_path, monkeypatch):
 @pytest.mark.parametrize('activa', [True, False])
 def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resuelve(
         tmp_path, monkeypatch, activa):
-    """025:RF-69 — la elegida de F1 se aplica con las cargas nuevas de F2 apartadas, como se
-    evaluó; F1 cuenta como resuelto para F2 solo si su obra quedó activa en «Con proyecto»
-    (Pisco, 2026-10-24: la de SI293 quedó inactiva y PA297 se evaluó como si estuviera resuelto)."""
+    """025:RF-69 cambiado por 087:RF-60 — la elegida de F1 se evalúa y se aplica con las cargas nuevas de F2 activas,
+    como el sistema real (Pisco, 2026-11-25: con las de los demás apartadas, el sistema entero no cumplía al juntarlas);
+    y si la obra de F1 no converge al aplicarla, se dice (Pisco, 2026-10-24: la de SI293 quedó inactiva)."""
     def evaluar(nombre):
         cumple = nombre.startswith('terna') and '+' not in nombre
         return {'nombre': nombre, 'maxima': cumple, 'fraccion': 1.0 if cumple else None,
@@ -978,9 +978,9 @@ def test_la_elegida_se_aplica_con_las_mismas_cargas_apartadas_y_solo_activa_resu
     services, ws, ctx, planes, _aplicadas, apartadas = _escalera_falsa(
         tmp_path, monkeypatch, evaluar, {'nueva_terna': 40000}, alimentadores=('F1', 'F2'), activa=activa)
     r = services.obras_escalera(ws, ctx, 'P', ['F1', 'F2'], anio_casos=ANIO)
-    assert apartadas[0] == ['F2']
+    assert apartadas[0] == []
     de_f2 = [p for _a, p in planes if p['feeders'] == ['F2']]
-    assert all(p['apartar_cargas_de'] == ([] if activa else ['F1']) for p in de_f2)
+    assert de_f2 and all(p['apartar_cargas_de'] == [] for p in de_f2)
     f1 = r['alimentadores'][0]
     assert any('su flujo no converge al aplicarla' in a for a in f1['avisos']) is (not activa)
 

@@ -277,7 +277,7 @@ nueva por su factor de uso; vale si cumple en el 95 % de 200 sorteos)
   un alimentador solo cuenta como resuelto si su obra quedó activa en «Con proyecto <año>».
   (Pisco, 2026-10-24: la terna y la sección elegidas para SI293 quedaron inactivas porque la
   aplicación normal comprobó el flujo con las cargas de PA297, y PA297 se evaluó como si SI293
-  estuviera resuelto.)
+  estuviera resuelto.) Aclaración (2026-11-25): en «Con proyecto» por alimentador lo cambia 087:RF-60.
 - RF-71: EL SISTEMA medirá primero todas las variantes con la máxima y sorteará solo las
   que cumplen y tienen costo, de la de menor costo anual a la de mayor, hasta la primera que
   cumple en la fracción de sorteos del perfil: las más caras ya no pueden ganar y se dicen

@@ -84,3 +84,6 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
       Hecho cuando: `_SeleccionEnCurso` entrega cada alimentador a la escalera mientras el oráculo sigue, y el
       oráculo se usa por turno.
       Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T38. DIgSILENT confirma cada alimentador con las cargas nuevas de todos activas. (RF-60)
+      Hecho cuando: `escalera_por_alimentador` pasa todas las cargas aplicadas a cada confirmación y aplicación.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.

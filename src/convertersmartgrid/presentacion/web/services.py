@@ -8221,11 +8221,13 @@ def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
         ctx.check_cancel()
         # El guion compara los alimentadores del plan con los del contexto firmado: cada
         # alimentador va con el suyo (Pisco, 2026-10-24: «BLOQUEADO_DATOS» con el de los dos).
-        # 025:RF-69: activas solo sus cargas nuevas y las de los ya resueltos.
+        # 087:RF-60 (cambia 025:RF-69): activas las cargas nuevas de todos (las de ``cargas_activas``), no solo las suyas y
+        # las de los ya resueltos; lo mismo para «Con proyecto», el PIDE, el largo plazo, el PIT y el VAD, que eligen sus
+        # obras por aquí. Pisco (2026-11-25): con las de los demás apartadas, el sistema entero no cumplía al juntarlas.
         comun = {'project': project.strip(), 'folder': carpeta_de(ws, project), 'anio_casos': anio_casos,
                  **({'procedencia_capex': procedencia_capex} if procedencia_capex else {}),
                  'native_action_context': native_action_context(ws, project, [f], 'obras'),
-                 'apartar_cargas_de': [g for g in con_cargas if g != f and g not in resueltos],
+                 'apartar_cargas_de': [],
                  'apartar_variaciones': apartar_variaciones,
                  # 098:RF-44: el enlace de la transferencia del operador, deshecha en «Con proyecto», para proponerla.
                  **({'enlaces_del_operador': list(operador[f].get('enlace') or [])} if (operador or {}).get(f) else {}),
@@ -9161,6 +9163,11 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     for c in aplicadas:
         f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
         por_alim.setdefault(f, []).append(c)
+    # 087:RF-60 (cambia 025:RF-69 aquí): DIgSILENT confirma cada alimentador con las cargas nuevas de todos activas, como
+    # el oráculo. Pisco (2026-11-25): con las de los demás apartadas, la confirmación conjunta no cumplía por la SET
+    # compartida y hubo que rehacer obras por rondas.
+    # Todas las del proyecto, no solo las de los marcados: al rehacer un alimentador solo, las de los demás también van.
+    todas_las_cargas = [str(c['variacion']) for c in _cargas_nuevas_aplicadas(ws, project) if c.get('variacion')]
     # 098:RF-52: con lo medido en el espacio por trabajos anteriores de la misma red, aunque la web se reiniciase.
     cumplen, resto, por_feeder, elegidas = [], [], {}, {}
     memo = {**_memo_de_medidas(ws), 'dir_base': tempfile.mkdtemp(prefix='csg_base_')}
@@ -9245,7 +9252,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             fila_e: dict = {}
             for tanda in listas:
                 ctx.check_cancel()
-                r_e = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs],
+                r_e = obras_escalera(ws, ctx, project, [f], cargas_activas=todas_las_cargas,
                                      aplicar=False, basta_una=True, memo=memo, por_alternativas=True, **opciones,
                                      **de_eval, escalones=(desde, hasta), **extra,
                                      **({'variantes_de': {f: tanda}} if tanda else {}))
@@ -9334,7 +9341,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             nombre_n = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
             hallada = next((v for v in (tanda or ()) if v.nombre == nombre_n), None)
             sustitucion = _sustituir(ws, ctx, project, f, vieja, fila, lambda sust: obras_escalera(
-                ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True, basta_una=True,
+                ws, ctx, project, [f], cargas_activas=todas_las_cargas, aplicar=True, basta_una=True,
                 memo=memo, solo={f: nombre_n}, traspaso=traspaso, con_enlaces=con_enlaces, **opciones,
                 apartar_obras={f: vieja['variaciones']}, sustituir={f: sust},
                 huellas={f: fila.get('huella_eleccion')},
@@ -9357,7 +9364,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             ctx.check_cancel()
             # La que halló la bayesiana no está en la lista de la escalera: se aplica la misma que se midió (087).
             hallada = next((v for v in (tanda or ()) if v.nombre == elegidas[f]), None)
-            hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=True,
+            hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=todas_las_cargas, aplicar=True,
                                    basta_una=True, memo=memo, solo={f: elegidas[f]}, traspaso=traspaso,
                                    con_enlaces=con_enlaces, **opciones, huellas={f: fila.get('huella_eleccion')},
                                    **({'variantes_de': {f: [hallada]}} if hallada is not None else {}))
@@ -9377,7 +9384,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                 continue
             ctx.check_cancel()
             ctx.log(f"{f}: {_cuenta(len(barras_bajas), 'barra baja', 'barras bajas')}, {etiqueta}; se evalúa su obra, aparte de la de la carga (042:RF-64).")
-            previo = obras_escalera(ws, ctx, project, [f], cargas_activas=[c['variacion'] for c in cs], aplicar=False,
+            previo = obras_escalera(ws, ctx, project, [f], cargas_activas=todas_las_cargas, aplicar=False,
                                     basta_una=True, memo=memo, por_alternativas=True, previas={f: barras_bajas},
                                     etiqueta_previas=etiqueta, **opciones)
             de_previo = next(iter(previo.get('alimentadores') or []), {})

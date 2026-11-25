@@ -280,6 +280,49 @@ def test_098_rf52_lo_medido_se_reutiliza_tras_reiniciar_la_web(tmp_path):
     assert ya == {} and len(nuevas) == 1
 
 
+def test_087_rf60_digsilent_confirma_cada_alimentador_con_las_cargas_de_todos(monkeypatch):
+    """087:RF-60 — Pisco (2026-11-25): cada alimentador se confirmaba con las cargas nuevas de los demás apartadas y la
+    confirmación conjunta no cumplía (una SET compartida); hubo que rehacer obras por rondas. Ahora DIgSILENT mide cada
+    uno con las de todos activas, como el oráculo."""
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'},
+                 {'sed': 'B', 'alimentador': 'F2', 'kw': 100.0, 'variacion': 'Carga_B'}]
+    sel = _seleccion(1)
+    sel['alimentadores']['F2'] = sel['alimentadores']['F1']
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: aplicadas)
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: sel)
+    activas = {}
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, cargas_activas=None, **k):
+        activas.setdefault(feeders[0], set()).update(cargas_activas or [])
+        nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+        tabla = [{'nombre': n, 'maxima': True, 'fraccion': 1.0, 'factible': True, 'costo_anual': 1000.0} for n in nombres]
+        return {'alimentadores': [{'alimentador': feeders[0], 'elegida': nombres[0] if nombres else None, 'tabla': tabla}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1', 'F2'])
+    assert activas == {'F1': {'Carga_A', 'Carga_B'}, 'F2': {'Carga_A', 'Carga_B'}}, activas
+    # Rehecho solo F1, la carga de F2 también va.
+    activas.clear()
+    services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])
+    assert activas == {'F1': {'Carga_A', 'Carga_B'}}, activas
+
+
+def test_087_rf60_el_oraculo_mide_cada_alimentador_con_las_cargas_de_todos():
+    """087:RF-60 — el oráculo inyectaba en el flujo de un alimentador solo sus cargas nuevas; la de otro alimentador que
+    comparte la red no bajaba su tensión. Ahora el flujo lleva todas; lo que se le exige sigue siendo de sus cargas."""
+    from test_optimizacion_oraculo import _grafo, _id, TIPOS
+
+    nuevas = [{'variacion': 'Carga_G', 'nodo': _id('B', 'ElmTerm'), 'p_mw': 1.0, 'q_mvar': 0.2, 'alimentador': 'F1',
+               'barra': 'B'},
+              {'variacion': 'Carga_H', 'nodo': _id('A', 'ElmTerm'), 'p_mw': 0.6, 'q_mvar': 0.1, 'alimentador': 'F2',
+               'barra': 'A'}]
+    ora = oo.Oraculo(_grafo(r=2.5, x=1.875, nueva_mw=1.0), nuevas, tipos=TIPOS)
+    de_f1 = ora.medir([], 2, 1.0, 'F1')
+    de_todos = ora.medir([], 2, 1.0)
+    assert de_f1.u == pytest.approx(de_todos.u), (de_f1.u, de_todos.u)
+    assert ora.barras_de(2, 'F1') == ['B']                     # el criterio sigue siendo de sus cargas
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

@@ -226,7 +226,10 @@ class Oraculo:
         fq = factor if factor_q is None else factor_q
         s = np.array([complex(float(self._nodos[n].get('p_mw') or 0.0) * factor,
                               float(self._nodos[n].get('q_mvar') or 0.0) * fq) for n in m.ids]) / S_BASE
-        for c in self.activas(k, alimentador):
+        # 087:RF-60: en el flujo van las k cargas nuevas de todos los alimentadores; ``alimentador`` solo decide qué se le
+        # exige (``barras_de``). Pisco (2026-11-25): con solo las suyas, la SET compartida no bajaba y el sistema entero no
+        # cumplía al juntarlas.
+        for c in self.activas(k):
             i = pos.get(c['nodo'])
             if i is not None:
                 s[i] += complex(float(c.get('p_mw') or 0.0), float(c.get('q_mvar') or 0.0)) / S_BASE * factor_nuevas
