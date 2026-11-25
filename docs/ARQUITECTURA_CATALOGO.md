@@ -28,7 +28,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-112 specs con 4125 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4132 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -45,6 +45,10 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 ### Carriles de trabajos
 
 `engine`, `powerfactory`, `asistente`, `control`, `correo`, `red`.
+
+### Motores abiertos de flujo
+
+`zbus`, `anderson`, `newton`, `pgm`, `dss` en `adaptadores/digital_twin/motores_flujo.py`; pandapower, aparte, en el preflight, el VAD y el PIT.
 
 ### Rutas de la API
 
@@ -326,6 +330,16 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/preflight_contract.py` | Apl | 065 | Contrato JSON del modelo efectivo, fijado al DGS antes de su importación. |
 | `dominio/comprobacion_flujo.py` | Dom | 081 | Lo que un flujo o una calibración dijeron frente a lo que pasó: barras de baja a 0 p.u., cargas que no consumen, estado verdadero del trabajo y… |
 
+### Motor: motores abiertos de flujo (083, 107)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
+| `adaptadores/digital_twin/flujo.py` | Ada | 024 | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo… |
+| `adaptadores/digital_twin/motores_flujo.py` | Ada | 083 | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. |
+| `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación, acoplamientos de barras y redes externas PQ o PV con su consigna) y flujo del motor… |
+| `adaptadores/pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
+| `dominio/matriz_estudios.py` | Dom | 100 | Matriz estudio × motor (DIgSILENT, motores abiertos, oráculo PINN y cálculo del conversor): por estudio de la web, la evidencia de cada celda (las… |
+
 ### Motor: salida y módulos enchufables
 
 | Fichero | Capa | Specs | Papel |
@@ -415,7 +429,6 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
 | `aplicacion/estudios_pf.py` | Apl | 011, 012, 049 | Estudios sobre los casos «Sin proyecto» y «Con proyecto», sin DIgSILENT: qué estudios se ofrecen (los de la 012 según el libro de la empresa y la… |
-| `dominio/matriz_estudios.py` | Dom | 100 | Matriz estudio × motor (DIgSILENT, motores abiertos, oráculo PINN y cálculo del conversor): por estudio de la web, la evidencia de cada celda (las… |
 | `aplicacion/estudios_red_pf.py` | Apl | 012 | Resultados de confiabilidad y capacidad sin DIgSILENT: índices por alimentador y su comprobación por cargas, ENS total y diferencias, aportes, mejora… |
 | `aplicacion/datos_empresa.py` | Apl | 012, 049 | Libro de la empresa de la confiabilidad, la capacidad y las protecciones: hojas, columnas y unidades validadas con hoja, fila y columna. |
 | `adaptadores/entradas_estudios.py` | Ada | 012 | Entradas que faltan a los estudios cargadas por el operador: texto de TXT, PDF o imagen (OCR), tablas con cualquier separador, columnas por su… |
@@ -475,8 +488,6 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/pit/__init__.py` | Dom | 107 | Paquete del PIT, aparte del PIDE, y su error común. |
 | `dominio/pit/ambito.py` | Dom | 107 | Áreas de demanda del perfil y los elementos de cada una, sin mezclar áreas. |
 | `aplicacion/pit/red_area.py` | Apl | 107 | Contrato neutro RedArea y lector del libro de la red del perfil. |
-| `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación, acoplamientos de barras y redes externas PQ o PV con su consigna) y flujo del motor… |
-| `adaptadores/pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
 | `adaptadores/pit/diagnostico.py` | Ada | 107 | Diagnóstico por año: demanda por barra de SET, caso base y N-1 contra los límites del registro o del perfil. |
 | `dominio/pit/programa.py` | Dom | 107 | Programa por año, titular y área, con bajas y reemplazos. |
 | `dominio/pit/observaciones.py` | Dom | 107 | Observaciones del regulador con su respuesta, enlazadas con la traza del expediente, y el documento de absolución con lo que cambió por cada una. |
@@ -504,7 +515,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/pit/__init__.py` | Ada | 002 | Paquete de `pit` en la capa adaptadores. |
 | `aplicacion/pit/__init__.py` | Apl | 002 | Paquete de `pit` en la capa aplicacion. |
 
-### Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)
+### Motor: VAD (estudio de costos de la empresa modelo, spec 108)
 
 | Fichero | Capa | Specs | Papel |
 | --- | --- | --- | --- |
@@ -529,10 +540,15 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `aplicacion/vad/resultados_vad.py` | Apl | 108 | Cargo fijo y VAD de cada nivel por sistema y ponderado a nivel empresa, con los conceptos, variantes, fórmulas y ponderación del TdR registrado. |
 | `adaptadores/vad/tablas_resultados.py` | Ada | 108 | Las Tablas de Resultados que lista el TdR registrado, en Excel: una hoja por tabla con su título, fuente, filas por sistema y total con =SUM, más el… |
 | `aplicacion/vad/trabajo.py` | Apl | 108 | Armado de la empresa modelo como trabajo en cola (`armar_empresa_modelo(ctx, …)` para `JobManager.submit(..., lane='engine')`): sistema por sistema… |
+| `adaptadores/vad/__init__.py` | Ada | 002 | Paquete de `vad` en la capa adaptadores. |
+
+### Motor: VNR de la Guía 232-2017 (spec 108)
+
+| Fichero | Capa | Specs | Papel |
+| --- | --- | --- | --- |
 | `adaptadores/vad/vnr_estudio.py` | Ada | — | Estudio VNR de una empresa desde su inventario VNR-GIS (modelo canónico del módulo ``vnr``), con la Guía del VNR |
 | `adaptadores/vad/vnr_formatos.py` | Ada | — | Los formatos del Anexo 5 de la Guía del VNR (RCD 232-2017-OS/CD) en un libro Excel: una hoja por formato con sus |
 | `aplicacion/vad/vnr_guia.py` | Apl | — | VNR según la «Guía de Elaboración del VNR de las Instalaciones de Distribución Eléctrica» (RCD 232-2017-OS/CD; |
-| `adaptadores/vad/__init__.py` | Ada | 002 | Paquete de `vad` en la capa adaptadores. |
 
 ### Motor: biblioteca normativa y fuentes de la empresa (107, 109)
 
@@ -621,8 +637,6 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/digital_twin/hiperparametros.py` | Ada | 027, 060 | Búsqueda de hiperparámetros del gemelo con Optuna (TPE y poda por mediana), limitada por ensayos con el reloj como tope de seguridad que no elige,… |
 | `adaptadores/digital_twin/contratos_fisicos.py` | Ada | 045 | Versión y alcance del grafo del gemelo: qué física representa y por qué rechaza una red, y huellas de controles y caso. |
 | `adaptadores/digital_twin/oraculo.py` | Ada | 024, 060 | Oráculo PINN/GNN (PyTorch, GPU si la hay): grafo por unidad, red de grafos sobre la física mallada con pérdida física de balance por barra eléctrica,… |
-| `adaptadores/digital_twin/flujo.py` | Ada | 024 | Flujo de carga físico por matriz de admitancias dispersa, con lazos: acopladores fusionados en una barra, factorización LU una sola vez, punto fijo… |
-| `adaptadores/digital_twin/motores_flujo.py` | Ada | 083 | Motores de flujo del oráculo sobre la misma red: Z-bus, Anderson, Newton, power-grid-model y OpenDSS. |
 | `adaptadores/digital_twin/benchmark_fisico.py` | Ada | 045 | Ablaciones del gemelo sobre las mismas particiones (física pura, red sin término físico, híbrido y PowerFlowNet) y comprobación de dominio antes de… |
 | `adaptadores/digital_twin/adaptador_pyg.py` | Ada | 045 | Adapta el MPN de PowerFlowNet a correcciones físicas de tensión y ángulo, mediante carga opcional. |
 | `adaptadores/digital_twin/evolutivo.py` | Ada | 024, 044, 048 | Algoritmo genético, NSGA-II y evolución diferencial autoadaptativa (jDE), deterministas con su semilla. |
@@ -989,7 +1003,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `verify_architecture_links.py` | — | 009 | Comprueba los enlaces públicos y locales del espacio Structurizr de la arquitectura. |
 | `verify_interactive_architecture.mjs` | — | 009 | Comprobación en navegador de la página de la arquitectura C4 interactiva (Node.js). |
 | `generar_arquitectura.py` | — | 090 | Genera `docs/ARQUITECTURA_CATALOGO.md` desde el repositorio: ficheros, capas, rutas, tareas del asistente y roles de su equipo. |
-| `generar_c4.py` | — | 090 | Pone al día las cifras del C4 de `docs/architecture/` desde el catálogo generado y el Estado de cada spec. |
+| `generar_c4.py` | — | 090 | Pone al día las cifras del C4 de `docs/architecture/` desde el catálogo generado y el Estado de cada spec, exige un motor abierto y un carril por… |
 | `puerta_calidad.py` | — | 102 | Puerta de calidad: los ganchos `pre-commit` y `pre-push` de `.githooks/` y GitHub Actions corren con ella las pruebas del commit, la suite completa… |
 | `comparar_suite_repartida.py` | — | 102 | La suite entera con N = 1, 2 y 3 procesos sobre el mismo árbol: memoria privada del árbol de procesos y por fichero, veredicto de cada prueba… |
 | `rutas_sin_modelo.py` | — | 002 | Lista las rutas de /api sin modelo de respuesta y escribe la lista de excepciones, que solo baja. |
@@ -1006,6 +1020,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/entradasEstudios.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/features/powerfactory/AvisosLibros.tsx` | — | 104 | «Novedades de los libros» en 2.1: avisos de los libros de demanda que la web reconoció sola, con «Dar por visto», y el estado del dataset del… |
 | `scripts/build.mjs` | — | 065 | Compila fuera del checkout y publica `dist` completo, conservando el anterior ante cualquier fallo. |
+| `scripts/exportar-c4.mjs` | — | 090 | Exporta el C4 interactivo a una PNG por vista y al plano PDF, con una página por vista y otra por bloque de pseudocódigo. |
 | `scripts/runtime-paths.mjs` | — | 065 | Raíces externas de la compilación, en el volumen de `dist` y fuera del código. |
 | `test/reconexion.test.mjs` | — | 086 | Pruebas de los trabajos al reconectar y de la edición en la web. |
 | `scripts/README.md` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

@@ -205,11 +205,11 @@ anterior. `estadistica_ordenes.py` registra cada orden para contrastar versiones
 ## Web
 
 - **Nada largo dentro de una petición** (P7). `web/jobs.py` encola; el navegador sigue el progreso por WebSocket y puede cancelar.
-- **Cinco carriles**, cada uno con un hilo: `engine` (motor en el proceso),
+- **Seis carriles**, cada uno con un hilo: `engine` (motor en el proceso),
   `powerfactory` (guiones de DIgSILENT, en serie), `asistente` (solo
   espera: sus pasos encolan en los otros dos), `control` (solo cancela, para poder parar lo que corre con el asistente ocupado,
-  070:RF-33) y `correo` (envío de informes por correo, que espera a la red y no al motor ni a DIgSILENT; sin relanzar tras
-  un reinicio, 110:RF-9).
+  070:RF-33), `correo` (envío de informes por correo, que espera a la red y no al motor ni a DIgSILENT; sin relanzar tras
+  un reinicio, 110:RF-9) y `red` (búsqueda de la publicación oficial del VNR-GIS, que también espera a la red, 080:RF-61).
 - **Puerta** (`web/seguridad.py`, 086:RF-17 a RF-21): un solo middleware ASGI comprueba Host, Origin y token, también en el
   WebSocket, y pone la política de contenido, de modo que una ruta nueva nace cerrada. En el navegador el token va en una cookie
   `HttpOnly`; los programas locales lo mandan en cabecera (`sesion_web.py`). Ver [`SEGURIDAD_Y_PRIVACIDAD.md`](SEGURIDAD_Y_PRIVACIDAD.md).
@@ -594,8 +594,28 @@ Lo que este documento decía el 2026-11-02 y dejó de ser cierto. Se conserva li
 | Decía | Hoy |
 | --- | --- |
 | `97 excepciones sobre` 210 módulos | Bajaron; la cifra vigente está en el catálogo |
-| `**Tres carriles**` | Cuatro, con `control` |
+| `**Tres carriles**` | Seis: `engine`, `powerfactory`, `asistente`, `control`, `correo` y `red` |
 | `Estado a 2026-11-02: **aprobada, sin implementar**.`, del planeamiento | Conectado a la web, sin aceptación real |
 | `**Multihorizonte con cuantiles** (046): **solo especificado**` | Tiene código y va por la tarea `pronostico` |
 | `Sin reranker`, del RAG | `asistente/reranker.py` existe; actúa solo si su evaluación sellada lo adoptó |
 | N-HiTS, TFT, PatchTST | Solo especificados en la versión anterior; hoy, en `digital_twin/adaptador_neuralforecast.py` |
+
+## Motores abiertos, módulos regulatorios, carriles y pseudocódigo
+
+Lo que el C4 dibuja desde el 2026-11-25 (090:RF-20 a RF-25), con el paso a paso de cada flujo en
+[`architecture/pseudocodigo.md`](architecture/pseudocodigo.md). La página interactiva lo muestra bajo cada vista.
+
+- **Motores abiertos de flujo** (083, 107): calculan sin licencia sobre la misma red y dicen qué motor dio el resultado. En la
+  distribución, `digital_twin/motores_flujo.py` elige entre Z-bus, Anderson, Newton (KLU), power-grid-model y OpenDSS; con
+  «auto», el Z-bus y, si no converge, Newton, y el que no está instalado cede al siguiente. pandapower calcula el preflight y el
+  dimensionamiento del VAD sobre el `FeederModel`, y la red del área del PIT (`pit/red_pandapower.py`). Los usan la calibración
+  (arranque del oráculo), el preflight, el plano sin licencia, el gemelo, el PIT y el VAD; `dominio/matriz_estudios.py` dice
+  qué motor calcula cada estudio. DIgSILENT sigue siendo el que confirma lo que se entrega.
+- **PIT** (107): la red del área desde su ámbito, el diagnóstico de cada año con la norma vigente, las alternativas y el
+  expediente con la forma oficial. Corre en `engine` con el motor abierto o en `powerfactory` con DIgSILENT si hay licencia.
+- **VAD** (108): la empresa modelo eficiente, sistema por sistema, en cuatro etapas; dimensiona con pandapower y calcula la red
+  real y la óptima por separado.
+- **VNR de la Guía 232-2017** (108): un módulo aparte del VAD y del adaptador de entrada VNR-GIS. Toma el modelo común del
+  espacio, de la fuente que se cargó, lo zonifica por densidad, aplica el cambio de tecnología del Anexo 6, adapta la red y lo
+  valoriza con el SICODI.
+- **Carriles**: los seis de `presentacion/web/jobs.py`, cada uno con lo que corre en él, en la vista «Carriles» del C4.

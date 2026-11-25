@@ -94,6 +94,17 @@
    ]
   },
   {
+   "titulo": "Motor: motores abiertos de flujo (083, 107)",
+   "base": "src/convertersmartgrid/",
+   "ficheros": [
+    "adaptadores/digital_twin/flujo.py",
+    "adaptadores/digital_twin/motores_flujo.py",
+    "adaptadores/pit/red_pandapower.py",
+    "adaptadores/pit/motores.py",
+    "dominio/matriz_estudios.py"
+   ]
+  },
+  {
    "titulo": "Motor: salida y módulos enchufables",
    "base": "src/convertersmartgrid/",
    "ficheros": [
@@ -186,7 +197,6 @@
    "base": "src/convertersmartgrid/",
    "ficheros": [
     "aplicacion/estudios_pf.py",
-    "dominio/matriz_estudios.py",
     "aplicacion/estudios_red_pf.py",
     "aplicacion/datos_empresa.py",
     "adaptadores/entradas_estudios.py",
@@ -249,8 +259,6 @@
     "dominio/pit/__init__.py",
     "dominio/pit/ambito.py",
     "aplicacion/pit/red_area.py",
-    "adaptadores/pit/red_pandapower.py",
-    "adaptadores/pit/motores.py",
     "adaptadores/pit/diagnostico.py",
     "dominio/pit/programa.py",
     "dominio/pit/observaciones.py",
@@ -280,7 +288,7 @@
    ]
   },
   {
-   "titulo": "Motor: VAD y VNR (estudio de costos y Guía del VNR, spec 108)",
+   "titulo": "Motor: VAD (estudio de costos de la empresa modelo, spec 108)",
    "base": "src/convertersmartgrid/",
    "ficheros": [
     "aplicacion/vad/__init__.py",
@@ -304,10 +312,16 @@
     "aplicacion/vad/resultados_vad.py",
     "adaptadores/vad/tablas_resultados.py",
     "aplicacion/vad/trabajo.py",
+    "adaptadores/vad/__init__.py"
+   ]
+  },
+  {
+   "titulo": "Motor: VNR de la Guía 232-2017 (spec 108)",
+   "base": "src/convertersmartgrid/",
+   "ficheros": [
     "adaptadores/vad/vnr_estudio.py",
     "adaptadores/vad/vnr_formatos.py",
-    "aplicacion/vad/vnr_guia.py",
-    "adaptadores/vad/__init__.py"
+    "aplicacion/vad/vnr_guia.py"
    ]
   },
   {
@@ -401,8 +415,6 @@
     "adaptadores/digital_twin/hiperparametros.py",
     "adaptadores/digital_twin/contratos_fisicos.py",
     "adaptadores/digital_twin/oraculo.py",
-    "adaptadores/digital_twin/flujo.py",
-    "adaptadores/digital_twin/motores_flujo.py",
     "adaptadores/digital_twin/benchmark_fisico.py",
     "adaptadores/digital_twin/adaptador_pyg.py",
     "adaptadores/digital_twin/evolutivo.py",
@@ -798,6 +810,7 @@
     "test/entradasEstudios.test.mjs",
     "src/features/powerfactory/AvisosLibros.tsx",
     "scripts/build.mjs",
+    "scripts/exportar-c4.mjs",
     "scripts/runtime-paths.mjs",
     "test/reconexion.test.mjs",
     "scripts/README.md",

@@ -46,3 +46,6 @@ certifican este producto. Consulta web: 2026-11-02. Las versiones concretas se
 contrastaron con [Vite 6.4.5](https://github.com/vitejs/vite/blob/v6.4.5/packages/vite/CHANGELOG.md)
 y [source-map-js 1.2.2](https://github.com/7rulnik/source-map-js/releases/tag/v1.2.2),
 y la auditoría reproducible del lock se conserva como evidencia externa.
+
+`exportar-c4.mjs` (spec 090, RF-26) no compila la interfaz: exporta el C4 de `docs/architecture/` a una PNG por vista
+y al plano PDF con `node frontend/scripts/exportar-c4.mjs`, usando el Playwright fijado aquí.

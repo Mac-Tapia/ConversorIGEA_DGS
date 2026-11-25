@@ -32,7 +32,7 @@ FUENTES = ('pyproject.toml', 'CODIGO_FUENTE.md', MAPA, 'docs/implementacion065/d
            S + 'aplicacion/asistente/tareas.py', S + 'aplicacion/asistente/equipo.py', S + 'aplicacion/asistente/revision_roles.py',
            S + 'aplicacion/asistente/orquestador.py', S + 'aplicacion/asistente/interprete.py', S + 'aplicacion/asistente/transformer.py',
            S + 'dominio/contratos_aprendizaje.py', S + 'dominio/edicion.py', S + 'presentacion/web/jobs.py', S + 'presentacion/web/app.py', S + 'presentacion/web/services.py',
-           'src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')
+           S + 'adaptadores/digital_twin/motores_flujo.py', 'src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')
 _RUTA = re.compile(r'@(?:router|app)\.(?:get|post|put|patch|delete|websocket)\(\s*f?[\'"]([^\'"]+)')
 _FILA = re.compile(r'^\| `([^`]+)` \| (.*) \| ([^|]*) \|\s*$', re.M)
 _RF = re.compile(r'^- (RF-\d+[a-z]?):', re.M)
@@ -96,6 +96,15 @@ def constante(texto: str, nombre: str) -> object:
         except (ValueError, KeyError, TypeError, AttributeError, IndexError):
             continue
     return conocidas[nombre]
+
+
+def claves_de_diccionario(texto: str, nombre: str) -> list[str]:
+    """Las claves literales del diccionario ``nombre`` del módulo, aunque sus valores sean funciones (090:RF-20)."""
+    for nodo in ast.parse(texto).body:
+        objetivo = nodo.target if isinstance(nodo, ast.AnnAssign) else (nodo.targets[0] if isinstance(nodo, ast.Assign) else None)
+        if isinstance(objetivo, ast.Name) and objetivo.id == nombre and isinstance(nodo.value, ast.Dict):
+            return [ast.literal_eval(k) for k in nodo.value.keys]
+    raise KeyError(nombre)
 
 
 def _arg(llamada: ast.Call, posicion: int, nombre: str, defecto: object = None) -> ast.AST | object:
@@ -254,6 +263,10 @@ def documento(fuente: Fuente) -> str:
     salida += ['', f'{len(modulos)} módulos y {len(deuda["excepciones"])} excepciones en la deuda de `tools/arquitectura.py`.', '']
 
     salida += ['### Carriles de trabajos', '', ', '.join(f'`{c}`' for c in constante(fuente.leer(S + 'presentacion/web/jobs.py'), 'LANES')) + '.', '']
+    # 090:RF-20: el C4 dibuja un motor por cada clave de MOTORES; el 25-11 no tenía ninguno y solo nombraba pandapower.
+    motores = claves_de_diccionario(fuente.leer(S + 'adaptadores/digital_twin/motores_flujo.py'), 'MOTORES')
+    salida += ['### Motores abiertos de flujo', '', ', '.join(f'`{m}`' for m in motores)
+               + ' en `adaptadores/digital_twin/motores_flujo.py`; pandapower, aparte, en el preflight, el VAD y el PIT.', '']
 
     familias = rutas(fuente.leer(S + 'presentacion/web/app.py'))
     vnr = len(_RUTA.findall(fuente.leer('src/convertersmartgrid/adaptadores/entrada/vnr/web/app.py')))

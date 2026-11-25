@@ -142,6 +142,13 @@
     }
     #csg-c4-flow .c4-access-index button { font-size: 0.86em; }
     #csg-c4-flow .c4-sources { margin-top: 0.7rem; color: var(--muted-foreground); }
+    #csg-c4-flow .c4-pseudo { margin-top: 0.9rem; }
+    #csg-c4-flow .c4-pseudo-title { margin: 0 0 0.4rem; font-size: 1rem; font-weight: 500; }
+    #csg-c4-flow .c4-pseudo-title small { color: var(--muted-foreground); font-weight: 400; }
+    #csg-c4-flow .c4-pseudo-block { margin: 0.3rem 0; border: 1px solid var(--border); border-radius: 10px; padding: 0.35rem 0.7rem; }
+    #csg-c4-flow .c4-pseudo-block[open] { border-color: var(--primary); }
+    #csg-c4-flow .c4-pseudo-block summary { cursor: pointer; font-weight: 500; }
+    #csg-c4-flow .c4-pseudo-block pre { margin: 0.5rem 0 0.2rem; overflow-x: auto; font-size: 12px; line-height: 1.45; }
     #csg-c4-flow .c4-sources summary { cursor: pointer; font-weight: 500; }
     #csg-c4-flow .c4-sources ul { margin: 0.45rem 0 0; padding-left: 1.25rem; }
     #csg-c4-flow .c4-sources a { color: var(--primary); }
@@ -172,8 +179,8 @@
   </style>
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
-  <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 460 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo. Debajo, el pseudocódigo del flujo de cada vista.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 460 módulos de Python en 39 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -183,6 +190,9 @@
       <button id="tab-conversion" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="conversion">Datos a DGS</button>
       <button id="tab-powerfactory" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="powerfactory">DGS a PowerFactory</button>
       <button id="tab-intelligence" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="intelligence">IA y decisión</button>
+      <button id="tab-lanes" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="lanes">Carriles</button>
+      <button id="tab-engines" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="engines">Motores de flujo</button>
+      <button id="tab-regulatory" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="regulatory">PIT, VAD y VNR</button>
       <button id="tab-deployment" class="nav-link" type="button" role="tab" aria-controls="c4-stage" aria-selected="false" data-view="deployment">Despliegue</button>
     </div>
     <div class="c4-actions">
@@ -241,12 +251,178 @@
     <button class="btn btn-ghost" type="button" data-node-id="reports">Informes</button>
     <button class="btn btn-ghost" type="button" data-node-id="pit">PIT</button>
     <button class="btn btn-ghost" type="button" data-node-id="vad">VAD</button>
+    <button class="btn btn-ghost" type="button" data-node-id="vnrGuia">VNR de la Guía</button>
+    <button class="btn btn-ghost" type="button" data-node-id="flowEngines">Motores abiertos</button>
+    <button class="btn btn-ghost" type="button" data-node-id="jobs">Carriles</button>
     <button class="btn btn-ghost" type="button" data-node-id="normativa">Normativa</button>
     <button class="btn btn-ghost" type="button" data-node-id="cloudConn">Nube</button>
     <button class="btn btn-ghost" type="button" data-node-id="mailer">Correo</button>
     <button class="btn btn-ghost" type="button" data-node-id="gisEditor">Plano GIS</button>
     <button class="btn btn-ghost" type="button" data-node-id="bench">Benchmarks</button>
   </div>
+
+  <!-- pseudocodigo:inicio -->
+  <section class="c4-pseudo" aria-label="Pseudocódigo de cada flujo">
+    <h3 class="c4-pseudo-title">Pseudocódigo de cada flujo <small>(copiado de docs/architecture/pseudocodigo.md)</small></h3>
+    <details id="pseudo-conversion" class="c4-pseudo-block">
+      <summary>De la fuente al DGS validado</summary>
+      <pre><code>web: convertir(espacio, alimentadores)                      src/convertersmartgrid/presentacion/web/services.py::convert
+  dataset ← cargar la fuente del espacio (TXT, MDB o VNR-GIS, una sola)
+                                                            src/convertersmartgrid/presentacion/web/services.py::load_dataset
+  informe ← completar lo que falta con el catálogo y anotar cada supuesto
+                                                            src/convertersmartgrid/aplicacion/reglas.py::preparar_dataset
+  seleccion ← alimentadores pedidos o todos                 src/convertersmartgrid/aplicacion/batch.py::convert_selection
+  procesos ← min(pedidos, alimentadores)                    src/convertersmartgrid/aplicacion/batch.py::resolve_workers
+  para cada alimentador, en paralelo y con el mismo resultado byte a byte:
+      modelo ← FeederModel de la red de ese alimentador     src/convertersmartgrid/dominio/model.py::build_feeder_model
+      modelo ← reglas comunes (fases, puentes, capacidades) src/convertersmartgrid/aplicacion/reglas.py::aplicar_reglas
+      auditar que no falte ningún equipo                    src/convertersmartgrid/aplicacion/reglas.py::auditar_completitud
+      escribir el DGS con su esquema versionado             src/convertersmartgrid/adaptadores/dgs.py::write_dgs
+      validar el DGS escrito; si falla, no se publica       src/convertersmartgrid/adaptadores/validate.py::validate_dgs
+  publicar de forma atómica en el espacio, con su manifiesto y sus huellas</code></pre>
+    </details>
+    <details id="pseudo-powerfactory" class="c4-pseudo-block">
+      <summary>Del DGS a DIgSILENT</summary>
+      <pre><code>web: importar(espacio, proyecto)
+  encolar(powerfactory, guion)                              src/convertersmartgrid/presentacion/web/jobs.py::JobManager.submit
+  el carril lanza el guion como proceso aparte, con plan JSON
+                                                            src/convertersmartgrid/presentacion/web/jobs.py::JobContext.run_process
+  guion: turno exclusivo de DIgSILENT en la máquina         src/convertersmartgrid/adaptadores/pf_arnes.py::conectar
+  preflight consultivo con pandapower: avisa, no omite el DGS
+                                                            src/convertersmartgrid/adaptadores/oraculo.py::validar
+  importar los DGS fijados, guardar, reabrir y releer      src/convertersmartgrid/presentacion/web/services.py::_importar_dgs_fijados
+                                                            tools/powerfactory_acceptance.py::main
+  verificar el «Caso base» sin volver a importar: GPS, conectividad, capacidades
+                                                            src/convertersmartgrid/presentacion/web/services.py::pf_verificar_base
+  informe JSON → el espacio; la web lo presenta con lo que devolvió DIgSILENT</code></pre>
+    </details>
+    <details id="pseudo-calibracion" class="c4-pseudo-block">
+      <summary>Calibración con la máxima coincidente</summary>
+      <pre><code>web: calibrar(proyecto, máximas, medidor, periodo)
+  plan ← máxima de cabecera de cada alimentador, fijas y escaladas
+                                                            src/convertersmartgrid/presentacion/web/services.py::ajuste_plan
+  ejecutar el plan guardado por su token                    src/convertersmartgrid/presentacion/web/services.py::ajuste_ejecutar
+    arranque ← tensiones del oráculo antes de calibrar (motor abierto)
+                                                            src/convertersmartgrid/adaptadores/oraculo_calibracion.py::arranque_con_oraculo
+    encolar(powerfactory, ajuste de cabecera)               src/convertersmartgrid/presentacion/web/services.py::_correr_guion_ajuste
+      guion: para cada alimentador
+          escalar las cargas hasta la máxima medida, con Q desde el factor de potencia
+          si no converge entonces leer el historial de DIgSILENT y cambiar el
+              transformador que lo impide (spec 101), nunca aceptar «no converge»
+                                                            tools/ajuste_cabecera_pf.py::main
+    la verdad de la calibración es la que relee DIgSILENT   src/convertersmartgrid/presentacion/web/services.py::_verdad_de_la_calibracion
+  guardar por proyecto y año de medición                    src/convertersmartgrid/presentacion/web/services.py::_guardar_calibracion</code></pre>
+    </details>
+    <details id="pseudo-con-proyecto" class="c4-pseudo-block">
+      <summary>«Con proyecto»: cargas nuevas y obras</summary>
+      <pre><code>web: con_proyecto(proyecto, alimentadores)                  src/convertersmartgrid/presentacion/web/services.py::con_proyecto_optimizar
+  con las cargas nuevas de todos los alimentadores activas:
+  en un hilo, el oráculo elige la obra de cada alimentador:
+      espacio ← variantes de la escalera bancos → sección → terna (+ regulador)
+      mejor ← búsqueda de la combinación más barata que cumple
+                                                            src/convertersmartgrid/adaptadores/optimizacion_oraculo.py::buscar_combinacion
+      frente ← costo frente a pérdidas y margen             src/convertersmartgrid/adaptadores/optimizacion_oraculo.py::frente_pareto
+  mientras tanto, DIgSILENT confirma cada alimentador en cuanto el oráculo lo elige:
+      para cada escalón de la escalera, de menor a mayor costo:
+          si su obra más barata cuesta más que la ya confirmada entonces saltarlo
+          medir en DIgSILENT; si cumple entonces parar en él
+                                                            src/convertersmartgrid/presentacion/web/services.py::escalera_por_alimentador
+                                                            tools/obras_pf.py::main
+  guardar las alternativas que cumplen, con la elegida marcada, para el informe</code></pre>
+    </details>
+    <details id="pseudo-motores" class="c4-pseudo-block">
+      <summary>Motores abiertos de flujo</summary>
+      <pre><code>flujo abierto de una red de distribución (oráculo, calibración, gemelo):
+  sistema ← red factorizada una sola vez                    src/convertersmartgrid/adaptadores/digital_twin/flujo.py::SistemaMallado
+  motor ← pedido, o CSG_MOTOR_FLUJO, o «auto»
+  si auto entonces Z-bus y, si no converge, Newton
+  si el motor no está instalado entonces cede al siguiente; nada se bloquea por un motor
+                                                            src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py::resolver_con
+     Z-bus: punto fijo        Anderson: punto fijo acelerado
+                                                            src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py::anderson
+     Newton-Raphson con KLU                                 src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py::newton
+     power-grid-model                                       src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py::pgm
+     OpenDSS                                                src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py::dss
+  devuelve la solución y qué motor la calculó
+
+pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
+  red ← FeederModel en pandapower, por fases si las trae   src/convertersmartgrid/adaptadores/oraculo.py::red_pandapower
+  red del área de transmisión, con tomas, SVC y compensación
+                                                            src/convertersmartgrid/adaptadores/pit/red_pandapower.py::calcular
+  qué motor calcula cada estudio y con qué alcance          src/convertersmartgrid/dominio/matriz_estudios.py::matriz
+  en el plano: DIgSILENT si hay licencia y el proyecto está vinculado; si no, el abierto
+                                                            src/convertersmartgrid/adaptadores/resultados_plano.py::elegir_motor</code></pre>
+    </details>
+    <details id="pseudo-pit" class="c4-pseudo-block">
+      <summary>Plan de inversiones en transmisión</summary>
+      <pre><code>web: PIT del área de demanda                                src/convertersmartgrid/presentacion/web/rutas_pit.py::crear_router
+  red ← red del área desde su ámbito y su fuente            src/convertersmartgrid/aplicacion/pit/red_area.py::desde_ambito
+  motor ← DIgSILENT si hay licencia y se pide; si no, el abierto (pandapower)
+                                                            src/convertersmartgrid/adaptadores/pit/motores.py::elegir_motor
+  si motor = DIgSILENT entonces encolar(powerfactory, guion del PIT)
+                                                            tools/pit_pf.py::main
+  si no, encolar(engine, flujo abierto)                     src/convertersmartgrid/adaptadores/pit/motores.py::ejecutar
+  para cada año del horizonte:
+      diagnóstico con los límites de la norma vigente       src/convertersmartgrid/adaptadores/pit/diagnostico.py::diagnosticar
+  alternativas: aplicar cada cambio a la red y comparar     src/convertersmartgrid/adaptadores/pit/alternativas.py::evaluar
+  expediente con la forma oficial y su cita normativa       src/convertersmartgrid/adaptadores/pit/expediente.py::emitir</code></pre>
+    </details>
+    <details id="pseudo-vad" class="c4-pseudo-block">
+      <summary>Estudio de costos del VAD</summary>
+      <pre><code>web: estudio VAD de la empresa                              src/convertersmartgrid/presentacion/web/vad_api.py::registrar_rutas_vad
+  estudio ← crear con el perfil, el grupo, el periodo y los TdR
+                                                            src/convertersmartgrid/aplicacion/vad/estudio.py::crear_estudio
+  exigir que cada norma y recurso usado esté vigente        src/convertersmartgrid/aplicacion/vad/estudio.py::exigir_vigente
+  encolar(engine, empresa modelo eficiente en cuatro etapas):
+                                                            src/convertersmartgrid/aplicacion/vad/trabajo.py::armar_empresa_modelo
+      cada sistema eléctrico, paso a paso: caracterización → dimensionamiento → costos → COyM
+      dimensionar SED y tramos con el flujo de pandapower sobre la red óptima
+                                                            src/convertersmartgrid/adaptadores/vad/dimensionamiento.py::dimensionar
+  la red real y la red óptima se calculan por separado
+  comprobar el estudio con su registro normativo            src/convertersmartgrid/aplicacion/vad/estudio.py::comprobar_estudio</code></pre>
+    </details>
+    <details id="pseudo-vnr-guia" class="c4-pseudo-block">
+      <summary>VNR de la Guía 232-2017</summary>
+      <pre><code>web: VNR del espacio (no es el adaptador de entrada VNR-GIS)
+  encolar(engine, cálculo)                                  src/convertersmartgrid/presentacion/web/vnr_api.py::calcular
+  modelo ← el modelo común del espacio, de la fuente que se cargó
+  zonas ← mapa de densidad de carga (art. 22)              src/convertersmartgrid/aplicacion/vad/vnr_guia.py::zonificar
+  cambio de tecnología de cada tramo (Anexo 6)              src/convertersmartgrid/aplicacion/vad/vnr_guia.py::equivalencia
+  adaptar la red MT del sector (art. 28)                    src/convertersmartgrid/aplicacion/vad/vnr_guia.py::adaptar_red_mt
+  VNR adaptado del modelo, con los costos del SICODI        src/convertersmartgrid/adaptadores/vad/vnr_estudio.py::estudio_vnr
+  formatos del VNR para el VAD</code></pre>
+    </details>
+    <details id="pseudo-carriles" class="c4-pseudo-block">
+      <summary>Colas de trabajo por carril</summary>
+      <pre><code>web: cada petición larga es un trabajo; nunca se calcula dentro de la petición
+  encolar(carril, trabajo)                                  src/convertersmartgrid/presentacion/web/jobs.py::JobManager.submit
+  un hilo por carril, en serie dentro del carril            src/convertersmartgrid/presentacion/web/jobs.py::JobManager._worker
+     engine        conversión, flujo abierto, PIT y VAD sin DIgSILENT, VNR de la Guía, plano
+     powerfactory  guiones *_pf.py, uno a la vez en la máquina
+     asistente     solo espera: sus pasos encolan en engine o powerfactory
+     control       solo cancela, para parar lo que corre con el asistente ocupado
+     correo        envío de informes; espera a la red, no al motor ni a DIgSILENT
+     red           búsqueda de la publicación oficial del VNR-GIS; espera a la red
+  correr, informar avance por WebSocket y dejar el diario
+                                                            src/convertersmartgrid/presentacion/web/jobs.py::JobManager._run
+  cancelar: pide parar; si aún espera, queda cancelado ya   src/convertersmartgrid/presentacion/web/jobs.py::JobManager.cancel</code></pre>
+    </details>
+    <details id="pseudo-asistente" class="c4-pseudo-block">
+      <summary>Asistente de órdenes</summary>
+      <pre><code>operador escribe una orden en la web                        src/convertersmartgrid/presentacion/web/services.py::asistente_orden
+  interpretación ← tarea y datos (codificador, Transformer, LLM local; «ninguna» si es charla)
+                                                            src/convertersmartgrid/aplicacion/asistente/interprete.py::interpretar
+  plan ← pasos de la tarea con los datos resueltos del espacio
+                                                            src/convertersmartgrid/aplicacion/asistente/plan.py::resolver
+                                                            src/convertersmartgrid/aplicacion/asistente/ejecutor.py::pasos
+  mostrar el plan; nada se ejecuta sin la confirmación del operador
+  si confirma entonces encolar(asistente, ejecutar), que llama a la API existente paso a paso
+                                                            src/convertersmartgrid/presentacion/web/services.py::asistente_ejecutar
+  si un paso falla entonces revisar el error y proponer la corrección
+                                                            src/convertersmartgrid/aplicacion/asistente/ejecutor.py::revisar_tras_error</code></pre>
+    </details>
+  </section>
+<!-- pseudocodigo:fin -->
 
   <details class="c4-sources">
     <summary>Fundamento académico y técnico del plano</summary>
@@ -282,7 +458,7 @@
       const NS = 'http://www.w3.org/2000/svg';
       const PLAN = 'plan';
 
-      // Cifras: docs/ARQUITECTURA_CATALOGO.md y docs/architecture/subsistemas.json (spec 090), revisión ecad83ea.
+      // Cifras: docs/ARQUITECTURA_CATALOGO.md y docs/architecture/subsistemas.json (spec 090), revisión fc2ac64d.
       // 090:RF-19: las pone tools/generar_c4.py --escribir desde el catálogo y workspace.dsl; la prueba exige su --comprobar.
       const common = {
         // Contexto
@@ -305,6 +481,7 @@
         workspace: { label: 'Espacios de trabajo', tech: 'Ficheros por espacio', path: 'output/web', kind: 'store', detail: 'Entradas, opciones, ejecuciones, DGS, planes, informes y descargas de cada espacio.' },
         vnr: { label: 'Adaptador VNR-GIS', tech: 'Python, modelo común', path: 'src/convertersmartgrid/adaptadores/entrada/vnr', kind: 'engine', detail: 'Descubre, valida y exporta el VNR al mismo modelo común; su DGS sale del mismo escritor.' },
         engine: { label: 'Motor de conversión', tech: 'Python, FeederModel', path: 'src/convertersmartgrid/aplicacion/batch.py', kind: 'engine', detail: 'Adapta, reconstruye, aplica reglas y construye el modelo canónico; hasta 4 procesos con el mismo DGS.' },
+        flowEngines: { label: 'Motores abiertos de flujo', tech: 'Cinco motores y pandapower', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: 'Flujo de potencia sin licencia sobre la misma red. Distribución: Z-bus, Anderson, Newton (KLU), power-grid-model y OpenDSS; «auto» usa el Z-bus y, si no converge, Newton. pandapower: preflight, VAD y PIT. El resultado dice qué motor lo calculó.' },
         oracle: { label: 'Preflight consultivo', tech: 'pandapower', path: 'src/convertersmartgrid/adaptadores/oraculo.py', kind: 'engine', detail: 'Informa conectividad y convergencia antes de PowerFactory; sus avisos no omiten el DGS.' },
         dgs: { label: 'DGS y validación', tech: 'Esquema versionado', path: 'src/convertersmartgrid/adaptadores/dgs.py', kind: 'engine', detail: 'Escribe, valida y publica de forma atómica, con su manifiesto.' },
         native: { label: 'Guiones de DIgSILENT', tech: 'Plan JSON / informe JSON', path: 'src/convertersmartgrid/presentacion/web/services.py', kind: 'native', detail: 'tools/*_pf.py con el intérprete de PowerFactory, turno exclusivo y servidor que repone el estado.' },
@@ -314,7 +491,8 @@
         reports: { label: 'Informes', tech: 'Word, PDF y libro Excel', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardó la corrida; cada informe con su libro.' },
         planning: { label: 'PIDE y planeamiento', tech: 'Mercado, costos y formatos', path: 'src/convertersmartgrid/aplicacion/pide.py', kind: 'engine', detail: 'Largo plazo y PIDE de distribución: diagnóstico, obras, costos y formatos por módulo.' },
         pit: { label: 'Plan de inversiones (PIT)', tech: 'spec 107 cumplida', path: 'specs/107-plan-de-inversiones-en-transmision/spec.md', kind: 'engine', detail: 'Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método.' },
-        vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas y VNR según la Guía 232-2017 con el SICODI; la red real y la red óptima se calculan por separado.' },
+        vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas, sistema por sistema; dimensiona con pandapower y calcula la red real y la óptima por separado.' },
+        vnrGuia: { label: 'VNR de la Guía 232-2017', tech: 'en implementación · 108', path: 'src/convertersmartgrid/aplicacion/vad/vnr_guia.py', kind: 'engine', status: PLAN, detail: 'Valor nuevo de reemplazo del modelo común del espacio: mapa de densidad, cambio de tecnología del Anexo 6, adaptación de la red y costos del SICODI. No es el adaptador de entrada VNR-GIS.' },
         twin: { label: 'Gemelo digital', tech: 'PINN-GNN, GRU, flujo propio', path: 'src/convertersmartgrid/adaptadores/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y filtra candidatos; DIgSILENT decide. Exige GPU.' },
         forecast: { label: 'Pronóstico de demanda', tech: 'Competencia de modelos', path: 'src/convertersmartgrid/adaptadores/pronostico_demanda.py', kind: 'ai', detail: 'Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST. Ninguno se pone en uso solo.' },
         episodes: { label: 'Búfer de episodios', tech: 'JSON + SQLite', path: 'src/convertersmartgrid/adaptadores/digital_twin/buffer.py', kind: 'store', detail: 'Episodios inmutables por huella; lo dudoso va a cuarentena sin repetir la acción.' },
@@ -328,8 +506,22 @@
         mailer: { label: 'Envío de informes', tech: 'spec 110 cumplida', path: 'specs/110-envio-de-informes-por-correo-desde-la-web/spec.md', kind: 'engine', detail: 'Envía el informe cerrado o un enlace privado a su expediente; queda un recibo.' },
         normativa: { label: 'Biblioteca normativa', tech: 'Vigencia y cita de cada regla', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Normas nacionales e internacionales con su vigencia, sus modificaciones y la cita de cada regla; vale para toda empresa, estudio y módulo, y para el asistente.' },
         bench: { label: 'Benchmarks anonimizados', tech: 'Desidentificados, solo en local', path: 'specs/112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md', kind: 'ai', detail: 'Datos de referencia desidentificados, solo en local, y protocolos por cohortes de empresa y de tiempo.' },
+        // Carriles de presentacion/web/jobs.py (090:RF-22): uno por carril de LANES.
+        lane_engine: { label: 'Carril engine', tech: 'En el proceso', path: 'src/convertersmartgrid/presentacion/web/jobs.py', kind: 'store', detail: 'Conversión, flujo abierto, PIT y VAD sin DIgSILENT, VNR de la Guía y estudio del plano.' },
+        lane_powerfactory: { label: 'Carril powerfactory', tech: 'Un guion a la vez', path: 'src/convertersmartgrid/adaptadores/pf_arnes.py', kind: 'store', detail: 'Guiones tools/*_pf.py con el turno exclusivo de DIgSILENT en la máquina.' },
+        lane_asistente: { label: 'Carril asistente', tech: 'Solo espera', path: 'src/convertersmartgrid/aplicacion/asistente/ejecutor.py', kind: 'store', detail: 'Ejecuta el plan confirmado: cada paso encola en engine o powerfactory.' },
+        lane_control: { label: 'Carril control', tech: 'Solo cancela', path: 'src/convertersmartgrid/presentacion/web/jobs.py', kind: 'store', detail: 'Para lo que corre aunque el carril del asistente esté ocupado (070:RF-33).' },
+        lane_correo: { label: 'Carril correo', tech: 'Espera a la red', path: 'src/convertersmartgrid/presentacion/web/correo_api.py', kind: 'store', detail: 'Envío de informes, en serie; no espera al motor ni a DIgSILENT (110).' },
+        lane_red: { label: 'Carril red', tech: 'Espera a la red', path: 'src/convertersmartgrid/presentacion/web/app.py', kind: 'store', detail: 'Búsqueda de la publicación oficial del VNR-GIS, sin bloquear la entrada (080:RF-61).' },
+        // Motores abiertos (090:RF-20): uno por clave de MOTORES en motores_flujo.py, y pandapower.
+        motor_zbus: { label: 'Z-bus', tech: 'zbus · por defecto', path: 'src/convertersmartgrid/adaptadores/digital_twin/flujo.py', kind: 'engine', detail: 'Punto fijo sobre la red factorizada; el más rápido con la red poco cargada.' },
+        motor_anderson: { label: 'Anderson', tech: 'anderson · disponible', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: 'El mismo punto fijo acelerado; no mejoró al Z-bus en las medidas, así que no es el de por defecto.' },
+        motor_newton: { label: 'Newton-Raphson', tech: 'newton · KLU, lightsim2grid', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: '«auto» lo usa si el Z-bus no converge; gana cerca del límite de la red.' },
+        motor_pgm: { label: 'power-grid-model', tech: 'pgm', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: 'Red equilibrada; puede crecer al desequilibrado con las fases (082).' },
+        motor_dss: { label: 'OpenDSS', tech: 'dss · dss-python', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: 'Red equilibrada; puede crecer al desequilibrado con las fases (082).' },
+        motor_pandapower: { label: 'pandapower', tech: 'Newton-Raphson', path: 'src/convertersmartgrid/adaptadores/pit/red_pandapower.py', kind: 'engine', detail: 'Preflight y dimensionamiento del VAD sobre el FeederModel, y la red del área del PIT con tomas, SVC y compensación.' },
         // Componentes (subsistemas de docs/architecture/subsistemas.json; uno por componente de workspace.dsl)
-        cInterfaz: { label: 'Interfaz común', tech: '88 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
+        cInterfaz: { label: 'Interfaz común', tech: '89 ficheros', path: 'frontend/src', kind: 'web', detail: 'Compilación, cliente tipado de la API y piezas comunes de las pestañas.' },
         cInterfazConversion: { label: 'Conversión y perfil', tech: '7 ficheros', path: 'frontend/src/features/conversion', kind: 'web', detail: 'Entradas, alimentadores, opciones, reconstrucción y perfil de la empresa.' },
         cInterfazEstudios: { label: 'Cargas, estudios, obras e informes', tech: '29 ficheros', path: 'frontend/src/features/powerfactory', kind: 'web', detail: '«Cargas en DIgSILENT», demanda, estudios, obras e informes.' },
         cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
@@ -350,13 +542,15 @@
         cGuiones: { label: 'Guiones de DIgSILENT', tech: '39 ficheros', path: 'tools/powerfactory_acceptance.py', kind: 'native', detail: 'Importan, verifican, calibran, insertan cargas, aplican obras y corren estudios.' },
         cDemanda: { label: 'Demanda y calibración', tech: '19 ficheros', path: 'src/convertersmartgrid/aplicacion/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
         cObras: { label: 'Obras y optimización', tech: '17 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
-        cEstudios: { label: 'Estudios', tech: '13 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
+        cEstudios: { label: 'Estudios', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
         cInformes: { label: 'Informes', tech: '15 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
         cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
         cPide: { label: 'PIDE y planeamiento', tech: '15 ficheros', path: 'src/convertersmartgrid/dominio/estudio_planeamiento.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },
-        cPit: { label: 'PIT', tech: '31 ficheros', path: 'src/convertersmartgrid/dominio/pit', kind: 'engine', detail: 'Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe.' },
-        cVadVnr: { label: 'VAD y VNR', tech: '25 ficheros', path: 'src/convertersmartgrid/aplicacion/vad', kind: 'engine', detail: 'Caracterización, dimensionamiento, costos, COyM, modelos urbano y rural, VNR de la Guía, formatos y entregables.' },
-        cGemelo: { label: 'Gemelo digital', tech: '30 ficheros', path: 'src/convertersmartgrid/adaptadores/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
+        cPit: { label: 'PIT', tech: '29 ficheros', path: 'src/convertersmartgrid/dominio/pit', kind: 'engine', detail: 'Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe.' },
+        cVad: { label: 'VAD', tech: '22 ficheros', path: 'src/convertersmartgrid/aplicacion/vad', kind: 'engine', detail: 'Caracterización, dimensionamiento con pandapower, costos, COyM, modelos urbano y rural, formatos y entregables.' },
+        cVnrGuia: { label: 'VNR de la Guía', tech: '3 ficheros', path: 'src/convertersmartgrid/aplicacion/vad/vnr_guia.py', kind: 'engine', detail: 'Zonificación, equivalencias del Anexo 6, adaptación de la red MT, BT y SED, estudio y formatos del VNR.' },
+        cMotoresAbiertos: { label: 'Motores abiertos', tech: '5 ficheros', path: 'src/convertersmartgrid/adaptadores/digital_twin/motores_flujo.py', kind: 'engine', detail: 'Red factorizada, los cinco motores de distribución, la red del PIT en pandapower y la matriz de qué motor calcula cada estudio.' },
+        cGemelo: { label: 'Gemelo digital', tech: '28 ficheros', path: 'src/convertersmartgrid/adaptadores/digital_twin', kind: 'ai', detail: 'Episodios, búfer, captura, oráculos, temporal, pronóstico y evolutivos.' },
         cBench: { label: 'Benchmarks anonimizados', tech: '18 ficheros', path: 'src/convertersmartgrid/adaptadores/benchmarks', kind: 'ai', detail: 'Seudónimos, geometría pública, cohortes, series, control de reidentificación y reproducción.' },
         cAsisNucleo: { label: 'Núcleo y operación', tech: '18 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/tareas.py', kind: 'ai', detail: 'Tareas, intérprete, plan, planes guardados, ejecutor y orquestador.' },
         cAsisModelos: { label: 'Modelos de órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
@@ -390,11 +584,13 @@
 
       const views = {
         context: {
+          pseudo: [],
           title: 'Contexto del sistema',
           nodes: [n('operator', 40, 50, 210), n('sources', 40, 190, 210), n('vnrSource', 40, 330, 210), n('regulator', 40, 470, 210), n('system', 465, 245, 270, 120), n('deliverables', 490, 470, 220), n('powerfactory', 950, 50, 210), n('llm', 950, 190, 210), n('cloud', 950, 330, 210), n('mail', 950, 470, 210)],
           edges: [e('operator','system','Opera y confirma'), e('sources','system','Redes y mediciones'), e('vnrSource','system','Base y capas'), e('regulator','system','Normas y costos'), e('system','powerfactory','Importa y estudia'), e('system','llm','Inferencia local'), e('system','cloud','Expedientes'), e('system','mail','Informe con recibo'), e('system','deliverables','Publica evidencia')]
         },
         containers: {
+          pseudo: [],
           title: 'Contenedores del sistema',
           grid: true,
           width: 1980,
@@ -406,7 +602,7 @@
             g('assistant',0,2), g('gisEditor',1,2), g('custody',2,2), g('engine',3,2), g('dgs',4,2), g('native',5,2), g('oracle',6,2),
             g('mcp',0,3), g('journal',1,3), g('vnr',2,3), g('calibration',3,3), g('optimizer',4,3), g('twin',5,3), g('studies',6,3),
             g('tooling',0,4), g('governance',3,4), g('planning',4,4), g('episodes',5,4), g('reports',6,4),
-            g('forecast',2,5), g('vad',3,5), g('pit',4,5), g('bench',5,5), g('normativa',6,5)
+            g('forecast',0,5), g('vnrGuia',1,5), g('vad',2,5), g('flowEngines',3,5), g('pit',4,5), g('bench',5,5), g('normativa',6,5)
           ],
           edges: [
             e('operator','frontend','Usa'), e('frontend','security','REST'), e('security','api','Filtra'), e('api','jobs','Encola'),
@@ -418,25 +614,27 @@
             e('twin','episodes','Persiste'), e('twin','governance','Candidatos'), e('forecast','governance','Sin promover'), e('episodes','bench','Datos de referencia'),
             e('frontend','assistant','Órdenes'), e('frontend','gisEditor','Plano'), e('gisEditor','security','Maniobras'), e('assistant','api','Ejecuta tras confirmar'),
             e('llm','assistant','LLM'), e('mcp','assistant','Lecturas'), e('assistant','journal','Avances'), e('tooling','governance','Entrena y mide'),
-            e('workspace','cloudConn','Sube'), e('cloudConn','cloud','Comparte'), e('cloudConn','mailer','Enlace'), e('mailer','mail','Envía con recibo')
+            e('workspace','cloudConn','Sube'), e('cloudConn','cloud','Comparte'), e('cloudConn','mailer','Enlace'), e('mailer','mail','Envía con recibo'),
+            e('vad','flowEngines','Flujo'), e('pit','flowEngines','Flujo abierto'), e('vnrGuia','vad','VNR')
           ]
         },
         components: {
+          pseudo: [],
           title: 'Componentes por subsistema',
           grid: true,
           width: 1960,
           height: 1230,
           boundary: [
             zone(0, 'Interfaz'), zone(1, 'Web, nube, correo, herramientas y fachadas'), zone(2, 'Motor de conversión y adaptador VNR-GIS'),
-            zone(3, 'DIgSILENT: enlace, guiones, calibración, obras, estudios e informes'), zone(4, 'Regulatorio: VAD y VNR, PIDE, PIT y biblioteca normativa'),
+            zone(3, 'DIgSILENT: enlace, guiones, calibración, obras, estudios e informes; motores abiertos de flujo'), zone(4, 'Regulatorio: VNR de la Guía, VAD, PIDE, PIT y biblioteca normativa'),
             zone(5, 'Gemelo digital, benchmarks y gobierno de modelos'), zone(6, 'Asistente y su equipo')
           ],
           nodes: [
             k('cInterfazPruebas',0,0), k('cInterfaz',1,0), k('cInterfazConversion',2,0), k('cInterfazEstudios',3,0), k('cInterfazRegulatorio',4,0), k('cInterfazNube',5,0), k('cInterfazAsistente',6,0), k('gisEditor',7,0),
             k('cFachadas',0,1), k('cWeb',1,1), k('cNube',2,1), k('mailer',3,1), k('cHerrOper',4,1), k('cHerrCalidad',5,1), k('cHerrModelos',6,1),
             k('cVnr',0,2), k('cEntrada',1,2), k('cReconstruccion',2,2), k('cModelo',3,2), k('cConversion',4,2), k('cSalida',5,2), k('cTransversales',7,2),
-            k('cEnlace',0,3), k('cGuiones',1,3), k('cDemanda',2,3), k('cObras',3,3), k('cEstudios',4,3), k('cInformes',5,3),
-            k('cVadVnr',2,4), k('cPide',3,4), k('cPit',4,4), k('cNormativa',5,4),
+            k('cEnlace',0,3), k('cGuiones',1,3), k('cDemanda',2,3), k('cObras',3,3), k('cEstudios',4,3), k('cInformes',5,3), k('cMotoresAbiertos',7,3),
+            k('cVnrGuia',1,4), k('cVad',2,4), k('cPide',3,4), k('cPit',4,4), k('cNormativa',5,4),
             k('cBench',0,5), k('cGemelo',1,5), k('cGobierno',2,5),
             k('cAsisRag',1,6), k('cAsisNucleo',2,6), k('cAsisModelos',3,6), k('cAsisDatos',4,6)
           ],
@@ -445,28 +643,88 @@
             e('cWeb','cNube','Sube'), e('cNube','mailer','Enlace'), e('cWeb','cEntrada','Carga y convierte'), e('cFachadas','cVnr','Órdenes'),
             e('cVnr','cEntrada','Puente'), e('cEntrada','cReconstruccion','Datos'), e('cReconstruccion','cModelo','Red'), e('cModelo','cConversion','Red'), e('cConversion','cSalida','Red'),
             e('cSalida','cEnlace','DGS validado'), e('cEnlace','cGuiones','Turno'), e('cGuiones','cDemanda','Calibra'), e('cDemanda','cObras','Red'), e('cObras','cEstudios','Obras'), e('cEstudios','cInformes','Casos'),
-            e('cObras','cPide','Alternativas'), e('cPide','cPit','Base'), e('cPide','cVadVnr','Base común'), e('cNormativa','cPit','Reglas citadas'),
+            e('cObras','cPide','Alternativas'), e('cPide','cPit','Base'), e('cPide','cVad','Base común'), e('cNormativa','cPit','Reglas citadas'),
             e('cGuiones','cGemelo','Episodios'), e('cGemelo','cGobierno','Registra'), e('cHerrModelos','cGobierno','Entrena'), e('cGemelo','cBench','Datos de referencia'),
             e('cGobierno','cAsisNucleo','Modelo en uso'), e('cAsisNucleo','cAsisModelos','Usa'), e('cAsisNucleo','cAsisRag','Citas'), e('cAsisDatos','cAsisModelos','Entrena'),
-            e('cNormativa','cAsisRag','Corpus normativo')
+            e('cNormativa','cAsisRag','Corpus normativo'), e('cVnrGuia','cVad','VNR adaptado'),
+            e('cMotoresAbiertos','cDemanda','Flujo abierto'), e('cMotoresAbiertos','cPit','Flujo del área'), e('cMotoresAbiertos','cVad','Dimensionamiento')
           ]
         },
         conversion: {
+          pseudo: ['conversion'],
           title: 'Flujo de datos a DGS',
           nodes: [n('sources',20,260,145), n('api',185,260,145), n('custody',350,260,145), n('engine',515,260,145), n('dgs',680,260,145), n('workspace',845,260,145), n('frontend',1010,260,155)],
           edges: [e('sources','api','1. Ingresar fuente'), e('api','custody','2. Custodiar huellas'), e('custody','engine','3. Adaptar y modelar'), e('engine','dgs','4. Escribir DGS'), e('dgs','workspace','5. Validar y publicar'), e('workspace','frontend','6. Mostrar y descargar')]
         },
         powerfactory: {
+          pseudo: ['powerfactory', 'calibracion', 'con-proyecto'],
           title: 'Flujo DGS a PowerFactory',
           nodes: [n('frontend',20,260,140), n('api',180,260,140), n('jobs',340,260,140), n('native',500,260,150), n('oracle',690,105,170), n('powerfactory',710,320,180), n('workspace',940,320,170)],
           edges: [e('frontend','api','1. Solicitar'), e('api','jobs','2. Encolar'), e('jobs','native','3. Lanzar aislado'), e('native','oracle','4. Preflight consultivo'), e('oracle','native','5. Avisar y continuar'), e('native','powerfactory','6. Importar, calibrar y estudiar'), e('powerfactory','native','7. Guardar y releer'), e('native','workspace','8. Guardar evidencia'), e('workspace','frontend','9. Presentar evidencia')]
         },
         intelligence: {
+          pseudo: ['asistente'],
           title: 'Flujo de IA y decisión humana',
           nodes: [n('native',20,260,145), n('twin',180,260,145), n('episodes',340,260,145), n('optimizer',500,260,145), n('assistant',660,260,145), n('operator',820,260,145), n('api',1000,260,145)],
           edges: [e('native','twin','1. Capturar'), e('twin','episodes','2. Persistir'), e('episodes','twin','3. Entrenar/evaluar'), e('twin','optimizer','4. Evaluar alternativas'), e('optimizer','assistant','5. Explicar'), e('operator','assistant','6. Confirmar o rechazar'), e('assistant','api','7. Ejecutar por API')]
         },
+        lanes: {
+          pseudo: ['carriles'],
+          title: 'Carriles de trabajo: un hilo por carril',
+          width: 1740,
+          height: 680,
+          nodes: [
+            n('api',20,295,150), n('jobs',240,295,180),
+            n('lane_engine',620,20,210,80), n('lane_powerfactory',620,130,210,80), n('lane_asistente',620,240,210,80),
+            n('lane_control',620,350,210,80), n('lane_correo',620,460,210,80), n('lane_red',620,570,210,80),
+            n('engine',1030,20,230,80), n('native',1030,130,230,80), n('assistant',1030,295,230,80), n('mailer',1030,460,230,80), n('vnr',1030,570,230,80),
+            n('flowEngines',1460,20,260,80), n('powerfactory',1460,130,260,80)
+          ],
+          edges: [
+            e('api','jobs','1. Encolar'), e('jobs','lane_engine','2. engine'), e('lane_engine','engine','Conversión y cálculo'), e('engine','flowEngines','Flujo abierto'),
+            e('jobs','lane_powerfactory','3. powerfactory'), e('lane_powerfactory','native','Un guion a la vez'), e('native','powerfactory','Turno exclusivo'),
+            e('jobs','lane_asistente','4. asistente'), e('lane_asistente','assistant','Ejecuta el plan'),
+            e('jobs','lane_control','5. control'), e('lane_control','assistant','Cancela'),
+            e('jobs','lane_correo','6. correo'), e('lane_correo','mailer','Envío con recibo'),
+            e('jobs','lane_red','7. red'), e('lane_red','vnr','Publicación oficial')
+          ]
+        },
+        engines: {
+          pseudo: ['motores'],
+          title: 'Motores abiertos de flujo: quién los usa',
+          width: 1300,
+          height: 720,
+          nodes: [
+            n('calibration',20,20,230,80), n('oracle',20,120,230,80), n('gisEditor',20,220,230,80), n('studies',20,320,230,80),
+            n('twin',20,420,230,80), n('pit',20,520,230,80), n('vad',20,620,230,80),
+            n('flowEngines',520,300,260,110),
+            n('motor_zbus',1020,20,250,72), n('motor_anderson',1020,115,250,72), n('motor_newton',1020,210,250,72),
+            n('motor_pgm',1020,305,250,72), n('motor_dss',1020,400,250,72), n('motor_pandapower',1020,495,250,72)
+          ],
+          edges: [
+            e('calibration','flowEngines','1. Arranque'), e('oracle','flowEngines','2. Preflight'), e('gisEditor','flowEngines','3. Plano'),
+            e('studies','flowEngines','4. Matriz'), e('twin','flowEngines','5. Gemelo'), e('pit','flowEngines','6. PIT'), e('vad','flowEngines','7. VAD'),
+            e('flowEngines','motor_zbus','auto, 1.º'), e('flowEngines','motor_anderson','a pedido'), e('flowEngines','motor_newton','auto, 2.º'),
+            e('flowEngines','motor_pgm','a pedido'), e('flowEngines','motor_dss','a pedido'), e('flowEngines','motor_pandapower','PIT y VAD')
+          ]
+        },
+        regulatory: {
+          pseudo: ['pit', 'vad', 'vnr-guia'],
+          title: 'PIT, VAD y VNR de la Guía con la norma vigente',
+          width: 1920,
+          height: 700,
+          nodes: [
+            n('regulator',20,40,220), n('normativa',20,280,220,120), n('planning',440,40,230), n('pit',440,220,230), n('vnrGuia',440,440,230),
+            n('flowEngines',870,320,250,110), n('vad',870,520,250), n('native',1300,40,210), n('powerfactory',1700,40,200), n('workspace',1300,600,210)
+          ],
+          edges: [
+            e('regulator','normativa','1. Normas'), e('regulator','planning','2. Costos'), e('normativa','pit','3. Reglas'),
+            e('planning','pit','4. Base común'), e('pit','flowEngines','5. Flujo abierto'), e('pit','native','6. Con licencia'), e('native','powerfactory','7. Guion del PIT'),
+            e('normativa','vnrGuia','8. Guía'), e('vnrGuia','vad','9. VNR'), e('vad','flowEngines','10. Dimensiona'), e('vad','workspace','11. Formatos')
+          ]
+        },
         deployment: {
+          pseudo: [],
           title: 'Despliegue local',
           grid: true,
           boundary: { x: 35, y: 50, w: 1130, h: 525, label: 'Estación Windows del operador' },
@@ -636,12 +894,20 @@
         nodeLayer.replaceChildren(...view.nodes.map(drawNode));
         edgeLayer.replaceChildren(...view.edges.map((edge, index) => drawEdge(edge, index, view.nodes)));
         renderMobile(view);
+        openPseudo(view.pseudo || []);
         detailTitle.textContent = view.title;
         detailText.textContent = 'Selecciona una caja o reproduce el flujo completo.';
         detailAccess.textContent = 'docs/architecture/workspace.dsl';
         copyButton.dataset.value = 'docs/architecture/workspace.dsl';
         openLink.hidden = true;
         updateButtons();
+      }
+
+      // 090:RF-24: el bloque del flujo de la vista elegida se abre; los demás se cierran.
+      function openPseudo(ids) {
+        root.querySelectorAll('.c4-pseudo-block').forEach(block => {
+          block.open = ids.includes(block.id.replace(/^pseudo-/, ''));
+        });
       }
 
       function clearActive() {

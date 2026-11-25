@@ -6,11 +6,18 @@ subsistemas de la cabecera, las rutas de la API, las tareas del asistente, los c
 «en implementación» de cada elemento con su «Spec», según el Estado de esa spec. Todo sale de
 ``docs/ARQUITECTURA_CATALOGO.md``, así que esta orden va después de ``generar_arquitectura.py --escribir``.
 
+Además (090:RF-20, RF-22, RF-24) exige en el DSL una propiedad «Carril <nombre>» por cada carril y una «Motor <nombre>»
+por cada motor abierto del catálogo, y en la página un nodo ``lane_<nombre>`` y ``motor_<nombre>``: sin ellos sale con 2
+y los nombra, porque su texto se escribe a mano. Y copia a la página, entre sus marcas, el pseudocódigo de
+``docs/architecture/pseudocodigo.md``.
+
 Uso: python tools/generar_c4.py --escribir | --comprobar
 """
 from __future__ import annotations
 
 import argparse
+import ast
+import html
 import json
 import re
 import sys
@@ -21,6 +28,10 @@ DSL = 'docs/architecture/workspace.dsl'
 HTML = 'docs/architecture/arquitectura-interactiva-c4.html'
 CATALOGO = 'docs/ARQUITECTURA_CATALOGO.md'
 MAPA = 'docs/architecture/subsistemas.json'
+PSEUDO = 'docs/architecture/pseudocodigo.md'
+PSEUDO_INICIO, PSEUDO_FIN = '<!-- pseudocodigo:inicio -->', '<!-- pseudocodigo:fin -->'
+#: Motores del C4 que no están en ``MOTORES``: pandapower calcula el preflight, el VAD y el PIT por su cuenta.
+MOTORES_APARTE = ('pandapower',)
 EN_IMPL = 'en implementación'
 ORDEN = 'python tools/generar_c4.py --escribir'
 
@@ -47,6 +58,10 @@ def cifras(raiz: Path) -> dict:
     carriles = re.findall(r'`([^`]+)`', _busca(r'^### Carriles de trabajos\n\n(.+)$', cat, 'los carriles en el catálogo').group(1))
     if not carriles:
         raise SinCifra('el catálogo no nombra ningún carril')
+    linea_motores = _busca(r'^### Motores abiertos de flujo\n\n(.+)$', cat, 'los motores abiertos en el catálogo').group(1)
+    motores = re.findall(r'`([^`/]+)`', linea_motores.split(' en `', 1)[0])
+    if not motores:
+        raise SinCifra('el catálogo no nombra ningún motor abierto')
     estados = {}
     for spec in sorted((raiz / 'specs').glob('[0-9][0-9][0-9]-*/spec.md')):
         m = re.search(r'^Estado: *(\w+)', spec.read_text(encoding='utf-8'), flags=re.M)
@@ -59,8 +74,78 @@ def cifras(raiz: Path) -> dict:
         'rutas': rutas.group(1), 'rutas_vnr': rutas.group(2),
         'tareas': _busca(r'^### Tareas \((\d+)\)', cat, 'las tareas del asistente en el catálogo').group(1),
         'carriles': ', '.join(carriles[:-1]) + (' y ' if len(carriles) > 1 else '') + carriles[-1],
+        'lista_carriles': carriles, 'motores': motores,
+        'pseudocodigo': pseudocodigo((raiz / PSEUDO).read_text(encoding='utf-8')),
         'estados': estados,
     }
+
+
+def pseudocodigo(texto: str) -> list[tuple[str, str, str]]:
+    """Los bloques ``## <id> — <título>`` de ``pseudocodigo.md`` con su código entre vallas (090:RF-23)."""
+    bloques = re.findall(r'^## ([a-z0-9-]+) — ([^\n]+)\n\n```text\n(.*?)\n```$', texto, flags=re.M | re.S)
+    if not bloques:
+        raise SinCifra(f'{PSEUDO} sin bloques «## <id> — <título>» con su código')
+    return bloques
+
+
+def _exige_nombres(prefijo: str, esperados: list[str], hallados: list[str], donde: str, extra: tuple[str, ...] = ()) -> None:
+    """090:RF-20, RF-22: cada nombre del código está en el C4, y el C4 no trae uno que el código ya no tiene."""
+    faltan = [n for n in esperados if n not in hallados]
+    sobran = [n for n in hallados if n not in esperados and n not in extra]
+    if faltan or sobran:
+        raise SinCifra(f'{donde}: {prefijo} que faltan {faltan} y que sobran {sobran}; '
+                       f'añádalos o quítelos a mano, y luego {ORDEN}')
+
+
+def comprobar_nombres(dsl: str, pagina: str, c: dict) -> None:
+    _exige_nombres('carriles', c['lista_carriles'], re.findall(r'^\s*"Carril ([^"]+)" ', dsl, flags=re.M), DSL)
+    _exige_nombres('motores', c['motores'], re.findall(r'^\s*"Motor ([^"]+)" ', dsl, flags=re.M), DSL, MOTORES_APARTE)
+    _exige_nombres('carriles', c['lista_carriles'], re.findall(r"^\s*lane_(\w+): \{ label:", pagina, flags=re.M), HTML)
+    _exige_nombres('motores', c['motores'], re.findall(r"^\s*motor_(\w+): \{ label:", pagina, flags=re.M), HTML, MOTORES_APARTE)
+
+
+_CITA = re.compile(r'((?:src|tools)/[\w/]+\.py)::([A-Za-z_]\w*(?:\.[A-Za-z_]\w*)?)')
+
+
+def citas(texto: str) -> list[tuple[str, str]]:
+    """Las citas ``ruta.py::función`` (o ``ruta.py::Clase.método``) del pseudocódigo, sin repetir."""
+    return sorted(set(_CITA.findall(texto)))
+
+
+def citas_sin_codigo(texto: str, raiz: Path) -> list[str]:
+    """090:RF-23: las citas cuyo fichero no existe o no define esa función, clase o método en su nivel superior."""
+    faltan = []
+    for ruta, nombre in citas(texto):
+        fichero = raiz / ruta
+        if not fichero.is_file():
+            faltan.append(f'{ruta}::{nombre}')
+            continue
+        cuerpo = ast.parse(fichero.read_text(encoding='utf-8')).body
+        for parte in nombre.split('.'):
+            nodo = next((d for d in cuerpo if isinstance(d, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef))
+                         and d.name == parte), None)
+            if nodo is None:
+                faltan.append(f'{ruta}::{nombre}')
+                break
+            cuerpo = nodo.body
+    return faltan
+
+
+def vistas_sin_pestana(pagina: str) -> list[str]:
+    """Pestañas de la página (``data-view``) sin su vista en ``views``: la exportación (RF-26) no podría dibujarlas."""
+    vistas = set(re.findall(r'^ {8}(\w+): \{\n {10}(?:pseudo|title):', pagina, flags=re.M))
+    return [v for v in dict.fromkeys(re.findall(r'data-view="([^"]+)"', pagina)) if v not in vistas]
+
+
+def _pseudocodigo_html(bloques: list[tuple[str, str, str]]) -> str:
+    partes = [PSEUDO_INICIO, '  <section class="c4-pseudo" aria-label="Pseudocódigo de cada flujo">',
+              f'    <h3 class="c4-pseudo-title">Pseudocódigo de cada flujo <small>(copiado de {PSEUDO})</small></h3>']
+    for ident, titulo, codigo in bloques:
+        partes += [f'    <details id="pseudo-{ident}" class="c4-pseudo-block">',
+                   f'      <summary>{html.escape(titulo)}</summary>',
+                   f'      <pre><code>{html.escape(codigo)}</code></pre>',
+                   '    </details>']
+    return '\n'.join(partes + ['  </section>', PSEUDO_FIN])
 
 
 def _cambia(patron: str, nuevo, texto: str, que: str) -> str:
@@ -159,6 +244,10 @@ def html_al_dia(texto: str, dsl: str, c: dict) -> str:
     texto = _cambia(r"^(\s*jobs: \{.*detail: ')Carriles [^;']+;", rf"\g<1>Carriles {c['carriles']};", texto,
                     'los carriles en la página')
     componentes = {n: f for n, f in re.findall(r'component "([^"]+)" "[^"]*\((\d+) ficheros\)', dsl)}
+    if texto.count(PSEUDO_INICIO) != 1 or texto.count(PSEUDO_FIN) != 1:
+        raise SinCifra(f'la página sin una sola pareja de marcas {PSEUDO_INICIO} … {PSEUDO_FIN}')
+    antes, resto = texto.split(PSEUDO_INICIO, 1)
+    texto = antes + _pseudocodigo_html(c['pseudocodigo']) + resto.split(PSEUDO_FIN, 1)[1]
 
     def nodo(m: re.Match) -> str:
         if m.group(2) not in componentes:
@@ -179,7 +268,15 @@ def html_al_dia(texto: str, dsl: str, c: dict) -> str:
 def generar(raiz: Path) -> dict[str, str]:
     c = cifras(raiz)
     dsl = dsl_al_dia((raiz / DSL).read_text(encoding='utf-8'), c)
-    return {DSL: dsl, HTML: html_al_dia((raiz / HTML).read_text(encoding='utf-8'), dsl, c)}
+    pagina = html_al_dia((raiz / HTML).read_text(encoding='utf-8'), dsl, c)
+    comprobar_nombres(dsl, pagina, c)
+    faltan = citas_sin_codigo((raiz / PSEUDO).read_text(encoding='utf-8'), raiz)
+    if faltan:
+        raise SinCifra(f'{PSEUDO} cita funciones que no existen: {faltan}; corrija la cita y luego {ORDEN}')
+    sin_vista = vistas_sin_pestana(pagina)
+    if sin_vista:
+        raise SinCifra(f'{HTML}: pestañas sin su vista en «views»: {sin_vista}')
+    return {DSL: dsl, HTML: pagina}
 
 
 def main(argv: list[str] | None = None) -> int:
