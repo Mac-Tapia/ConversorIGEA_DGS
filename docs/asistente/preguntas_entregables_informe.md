@@ -2,8 +2,8 @@
 
 Generado con `tools/preguntas_entregables.py informe` (spec 076), sobre la revisión `10fd3e1d`. No editar a mano.
 
-Filas: 441. Huella del contenido: `41cbeb83947ee95414efc1ece68d78dbb890fce903b3670f5727dd95f43f88b1`.
-Huella de lo sellado: `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce`.
+Filas: 441. Huella del contenido: `2c1ff9137e34804fa3c1ab20c976842da2d9c21410e2665da3613ed8f8d2715f`.
+Huella de lo sellado: `3fe96cf8c3f4fdd040ba405b1b2750f04e4943ac1af8eb444e94f7d692294a85`.
 
 | Entregable o tema | Filas | Con respuesta | Sin respuesta | Corpus | Sellado | Revisadas |
 | --- | --- | --- | --- | --- | --- | --- |
@@ -37,6 +37,7 @@ Una medida hecha con una huella anterior se sigue citando con esa huella.
 | 2026-11-02 | `f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e` | `fe6c67c1` | el conjunto escrito |
 | 2026-11-06 | `5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411` | `be7bd108` | f6186156 → 5d07ca9a: solo el ancla de planeamiento_pide-015, al cerrarse la tarea del adaptador |
 | 2026-11-16 | `98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce` | sin revisión de main aún | 5d07ca9a → 98ed9614: solo el ancla de planeamiento_pide-008, por E3-v2 |
+| 2026-11-25 | `3fe96cf8c3f4fdd040ba405b1b2750f04e4943ac1af8eb444e94f7d692294a85` | sin revisión de main aún | 98ed9614 → 3fe96cf8: solo el ancla de calibracion_alcance-002, al pasar el tope de 3 alimentadores a ambitoMaxima.ts |
 
 ## Pendientes
 

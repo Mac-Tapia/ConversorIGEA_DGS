@@ -173,7 +173,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 107, 108, 112). 460 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 460 módulos de Python en 37 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -313,7 +313,7 @@
         studies: { label: 'Estudios eléctricos', tech: 'Flujo, N-1, transferencia', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de la red en los casos del proyecto, con los módulos nativos de DIgSILENT.' },
         reports: { label: 'Informes', tech: 'Word, PDF y libro Excel', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Estudio y factibilidad con lo que guardó la corrida; cada informe con su libro.' },
         planning: { label: 'PIDE y planeamiento', tech: 'Mercado, costos y formatos', path: 'src/convertersmartgrid/aplicacion/pide.py', kind: 'engine', detail: 'Largo plazo y PIDE de distribución: diagnóstico, obras, costos y formatos por módulo.' },
-        pit: { label: 'Plan de inversiones (PIT)', tech: 'en implementación · 107', path: 'specs/107-plan-de-inversiones-en-transmision/spec.md', kind: 'engine', status: PLAN, detail: 'Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método.' },
+        pit: { label: 'Plan de inversiones (PIT)', tech: 'spec 107 cumplida', path: 'specs/107-plan-de-inversiones-en-transmision/spec.md', kind: 'engine', detail: 'Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método.' },
         vad: { label: 'Estudio de costos del VAD', tech: 'en implementación · 108', path: 'specs/108-estudio-de-costos-del-vad/spec.md', kind: 'engine', status: PLAN, detail: 'Empresa modelo eficiente en cuatro etapas y VNR según la Guía 232-2017 con el SICODI; la red real y la red óptima se calculan por separado.' },
         twin: { label: 'Gemelo digital', tech: 'PINN-GNN, GRU, flujo propio', path: 'src/convertersmartgrid/adaptadores/digital_twin/oraculo.py', kind: 'ai', detail: 'Aprende solo de episodios clasificados y filtra candidatos; DIgSILENT decide. Exige GPU.' },
         forecast: { label: 'Pronóstico de demanda', tech: 'Competencia de modelos', path: 'src/convertersmartgrid/adaptadores/pronostico_demanda.py', kind: 'ai', detail: 'Un módulo con datos que crecen cada mes: compiten modelos ingenuos, GRU, N-HiTS, TFT y PatchTST. Ninguno se pone en uso solo.' },

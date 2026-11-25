@@ -385,7 +385,7 @@ def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Pat
 
 
 #: 091:RF-35: lo que dice la web cuando el proceso de DIgSILENT murió atendiendo la orden; no es la licencia.
-MURIO_A_MITAD = ('El proceso de DIgSILENT murió a mitad de la orden (019:RF-8); suele ser falta de memoria del equipo: '
+MURIO_A_MITAD = ('El proceso de DIgSILENT murió a mitad de la orden; suele ser falta de memoria del equipo: '
                  'cierre lo que no use (otro cálculo, un entrenamiento) y vuelva a intentarlo; el detalle está en el Registro.')
 #: 091:RF-35: hasta cuándo una orden muerta explica el fallo de ahora (como RF-2, lo de hace horas no).
 VENTANA_MUERTE_S = 15 * 60

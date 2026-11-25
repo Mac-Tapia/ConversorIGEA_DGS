@@ -102,6 +102,9 @@ HISTORIAL_SELLADO: tuple[dict[str, str | None], ...] = (
      'motivo': 'f6186156 → 5d07ca9a: solo el ancla de planeamiento_pide-015, al cerrarse la tarea del adaptador'},
     {'fecha': '2026-11-16', 'huella': '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce', 'revision': None,
      'motivo': '5d07ca9a → 98ed9614: solo el ancla de planeamiento_pide-008, por E3-v2'},
+    {'fecha': '2026-11-25', 'huella': '3fe96cf8c3f4fdd040ba405b1b2750f04e4943ac1af8eb444e94f7d692294a85', 'revision': None,
+     'motivo': '98ed9614 → 3fe96cf8: solo el ancla de calibracion_alcance-002, al pasar el tope de 3 alimentadores a '
+               'ambitoMaxima.ts'},
 )
 #: 076:RF-28: quién marcó la hoja; el maestro hace el rol del revisor por orden del usuario (2026-11-03), y no es humano.
 REVISORES = ('operador', 'maestro')

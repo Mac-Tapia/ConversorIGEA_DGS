@@ -341,9 +341,8 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
 
             pit = container "Plan de inversiones en transmisión" "Producto aparte para la transmisión secundaria y complementaria; comparte red, motores, costos e informes, no el método." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/ecad83ea11a8ff4b9943ec22e57b427597c938fb/specs/107-plan-de-inversiones-en-transmision/spec.md"
-                tags "Engine,en implementación"
+                tags "Engine"
                 properties {
-                    "Estado" "en implementación"
                     "Spec" "107"
                 }
                 cmpPit = component "PIT" "Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe (31 ficheros)." "Python" {

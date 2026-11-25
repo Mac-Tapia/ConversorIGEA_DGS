@@ -243,11 +243,16 @@ def test_cancelar_avisa_al_guion_y_conserva_el_informe(client):
                   demandas=DEMANDAS).json()['token']
     job = client.post(f'/api/workspaces/{wid}/lote/{token}/apply').json()
     limite = time.time() + 20
-    while time.time() < limite:
-        if client.get(f"/api/jobs/{job['id']}").json()['status'] == 'running':
-            break
+    # Se cancela con el guion ya en F1: «running» llega antes de que el guion arranque y, en el CI lento del 25-11,
+    # cancelar entonces lo cortaba sin informe (``result`` vacío), como en test_ajuste_cabecera_web.
+
+    def en_f1() -> bool:
+        return any('== F1' in (e['data'].get('text') or '')
+                   for e in client.get(f'/api/workspaces/{wid}/events').json())
+
+    while time.time() < limite and not en_f1():
         time.sleep(0.05)
-    time.sleep(0.5)
+    time.sleep(0.2)
     client.post(f"/api/jobs/{job['id']}/cancel")
     estado = esperar_trabajo(client, job)
     assert estado['status'] == 'cancelled'

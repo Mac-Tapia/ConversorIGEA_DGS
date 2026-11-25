@@ -3,7 +3,7 @@
  *
  * El 2026-11-24 el usuario no encontró la «Máxima de cada alimentador (no coincidente)» que pidió el 19-11: estaba solo
  * en «Instante de la calibración», que aparece después de buscar la máxima coincidente. Aquí se elige antes de buscar,
- * con dos o más alimentadores, por SET y por sistema eléctrico. El valor por defecto de cada ámbito no cambia.
+ * con dos o más alimentadores, en una SET o en todo el sistema. El valor por defecto de cada ámbito no cambia.
  */
 export type TipoAnalisis = 'alimentadores' | 'set' | 'sistema';
 

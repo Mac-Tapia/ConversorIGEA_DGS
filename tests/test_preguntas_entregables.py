@@ -37,8 +37,11 @@ RAIZ = PE.RAIZ
 #: 2026-11-17: 002 T7 crea los paquetes por capa; arquitectura-019 («¿Ya hay paquetes por capa…?» → «Aún no»)
 #: deja de ser cierta y se reescribe en su grupo («¿Dónde se declara la capa de cada módulo?»), con su fuente en la
 #: línea 45 de la revisión fijada y en el árbol. Es del corpus: lo sellado no cambia.
-HUELLA_CONJUNTO = '41cbeb83947ee95414efc1ece68d78dbb890fce903b3670f5727dd95f43f88b1'
-HUELLA_SELLADO = '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
+#: 2026-11-25 (086:RF-126): el tope de 3 alimentadores pasa de DemandaMedida.tsx a ambitoMaxima.ts y calibracion_alcance-002,
+#: sellada, acorta su ancla a «const demasiados = », que está en su línea de la revisión fijada y en el árbol; pregunta y
+#: respuesta no cambian. Cambia la huella de lo sellado.
+HUELLA_CONJUNTO = '2c1ff9137e34804fa3c1ab20c976842da2d9c21410e2665da3613ed8f8d2715f'
+HUELLA_SELLADO = '3fe96cf8c3f4fdd040ba405b1b2750f04e4943ac1af8eb444e94f7d692294a85'
 #: 2026-11-22 (056:RF-8, LIMPIEZA-CODIGOS): el hecho de la entrada TXT nombraba a CYMDIST junto a los TXT, que no exporta
 #: CYMDIST, y el hecho dice «TXT». Lo sellado no cambia; cambia la huella de los hechos.
 HUELLA_HECHOS = '06ad054a80a4653a8ff90c8f4f1680079ff07150668297ad2ce3ada7b54e7738'
@@ -216,7 +219,17 @@ def test_huella_no_depende_de_los_finales_de_linea(tmp_path, filas):
 # ----------------------------------------------------------------- historial de lo sellado
 #: Las huellas de lo sellado que una medida pudo citar. El historial no puede perder ninguna.
 HUELLAS_SELLADO_ANTERIORES = frozenset({'f6186156a2863c8734f100466a630b5720b0781336279dad0331c2bd13b2a00e',
-                                        '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'})
+                                        '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411',
+                                        '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'})
+FILA_TOPE = 'calibracion_alcance-002'
+ANCLA_TOPE_98ED = "const demasiados = tipoAnalisis === 'alimentadores' && feeders.length > 3;"
+
+
+def _con_ancla_del_tope_98ed(fila: dict) -> dict:
+    """La fila del tope como estaba en 98ed9614, antes de acortar su ancla (2026-11-25)."""
+    if fila['id'] != FILA_TOPE:
+        return fila
+    return {**fila, 'fuentes': [{**s, 'ancla': ANCLA_TOPE_98ED} for s in fila['fuentes']]}
 #: La revisión que fijó 5d07ca9a (be7bd108, 2026-11-06), la de antes de E3-v2.
 REVISION_5D07CA9A = 'be7bd10849bb5d32c0504e3e7aea45998080a84a'
 FILA_E3_V2 = 'planeamiento_pide-008'
@@ -255,7 +268,9 @@ def test_de_5d07ca9a_a_98ed9614_solo_cambia_el_ancla_de_planeamiento_pide_008(fi
     """076:RF-7 — E3-v2 quitó una cita de un aviso y la fila sellada que lo anclaba acortó su ancla. Pregunta y respuesta
     son las mismas, byte a byte, que en 5d07ca9a; con la fila de antes, lo sellado de hoy vuelve a dar 5d07ca9a."""
     antes = {f['id']: f for f in _sellado_en(REVISION_5D07CA9A)}
-    ahora = {f['id']: f for f in filas if f['reparto'] == 'sellado'}
+    # Lo sellado de 98ed9614: el de hoy con el ancla del tope de antes (test_de_98ed9614_a_3fe96cf8_…).
+    ahora = {f['id']: _con_ancla_del_tope_98ed(f) for f in filas if f['reparto'] == 'sellado'}
+    assert PE.huella(ahora.values()) == '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
     assert PE.huella(antes.values()) == '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
     assert antes.keys() == ahora.keys(), 'cambió qué filas están selladas'
     assert sorted(i for i in ahora if _sin_revision(antes[i]) != _sin_revision(ahora[i])) == [FILA_E3_V2]
@@ -273,6 +288,17 @@ def test_de_5d07ca9a_a_98ed9614_solo_cambia_el_ancla_de_planeamiento_pide_008(fi
     assert [s['ancla'] for s in b['fuentes']] == ['diagnóstico del año 00']
     assert PE.huella([*(f for i, f in ahora.items() if i != FILA_E3_V2), a]) == \
         '5d07ca9a5a97906cd1c25b8bfe38d755ac7601b35a3c8237ee510127e110d411'
+
+
+def test_de_98ed9614_a_3fe96cf8_solo_cambia_el_ancla_de_calibracion_alcance_002(filas):
+    """076:RF-7 — 086:RF-126 pasó el tope de 3 alimentadores a ambitoMaxima.ts: la fila sellada que lo anclaba acorta su
+    ancla a lo que sigue en su línea de la revisión fijada y en el árbol. Pregunta, respuesta y lo demás no cambian."""
+    ahora = {f['id']: f for f in filas if f['reparto'] == 'sellado'}
+    antes = {i: _con_ancla_del_tope_98ed(f) for i, f in ahora.items()}
+    assert PE.huella(antes.values()) == '98ed9614c18c663819959387516e04b2320c5c6abf0837be36ff41df187e69ce'
+    assert sorted(i for i in ahora if antes[i] != ahora[i]) == [FILA_TOPE]
+    assert [s['ancla'] for s in ahora[FILA_TOPE]['fuentes']] == ['const demasiados = ']
+    assert ANCLA_TOPE_98ED.startswith('const demasiados = ')
 
 
 _HUELLA = re.compile(r'\b[0-9a-f]{64}\b')
