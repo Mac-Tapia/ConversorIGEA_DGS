@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 460 módulos de Python en 39 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 461 módulos de Python en 39 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -131,7 +131,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 172 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 174 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (41 ficheros)." "Python" {
@@ -339,7 +339,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             reports = container "Informes" "Word, PDF, imágenes y libro Excel de estudio y factibilidad, con lo guardado por la corrida." "python-docx + COM" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/adaptadores/informes.py"
                 tags "Engine"
-                cmpInformes = component "Informes" "Word, libros, mapas del informe y mapa de cargas (15 ficheros)." "Python" {
+                cmpInformes = component "Informes" "Word, libros, mapas del informe y mapa de cargas (16 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/adaptadores/informes.py"
                     tags "Engine"
                     properties {

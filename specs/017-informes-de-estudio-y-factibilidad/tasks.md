@@ -159,3 +159,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       DIgSILENT desde la web, revisado por el usuario. (RF-128 a RF-135)
       Hecho cuando: el usuario da por bueno el `.docx`.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T20. El resumen ejecutivo por caso y sus botones. (RF-144, RF-145, RF-146, RF-147, RF-148)
+      Hecho cuando: `resumen_casos`, `escribir_resumen_caso`, la ruta y los botones.
+      Cerrada el 2026-11-25: rojo válido y verde en sus pruebas.
+- [x] T21. Un solo resumen ejecutivo del sistema con los tres casos y un solo botón. (RF-149)
+      Hecho cuando: `resumen_del_sistema` da las tres secciones y la web pide el del sistema.
+      Cerrada el 2026-11-25: rojo válido y verde en `tests/test_resumen_casos.py`.

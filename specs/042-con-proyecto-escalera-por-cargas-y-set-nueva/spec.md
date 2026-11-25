@@ -254,6 +254,9 @@ según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94
   solo juzgará la definitiva de largo plazo, en el horizonte de su vida útil. Usuario (2026-11-25), Pisco: la obra
   de un alimentador «no cubría» por un tramo al 80 % en el año 5: «no cubre al corto plazo, se debe considerar al
   100 %».
+- RF-108: EL SISTEMA dejará que el operador retire de «Con proyecto», por su nombre, las variaciones de obra
+  aplicadas, también las suyas, y las quitará de lo aplicado (`POST …/pf/obras/retirar`). Pisco (2026-11-25): una SET
+  nueva y un expreso quedaron aplicados sin la escalera y «rehacer obras» no los retira, porque protege las del operador.
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a
   carga y, cuando ya no cabe, la SET nueva. Reutiliza sus variantes, sorteos y costos.
 - Usa la tasa de crecimiento de la 029 y las cargas nuevas sin duplicados de la 040.

@@ -175,3 +175,6 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
 - [x] T67. Las alternativas guardadas son las de todos los escalones que cumplen, con la elegida. (RF-58)
       Hecho cuando: tras la elección entre escalones (098:RF-46) se guardan juntas, por costo, la elegida marcada.
       Cerrada el 2026-11-25: rojo con el caso de PA217 en Pisco y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T68. Retirar obras por su nombre desde la web. (RF-108)
+      Hecho cuando: la ruta encola `retirar_obras` y rechaza las que no constan.
+      Cerrada el 2026-11-25: rojo válido y verde en sus pruebas.

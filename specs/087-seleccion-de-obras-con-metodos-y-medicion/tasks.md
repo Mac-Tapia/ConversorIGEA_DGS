@@ -87,3 +87,6 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
 - [x] T38. DIgSILENT confirma cada alimentador con las cargas nuevas de todos activas. (RF-60)
       Hecho cuando: `escalera_por_alimentador` pasa todas las cargas aplicadas a cada confirmación y aplicación.
       Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T39. Verificar las obras antes de la conjunta, no retirar la aprobada y no repetir una ronda igual. (RF-61)
+      Hecho cuando: `confirmar_conjunto` dice qué falta, la ronda la vuelve a aplicar y para con la misma respuesta.
+      Cerrada el 2026-11-25: rojo válido y verde en sus pruebas.

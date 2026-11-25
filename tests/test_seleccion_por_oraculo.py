@@ -362,6 +362,53 @@ def test_042_rf58_se_guardan_las_alternativas_de_todos_los_escalones_con_la_eleg
     assert [a['elegida'] for a in alts] == [True, False] and [a['numero'] for a in alts] == [1, 2]
 
 
+def test_087_rf61_la_obra_que_falta_se_reaplica_y_la_aprobada_nunca_se_retira(monkeypatch):
+    """087:RF-61 — Pisco (2026-11-25): AL209 quedó sin obra en el proyecto (una ronda la apartó para rehacerla y se
+    canceló) y la confirmación conjunta medía sin ella, ronda tras ronda con los mismos números. Ahora la conjunta dice
+    qué obra falta, se vuelve a aplicar la elegida sin evaluar de nuevo, y ninguna ronda aparta ni sustituye la aprobada."""
+    llamadas = _con_seleccion(monkeypatch, _seleccion(3), 'v0')
+    respuestas = iter([{'cumple': False, 'faltan_obras': {'F1': ['la elegida «v0»']},
+                        'por_alimentador': {'F1': ['su obra no está activa']}}, {'cumple': True}])
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: next(respuestas))
+    vistas = []
+    original = services.obras_escalera
+
+    def escalera(ws, ctx, project, feeders, **k):
+        vistas.append(k)
+        return original(ws, ctx, project, feeders, **k)
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    ctx = _Ctx()
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    reaplicadas = [k for k in vistas if k.get('aplicar') and k.get('solo') == {'F1': 'v0'}]
+    assert len(reaplicadas) == 2, vistas                       # la de la escalera y la que se vuelve a aplicar
+    assert not any(k.get('apartar_obras') or k.get('sustituir') for k in vistas)
+    assert any('se vuelve a aplicar «v0»' in t and 'RF-61' in t for t in ctx.textos), ctx.textos
+    assert r['conjunto'] == {'cumple': True}
+
+
+def test_087_rf61_una_ronda_con_la_misma_respuesta_no_se_repite(monkeypatch):
+    """087:RF-61 — la misma respuesta de la conjunta que la ronda anterior no se arregla repitiendo: se para y se dice."""
+    _con_seleccion(monkeypatch, _seleccion(3), 'v0')
+    igual = {'cumple': False, 'por_alimentador': {'F1': ['la carga nueva en B queda a 0.948 p.u.']}}
+    contadas = []
+    monkeypatch.setattr(services, 'confirmar_conjunto', lambda *a, **k: contadas.append(1) or dict(igual))
+    ctx = _Ctx()
+    services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    assert len(contadas) == 2, contadas                        # la primera y la de la ronda 1; la 2 no se hace
+    assert any('no se repite' in t and 'RF-61' in t for t in ctx.textos), ctx.textos
+
+
+def test_087_rf61_lo_que_falta_en_con_proyecto_segun_la_lectura():
+    """087:RF-61 — sin ninguna obra activa del alimentador que se resolvió con obra, o con una aplicada inactiva."""
+    import types
+
+    ws = types.SimpleNamespace(obras_aplicadas=[{'variacion': 'Obra_seccion_F2', 'origen': 'escalera'},
+                                                {'variacion': 'Obra_terna_F3', 'origen': 'operador'}])
+    faltan = services._obras_que_faltan(ws, ['F1', 'F2', 'F3'], ['Obra_terna_F3', 'Carga_X'], {'F1': 'terna'})
+    assert faltan == {'F1': ['la elegida «terna»'], 'F2': ['Obra_seccion_F2']}, faltan
+    assert services._obras_que_faltan(ws, ['F1'], None, {'F1': 'terna'}) == {}   # sin lectura no se supone
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

@@ -1919,6 +1919,11 @@ export interface EstudiosPlan {
   calibrado?: boolean;
 }
 
+/** 017:RF-144 a RF-148: el resumen ejecutivo de un caso, con lo guardado en el espacio. */
+export interface ResumenCaso {
+  project: string; caso: string; docx: string; xlsx: string | null; huecos: string[]; conclusiones: string[]; filas: number;
+}
+
 /** 017:RF-142, RF-143: el resumen ejecutivo de una corrida de estudios. */
 export interface EstudiosResumen {
   token: string;

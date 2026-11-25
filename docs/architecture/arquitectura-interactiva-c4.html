@@ -180,7 +180,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo. Debajo, el pseudocódigo del flujo de cada vista.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 460 módulos de Python en 39 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 461 módulos de Python en 39 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -475,7 +475,7 @@ pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
         // Contenedores
         frontend: { label: 'Interfaz web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Selección, seguimiento, confirmación y descarga; compilada en frontend/dist.' },
         security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/presentacion/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesión, política de contenido, edición y salidas a la red.' },
-        api: { label: 'API web', tech: 'FastAPI, 172 + 13 rutas', path: 'src/convertersmartgrid/presentacion/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
+        api: { label: 'API web', tech: 'FastAPI, 174 + 13 rutas', path: 'src/convertersmartgrid/presentacion/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
         jobs: { label: 'Colas de trabajo', tech: 'Un hilo por carril', path: 'src/convertersmartgrid/presentacion/web/jobs.py', kind: 'store', detail: 'Carriles engine, powerfactory, asistente, control, correo y red; un hilo por carril; el de PowerFactory va en serie y el de control solo cancela.' },
         custody: { label: 'Custodia de fuentes', tech: 'Copias fijas + SHA-256', path: 'src/convertersmartgrid/presentacion/web/source_runs.py', kind: 'store', detail: 'Fija una ejecución fuente inmutable con su alcance y sus huellas, sin mezclar fuentes.' },
         workspace: { label: 'Espacios de trabajo', tech: 'Ficheros por espacio', path: 'output/web', kind: 'store', detail: 'Entradas, opciones, ejecuciones, DGS, planes, informes y descargas de cada espacio.' },
@@ -543,7 +543,7 @@ pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
         cDemanda: { label: 'Demanda y calibración', tech: '19 ficheros', path: 'src/convertersmartgrid/aplicacion/demanda_medida.py', kind: 'engine', detail: 'Libros por año y libros nuevos, cabecera, cargas y reparto.' },
         cObras: { label: 'Obras y optimización', tech: '17 ficheros', path: 'src/convertersmartgrid/aplicacion/obras_pf.py', kind: 'ai', detail: 'Escalera, troncal, perfil de tensión, reguladores, obras integrales y optimización.' },
         cEstudios: { label: 'Estudios', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/estudios_pf.py', kind: 'engine', detail: 'Estudios de red, protecciones y transferencia.' },
-        cInformes: { label: 'Informes', tech: '15 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
+        cInformes: { label: 'Informes', tech: '16 ficheros', path: 'src/convertersmartgrid/adaptadores/informes.py', kind: 'engine', detail: 'Word, libros, mapas del informe y mapa de cargas.' },
         cNormativa: { label: 'Biblioteca normativa y fuentes de la empresa', tech: '5 ficheros', path: 'src/convertersmartgrid/aplicacion/biblioteca_normativa.py', kind: 'engine', detail: 'Registro normativo con esquema, huellas de términos, fuentes de la empresa y vínculos del .pfd.' },
         cPide: { label: 'PIDE y planeamiento', tech: '15 ficheros', path: 'src/convertersmartgrid/dominio/estudio_planeamiento.py', kind: 'engine', detail: 'PIDE, economía, proyecciones de mercado y estudio de planeamiento.' },
         cPit: { label: 'PIT', tech: '29 ficheros', path: 'src/convertersmartgrid/dominio/pit', kind: 'engine', detail: 'Ámbito y red del área de demanda, demanda regulatoria, diagnóstico con la norma, alternativas, formatos, expediente e informe.' },

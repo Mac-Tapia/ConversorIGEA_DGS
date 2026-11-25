@@ -519,6 +519,21 @@ class ObrasIn(BaseModel):
     alimentadores_nuevos: int = Field(4, ge=1, le=20)
 
 
+class RetirarObrasIn(BaseModel):
+    """042:RF-61: las variaciones de obra que el operador retira de «Con proyecto», por su nombre exacto."""
+
+    project: str = Field(min_length=1)
+    feeders: list[str] = Field(default_factory=list, max_length=2000)
+    variaciones: list[str] = Field(default_factory=list, max_length=500)
+
+
+class ResumenCasoIn(BaseModel):
+    """017:RF-144: el caso del que se pide el resumen ejecutivo."""
+
+    project: str = Field(min_length=1)
+    caso: Literal['sistema', 'sin_proyecto', 'cargas_nuevas', 'con_proyecto'] = 'sistema'   # 017:RF-149
+
+
 class SetNuevaOperacionIn(BaseModel):
     """063:RF-36 a RF-38: diagnosticar o reforzar una SET existente, sin recrearla."""
 
@@ -2859,6 +2874,16 @@ def create_app(
     def obras_aplicar(wid: str, body: ObrasIn) -> dict:
         return _obras_job(wid, body, False)
 
+    @app.post('/api/workspaces/{wid}/pf/obras/retirar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def obras_retirar(wid: str, body: RetirarObrasIn) -> dict:
+        """042:RF-61: el operador retira de «Con proyecto» las obras que nombra, también las suyas, y de lo aplicado."""
+        ws = ws_or_404(wid)
+        if not body.variaciones:
+            raise HTTPException(422, 'Nombre las variaciones de obra que quiere retirar.')
+        return submit(ws, 'obras_retirar', f'Retirar obras · {body.project.strip()}',
+                      lambda ctx: services.retirar_obras(ws, ctx, body.project, body.feeders, body.variaciones),
+                      lane='powerfactory')
+
     @app.post('/api/workspaces/{wid}/pf/obras/escalera', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_escalera(wid: str, body: ObrasIn) -> dict:
         """025:RF-44: bancos, sección y terna hasta que «Con proyecto» converja."""
@@ -3016,6 +3041,11 @@ def create_app(
         return services.estudios_plan(ws, body.project, body.feeders, body.estudios,
                                       _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
                                       body.limite_s, body.opciones, body.casos)
+
+    @app.post('/api/workspaces/{wid}/resumen/caso')
+    def resumen_caso(wid: str, body: ResumenCasoIn) -> dict:
+        """017:RF-144 a RF-149: el resumen ejecutivo de un caso con lo guardado en el espacio; sin DIgSILENT."""
+        return services.resumen_caso(ws_or_404(wid), body.project, body.caso)
 
     @app.post('/api/workspaces/{wid}/pf/estudios/{token}/resumen')
     def estudios_resumen(wid: str, token: str) -> dict:

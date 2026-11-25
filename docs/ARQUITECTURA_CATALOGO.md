@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 472 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 473 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 133 |
 | Interfaz | `frontend/src/` | 122 |
 | Pruebas de la interfaz | `frontend/test/` | 66 |
-| Pruebas | `tests/` | 689 |
+| Pruebas | `tests/` | 690 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 336 |
 
-`web/services.py` tiene 15025 líneas y 477 funciones, pendiente de partir (002).
+`web/services.py` tiene 15149 líneas y 480 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 1 |
 | retirada | 1 |
 
-112 specs con 4132 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+112 specs con 4140 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 197 |
-| aplicacion | Apl | 134 |
+| aplicacion | Apl | 135 |
 | dominio | Dom | 73 |
 | presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-460 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+461 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -52,12 +52,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-172 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+174 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
 | `demanda` | espacio | 32 |
-| `pf` | espacio | 25 |
+| `pf` | espacio | 26 |
 | `informes` | espacio | 11 |
 | `asistente` | general | 11 |
 | `asistente` | espacio | 10 |
@@ -94,6 +94,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `outputs.zip` | espacio | 1 |
 | `reconstruct` | espacio | 1 |
 | `restaurar-copia` | espacio | 1 |
+| `resumen` | espacio | 1 |
 | `system` | espacio | 1 |
 | `ws` | espacio | 1 |
 | `health` | general | 1 |
@@ -447,6 +448,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `adaptadores/informes.py` | Ada | 017, 107, 108, 115, 121, 122, 128, 129, 132, 134 | Informes de estudio eléctrico y de factibilidad sin DIgSILENT: qué toman del perfil de empresa (modelos, banda y umbral, bandas de coloreado,… |
 | `adaptadores/informe_docx.py` | Ada | 017, 106, 113, 114, 118, 120, 122, 128, 132, 135 | Escribe en Word los informes de estudio eléctrico y de factibilidad como esquemas generales sobre el modelo de la empresa: de él solo la forma… |
+| `aplicacion/resumen_casos.py` | Apl | 017 | El resumen ejecutivo por caso con lo guardado (017:RF-144 a RF-147) |
 | `adaptadores/libro_informe.py` | Ada | 066 | El libro Excel de cada informe, relleno desde el modelo de la empresa con el plano de su perfil |
 | `adaptadores/libros_informe.py` | Ada | 017 | Libro de pérdidas de la empresa (sistema eléctrico, % reconocidos en potencia y energía, precio de compra), buscado por los nombres de hojas y… |
 | `adaptadores/mapa_informe.py` | Ada | 017, 116, 133 | Imágenes del informe de estudio (ubicación, tensión, cargabilidad y detalle de las obras) con el GPS y los resultados del flujo de DIgSILENT. |

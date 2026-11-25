@@ -2,7 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { cuenta, plural } from '../../shared/formato';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
-import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen,
+import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen, ResumenCaso,
   FallaProteccion, Limites, OpcionesEstudios, PropuestaRed, ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
 import { EntradasEstudios } from './EntradasEstudios';
@@ -194,6 +194,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
       <GuionesPF project={project} />
       {/* Spec 049: las protecciones, con lo que les falta; nunca se juzgan por el flujo (RF-10). */}
       <DiagnosticoDeCargas project={project} feeders={feeders} />
+      <ResumenCasos project={project} />
       <ProteccionesPF project={project} feeders={feeders} />
 
       {plan && (
@@ -594,6 +595,49 @@ function EvaluacionProtecciones({ rol, e }: { rol: string; e: ProteccionesEvalua
           {v.detalle ? ` (${v.detalle})` : ''}</li>))}</ul>}
       {e.no_evaluados.length > 0 && <details><summary className="small muted">Sin evaluar ({e.no_evaluados.length})</summary>
         <ul className="small">{e.no_evaluados.map((n, i) => <li key={i}>{n.que}: {n.razon}</li>)}</ul></details>}
+    </div>
+  );
+}
+
+/** 017:RF-144 a RF-148: el resumen ejecutivo de cada caso con lo guardado, sin DIgSILENT; una hoja y su libro. */
+// 017:RF-149: uno solo, con los tres casos del proyecto de sistema (usuario, 2026-11-25).
+const CASOS_RESUMEN: { clave: 'sistema'; nombre: string }[] = [
+  { clave: 'sistema', nombre: 'Resumen ejecutivo del sistema' },
+];
+
+function ResumenCasos({ project }: { project: string }) {
+  const { ws, run } = useApp();
+  const [hechos, setHechos] = useState<Record<string, ResumenCaso>>({});
+  const [pidiendo, setPidiendo] = useState<string | null>(null);
+  const pedir = async (caso: string) => {
+    setPidiendo(caso);
+    try {
+      const hecho = await run(() => api.resumenCaso(ws.id, project, caso));
+      if (hecho) setHechos((h) => ({ ...h, [caso]: hecho }));
+    } finally {
+      setPidiendo(null);
+    }
+  };
+  return (
+    <div className="card">
+      <div className="row">
+        {CASOS_RESUMEN.map((c) => (
+          <button key={c.clave} className="btn" disabled={!project || pidiendo !== null} onClick={() => pedir(c.clave)}>
+            {pidiendo === c.clave ? 'Preparando…' : c.nombre}</button>
+        ))}
+      </div>
+      {CASOS_RESUMEN.filter((c) => hechos[c.clave]).map((c) => {
+        const h = hechos[c.clave];
+        return (
+          <div key={c.clave} className="small">
+            <p><strong>{c.nombre}</strong>{' '}
+              <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, h.docx, true)}>{h.docx}</a>
+              {h.xlsx && <a className="btn btn-sm btn-ghost" href={api.fileUrl(ws.id, h.xlsx, true)}>{h.xlsx}</a>}</p>
+            <ul>{h.conclusiones.map((x) => <li key={x}>{x}</li>)}</ul>
+            {h.huecos.map((x) => <p key={x} className="alert alert-warn">{x}</p>)}
+          </div>
+        );
+      })}
     </div>
   );
 }

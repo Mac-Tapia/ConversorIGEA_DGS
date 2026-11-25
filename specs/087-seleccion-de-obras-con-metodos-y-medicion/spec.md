@@ -118,6 +118,12 @@ sistema?»; «sí, implementa»):
   que eligen las obras de corto plazo de «Con proyecto», la factibilidad y las alternativas del PIDE, el
   largo plazo, el PIT y el VAD (lo que se le exige a cada uno sigue siendo de sus cargas). Cambia 025:RF-69. Usuario (2026-11-25), Pisco:
   con las de los demás apartadas el sistema entero no cumplía y hubo que rehacer obras por rondas («sí, aplica»).
+- RF-61: ANTES de la confirmación conjunta, EL SISTEMA comprobará en la lectura de DIgSILENT que cada obra aplicada
+  y la elegida de cada alimentador resuelto con obra estén activas en «Con proyecto»; SI falta alguna, ENTONCES la
+  volverá a aplicar sin evaluar de nuevo sus variantes. Las rondas de RF-47 no retirarán una obra aprobada: buscarán
+  lo que falte encima de ella. Y SI una ronda da la misma respuesta que la anterior, ENTONCES no se repetirá y se dirá.
+  Pisco (2026-11-25): AL209 quedó sin obra en el proyecto y cada ronda daba lo mismo hasta los decimales; usuario:
+  «lo ya hecho y definido debe cerrar: DIgSILENT verifica y corrige; no se debe volver a repetir».
 - Determinismo: con la misma semilla, misma red y mismo perfil, el oráculo, Optuna, Markov y el árbol dan el mismo resultado.
 - Universal: nada de este método depende de una empresa, sistema o tensión (constitución 13).
 - Escala: nada fijado al número de alimentadores (constitución 2).

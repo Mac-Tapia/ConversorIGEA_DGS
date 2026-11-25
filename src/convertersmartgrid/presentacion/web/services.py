@@ -8811,6 +8811,22 @@ def _sustituir(ws, ctx: JobContext, project: str, f: str, vieja: dict, fila: Map
             'sin_borrar': s.get('sin_borrar') or []}
 
 
+def retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], variaciones: list[str]) -> dict:
+    """042:RF-61: retira de «Con proyecto» las variaciones de obra que nombra el operador (también las suyas) y las quita
+    de lo aplicado. Pisco (2026-11-25): una SET nueva y un expreso quedaron aplicados por una petición sin la escalera y
+    «rehacer obras» no los retiraba, porque protege las del operador."""
+    pedidas = [str(v).strip() for v in variaciones if str(v).strip()]
+    conocidas = {str(a.get('variacion')) for a in ws.obras_aplicadas or [] if a.get('project') == project.strip()}
+    desconocidas = [v for v in pedidas if v not in conocidas]
+    if desconocidas:
+        raise UserError('No constan como aplicadas en este proyecto: ' + ', '.join(desconocidas) + '.')
+    afectados = list(dict.fromkeys(feeders)) or sorted({
+        str(a.get('alimentador') or '') for a in ws.obras_aplicadas or [] if a.get('variacion') in pedidas} - {''})
+    ctx.log(f"Se retiran de «Con proyecto»: {', '.join(pedidas)} (042:RF-61).")
+    _retirar_obras(ws, ctx, project, afectados, None, variaciones=pedidas)
+    return {'project': project.strip(), 'retiradas': pedidas}
+
+
 def _retirar_obras(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], anio_casos: int | None,
                    variaciones: list[str] | None = None, sin_origen: bool = False) -> None:
     """042:RF-60: lo elegido con reglas anteriores se quita de DIgSILENT y de lo aplicado, para evaluarlo de nuevo.
@@ -8975,8 +8991,14 @@ def _alternativas_de_los_escalones(filas: Sequence[Mapping[str, Any]], elegida_f
     if not elegida and (elegida_fila.get('vieja') or {}).get('factible'):
         elegida = (elegida_fila.get('vieja') or {}).get('nombre')
     por_nombre: dict[str, dict] = {}
+    # 063:RF-31, 017:RF-147: dónde va cada obra (el nodo de MT del banco; el nodo de inicio y fin de cada tramo), de la
+    # tabla de su escalón, para que el informe y el resumen la lean sin recalcularla.
+    ubicacion = {str(t.get('nombre')): list(t.get('ubicacion') or []) for x in filas for t in x.get('tabla') or []
+                 if t.get('ubicacion')}
     for x in filas:
         for a in x.get('alternativas') or []:
+            if not a.get('ubicacion') and ubicacion.get(str(a.get('nombre'))):
+                a = {**a, 'ubicacion': ubicacion[str(a.get('nombre'))]}
             nombre = str(a.get('nombre') or '')
             if not nombre or a.get('costo_anual') is None:
                 continue
@@ -9007,9 +9029,32 @@ def _costo_minimo_del_oraculo(orden: Sequence[Any], e_or: Mapping[str, Any] | No
     return float(min(valores))
 
 
+def _obras_que_faltan(ws: Workspace, feeders: Sequence[str], activas: Sequence[str] | None,
+                      esperadas: Mapping[str, Any] | None = None) -> dict[str, list[str]]:
+    """087:RF-61: por alimentador, lo que falta en «Con proyecto» según la lectura de DIgSILENT: las variaciones de obra
+    que el espacio da por aplicadas (de la escalera) y no están activas, y el alimentador que este trabajo resolvió con
+    una obra (``esperadas``: su elegida) sin ninguna variación de obra suya activa. Vacío si no hay lectura."""
+    if activas is None:
+        return {}
+    activas_set = {str(a) for a in activas}
+    faltan: dict[str, list[str]] = {}
+    for f, nombre in (esperadas or {}).items():
+        patron = re.compile(rf'^Obra_\w+?_{re.escape(str(f))}(_\d+)?$')
+        if nombre and not any(patron.match(a) for a in activas_set):
+            faltan.setdefault(f, []).append(f'la elegida «{nombre}»')
+    for o in getattr(ws, 'obras_aplicadas', None) or []:
+        var = str(o.get('variacion') or '')
+        if not var.startswith('Obra_') or o.get('origen') not in (None, 'escalera') or var in activas_set:
+            continue
+        f = next((x for x in feeders if re.search(rf'_{re.escape(str(x))}(_\d+)?$', var)), None)
+        if f is not None:
+            faltan.setdefault(f, []).append(var)
+    return faltan
+
+
 def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *, memo: dict,
                        anio_casos: int | None = None, tipo_cambio: float | None = None,
-                       capex: str | None = None) -> dict[str, Any]:
+                       capex: str | None = None, esperadas: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """087:RF-45, RF-46: el sistema entero, con todas sus obras y todas sus cargas nuevas, en un solo flujo por instante.
 
     La escalera elige cada obra con los demás alimentadores apartados (025:RF-69): así se sabe de quién es cada una. Pero
@@ -9037,6 +9082,17 @@ def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: li
     for f, propias in barras_de.items():
         media = ((datos.get('alimentadores') or {}).get(f) or {}).get('media') or {}
         barras += [media.get(b, b) for b in propias]
+    # 087:RF-61: antes de medir, que cada obra aplicada esté en «Con proyecto» y activa; si no, medir el conjunto no
+    # sirve. Pisco (2026-11-25): la de AL209 no estaba en el proyecto y cada ronda daba lo mismo, hasta los decimales.
+    faltan = _obras_que_faltan(ws, medidos, datos.get('variaciones_activas'), esperadas)
+    if faltan:
+        texto = '; '.join(f"{f}: {', '.join(v)}" for f, v in sorted(faltan.items()))
+        ctx.log(f'Confirmación conjunta: obras aplicadas que no están activas en «Con proyecto»: {texto}; se vuelven a '
+                'aplicar antes de medir (087:RF-61).')
+        return {'cumple': False, 'faltan_obras': faltan,
+                'por_alimentador': {f: [f"su obra no está activa en «Con proyecto»: {', '.join(v)}"]
+                                    for f, v in faltan.items()},
+                'motivos': [f'obras que no están activas: {texto}']}
     plan = {**comun, 'feeders': medidos, 'variantes': [], 'barras_cargas': list(dict.fromkeys(barras)),
             'sorteos': prep['sorteos'], 'parametros': prep['perfil'], 'tipo_cambio': tipo_cambio, 'valle': prep['valle'],
             'parada_bayesiana': True, 'solo_confirmar': True, **_fichero_base(memo, {**comun, 'feeders': medidos})}
@@ -9459,29 +9515,42 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     _sin_cargas_de([f for f in sin_cargas if f in reciben])                            # 098:RF-44
     # 087:RF-45 a RF-47: todo el sistema junto; si no cumple, se rehace solo la obra del alimentador afectado, ahora con
     # las cargas nuevas de los demás activas, y se confirma otra vez. Como mucho RONDAS_CONJUNTO: no se insiste.
-    conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, **opciones)
+    conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, esperadas=elegidas, **opciones)
+    anterior: str | None = None
     for ronda in range(1, RONDAS_CONJUNTO + 1):
         afectados = [f for f in (conjunto.get('por_alimentador') or {}) if f in por_alim]
         if conjunto.get('cumple') or not afectados:
             break
+        # 087:RF-61: la misma respuesta que la ronda anterior no se arregla repitiéndola: se para y se dice.
+        firma = json.dumps(conjunto.get('por_alimentador'), sort_keys=True, ensure_ascii=False, default=str)
+        if firma == anterior:
+            ctx.log('Confirmación conjunta: la ronda dio lo mismo que la anterior; no se repite (087:RF-61). Vea sus '
+                    'motivos: la obra elegida no alcanza con las cargas de todos o falta una obra de la SET.')
+            break
+        anterior = firma
+        faltan = conjunto.get('faltan_obras') or {}
         for f in afectados:
             ctx.check_cancel()
-            ctx.log(f'{f}: se rehace su obra con las cargas nuevas de los demás activas (087:RF-47, ronda {ronda}).')
-            # 098:RF-36: la nueva primero, con la vieja apartada; la vieja se borra solo si la nueva queda.
-            vieja_r = _obras_a_comparar(ws, ctx, project, [f]).get(f)
-            hecha = obras_escalera(ws, ctx, project, [f], aplicar=True, basta_una=True, memo=memo,
-                                   por_alternativas=True, **opciones,
-                                   **({'apartar_obras': {f: vieja_r['variaciones']},
-                                       'sustituir': {f: {'variaciones': vieja_r['variaciones'],
-                                                         'operacion': vieja_r['operacion'], 'alimentador': f}}}
-                                      if vieja_r else {}))
+            if f in faltan and elegidas.get(f):
+                # 087:RF-61: se vuelve a aplicar la elegida, sin evaluar de nuevo sus variantes (042:RF-29).
+                ctx.log(f'{f}: se vuelve a aplicar «{elegidas[f]}», que no estaba activa en «Con proyecto» (087:RF-61).')
+                obras_escalera(ws, ctx, project, [f], cargas_activas=todas_las_cargas, aplicar=True, basta_una=True,
+                               memo=memo, solo={f: elegidas[f]}, **opciones)
+                continue
+            # 087:RF-61: la obra aprobada (confirmada en DIgSILENT y aplicada) no se retira para rehacerla: se busca lo que
+            # falte encima de ella, que sigue activa. Pisco (2026-11-25): la ronda apartó la terna de AL209 para medirla de
+            # nuevo, se canceló a mitad y el alimentador quedó sin obra en el proyecto.
+            ctx.log(f'{f}: con su obra aprobada activa, se busca lo que falta con las cargas nuevas de los demás '
+                    f'(087:RF-47, RF-61, ronda {ronda}).')
+            hecha = obras_escalera(ws, ctx, project, [f], cargas_activas=todas_las_cargas, aplicar=True,
+                                   basta_una=True, memo=memo, por_alternativas=True, **opciones)
             de_f = next(iter(hecha.get('alimentadores') or []), {})
             por_feeder.setdefault(f, {})['conjunto'] = {'ronda': ronda, 'elegida': de_f.get('elegida'),
                                                         'aplicada': de_f.get('aplicada')}
             if escalera is not None:
                 escalera['alimentadores'] = [x for x in escalera.get('alimentadores') or [] if x.get('alimentador') != f]
                 escalera['alimentadores'].append(de_f)
-        conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, **opciones)
+        conjunto = confirmar_conjunto(ws, ctx, project, feeders, memo=memo, esperadas=elegidas, **opciones)
     shutil.rmtree(memo['dir_base'], ignore_errors=True)                               # 087:RF-28
     mo.anadir(_ruta_de_medicion('variantes_medidas.jsonl'), medidas)                  # 087:RF-17
     campos = ('sed', 'alimentador', 'kw', 'kvar', 'barra', 'variacion', 'tramo_partido', 'lat', 'lon')
@@ -15023,3 +15092,58 @@ def mapa_leer_en_digsilent(ws: Workspace, ctx: JobContext, project: str, aliment
         ctx.log(f'  Aviso: {aviso}')
     return {'project': project.strip(), 'lectura': report.name, 'caso': informe.get('caso'),
             'diferencias': diferencias, 'avisos': informe.get('avisos') or []}
+
+
+def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
+    """017:RF-144 a RF-149: el resumen ejecutivo de «Sin proyecto», «Cargas nuevas» o «Con proyecto» con lo guardado en
+    el espacio (la calibración aplicada, las cargas aplicadas, las alternativas de la escalera), sin DIgSILENT; en una
+    hoja del informe modelo de la empresa o en la plantilla neutra, y el libro si el perfil lo declara (como 017:RF-142)."""
+    from ...adaptadores.informe_docx import escribir_resumen_caso
+    from ...adaptadores.informes import ConfigInforme, InformeError
+    from ...adaptadores.libro_informe import ConfigLibro
+    from ...aplicacion import resumen_casos as rc
+    from ...dominio.perfil_empresa import datos_perfil
+
+    if not project.strip():
+        raise UserError('Elija el proyecto de DIgSILENT.')
+    datos_caso: dict[str, Any] = {}
+    todos = caso == 'sistema'                                                           # 017:RF-149
+    if todos or caso == 'sin_proyecto':
+        ajuste = ajuste_aplicado_en_disco(ws, project) or {}
+        datos_caso['informes'] = list(ajuste.get('informes') or [])
+    if todos or caso == 'cargas_nuevas':
+        datos_caso['cargas'] = list(_cargas_nuevas_aplicadas(ws, project))
+    if todos or caso == 'con_proyecto':
+        alternativas = alternativas_de_la_escalera(ws, project)
+        # 017:RF-147: solo las del alimentador (las «· sin cargas nuevas…» o «· transferencia…» son de otros apartados).
+        propias = {f: a for f, a in alternativas.items() if '·' not in f}
+        aparte = {f.split('·')[0].strip(): a for f, a in alternativas.items() if '·' in f}
+        for f, a in aparte.items():
+            propias.setdefault(f, a)
+        datos_caso['alternativas'] = propias
+        ajuste = ajuste_aplicado_en_disco(ws, project) or {}
+        calibrados = [str(i.get('feeder')) for i in ajuste.get('informes') or [] if i.get('feeder')]
+        datos_caso['sin_obra'] = [f for f in calibrados if f not in propias]
+    try:
+        datos = rc.resumen_del_sistema(**datos_caso) if todos else rc.resumen(caso, **datos_caso)
+    except rc.ResumenError as exc:
+        raise UserError(str(exc)) from exc
+    perfil = datos_perfil()
+    con_libro = ConfigLibro.de_perfil(perfil, raiz_local(project_root())) is not None
+    modelo, rotulos, aviso = None, {}, None
+    try:
+        config = ConfigInforme.de_perfil(perfil, raiz_local(project_root()))
+        ruta = config.modelos.get('estudio')
+        if ruta is not None and Path(ruta).is_file():
+            modelo, rotulos = Path(ruta), dict(config.rotulos_cabecera)
+        elif ruta is not None:
+            aviso = f'El informe modelo del perfil no está en {ruta}: el resumen va en la plantilla neutra.'
+    except InformeError as exc:
+        aviso = f'El perfil no da un informe modelo usable ({exc}): el resumen va en la plantilla neutra.'
+    destino = ws.out_dir / f'resumen_ejecutivo_{caso}_{nombre_seguro(project.strip())}.docx'
+    hecho = escribir_resumen_caso(destino, datos, project=project.strip(), libro=con_libro, modelo=modelo,
+                                  rotulos=rotulos)
+    if aviso:
+        hecho['huecos'] = [aviso, *hecho['huecos']]
+    return {'project': project.strip(), 'caso': caso, 'docx': destino.name, 'xlsx': hecho['xlsx'],
+            'huecos': hecho['huecos'], 'conclusiones': hecho['conclusiones'], 'filas': hecho['filas']}

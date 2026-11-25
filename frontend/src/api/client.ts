@@ -1,6 +1,6 @@
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
-  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
+  MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, ResumenCaso, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, PreviaCopiaDatos, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
 
@@ -403,6 +403,8 @@ export const api = {
     /** 011:RF-130: los casos de DIgSILENT por su nombre; vacío, los del conversor. */
     casos?: string[];
   }) => request<EstudiosPlan>(`${ws(id)}/pf/estudios/plan`, json('POST', body)),
+  resumenCaso: (id: string, project: string, caso: string) =>
+    request<ResumenCaso>(`${ws(id)}/resumen/caso`, json('POST', { project, caso })),
   estudiosResumen: (id: string, token: string) =>
     request<EstudiosResumen>(`${ws(id)}/pf/estudios/${enc(token)}/resumen`, { method: 'POST' }),
   datosEmpresaSubir: (id: string, project: string, file: File) => {

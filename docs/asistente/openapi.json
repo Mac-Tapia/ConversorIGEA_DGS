@@ -11377,6 +11377,32 @@
         "title": "RespuestaVad",
         "type": "object"
       },
+      "ResumenCasoIn": {
+        "description": "017:RF-144: el caso del que se pide el resumen ejecutivo.",
+        "properties": {
+          "caso": {
+            "default": "sistema",
+            "enum": [
+              "sistema",
+              "sin_proyecto",
+              "cargas_nuevas",
+              "con_proyecto"
+            ],
+            "title": "Caso",
+            "type": "string"
+          },
+          "project": {
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "ResumenCasoIn",
+        "type": "object"
+      },
       "ResumenEspacioRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -11527,6 +11553,37 @@
           "mes_mayor"
         ],
         "title": "ResumenEvolucionRespuesta",
+        "type": "object"
+      },
+      "RetirarObrasIn": {
+        "description": "042:RF-61: las variaciones de obra que el operador retira de «Con proyecto», por su nombre exacto.",
+        "properties": {
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 2000,
+            "title": "Feeders",
+            "type": "array"
+          },
+          "project": {
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          },
+          "variaciones": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Variaciones",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "RetirarObrasIn",
         "type": "object"
       },
       "RevisarLibrosRespuesta": {
@@ -23138,6 +23195,56 @@
         "summary": "Obras Escalera"
       }
     },
+    "/api/workspaces/{wid}/pf/obras/retirar": {
+      "post": {
+        "description": "042:RF-61: el operador retira de «Con proyecto» las obras que nombra, también las suyas, y de lo aplicado.",
+        "operationId": "obras_retirar_api_workspaces__wid__pf_obras_retirar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/RetirarObrasIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Obras Retirar"
+      }
+    },
     "/api/workspaces/{wid}/pf/obras/set-nueva/operacion": {
       "post": {
         "description": "063:RF-36 a RF-38: un solo dueño del motor, sin duplicar la SET existente.",
@@ -24943,6 +25050,58 @@
           }
         },
         "summary": "Restaurar Copia Espacio"
+      }
+    },
+    "/api/workspaces/{wid}/resumen/caso": {
+      "post": {
+        "description": "017:RF-144 a RF-149: el resumen ejecutivo de un caso con lo guardado en el espacio; sin DIgSILENT.",
+        "operationId": "resumen_caso_api_workspaces__wid__resumen_caso_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ResumenCasoIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Resumen Caso Api Workspaces  Wid  Resumen Caso Post",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Resumen Caso"
       }
     },
     "/api/workspaces/{wid}/runs": {

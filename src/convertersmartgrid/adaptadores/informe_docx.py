@@ -1644,3 +1644,60 @@ def _perdidas(e: _Escritor, datos: DatosFactibilidad, config: ConfigInforme, ali
                       _f(p.perdidas_kwh, 2), f'{numero(p.perdidas_pct, 2)} %', _f(p.no_reconocida_soles, 2)])
     e.tabla(['', 'MD kW', 'MD kWh', 'Pérdidas téc. kWh - año', 'Pérdidas téc. kWh (%)',
              f'Pérdida/año no reconocida ({_moneda(config)})'], filas)
+
+
+def escribir_resumen_caso(destino: Path, datos: Mapping[str, Any], *, project: str, libro: bool = False,
+                          modelo: Path | None = None, rotulos: Mapping[str, str] | None = None) -> dict[str, Any]:
+    """El resumen ejecutivo de un caso (017:RF-144 a RF-149): la ficha, las conclusiones y la tabla por alimentador del
+    caso, en UNA hoja como el de estudios (017:RF-142); lo que no cabe va al libro, si el perfil lo declara, y se dice.
+
+    ``datos`` es lo que da ``aplicacion.resumen_casos.resumen``: ``caso``, ``cabecera``, ``filas`` y ``conclusiones``."""
+    caso = str(datos.get('caso') or '')
+    e = _Escritor(_preparar(modelo, rotulos or {}, {'referencia': f'Resumen ejecutivo · {caso} · {project}'}))
+    e.titulo(f'RESUMEN EJECUTIVO · {caso.upper()}')
+    e.tabla(('Dato', 'Valor'), [['Proyecto de DIgSILENT', project or '—'], ['Caso', caso or '—']])
+    e.titulo('Conclusiones')
+    for frase in datos.get('conclusiones') or ['Sin nada guardado que resumir.']:
+        e.vinieta(frase)
+    # 017:RF-149: el del sistema trae una sección por caso; los demás, una sola tabla.
+    secciones = list(datos.get('secciones') or [{'caso': caso, 'cabecera': datos.get('cabecera'),
+                                                  'filas': datos.get('filas')}])
+    filas = [list(f) for s in secciones for f in s.get('filas') or []]
+    xlsx = None
+    if libro:
+        from openpyxl import Workbook
+
+        hoja_libro = Workbook()
+        hoja = hoja_libro.active
+        hoja.title = 'Resumen'
+        hoja.append(['Proyecto', project])
+        hoja.append(['Caso', caso])
+        hoja.append([])
+        for frase in datos.get('conclusiones') or []:
+            hoja.append([frase])
+        for s in secciones:
+            hoja.append([])
+            hoja.append([s.get('caso')])
+            hoja.append(list(s.get('cabecera') or []))
+            for f in s.get('filas') or []:
+                hoja.append(list(f))
+        ruta_xlsx = Path(destino).with_suffix('.xlsx')
+        ruta_xlsx.parent.mkdir(parents=True, exist_ok=True)
+        hoja_libro.save(ruta_xlsx)
+        xlsx = ruta_xlsx.name
+    mostradas: list = []
+    for s in secciones:
+        libres = max(0, LINEAS_POR_HOJA - _ocupadas(e.d) - 3)      # su título, la cabecera y el pie
+        propias = [list(f) for f in s.get('filas') or []][:libres]
+        if propias:
+            e.titulo(f"{s.get('caso')} · por alimentador" if len(secciones) > 1 else 'Por alimentador')
+            e.tabla(list(s.get('cabecera') or []), propias)
+            mostradas += propias
+    donde = f'en el libro {xlsx}' if xlsx else 'en la web, pestaña Estudios'
+    if len(mostradas) < len(filas):
+        e.parrafo(f'Y {len(filas) - len(mostradas)} filas más {donde}.')
+    _guardar(e.d, destino, {'tipo': 'resumen_caso', 'caso': caso, 'project': project,
+                            'conclusiones': list(datos.get('conclusiones') or []), 'filas': len(filas),
+                            'huecos': e.huecos, 'xlsx': xlsx, 'lineas': _ocupadas(e.d), 'modelo': bool(modelo)})
+    return {'conclusiones': list(datos.get('conclusiones') or []), 'huecos': e.huecos, 'xlsx': xlsx,
+            'filas': len(filas), 'mostradas': len(mostradas)}

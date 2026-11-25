@@ -618,6 +618,20 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   usuario, 2026-11-13).
 - RF-143: DONDE el perfil de empresa declare el libro de sus informes (066:RF-1), EL SISTEMA dejará junto al
   resumen un libro Excel con todas las filas de sus resultados y violaciones.
+- RF-144: CUANDO el operador lo pida, EL SISTEMA dará el resumen ejecutivo de «Sin proyecto», «Cargas nuevas» o «Con
+  proyecto» con lo guardado en el espacio, sin DIgSILENT, en una hoja y su libro como RF-142; sin nada que resumir, dirá
+  qué falta. Usuario (2026-11-25): «debe haber un botón para hacer resúmenes ejecutivos de los casos».
+- RF-145: El de «Sin proyecto» dirá por alimentador su máxima de cabecera, el factor de las escaladas, si la
+  calibración es válida y el motivo de la que no.
+- RF-146: El de «Cargas nuevas» dirá por alimentador cada carga, su potencia y su barra, y el total.
+- RF-147: El de «Con proyecto» dirá por alimentador sus alternativas de menor a mayor costo, la que se aplica y dónde
+  va cada obra: el nodo de MT de cada banco y el nodo de inicio y fin de cada tramo de sección, terna o refuerzo
+  (063:RF-31). Usuario (2026-11-25): «identificar los bancos e indicar los nodos y el nodo de inicio y fin».
+- RF-148: LA WEB tendrá en «Estudios» un botón por caso, con los enlaces al Word y al libro y sus conclusiones.
+- RF-149: EL SISTEMA dará UN solo resumen ejecutivo del proyecto de sistema, con «Sin proyecto», «Cargas nuevas» y
+  «Con proyecto» en secciones bajo una sola ficha y unas conclusiones conjuntas; un caso sin datos se dice y el
+  resto sale. LA WEB tendrá un solo botón, «Resumen ejecutivo del sistema». Cambia RF-148. Usuario (2026-11-25):
+  «tiene que ser un solo resumen ejecutivo; es un solo proyecto de sistema».
 
 ## Requisitos no funcionales
 

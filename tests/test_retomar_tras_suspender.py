@@ -126,6 +126,34 @@ def test_096_rf9_con_proyecto_se_reanuda_a_peticion_sin_rehacer_las_obras(tmp_pa
         assert c.post('/api/jobs/no_existe/reanudar').status_code == 404
 
 
+def test_042_rf108_el_operador_retira_obras_por_su_nombre(tmp_path, monkeypatch):
+    """042:RF-108 — Pisco (2026-11-25): una SET nueva y un expreso quedaron aplicados sin la escalera y «rehacer obras» no
+    los retira porque protege las del operador. La ruta los retira por su nombre; uno que no consta se rechaza."""
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
+
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.delenv('CSG_WEB_RELANZAR', raising=False)
+    retiradas = []
+    monkeypatch.setattr(services, '_retirar_obras', lambda ws, ctx, project, feeders, anio, variaciones=None, **k:
+                        retiradas.append((project, list(feeders), list(variaciones or []))))
+    with TestClient(create_app(tmp_path / 'web')) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        ws = c.app.state.store.get(wid)
+        ws.obras_aplicadas = [{'project': 'P', 'variacion': 'Obra_set_nueva_F1', 'origen': 'operador', 'alimentador': 'F1'},
+                              {'project': 'P', 'variacion': 'Obra_expreso_F1', 'origen': 'operador', 'alimentador': 'F1'}]
+        r = c.post(f'/api/workspaces/{wid}/pf/obras/retirar',
+                   json={'project': 'P', 'variaciones': ['Obra_set_nueva_F1', 'Obra_expreso_F1']})
+        assert r.status_code == 202, r.text
+        fin = time.time() + 10
+        while not retiradas and time.time() < fin:
+            time.sleep(0.05)
+        assert retiradas == [('P', ['F1'], ['Obra_set_nueva_F1', 'Obra_expreso_F1'])]
+        assert c.post(f'/api/workspaces/{wid}/pf/obras/retirar', json={'project': 'P', 'variaciones': []}).status_code == 422
+
+
 def test_al_arrancar_se_relanza_una_vez_el_ultimo_interrumpido(tmp_path, monkeypatch):
     """096:RF-5 / 096:RF-6 / 096:RF-7 — el «Recalibrar» que quedó a medias al caer la web se relanza solo con su
     petición, dice de dónde viene y no se relanza dos veces; uno sin petición guardada no se relanza."""

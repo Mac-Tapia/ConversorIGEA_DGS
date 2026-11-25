@@ -216,6 +216,7 @@
    "ficheros": [
     "adaptadores/informes.py",
     "adaptadores/informe_docx.py",
+    "aplicacion/resumen_casos.py",
     "adaptadores/libro_informe.py",
     "adaptadores/libros_informe.py",
     "adaptadores/mapa_informe.py",

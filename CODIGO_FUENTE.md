@@ -860,3 +860,4 @@ DIgSILENT se ejecutan con su intérprete; ver `docs/MANUAL_COMANDOS.md`.
 | `src/convertersmartgrid/schemas/revision_propuesta_v1.schema.json` | Contrato del dictamen de un rol: lo que se pide a Ollama y lo que se valida. | 047 (RF-5) |
 | `src/convertersmartgrid/aplicacion/asistente/ajuste_condicionado.py` | Puertas de 027:RF-18 sobre órdenes reales independientes y decisión de ajustar el LLM, sin entrenar ni activar; mientras falten humanas, con el conjunto sellado del maestro. | 047 (RF-8, RF-9, RF-64 a RF-67) |
 | `tools/asistente_comparar_revision.py` | Rol único frente a cuatro roles con los mismos casos declarados: errores, coste y latencia; `--solo-conjunto` sin Ollama. | 047 (RF-5) |
+| `src/convertersmartgrid/aplicacion/resumen_casos.py` | El resumen ejecutivo por caso con lo guardado (017:RF-144 a RF-147) | 017 |
