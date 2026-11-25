@@ -291,6 +291,10 @@ def test_090_rf26_exportacion_del_c4_con_una_pagina_por_vista_y_por_bloque(c4):
     bloques = c4.pseudocodigo(PSEUDO.read_text(encoding="utf-8"))
     pdf = PdfReader(str(ROOT / "docs" / "architecture" / "plano_flujo_arquitectura_converter_smart_grid.pdf"))
     assert len(pdf.pages) == 1 + len(vistas) + len(bloques), "el PDF no se regeneró con node frontend/scripts/exportar-c4.mjs"
+    # El 25-11 el PDF tenía sus 21 páginas y las vistas en blanco: solo el icono de imagen rota, de 14 px. Cada vista
+    # lleva su imagen con el ancho de una vista dibujada.
+    sin_imagen = [i for i in range(1, 1 + len(vistas)) if max((im.image.width for im in pdf.pages[i].images), default=0) < 600]
+    assert sin_imagen == [], f"páginas de vista del PDF sin imagen: {sin_imagen}"
     texto = " ".join(p.extract_text() or "" for p in pdf.pages)
     for _, titulo, _ in bloques:
         assert titulo.split(" ")[0] in texto

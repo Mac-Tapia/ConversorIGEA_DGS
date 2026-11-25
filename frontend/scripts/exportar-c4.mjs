@@ -75,7 +75,8 @@ try {
         + `<p>Revisión del C4: ${escapar(revision)}. Vistas: ${fotos.map(f => escapar(f.nombre)).join(', ')}.</p>`
         + '<p>Fuente: docs/architecture/workspace.dsl, arquitectura-interactiva-c4.html y pseudocodigo.md (spec 090).</p></section>',
       ...fotos.map(f => `<section class="hoja"><h2>${escapar(f.nombre)} — ${escapar(f.titulo)}</h2>`
-        + `<img src="${pathToFileURL(f.png).href}" alt="${escapar(f.titulo)}"></section>`),
+        // Incrustada: una página creada con setContent no carga file://, y el PDF del 25-11 salió con las vistas en blanco.
+        + `<img src="data:image/png;base64,${readFileSync(f.png).toString('base64')}" alt="${escapar(f.titulo)}"></section>`),
       ...bloques.map(b => `<section class="hoja"><h2>Pseudocódigo — ${escapar(b.titulo)}</h2><pre>${escapar(b.codigo)}</pre></section>`),
     ];
     const impresion = await navegador.newPage();
@@ -88,6 +89,11 @@ try {
       img { display: block; max-width: 100%; max-height: 245mm; margin: 0 auto; }
       pre { font-size: 14px; line-height: 1.45; white-space: pre-wrap; }
     </style></head><body>${hojas.join('\n')}</body></html>`, { waitUntil: 'load' });
+    const rotas = await impresion.$$eval('img', imgs => imgs.filter(i => !i.complete || !i.naturalWidth).map(i => i.alt));
+    if (rotas.length) {
+      console.error(`el plano saldría con vistas en blanco: ${rotas.join(', ')}`);
+      process.exit(1);
+    }
     await impresion.pdf({ path: PDF, format: 'A3', landscape: true, printBackground: true });
     console.log(`plano: ${path.relative(RAIZ, PDF)} (${hojas.length} páginas)`);
   } finally {
