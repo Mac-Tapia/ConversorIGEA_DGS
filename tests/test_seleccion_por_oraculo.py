@@ -323,6 +323,45 @@ def test_087_rf60_el_oraculo_mide_cada_alimentador_con_las_cargas_de_todos():
     assert ora.barras_de(2, 'F1') == ['B']                     # el criterio sigue siendo de sus cargas
 
 
+def test_042_rf58_se_guardan_las_alternativas_de_todos_los_escalones_con_la_elegida(monkeypatch, tmp_path):
+    """042:RF-58 con 098:RF-46 — Pisco (2026-11-25), PA217: el fichero de alternativas guardaba las del último escalón
+    medido («terna + regulador, 117 641, la que se aplica») y no la elegida entre todos (la sección, 73 727). El informe
+    se arma con ese fichero: ahora lleva las de todos los escalones que cumplen, por costo, con la elegida marcada."""
+    def var(nombre, clase):
+        return Variante(nombre, (clase,), [{'clase': clase}], {clase: 1.0})
+
+    orden = [var('s0', 'seccion'), var('t0', 'terna')]
+    tabla = [{'nombre': 's0', 'cumple': True, 'costo_anual': 70.0, 'v_min': 0.97},
+             {'nombre': 't0', 'cumple': True, 'costo_anual': 110.0, 'v_min': 0.97}]
+    sel = {'alimentadores': {'F1': {'orden': orden, 'tabla': tabla, 'bayesiana': {}, 'pareto': {'frente': []},
+                                    'perdidas_energia': {}, 'ya_cumple': False}}, 'tanda': 3}
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: _aplicadas())
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: sel)
+    guardadas = {}
+    monkeypatch.setattr(services, '_guardar_alternativas_escalera',
+                        lambda ws, project, f, alts: guardadas.__setitem__(f, list(alts)))
+    costos = {'s0': 73727.0, 't0': 117641.0}
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, **k):
+        nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+        if aplicar:
+            return {'alimentadores': [{'alimentador': feeders[0], 'elegida': (k.get('solo') or {}).get(feeders[0])}]}
+        filas = [{'nombre': n, 'maxima': True, 'fraccion': 1.0, 'factible': True, 'costo_anual': costos[n]} for n in nombres]
+        alts = [{'numero': 1, 'nombre': n, 'costo_anual': costos[n], 'elegida': True} for n in nombres]
+        if alts:   # como obras_escalera: cada escalón guarda las suyas (la última pisaba a las anteriores)
+            services._guardar_alternativas_escalera(ws, project, feeders[0], alts)
+        return {'alimentadores': [{'alimentador': feeders[0], 'elegida': nombres[0] if nombres else None, 'tabla': filas,
+                                   'alternativas': alts}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+    import types
+
+    services.escalera_por_alimentador(types.SimpleNamespace(out_dir=tmp_path), _Ctx(), 'P', ['F1'])
+    alts = guardadas['F1']
+    assert [a['nombre'] for a in alts] == ['s0', 't0'], alts
+    assert [a['elegida'] for a in alts] == [True, False] and [a['numero'] for a in alts] == [1, 2]
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

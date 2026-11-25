@@ -8965,6 +8965,31 @@ def _registrar_corrida(ctx: JobContext, project: str, resultado: dict, t0: float
 #: 087:RF-47: rondas de rehacer obras tras una confirmación conjunta que no cumple; más no arreglan lo que dos no arreglaron.
 RONDAS_CONJUNTO = 2
 
+def _alternativas_de_los_escalones(filas: Sequence[Mapping[str, Any]], elegida_fila: Mapping[str, Any]) -> list[dict]:
+    """042:RF-58 con 098:RF-46: las alternativas de los escalones que cumplen, sin repetir, de menor a mayor costo anual,
+    hasta ``escalera.alternativas``; la elegida marcada y siempre presente, aunque por costo quedase fuera."""
+    from ...aplicacion import escalera_optima as eo
+
+    e = elegida_fila.get('elegida')
+    elegida = str(e.get('nombre') if isinstance(e, dict) else e) if e else None
+    if not elegida and (elegida_fila.get('vieja') or {}).get('factible'):
+        elegida = (elegida_fila.get('vieja') or {}).get('nombre')
+    por_nombre: dict[str, dict] = {}
+    for x in filas:
+        for a in x.get('alternativas') or []:
+            nombre = str(a.get('nombre') or '')
+            if not nombre or a.get('costo_anual') is None:
+                continue
+            if nombre not in por_nombre or a['costo_anual'] < por_nombre[nombre]['costo_anual']:
+                por_nombre[nombre] = dict(a)
+    orden = sorted(por_nombre.values(), key=lambda a: (float(a['costo_anual']), a['nombre']))
+    tope = eo.MAX_ALTERNATIVAS
+    salen = orden[:tope]
+    if elegida and elegida in por_nombre and all(a['nombre'] != elegida for a in salen):
+        salen = salen[:max(tope - 1, 0)] + [por_nombre[elegida]]
+    return [{**a, 'numero': i, 'elegida': a['nombre'] == elegida} for i, a in enumerate(salen, 1)]
+
+
 #: 098:RF-51: cuánto puede bajar al medirlo en DIgSILENT el costo que da el oráculo: el CAPEX es el mismo y solo
 #: cambian las pérdidas, que el oráculo estima. Un escalón cuya más barata pasa del tope con este margen no puede ganar.
 MARGEN_PODA_ESCALON = 0.10
@@ -9331,6 +9356,14 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             ctx.log(f"{f}: entre {_cuenta(len(candidatas), 'escalón que cumple', 'escalones que cumplen')} se elige la más barata: "
                     f"{nombre_g}"
                     + (f', {costo_g:,.0f} al año' if costo_g not in (0.0, float('inf')) else '') + ' (098:RF-46).')
+        if candidatas:
+            # 042:RF-58 con 098:RF-46: las de todos los escalones que cumplen, por costo y con la elegida marcada; cada
+            # escalón guardaba las suyas y la última pisaba a las demás (Pisco, 2026-11-25, PA217).
+            combinadas = _alternativas_de_los_escalones([c[2] for c in candidatas], fila)
+            if combinadas:
+                fila['alternativas'] = combinadas
+                if getattr(ws, 'out_dir', None) is not None:
+                    _guardar_alternativas_escalera(ws, project, f, combinadas)
         for alt in fila.get('alternativas') or []:
             ctx.log(f"{f}: alternativa {alt['numero']}: {alt['nombre']}, {alt['costo_anual']:,.0f} al año"
                     + (' (la que se aplica)' if alt['elegida'] else '') + ' (042:RF-58).')

@@ -172,3 +172,6 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
       Hecho cuando: `parametros` da los dos límites, `definitiva` juzga con el de largo plazo solo en el horizonte de
       vida útil, y el guion de obras lo pide así.
       Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_escalera_optima.py`.
+- [x] T67. Las alternativas guardadas son las de todos los escalones que cumplen, con la elegida. (RF-58)
+      Hecho cuando: tras la elección entre escalones (098:RF-46) se guardan juntas, por costo, la elegida marcada.
+      Cerrada el 2026-11-25: rojo con el caso de PA217 en Pisco y verde en `tests/test_seleccion_por_oraculo.py`.
