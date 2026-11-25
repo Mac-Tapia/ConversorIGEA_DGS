@@ -275,7 +275,7 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   factor es menor que 0,05 (`FACTOR_ESCALADAS_ANORMAL`), ENTONCES EL SISTEMA lo dirá en un aviso con las SED, el factor y
   la suma de las fijas frente a la cabecera, y con el factor por debajo de 0,05 no dará la calibración por válida
   (`ESCALADAS_CASI_CERO`; RF-69 deja grabado el reparto). Una SED pequeña bajo 1 kW con el factor normal se avisa sin
-  invalidar. AL299 con las fijas del máximo de cada mes daba un factor de 0,0097 y 39 SED bajo 1 kW como válida.
+  invalidar. AL299 con las fijas del máximo de cada mes daba un factor de 0,0097 y 39 SED bajo 1 kW como válida. (enmienda del 2026-11-24) El factor bajo invalida solo si son las fijas las que lo hunden: SI el factor que darían las escaladas con la cabecera sola, sin restar las fijas, también queda por debajo de 0,05, ENTONCES el alimentador está poco cargado en ese instante frente a su potencia instalada y EL SISTEMA lo avisará con esa causa sin invalidar la calibración (un sistema entero de 17 alimentadores quedó sin validar por dos con 18,8 y 55,2 kW en su cabecera, sin fijas, frente a varios MVA instalados).
 - RF-72: (regla del usuario del 2026-10-15 y orden del 19-11; amplía RF-66) CUANDO calibra un alimentador con central en
   su tramo, solo o en el proyecto, EL SISTEMA pondrá también sus bancos existentes a su máxima capacidad antes de medir,
   fuera de la etapa de la central, y dirá en el informe los que cambió.

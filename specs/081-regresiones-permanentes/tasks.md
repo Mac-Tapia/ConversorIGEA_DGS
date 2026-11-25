@@ -121,3 +121,6 @@ de la revisión previa. Resultados y corte exacto: `D:/converter/auditorias/diag
   comprueba que cada prueba nombrada existe. Ejecutada su función con `python -c` (sin pytest, B44); el pytest lo corre el
   integrador d8. Los huecos (A1, A2, A4, A5, A7 parciales; A3, A6, A10, A11 sin prueba directa) cierran en la spec de su
   módulo, no aquí.
+- [x] T33 El motivo de cada alimentador es su fallo, o los que fallaron del proyecto. (RF-19)
+      Hecho cuando: con un fallo de validación que no es de consumo, el motivo es su aviso, y los demás del proyecto dicen por quién no vale.
+      Cerrada el 2026-11-24: rojo válido por aserción (motivo vacío) y verde (291 passed) en `tests/test_ajuste_proyecto_guion.py`.

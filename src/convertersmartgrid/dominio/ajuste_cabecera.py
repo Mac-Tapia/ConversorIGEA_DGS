@@ -455,6 +455,13 @@ def escaladas_casi_cero(clave: str, escaladas: Mapping[str, float], factor: floa
     if not bajo and not anormal:
         return None
     fraccion = fijas_kw / cabecera_kw if fijas_kw is not None and cabecera_kw else None
+    # El factor que tendrían las escaladas sin ninguna fija: factor = (cabecera − fijas) / P base, así que la cabecera
+    # sola da factor · cabecera / (cabecera − fijas). Si también es anormal, el factor bajo no es de las fijas (AL299,
+    # que se comían la cabecera) sino de un alimentador poco cargado en ese instante: el 24-11 dos de un sistema entero,
+    # con 18,8 y 55,2 kW frente a varios MVA y sin fijas, dejaron sin validar a los 17. Se avisa sin invalidar.
+    libre = (cabecera_kw or 0.0) - (fijas_kw or 0.0)
+    sin_fijas = factor * cabecera_kw / libre if anormal and cabecera_kw and libre > 0 else None
+    poco_cargado = sin_fijas is not None and sin_fijas < factor_anormal
     n = len(bajo)
     partes = [f'{clave}: {n} de {len(escaladas)} SED escaladas '
               f"{'queda' if n == 1 else 'quedan'} por debajo de {umbral_kw:g} kW"]
@@ -464,12 +471,17 @@ def escaladas_casi_cero(clave: str, escaladas: Mapping[str, float], factor: floa
     if bajo:
         texto += ': ' + ', '.join(bajo[:50]) + (f' y {n - 50} más' if n > 50 else '')
     if fijas_kw is not None and cabecera_kw:
-        texto += (f'. Las fijas suman {fijas_kw:,.1f} kW frente a {cabecera_kw:,.1f} kW de cabecera ({fraccion:.0%})'
-                  + (' y dejan casi nada para repartir; revise las fijas y el instante de sus registros'
-                     if anormal else ''))
-    texto += '.' if anormal else '; la calibración vale, pero conviene revisar sus potencias instaladas.'
+        texto += f'. Las fijas suman {fijas_kw:,.1f} kW frente a {cabecera_kw:,.1f} kW de cabecera ({fraccion:.0%})'
+        if poco_cargado:
+            texto += (': el alimentador está poco cargado en este instante frente a su potencia instalada; la '
+                      'calibración vale, pero conviene revisar la medida de su cabecera y sus potencias instaladas.')
+        elif anormal:
+            texto += ' y dejan casi nada para repartir; revise las fijas y el instante de sus registros.'
+    if not texto.endswith('.'):
+        texto += '.' if anormal and not poco_cargado else '; la calibración vale, pero conviene revisar sus potencias instaladas.'
     return {'clave': clave, 'umbral_kw': umbral_kw, 'cantidad': n, 'escaladas': len(escaladas), 'sed': bajo,
-            'factor': factor, 'factor_anormal': anormal, 'invalida': anormal, 'fijas_kw': fijas_kw,
+            'factor': factor, 'factor_anormal': anormal, 'invalida': anormal and not poco_cargado,
+            'poco_cargado': poco_cargado, 'fijas_kw': fijas_kw,
             'cabecera_kw': cabecera_kw, 'fraccion_fijas': fraccion, 'aviso': texto}
 
 

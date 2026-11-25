@@ -264,3 +264,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera.py -k "rf73 or rf74 or rf75"` y `tests/test_ajuste_cabecera_guion.py -k "rf73 or rf75"`; la corrida en DIgSILENT la decide d8.
       Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (rf73 ×5, rf74 ×2, rf75 ×2); verde D:/csg/PM_IMPL/MEJ10_FIJAS/verde_py.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
       npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T31. Un alimentador poco cargado no invalida por el factor de sus escaladas. (RF-71, enmienda del 2026-11-24)
+      Hecho cuando: `escaladas_casi_cero` invalida con el factor bajo solo si la cabecera sola da un factor normal, y avisa «poco cargado» si no.
+      Cerrada el 2026-11-24: rojo válido por aserción (1 failed, 2 passed) y verde (291 passed) en `tests/test_ajuste_cabecera.py` y los guiones del ajuste.

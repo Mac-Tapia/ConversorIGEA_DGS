@@ -50,6 +50,26 @@ def test_dos_alimentadores_en_los_mismos_flujos(guion):
     assert app.carpetas['scheme'].GetContents('*.IntScheme') == []
 
 
+def test_081_rf19_el_motivo_es_el_fallo_de_su_alimentador_y_no_el_primer_aviso_comun(guion, monkeypatch):
+    """081:RF-19 — el 24-11 un sistema de 17 alimentadores quedó sin validar por dos, y el Registro decía de los 17
+    «AL104: … no falta ningún banco», el primer aviso común: el que falla dice su fallo y los demás por quién no vale."""
+    original = guion.validar_cargas_nativas
+
+    def con_fallo(cargas, rep, med, objetivo, *a, **k):
+        validacion, extra = original(cargas, rep, med, objetivo, *a, **k)
+        if objetivo.alimentador == 'F1':
+            validacion = {**validacion, 'correcta': False, 'status': 'REQUIERE_DISTRIBUCION',
+                          'fallos': [{'tipo': 'ESCALADAS_CASI_CERO', 'aviso': 'F1: escaladas casi en cero.'}]}
+        return validacion, extra
+
+    monkeypatch.setattr(guion, 'validar_cargas_nativas', con_fallo)
+    (f1, _), (f2, _) = guion.ejecutar_proyecto(
+        _app(escenario=True), [_de(_plan(), 'F1', 300.0), _de(_plan(), 'F2', 220.0)])
+    assert f1['status'] == 'FALLO_VALIDACION_NATIVA' and f1['motivo'] == 'F1: escaladas casi en cero.', f1.get('motivo')
+    assert f2['status'] == 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO'
+    assert 'no es válida por F1' in f2['motivo'], f2.get('motivo')
+
+
 def test_un_plan_es_el_ajuste_de_siempre(guion):
     """021:RF-60 — con un alimentador, el ajuste de siempre, sin calibración conjunta."""
     a, b = _app(escenario=True), _app(escenario=True)

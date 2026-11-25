@@ -4524,6 +4524,10 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 inf['cuadrado'] = False
                 if f not in invalidos:
                     inf['status'] = 'FALLO_VALIDACION_NATIVA_EN_EL_PROYECTO'
+                    # 081:RF-19: su motivo es el de los que fallaron, no el primer aviso común (24-11: los 17 decían
+                    # «AL104: … no falta ningún banco» y fallaban PA109 y PA110).
+                    inf['motivo'] = inf.get('motivo') or ('la calibración del proyecto no es válida por '
+                                                          + ', '.join(invalidos) + '; vea su diagnóstico.')
                 # 015:RF-69: el reparto que cuadró se queda; volver atrás dejaba las escaladas
                 # en cero, con la demanda del archivo (SL194 + SM197, 2026-10-28).
                 inf['calibracion_sin_validar'] = True
@@ -4779,7 +4783,10 @@ def _cerrar_alimentador_en_proyecto(app, alims, feeder: str, p: dict, inf: dict,
                                          inf.get('fijas_sobre_su_transformador'), feeder)
             if aviso:
                 inf['avisos'].append(aviso)
-                # 081:RF-19: el motivo del fallo; vacío, el Registro decía «None» (CA191, 2026-11-09).
+            # 081:RF-19: el motivo del fallo; vacío, el Registro decía «None» (CA191, 2026-11-09) y, con un fallo que no
+            # es de consumo (las escaladas casi en cero), el primer aviso común del proyecto, de otro alimentador (24-11).
+            aviso = aviso or next((str(x['aviso']) for x in validacion['fallos'] if x.get('aviso')), None)
+            if aviso:
                 inf['motivo'] = inf.get('motivo') or aviso
             inf['fallos'].extend({'sed': x.get('sed'), 'error': f"validación nativa: {x.get('tipo')}",
                                   'detalle': x} for x in validacion['fallos'])

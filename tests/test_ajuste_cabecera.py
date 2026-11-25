@@ -821,6 +821,20 @@ def test_015_rf71_una_sed_pequena_bajo_1_kw_con_factor_normal_se_avisa_sin_inval
     assert casi and casi['sed'] == ['S1'] and not casi['factor_anormal'] and not casi['invalida'], casi
 
 
+def test_015_rf71_alimentador_poco_cargado_sin_fijas_se_avisa_sin_invalidar():
+    """015:RF-71 — el 24-11 un sistema entero de 17 alimentadores quedó sin validar porque dos tenían 18,8 y 55,2 kW en su
+    cabecera, sin fijas, frente a varios MVA instalados: el factor (0,0033) era bajo por la cabecera, no porque las fijas
+    se la comieran (AL299). Se avisa con su causa y no invalida; con las fijas que hunden el factor sí invalida."""
+    o = objetivo_de(_maxima(alimentador='A1', kw=18.8, kvar=4.0))
+    cargas, kva = _escaladas(5, 5700.0)
+    r = reparto_inicial(o, {}, cargas, kva)
+    casi = ac.escaladas_casi_cero_del_reparto(r, o)
+    assert casi and casi['factor_anormal'] and not casi['invalida'], casi
+    assert 'poco cargado' in casi['aviso'] and 'dejan casi nada' not in casi['aviso'], casi['aviso']
+    o, r = _casi_cero_ejemplo(6174.0)                 # las fijas igualan la cabecera: sigue sin valer
+    assert ac.escaladas_casi_cero_del_reparto(r, o)['invalida']
+
+
 def test_088_rf13_fija_sin_ea_eri_no_hereda_la_q_negativa_de_una_cabecera_capacitiva():
     """088:RF-13 — cabecera de 5 000 kW y −500 kvar: una fija de 300 kW sin EA/ERI no queda capacitiva (antes −30 kvar);
     toma el FP de las fijas del perfil o, sin él, el de la cabecera como inductivo, y se avisa."""
