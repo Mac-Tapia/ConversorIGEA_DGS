@@ -108,7 +108,7 @@ retirada.
 | [099](099-cargas-del-libro-duplicadas-por-el-nombre-del-cliente/spec.md) | Cargas del libro duplicadas por el nombre del cliente | cumplida | 8 | 8 | — |
 | [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | 13 | 13 | T4 (DIgSILENT) |
 | [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 15 | 15 | — |
-| [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | 34 | 34 | T20 |
+| [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | 35 | 35 | T20 |
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |

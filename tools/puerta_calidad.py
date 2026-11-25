@@ -52,7 +52,12 @@ GOBIERNO = ('tests/test_inventario.py', 'tests/test_trazabilidad_specs.py', 'tes
             # 106:RF-13: lo que mira el árbol entero (capas y ciclos, 002:RF-2/3; ningún nombre anterior, 058) tampoco lo elige
             # el commit que lo rompe. 2026-11-14: cad225d0 dejó un ciclo indice -> evaluacion_rag -> embeddings -> indice y una
             # ruta con el nombre anterior en CLAUDE.md, y 38dc1581 otro ciclo y módulos sin capa; ninguna de sus puertas lo vio.
-            'tests/test_capas.py', 'tests/test_dominio_numeros_medidos.py', 'tests/test_nombre_converter_smart_grid.py')
+            'tests/test_capas.py', 'tests/test_dominio_numeros_medidos.py', 'tests/test_nombre_converter_smart_grid.py',
+            # 102:RF-35: el 2026-11-25 la CI falló en seis pruebas que ningún commit elegía por sus ficheros porque miran
+            # el árbol entero: textos de src/ y tools/ sin citas, el C4 al día con las specs, las fuentes de lo sellado y
+            # las fugas hacia los conjuntos sellados (unos 50 s en total).
+            'tests/test_textos_sin_requisitos.py', 'tests/test_arquitectura_c4_al_dia.py',
+            'tests/test_preguntas_entregables.py', 'tests/test_asistente_corpus_ampliado.py')
 
 #: Las variables de datos reales de la suite completa (CLAUDE.md, «Pruebas»): sin una, la suite omite pruebas.
 #: 102:RF-23: la puerta pasa solo las de esta lista; ``CSG_PF_PYTHON_39`` (spec 103) estaba en el fichero local y no

@@ -260,6 +260,15 @@ def test_102_rf21_la_puerta_corre_los_procedimientos():
     assert 'tests/test_procedimientos.py' in PC.GOBIERNO
 
 
+def test_102_rf35_las_pruebas_del_arbol_entero_corren_en_cada_commit():
+    """102:RF-35 — el 2026-11-25 la CI falló en seis pruebas que ningún commit elige por sus ficheros, porque miran el
+    árbol entero: los textos de src/ y tools/ sin citas, el C4 al día con las specs, las fuentes de lo sellado y las
+    fugas hacia los conjuntos sellados. Corren siempre, como las de gobierno."""
+    for prueba in ('tests/test_textos_sin_requisitos.py', 'tests/test_arquitectura_c4_al_dia.py',
+                   'tests/test_preguntas_entregables.py', 'tests/test_asistente_corpus_ampliado.py'):
+        assert prueba in PC.GOBIERNO, prueba
+
+
 def test_102_rf22_cada_prueba_con_su_guardia_de_gpu(tmp_path):
     """102:RF-22 — la guardia de la prueba no es la de la máquina: un entrenamiento real no tumba la puerta."""
     from convertersmartgrid.aplicacion.training_coordinator import ruta_guardia_gpu

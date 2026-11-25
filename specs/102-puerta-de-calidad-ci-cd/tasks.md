@@ -83,3 +83,6 @@
       del 18-11, C7: H10 y H11). (RF-34)
       Hecho cuando: `tests/test_gobierno_hook_y_guias.py` (102:RF-34) en verde, con rojo previo por aserción.
       Evidencia: `D:/csg/INTEGRA_54/auditoria_c0/c7/`.
+- [x] T26. Las pruebas del árbol entero en la puerta de cada commit. (RF-35)
+      Hecho cuando: `GOBIERNO` lleva las cuatro y la puerta del commit las corre.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_puerta_calidad.py`; unos 50 s más por commit.

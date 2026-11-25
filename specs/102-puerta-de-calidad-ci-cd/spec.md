@@ -134,6 +134,9 @@ Instalación
   compilando en memoria sin escribir `__pycache__`; y las skills del proyecto y la constitución solo citarán rutas y
   capacidades que existen (las capas de la spec 002 y `frontend/src/{api,shared,app,features}`; P9 con las pruebas
   de 109 y 110). El hook no sustituye a la puerta de calidad.
+- RF-35: EL SISTEMA correrá en cada commit, con las de gobierno, las pruebas que miran el árbol entero y que ningún
+  fichero del commit elige: los textos de `src/` y `tools/` sin citas, el C4 al día con las specs, las fuentes de lo
+  sellado y las fugas hacia los conjuntos sellados. (2026-11-25: la CI de 971caf65 falló en seis pruebas así.)
 - Aclaración de RF-29 (auditor 3e, 2026-11-14): en `main` la corrida nueva NO cancelará la anterior, para que cada commit de `main` conserve su corrida entera como evidencia de la etiqueta.
 
 ## Requisitos no funcionales
