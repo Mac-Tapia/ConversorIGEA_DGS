@@ -76,9 +76,12 @@ def _columna_por_patron(clave: str) -> str:
     «DEM PROY (KW)» o «COORDENADAS UTM (X)» no se pueden listar todas: se reconoce la
     unidad o el eje al final. El kVA no, porque puede ser la demanda o el instalado.
     """
-    if clave.endswith('kvar'):
+    # La llamada de nota pegada a la unidad no es parte de ella: «DEM PROY (KW)2» del libro de cargas nuevas del
+    # 2026-11-25 dejaba sus 104 cargas «sin demanda».
+    unidad = re.sub(r'\d+$', '', clave)
+    if unidad.endswith('kvar'):
         return 'Kvar'
-    if clave.endswith('kw'):
+    if unidad.endswith('kw'):
         return 'Kw'
     if 'utm' in clave or clave.startswith('coord'):
         if clave.endswith(('x', 'este')):
@@ -298,6 +301,12 @@ def leer_hoja_nuevas(
         cabecera = ', '.join(str(c).strip() for c in header if c is not None and str(c).strip())
         return [], [f'hoja {hoja}, fila {fila_cabecera}: no se reconoce la cabecera '
                     f'({cabecera or "vacía"}); hace falta SED o descripción, y Kw o (kVA).']
+    # Con nombre y sin ninguna columna de demanda, cada carga daría «sin demanda» por su cuenta (104 líneas el
+    # 2026-11-25): la causa es la cabecera y se dice una vez, con lo que se leyó.
+    if body and not etapas_de and not {'Kw', '(kVA)'} & set(mapping.values()):
+        cabecera = ', '.join(str(c).strip().replace('\n', ' ') for c in header if c is not None and str(c).strip())
+        return [], [f'hoja {hoja}, fila {fila_cabecera}: ninguna columna se reconoce como la demanda ({cabecera}); '
+                    'nómbrela con su unidad, por ejemplo «Kw», «DEM PROY (KW)» o «(kVA)» con «FP».']
     filas: list[CargaNueva] = []
     errores: list[str] = []
     vistas: dict[str, int] = {}

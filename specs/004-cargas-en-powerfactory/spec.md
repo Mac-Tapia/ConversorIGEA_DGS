@@ -211,6 +211,8 @@ subestación, no una barra del proyecto.
   columnas cuyo nombre termine en kW o kVAR como demanda, las que contengan «UTM» o
   empiecen por «coord» y terminen en X/Este o Y/Norte como CoordX/CoordY, y «TRONCAL»
   como alimentador.
+  (2026-11-25) La llamada de nota pegada a la unidad («DEM PROY (KW)2») no impide reconocerla; y si ninguna
+  columna es la demanda, EL SISTEMA lo dirá una vez con la cabecera leída, no una vez por carga.
 - RF-52: SI una carga nueva no trae kVA_instalado, ENTONCES EL SISTEMA tomará la menor
   potencia normalizada (IEC 60076-1, serie R10) que cubra su demanda y lo anotará en los
   avisos del plan.

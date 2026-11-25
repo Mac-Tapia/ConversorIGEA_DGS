@@ -258,6 +258,22 @@ def test_libro_con_filas_vacias_sobre_la_cabecera(tmp_path):
     assert any(e.startswith('hoja H, fila 5:') for e in lectura.errores), lectura.errores
 
 
+def test_004_rf51_la_unidad_con_su_llamada_de_nota_sigue_siendo_la_demanda():
+    """004:RF-51 — el libro de cargas nuevas del 2026-11-25 trae «DEM PROY \\n(KW)2», con la llamada de nota pegada a la
+    unidad, y columnas de fechas vacías: las 104 cargas salían «sin demanda». La demanda se reconoce igual."""
+    header = ['SIGLAS DE CARGA', 'DESCRIPCION', 'TRONCAL', 'BARRA', 'DEM PROY \n(KW)2', '15/01/2027', '30/01/2027']
+    filas, errores = leer_hoja_nuevas(header, [['CH_2', 'Universidad', 'F1', 'B1', 600.0, None, None]], 'H')
+    assert errores == [] and [(f.sed, f.kw) for f in filas] == [('CH_2', 600.0)], errores
+
+
+def test_004_rf51_sin_columna_de_demanda_se_dice_una_vez_con_la_cabecera():
+    """004:RF-51 — si ninguna columna es la demanda, se dice una vez con la cabecera leída, no una fila por carga."""
+    header = ['SIGLAS DE CARGA', 'DESCRIPCION', 'TRONCAL', 'BARRA', 'DEMANDA PREVISTA']
+    filas, errores = leer_hoja_nuevas(header, [['CH_2', 'U', 'F1', 'B1', 600.0], ['CH_3', 'V', 'F1', 'B1', 10.0]], 'H')
+    assert filas == [] and len(errores) == 1, errores
+    assert 'demanda' in errores[0] and 'DEMANDA PREVISTA' in errores[0], errores
+
+
 def test_cabecera_irreconocible_es_un_error_y_no_cero_cargas(tmp_path):
     """004:RF-51 — una hoja con datos y sin columnas de carga lo dice, no da cero en silencio."""
     libro = _libro(tmp_path / 'nuevas.xlsx', {'H': [['foo', 'bar'], ['x', 'y']]})

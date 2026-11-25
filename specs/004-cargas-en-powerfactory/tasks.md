@@ -213,3 +213,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Verde, 2026-11-24 12:10 (d8): D:/csg/PM_IMPL/N12/pytest.log, 236 passed con tests/test_pfd_vinculos_web.py,
       tests/test_adaptador_pnl.py, test_contrato_api, test_capas, test_inventario y test_matriz_operaciones (los dos
       fallos del registro son los de la spec cumplida con esta tarea abierta, que se cierra aquí).
+- [x] T38. La demanda con su llamada de nota, y la cabecera sin demanda dicha una vez. (RF-51)
+      Hecho cuando: «DEM PROY (KW)2» es la demanda y una hoja sin columna de demanda da un solo error con su cabecera.
+      Cerrada el 2026-11-25: rojo válido por aserción (2 failed) y verde (113 passed) en `tests/test_cargas_pf.py`;
+      el libro real de cargas nuevas pasa de 104 errores a 104 cargas leídas y ninguno.
