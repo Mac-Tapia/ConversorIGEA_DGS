@@ -292,6 +292,11 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   plazo. La de largo plazo saldrá solo de las integrales; SI la de corto plazo aguanta el horizonte, ENTONCES se dirá que no
   hace falta un proyecto integral. Usuario (2026-11-11): «debe organizar cuáles entran para obras de corto plazo y cuáles
   para proyecto de inversión de largo plazo, integrales, una inversión más grande y solución definitiva» (propuesta A).
+- RF-51: CUANDO ya hay una obra confirmada en DIgSILENT para un alimentador, EL SISTEMA no mandará a confirmar
+  un escalón cuya variante más barata según el oráculo cueste más que ella con un margen del 10 % (el oráculo
+  estima las pérdidas; el CAPEX es el mismo), porque no puede ganar (RF-46); lo dirá en el Registro con los dos
+  costos. Sin costo del oráculo en alguna variante, el escalón se confirma como siempre. Usuario (2026-11-25),
+  Pisco: «la escalera ¿no la hace el oráculo? se hace doble trabajo».
 
 ## Relación con otras specs
 

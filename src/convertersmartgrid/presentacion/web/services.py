@@ -8921,6 +8921,22 @@ def _registrar_corrida(ctx: JobContext, project: str, resultado: dict, t0: float
 #: 087:RF-47: rondas de rehacer obras tras una confirmación conjunta que no cumple; más no arreglan lo que dos no arreglaron.
 RONDAS_CONJUNTO = 2
 
+#: 098:RF-51: cuánto puede bajar al medirlo en DIgSILENT el costo que da el oráculo: el CAPEX es el mismo y solo
+#: cambian las pérdidas, que el oráculo estima. Un escalón cuya más barata pasa del tope con este margen no puede ganar.
+MARGEN_PODA_ESCALON = 0.10
+
+
+def _costo_minimo_del_oraculo(orden: Sequence[Any], e_or: Mapping[str, Any] | None) -> float | None:
+    """098:RF-51: el menor costo anual que el oráculo da a las variantes de un escalón; ``None`` si alguna no lo tiene,
+    porque entonces no se puede asegurar que el escalón no gane."""
+    if not orden or not e_or:
+        return None
+    costos = {t.get('nombre'): t.get('costo_anual') for t in e_or.get('tabla') or []}
+    valores = [costos.get(v.nombre) for v in orden]
+    if any(not isinstance(c, (int, float)) for c in valores):
+        return None
+    return float(min(valores))
+
 
 def confirmar_conjunto(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *, memo: dict,
                        anio_casos: int | None = None, tipo_cambio: float | None = None,
@@ -9155,13 +9171,23 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             # 098:RF-36 (M2): la obra vieja que se queda resuelve el alimentador solo si su fila medida cumple.
             return bool(x.get('elegida') or x.get('ya_cumple') or x.get('conserva') or (x.get('vieja') or {}).get('factible'))
 
-        def evaluar_escalon(desde: int, hasta: int, **extra) -> dict:
+        def evaluar_escalon(desde: int, hasta: int, tope: float | None = None, **extra) -> dict:
             """098:RF-45: un escalón (o un tramo de escalones) entero: el oráculo ordena y filtra los suyos y DIgSILENT
-            confirma los mejores por tandas; sin oráculo, DIgSILENT los mide todos, en su orden."""
+            confirma los mejores por tandas; sin oráculo, DIgSILENT los mide todos, en su orden.
+
+            098:RF-51: ``tope``, el costo de la más barata ya confirmada; si la más barata del oráculo en este escalón
+            pasa de él con margen, no puede ganar (RF-46) y DIgSILENT no la mide."""
             nonlocal tanda, comparacion, medidas
             orden = [v for v in (e_or or {}).get('orden') or [] if desde <= eo.escalon(v.escalones) <= hasta]
             nombre_esc = '/'.join(eo.ESCALONES[i] for i in range(max(desde, 0), min(hasta, len(eo.ESCALONES) - 1) + 1))
             reg = {'escalon': nombre_esc, 'oraculo': len(orden), 'confirmadas': 0, 'cumplen': 0}
+            minimo = _costo_minimo_del_oraculo(orden, e_or)
+            if tope is not None and minimo is not None and minimo > tope * (1.0 + MARGEN_PODA_ESCALON):
+                reg.update(resuelve=False, podado=True)
+                ctx.log(f'{f}: escalón {nombre_esc}: la más barata del oráculo cuesta {minimo:,.0f} al año, más que la ya '
+                        f'confirmada ({tope:,.0f}): no puede ganar y DIgSILENT no la mide (098:RF-51).')
+                registro_escalones.append(reg)
+                return {}
             listas: list = [None]
             if orden:
                 nombres = {v.nombre for v in orden}
@@ -9209,8 +9235,13 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             return float(c) if isinstance(c, (int, float)) else float('inf')
 
         candidatas: list[tuple[float, int, dict, bool, Any]] = []
+
+        def tope_actual() -> float | None:
+            """098:RF-51: el costo de la más barata ya confirmada, si alguna lo tiene."""
+            costos = [c[0] for c in candidatas if c[0] not in (float('inf'),)]
+            return min(costos) if costos else None
         for i in range(0, eo.ESCALON_TRANSFERENCIA):
-            de_i = evaluar_escalon(-1 if i == 0 else i, i)
+            de_i = evaluar_escalon(-1 if i == 0 else i, i, tope=tope_actual())
             if de_i.get('ya_cumple'):
                 candidatas.append((0.0, len(candidatas), de_i, False, tanda))
                 break                                                   # sin obra: nada puede costar menos
@@ -9219,12 +9250,12 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
             fila = fila or de_i
         if not any(c[2].get('ya_cumple') for c in candidatas):
             # 087:RF-31: la transferencia de carga, siempre desde una maniobra (098:RF-11), y la del operador (098:RF-44).
-            de_t = evaluar_escalon(eo.ESCALON_TRANSFERENCIA, eo.ESCALON_TRANSFERENCIA, traspaso=True,
+            de_t = evaluar_escalon(eo.ESCALON_TRANSFERENCIA, eo.ESCALON_TRANSFERENCIA, tope=tope_actual(), traspaso=True,
                                    con_enlaces=con_enlaces)
             if resuelto(de_t):
                 candidatas.append((costo_de(de_t), len(candidatas), de_t, True, None))
             # 087:RF-41: el cambio de nivel y el regulador; el oráculo no modela el paso a 22,9 kV y DIgSILENT lo mide.
-            de_n = evaluar_escalon(eo.ESCALON_NIVEL, len(eo.ESCALONES) - 1,
+            de_n = evaluar_escalon(eo.ESCALON_NIVEL, len(eo.ESCALONES) - 1, tope=tope_actual(),
                                    **({'sin_oraculo': True} if e_or else {}))
             if resuelto(de_n):
                 candidatas.append((costo_de(de_n), len(candidatas), de_n, False, None))

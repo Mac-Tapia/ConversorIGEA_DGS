@@ -104,7 +104,7 @@ retirada.
 | [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 3 | 3 | — |
 | [096](096-retomar-tras-suspender-el-equipo/spec.md) | Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | cumplida | 8 | 8 | — |
 | [097](097-vectores-multilingues-del-rag/spec.md) | Vectores multilingües para la búsqueda del asistente | cumplida | 25 | 25 | — |
-| [098](098-transferencia-del-operador-en-calibracion-y-obras/spec.md) | La transferencia de carga del operador, en la calibración y en las obras | cumplida | 50 | 50 | — |
+| [098](098-transferencia-del-operador-en-calibracion-y-obras/spec.md) | La transferencia de carga del operador, en la calibración y en las obras | cumplida | 51 | 51 | — |
 | [099](099-cargas-del-libro-duplicadas-por-el-nombre-del-cliente/spec.md) | Cargas del libro duplicadas por el nombre del cliente | cumplida | 8 | 8 | — |
 | [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | 13 | 13 | T4 (DIgSILENT) |
 | [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 15 | 15 | — |

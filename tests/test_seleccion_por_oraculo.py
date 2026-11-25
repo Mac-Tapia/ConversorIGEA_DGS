@@ -84,6 +84,51 @@ def test_si_la_tanda_no_cumple_mide_la_siguiente_y_aplica_la_medida(monkeypatch)
 
 
 
+def test_098_rf51_no_confirma_el_escalon_que_no_puede_costar_menos(monkeypatch):
+    """098:RF-51 — Pisco (2026-11-25), usuario: «la escalera ¿no la hace el oráculo? se hace doble trabajo». Con los
+    bancos ya confirmados a 1000 al año, la sección (5000) y la terna (9000) del oráculo no pueden ganar (098:RF-46):
+    DIgSILENT no las mide y el Registro lo dice. Una más barata o casi igual sí se mide."""
+    def var(nombre, clase):
+        return Variante(nombre, (clase,), [{'clase': clase}], {clase: 1.0})
+
+    def seleccion(costo_seccion):
+        orden = [var('b0', 'bancos'), var('s0', 'seccion'), var('t0', 'terna')]
+        costos = {'b0': 1000.0, 's0': costo_seccion, 't0': 9000.0}
+        tabla = [{'nombre': v.nombre, 'cumple': True, 'costo_anual': costos[v.nombre], 'v_min': 0.97} for v in orden]
+        return {'alimentadores': {'F1': {'orden': orden, 'tabla': tabla, 'bayesiana': {}, 'pareto': {'frente': []},
+                                         'perdidas_energia': {}, 'ya_cumple': False}}, 'tanda': 3}, costos
+
+    def preparar(costo_seccion):
+        sel, costos = seleccion(costo_seccion)
+        medidas = []
+        monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: _aplicadas())
+        monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+        monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: sel)
+
+        def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, **k):
+            if aplicar:
+                return {'alimentadores': []}
+            nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+            medidas.extend(nombres)
+            tabla = [{'nombre': n, 'maxima': True, 'fraccion': 1.0, 'factible': True, 'costo_anual': costos[n]}
+                     for n in nombres]
+            return {'alimentadores': [{'alimentador': feeders[0], 'elegida': nombres[0] if nombres else None,
+                                       'tabla': tabla}]}
+        monkeypatch.setattr(services, 'obras_escalera', escalera)
+        return medidas
+
+    medidas = preparar(5000.0)
+    ctx = _Ctx()
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1'])
+    assert medidas == ['b0'], medidas
+    assert r['por_alimentador']['F1']['cumple']
+    assert any('098:RF-51' in t and 'seccion' in t for t in ctx.textos), ctx.textos
+    # La sección del oráculo casi al mismo costo que los bancos sí se confirma: el oráculo estima las pérdidas.
+    medidas = preparar(1050.0)
+    services.escalera_por_alimentador(object(), _Ctx(), 'P', ['F1'])
+    assert medidas == ['b0', 's0'], medidas
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

@@ -108,3 +108,6 @@
       dentro de límites sin obra; y la transferencia del operador no se eligió en «Con proyecto», que RF-44 trata como alternativa.
 - [x] T23. Plazo de cada obra: corto plazo se aplica, largo plazo integral (propuesta A del usuario). (RF-50)
       Hecho cuando: `tests/test_escalera_optima.py` (098:RF-50) en verde.
+- [x] T24. El escalón que no puede costar menos que la obra ya confirmada no va a DIgSILENT. (RF-51)
+      Hecho cuando: `escalera_por_alimentador` lo poda con el costo del oráculo y el margen, y lo dice en el Registro.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.
