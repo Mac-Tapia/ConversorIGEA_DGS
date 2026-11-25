@@ -258,6 +258,28 @@ def test_098_rf46_la_nueva_mas_barata_gana_a_la_obra_ya_aplicada(monkeypatch):
     assert propuestas == ['t0'], propuestas
 
 
+def test_098_rf52_lo_medido_se_reutiliza_tras_reiniciar_la_web(tmp_path):
+    """098:RF-52 — Pisco (2026-11-25): tras reiniciar la web, DIgSILENT volvió a medir en AL209 lo que ya había medido
+    con la misma red (8 minutos), porque lo medido solo vivía en la memoria del trabajo. Ahora queda en el espacio."""
+    import types
+
+    ws = types.SimpleNamespace(root=tmp_path)
+    plan = {'project': 'P', 'anio_casos': 2026, 'feeders': ['F1'], 'estado_con_proyecto': {'Carga_A': 1},
+            'huella_red': 'abc', 'sorteos': 200, 'parametros': {}, 'valle': None,
+            'variantes': [{'nombre': 'terna', 'obras': [{'clase': 'terna'}]}]}
+    ev = {'variantes': [{'nombre': 'terna', 'maxima': True, 'fraccion': 1.0, 'perdidas_kw': 10.0, 'sorteos_medidos': 200,
+                         'u_cargas': {'B1': 0.97}}]}
+    assert hasattr(services, '_memo_de_medidas'), 'lo medido no se guarda en el espacio: se pierde al reiniciar'
+    memo = services._memo_de_medidas(ws)
+    services._guardar_medidas(plan, ev, memo)
+    otra_web = services._memo_de_medidas(ws)                       # otro trabajo, tras reiniciar
+    ya, nuevas = services._medidas_ya_hechas(_Ctx(), 'F1', plan, otra_web)
+    assert list(ya) == ['terna'] and nuevas == []
+    # Con otra red no vale.
+    ya, nuevas = services._medidas_ya_hechas(_Ctx(), 'F1', {**plan, 'huella_red': 'otra'}, otra_web)
+    assert ya == {} and len(nuevas) == 1
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

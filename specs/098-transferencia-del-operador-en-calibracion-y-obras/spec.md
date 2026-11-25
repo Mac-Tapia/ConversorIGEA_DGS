@@ -297,6 +297,10 @@ aguanta ni un año) porque era la única con costo de referencia. Los reguladore
   estima las pérdidas; el CAPEX es el mismo), porque no puede ganar (RF-46); lo dirá en el Registro con los dos
   costos. Sin costo del oráculo en alguna variante, el escalón se confirma como siempre. Usuario (2026-11-25),
   Pisco: «la escalera ¿no la hace el oráculo? se hace doble trabajo».
+- RF-52: EL SISTEMA guardará en el espacio de trabajo lo que DIgSILENT mide de cada variante, con su huella (RF-32) y
+  su hora, y lo reutilizará en los trabajos siguientes de las 24 horas siguientes aunque la web se haya reiniciado,
+  solo con la misma huella y si la medida es segura. Pisco (2026-11-25): tras reiniciar la web, DIgSILENT volvió a
+  medir en un alimentador lo ya medido con la misma red, unos 8 minutos.
 
 ## Relación con otras specs
 

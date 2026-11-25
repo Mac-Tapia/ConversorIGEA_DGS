@@ -1796,6 +1796,32 @@ def create_app(
             raise HTTPException(404, 'Trabajo no encontrado.')
         return job.public()
 
+    @app.post('/api/jobs/{job_id}/reanudar', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def reanudar_job(job_id: str) -> dict:
+        """096:RF-9: el operador reanuda un trabajo interrumpido, cancelado o fallido con la misma petición, una vez.
+
+        «Con proyecto» se reanuda sin rehacer las obras ya aplicadas: las que cumplen se conservan (098:RF-36) y lo ya
+        medido se reutiliza (098:RF-52), así que sigue desde donde quedó."""
+        from .jobs import CANCELLED, FAILED, INTERRUMPIDO
+
+        job = jobs.get(job_id)
+        if job is None:
+            raise HTTPException(404, 'Trabajo no encontrado.')
+        if job.status not in (FAILED, CANCELLED, INTERRUMPIDO):
+            raise HTTPException(409, 'Solo se reanuda un trabajo interrumpido, cancelado o fallido.')
+        if job.relanzado:
+            raise HTTPException(409, 'Este trabajo ya se reanudó: siga el trabajo que lo continúa.')
+        tipo, datos = (job.reanudar or {}).get('tipo'), dict((job.reanudar or {}).get('datos') or {})
+        if tipo == 'con_proyecto':
+            nuevo = _lanzar_con_proyecto(job.workspace_id, ObrasIn(**{**datos, 'rehacer_obras': False}),
+                                         relanzado_de=job.id)
+        elif tipo == 'recalibrar':
+            nuevo = _lanzar_recalibrar(job.workspace_id, RecalibrarIn(**datos), relanzado_de=job.id)
+        else:
+            raise HTTPException(409, 'Este trabajo no guardó su petición: lance de nuevo la tarea desde su pestaña.')
+        jobs.marcar_relanzado(job)
+        return nuevo
+
     @app.get('/api/workspaces/{wid}/events')
     def events(wid: str, since: int = 0) -> list[dict]:
         return ws_or_404(wid).events.since(since)
@@ -2847,6 +2873,9 @@ def create_app(
     @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_con_proyecto(wid: str, body: ObrasIn) -> dict:
         """042:RF-13: escalera carga a carga y SET nueva para las que no caben."""
+        return _lanzar_con_proyecto(wid, body)
+
+    def _lanzar_con_proyecto(wid: str, body: ObrasIn, relanzado_de: str | None = None) -> dict:
         ws = ws_or_404(wid)
         return submit(ws, 'obras_con_proyecto', f'Optimizar «Con proyecto» · {body.project.strip()}',
                       lambda ctx: services.con_proyecto_optimizar(
@@ -2856,7 +2885,9 @@ def create_app(
                           set_nueva_nombre=body.set_nueva_nombre,
                           directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None,
                           escalera_primero=body.escalera_primero, rehacer_obras=body.rehacer_obras),
-                      lane='powerfactory')
+                      lane='powerfactory', relanzado_de=relanzado_de,
+                      # 096:RF-9: su petición, para reanudarlo a petición del operador (no se relanza solo).
+                      reanudar={'tipo': 'con_proyecto', 'datos': body.model_dump()})
 
     @app.post('/api/workspaces/{wid}/pf/obras/set-nueva/operacion', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def set_nueva_operacion(wid: str, body: SetNuevaOperacionIn) -> dict:

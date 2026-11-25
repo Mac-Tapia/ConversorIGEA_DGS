@@ -117,3 +117,6 @@
 - [x] T26. Con una obra ya aplicada que cumple, la nueva más barata de un escalón gana y la sustituye. (RF-46, RF-36)
       Hecho cuando: el escalón con obra propia cuesta lo que ella y la elección lo dice con su nombre.
       Cerrada el 2026-11-25: rojo con el caso de AL209 en Pisco y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T27. Lo medido por variante queda en el espacio y se reutiliza tras reiniciar la web. (RF-52)
+      Hecho cuando: `_memo_de_medidas` carga lo de las últimas 24 h y `_guardar_medidas` lo añade al fichero del espacio.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en sus pruebas.

@@ -80,6 +80,52 @@ def test_sin_suspension_o_cancelado_no_se_repite(reloj):
     assert job.status == J.FAILED and len(intentos) == 1
 
 
+def test_096_rf9_con_proyecto_se_reanuda_a_peticion_sin_rehacer_las_obras(tmp_path, monkeypatch):
+    """096:RF-9 — usuario (2026-11-25): «un memoria para que el conversor recuerde los trabajos y su estado, para reanudar
+    desde donde se quedó; como una opción, no limitativo». «Con proyecto» guarda su petición; interrumpido o cancelado,
+    el operador lo reanuda con la misma petición y sin rehacer las obras ya aplicadas. No se relanza solo."""
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.app import create_app
+
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.delenv('CSG_WEB_RELANZAR', raising=False)
+    raiz = tmp_path / 'web'
+    pedidos = []
+    monkeypatch.setattr(services, 'con_proyecto_optimizar', lambda ws, ctx, project, feeders, **kw: (
+        pedidos.append((project, list(feeders), kw.get('rehacer_obras'), ctx.job.relanzado_de)) or {'codigo': 0}))
+    with TestClient(create_app(raiz)) as c:
+        wid = c.post('/api/workspaces').json()['id']
+        # La petición queda guardada con el trabajo.
+        nuevo = c.post(f'/api/workspaces/{wid}/pf/obras/con-proyecto',
+                       json={'project': 'P_SISTEMA', 'feeders': ['F1', 'F2'], 'rehacer_obras': True}).json()
+        fin = time.time() + 10
+        while not pedidos and time.time() < fin:
+            time.sleep(0.05)
+        guardado = c.app.state.jobs.get(nuevo['id']).reanudar
+        assert guardado and guardado['tipo'] == 'con_proyecto' and guardado['datos']['feeders'] == ['F1', 'F2']
+        # Uno terminado bien no se reanuda.
+        assert c.post(f"/api/jobs/{nuevo['id']}/reanudar").status_code == 409
+    diario = raiz / '_trabajos'
+    (diario / 'cortado.json').write_text(json.dumps({
+        'id': 'cortado', 'kind': 'obras_con_proyecto', 'title': 'Optimizar «Con proyecto»', 'workspace_id': wid,
+        'lane': 'powerfactory', 'status': 'running', 'created_at': time.time(), 'pid': 999999, 'inicio_proceso': 1.0,
+        'reanudar': {'tipo': 'con_proyecto', 'datos': {'project': 'P_SISTEMA', 'feeders': ['F1', 'F2'],
+                                                         'rehacer_obras': True}}}), encoding='utf-8')
+    pedidos.clear()
+    with TestClient(create_app(raiz)) as c:
+        assert c.app.state.relanzar_interrumpidos() == []          # opción del operador: no se relanza solo
+        r = c.post('/api/jobs/cortado/reanudar')
+        assert r.status_code == 202, r.text
+        fin = time.time() + 10
+        while not pedidos and time.time() < fin:
+            time.sleep(0.05)
+        assert pedidos == [('P_SISTEMA', ['F1', 'F2'], False, 'cortado')]
+        assert c.post('/api/jobs/cortado/reanudar').status_code == 409   # una sola vez
+        assert c.post('/api/jobs/no_existe/reanudar').status_code == 404
+
+
 def test_al_arrancar_se_relanza_una_vez_el_ultimo_interrumpido(tmp_path, monkeypatch):
     """096:RF-5 / 096:RF-6 / 096:RF-7 — el «Recalibrar» que quedó a medias al caer la web se relanza solo con su
     petición, dice de dónde viene y no se relanza dos veces; uno sin petición guardada no se relanza."""

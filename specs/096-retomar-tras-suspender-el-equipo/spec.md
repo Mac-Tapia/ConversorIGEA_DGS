@@ -30,6 +30,11 @@ web, el guion y DIgSILENT. Al despertar, los procesos siguen donde estaban, pero
 - RF-8: CUANDO el navegador no recuerde ningún espacio, o el que recuerda ya no exista, LA WEB abrirá el último modificado
   de los espacios con datos cargados que se abren, y creará uno nuevo solo si no hay ninguno. (2026-11-12: con el 8765
   ocupado por el programa instalado, la web abrió en el 8766 y creó un espacio vacío; los 42 del operador no se veían.)
+- RF-9: EL SISTEMA guardará con cada «Con proyecto» su petición y, CUANDO el operador lo pida para uno interrumpido,
+  cancelado o fallido, lo reanudará una vez con la misma petición y sin rehacer las obras ya aplicadas, de modo que
+  siga desde donde quedó; no lo relanzará solo (es una opción del operador, no una obligación). Usuario (2026-11-25):
+  «una memoria para que el conversor recuerde los trabajos y su estado, para reanudar desde donde se quedó; como una
+  opción, no limitativo».
 
 ## Relación con otras specs
 

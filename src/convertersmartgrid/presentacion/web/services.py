@@ -8021,16 +8021,58 @@ def _medidas_ya_hechas(ctx: JobContext, f: str, plan_ev: dict, memo: dict | None
 
 
 def _guardar_medidas(plan_ev: Mapping[str, Any], ev: Mapping[str, Any], memo: dict | None) -> None:
-    """098:RF-32: lo medido, por variante y por huella, para el resto del trabajo."""
+    """098:RF-32: lo medido, por variante y por huella, para el resto del trabajo.
+
+    098:RF-52: y en el espacio (``memo['ruta_medidas']``), para el trabajo siguiente aunque la web se reinicie."""
     huella = _huella_de_la_medida(plan_ev)
     if memo is None or huella is None:
         return
     por_nombre = {v['nombre']: v for v in plan_ev.get('variantes') or []}
     guardadas = memo.setdefault('medidas_por_variante', {})
+    nuevas = []
     for x in ev.get('variantes') or []:
         v = por_nombre.get(x.get('nombre'))
         if v is not None:
-            guardadas[_clave_variante(huella, v)] = dict(x)
+            clave = _clave_variante(huella, v)
+            guardadas[clave] = dict(x)
+            nuevas.append({'clave': clave, 'medida': dict(x), 'hora': time.time()})
+    ruta = memo.get('ruta_medidas')
+    if ruta and nuevas:
+        try:
+            with _CANDADO_MEDIDAS, open(ruta, 'a', encoding='utf-8') as fh:
+                for fila in nuevas:
+                    fh.write(json.dumps(fila, ensure_ascii=False, default=str) + '\n')
+        except OSError:
+            pass                                    # guardar no puede hacer fallar la medida: sigue en la memoria
+
+
+#: 098:RF-52: un escritor a la vez en el fichero de lo medido de cada espacio.
+_CANDADO_MEDIDAS = threading.Lock()
+#: 098:RF-52: el fichero de lo medido de cada espacio, y cuánto vale una medida (lo mismo que una evaluación, 025:RF-73).
+FICHERO_MEDIDAS = 'medidas_por_variante.jsonl'
+
+
+def _memo_de_medidas(ws: Workspace) -> dict:
+    """098:RF-52: el ``memo`` de un trabajo con lo medido en el espacio en las últimas ``VIGENCIA_EVALUACION_S``, por su
+    huella (la red, las cargas, las obras activas, el instante y los sorteos): lo que no sea de la misma red no se usa."""
+    raiz = getattr(ws, 'root', None)
+    if raiz is None:
+        return {}
+    ruta = Path(raiz) / FICHERO_MEDIDAS
+    guardadas: dict[str, dict] = {}
+    limite = time.time() - VIGENCIA_EVALUACION_S
+    try:
+        with open(ruta, encoding='utf-8') as fh:
+            for linea in fh:
+                try:
+                    fila = json.loads(linea)
+                except ValueError:
+                    continue                        # una línea cortada por una caída no invalida las demás
+                if float(fila.get('hora') or 0) >= limite and fila.get('clave'):
+                    guardadas[str(fila['clave'])] = dict(fila.get('medida') or {})
+    except OSError:
+        pass
+    return {'medidas_por_variante': guardadas, 'ruta_medidas': str(ruta)}
 
 
 def obras_escalera(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], *,
@@ -9119,7 +9161,9 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     for c in aplicadas:
         f = next((x for x in feeders if clave_codigo(x) == clave_codigo(c.get('alimentador'))), str(c.get('alimentador')))
         por_alim.setdefault(f, []).append(c)
-    cumplen, resto, por_feeder, memo, elegidas = [], [], {}, {'dir_base': tempfile.mkdtemp(prefix='csg_base_')}, {}
+    # 098:RF-52: con lo medido en el espacio por trabajos anteriores de la misma red, aunque la web se reiniciase.
+    cumplen, resto, por_feeder, elegidas = [], [], {}, {}
+    memo = {**_memo_de_medidas(ws), 'dir_base': tempfile.mkdtemp(prefix='csg_base_')}
     escalera = None
     # 087:RF-1: el oráculo (el PINN promovido o el flujo físico) ordena; DIgSILENT mide por tandas y es el que decide.
     # 087:RF-30: sin oráculo, para poder comparar los dos métodos sobre el mismo sistema.

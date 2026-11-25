@@ -33,3 +33,6 @@ ningún criterio nativo/humano/global. Evidencia externa y revisión exacta:
 `D:/converter/auditorias/diagnostico_produccion_20261107_56172510/implementacion/correccion_revision_p21_20261108/HANDOFF.md`.
 - [x] T4. Sin espacio recordado en el navegador, la web retoma el último trabajado en vez de crear uno vacío. (RF-8)
       Hecho cuando: `frontend/test/retomarEspacio.test.mjs` (096:RF-8) en verde.
+- [x] T5. Reanudar «Con proyecto» a petición, sin rehacer lo aplicado. (RF-9)
+      Hecho cuando: `POST /api/jobs/{id}/reanudar` lo relanza con su petición y `rehacer_obras` en falso, una sola vez.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en sus pruebas.

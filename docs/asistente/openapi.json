@@ -14043,6 +14043,46 @@
         "summary": "Cancel Job"
       }
     },
+    "/api/jobs/{job_id}/reanudar": {
+      "post": {
+        "description": "096:RF-9: el operador reanuda un trabajo interrumpido, cancelado o fallido con la misma petición, una vez.\n\n«Con proyecto» se reanuda sin rehacer las obras ya aplicadas: las que cumplen se conservan (098:RF-36) y lo ya\nmedido se reutiliza (098:RF-52), así que sigue desde donde quedó.",
+        "operationId": "reanudar_job_api_jobs__job_id__reanudar_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "job_id",
+            "required": true,
+            "schema": {
+              "title": "Job Id",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Reanudar Job"
+      }
+    },
     "/api/jobs/{job_id}/registro": {
       "get": {
         "description": "086:RF-9: el registro de un trabajo, también de uno interrumpido antes de reiniciar.",
