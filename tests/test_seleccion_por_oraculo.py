@@ -129,6 +129,77 @@ def test_098_rf51_no_confirma_el_escalon_que_no_puede_costar_menos(monkeypatch):
     assert medidas == ['b0', 's0'], medidas
 
 
+def test_087_rf59_digsilent_confirma_cada_alimentador_mientras_el_oraculo_elige_el_siguiente(monkeypatch):
+    """087:RF-59 — usuario (2026-11-25): «cuando el oráculo termina le pasa a DIgSILENT; así van avanzando casi en
+    paralelo, ya son diferentes motores». El oráculo no entrega F2 hasta que DIgSILENT haya confirmado F1: si DIgSILENT
+    esperase a todos, esto no termina."""
+    import threading
+
+    confirmado_f1 = threading.Event()
+    orden_eventos: list[str] = []
+
+    def eleccion(nombre):
+        v = _v(f'{nombre}_v0')
+        return {'orden': [v], 'tabla': [{'nombre': v.nombre, 'cumple': True, 'costo_anual': 1000.0, 'v_min': 0.97}],
+                'bayesiana': {}, 'pareto': {'frente': []}, 'perdidas_energia': {}, 'ya_cumple': False}
+
+    def elegir(listo):
+        orden_eventos.append('oraculo F1')
+        listo('F1', eleccion('F1'))
+        assert confirmado_f1.wait(timeout=20), 'DIgSILENT esperó a que el oráculo terminase todos'
+        orden_eventos.append('oraculo F2')
+        listo('F2', eleccion('F2'))
+        return {}
+
+    ctx = _Ctx()
+    assert hasattr(services, '_SeleccionEnCurso'), 'sin canalización: DIgSILENT espera a que el oráculo elija todos'
+    en_curso = services._SeleccionEnCurso(ctx, 3, elegir, 0.0, lambda: 7)
+    aplicadas = [{'sed': 'A', 'alimentador': 'F1', 'kw': 100.0, 'variacion': 'Carga_A'},
+                 {'sed': 'B', 'alimentador': 'F2', 'kw': 100.0, 'variacion': 'Carga_B'}]
+    monkeypatch.setattr(services, '_cargas_nuevas_aplicadas', lambda ws, project: aplicadas)
+    monkeypatch.setattr(services, '_reponer_cargas_nuevas', lambda *a, **k: None)
+    monkeypatch.setattr(services, '_seleccion_por_oraculo', lambda *a, **k: en_curso)
+
+    def escalera(ws, ctx, project, feeders, *, aplicar=False, variantes_de=None, **k):
+        nombres = [v.nombre for v in (variantes_de or {}).get(feeders[0], [])]
+        if nombres and not aplicar:
+            orden_eventos.append(f'digsilent {feeders[0]}')
+        if aplicar:
+            if feeders[0] == 'F1':
+                confirmado_f1.set()
+            return {'alimentadores': []}
+        tabla = [{'nombre': n, 'maxima': True, 'fraccion': 1.0, 'factible': True, 'costo_anual': 1000.0} for n in nombres]
+        return {'alimentadores': [{'alimentador': feeders[0], 'elegida': nombres[0] if nombres else None, 'tabla': tabla}]}
+    monkeypatch.setattr(services, 'obras_escalera', escalera)
+
+    r = services.escalera_por_alimentador(object(), ctx, 'P', ['F1', 'F2'])
+    assert orden_eventos.index('digsilent F1') < orden_eventos.index('oraculo F2'), orden_eventos
+    assert r['por_alimentador']['F1']['cumple'] and r['por_alimentador']['F2']['cumple']
+    assert r['metodo'] == 'oraculo' and r['oraculo']['flujos'] == 7
+
+
+def test_087_rf59_el_oraculo_avisa_cada_alimentador_y_toma_el_candado():
+    """087:RF-59 — `seleccion_por_alimentador` entrega cada uno a `listo` en cuanto lo elige, con el candado tomado."""
+    import threading
+
+    import inspect
+
+    assert 'listo' in inspect.signature(oo.seleccion_por_alimentador).parameters, 'el oráculo no avisa por alimentador'
+    candado = threading.Lock()
+    vistos = []
+    ora, alims, p = _alimentador_y_oraculo_para_rf59()
+    out = oo.seleccion_por_alimentador(ora, alims, p, listo=lambda f, e: vistos.append((f, e is not None, candado.locked())),
+                                       candado=candado, evaluaciones_bayes=0)
+    assert [f for f, _e, _l in vistos] == [a.nombre for a in alims if ora.activas(len(ora.nuevas), a.nombre)]
+    assert all(not locked for _f, _e, locked in vistos)          # se avisa ya soltado: quien confirma puede usarlo
+    assert set(out) == {f for f, e, _l in vistos if e}
+
+
+def _alimentador_y_oraculo_para_rf59():
+    """El oráculo de dos cargas y su alimentador de `test_optimizacion_oraculo`."""
+    return _dos_cargas(), [_alimentador()], _p()
+
+
 def test_solo_las_cumplidoras_y_una_tanda_de_cercanas():
     """087:RF-39 — de 9 variantes, 2 cumplidoras en el oráculo y una tanda de 3 cercanas: las otras 4 no se miden."""
     assert [v.nombre for v in oo.a_confirmar(_seleccion(9, buenas=2)['alimentadores']['F1'], 3)] == ['v0', 'v1', 'v2', 'v3', 'v4']

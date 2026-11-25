@@ -80,3 +80,7 @@ Lee: `specs/087-seleccion-de-obras-con-metodos-y-medicion/spec.md` y `plan.md`.
 - [x] T36. El avance de la selección con el oráculo y su cancelación. (RF-58)
       Hecho cuando: `seleccion_por_alimentador` da una línea por alimentador y por bloque, y el aviso puede cortar.
       Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.
+- [x] T37. El oráculo y DIgSILENT en paralelo: cada alimentador se confirma en cuanto se elige. (RF-59)
+      Hecho cuando: `_SeleccionEnCurso` entrega cada alimentador a la escalera mientras el oráculo sigue, y el
+      oráculo se usa por turno.
+      Cerrada el 2026-11-25: rojo válido por aserción y verde en `tests/test_seleccion_por_oraculo.py`.

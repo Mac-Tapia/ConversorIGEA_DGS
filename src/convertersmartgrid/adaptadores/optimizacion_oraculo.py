@@ -833,40 +833,63 @@ def seleccion_por_alimentador(oraculo: Oraculo, alimentadores: Sequence[Alimenta
                               *, evaluaciones_bayes: int = EVALUACIONES_BAYES, semilla: int = 0,
                               valle: Mapping[str, Any] | None = None,
                               markov: Mapping[str, Any] | None = None,
-                              progreso: Callable[[str], None] | None = None) -> dict[str, dict[str, Any]]:
+                              progreso: Callable[[str], None] | None = None,
+                              listo: Callable[[str, dict[str, Any] | None], None] | None = None,
+                              candado: Any = None) -> dict[str, dict[str, Any]]:
     """087:RF-1, RF-10, RF-11, RF-13: cada alimentador, con todas las cargas nuevas puestas: el orden en que DIgSILENT lo mide.
 
     El que ya cumple en el oráculo no gasta búsqueda bayesiana ni frente: no le hace falta obra.
     ``progreso`` (087:RF-58) recibe una línea al empezar y al terminar cada alimentador y cada bloque de variantes; puede
     lanzar la cancelación del trabajo. El 2026-11-25, un sistema de 17 alimentadores pasó más de 40 minutos aquí sin una
     línea en el Registro y sin poder cancelarse.
+
+    087:RF-59: ``listo`` recibe cada alimentador en cuanto se elige (``None`` si no tiene elección), para que DIgSILENT lo
+    confirme mientras el oráculo sigue con el siguiente; ``candado`` (un ``threading.Lock``) se toma por alimentador, porque
+    quien confirma también usa el oráculo para el año en que vuelven los problemas (098:RF-39).
     """
+    from contextlib import nullcontext
+
     k = len(oraculo.nuevas)
     out: dict[str, dict[str, Any]] = {}
-    con_cargas = [a for a in alimentadores if oraculo.activas(k, a.nombre)]
+    with candado or nullcontext():
+        con_cargas = [a for a in alimentadores if oraculo.activas(k, a.nombre)]
     for i, a in enumerate(con_cargas, 1):
-        t0 = time.monotonic()
-        if progreso is not None:
-            progreso(f'{a.nombre}: selección de obras con el oráculo ({i} de {len(con_cargas)} alimentadores con cargas '
-                     f'nuevas): {len(a.variantes)} variantes' + ('' if a.espacio is None else
-                                                                 f' y hasta {evaluaciones_bayes} combinaciones'))
-        ya = _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre, valle), p)
-        e = elegir_para_k(oraculo, [a], k, p, factores, evaluaciones_bayes=0 if ya else evaluaciones_bayes, permutaciones=0,
-                          semilla=semilla, pareto=not ya, valle=valle, progreso=progreso).get(a.nombre)
-        if e is None:
-            continue
-        e['ya_cumple'] = ya
-        primera = e['orden'][0] if e['orden'] and e['elegida'] else None
-        e['margen'] = round(margen_de_demanda(oraculo, [], k, p, a.nombre), 4)
-        e['margen_con_obra'] = round(margen_de_demanda(oraculo, primera.obras, k, p, a.nombre), 4) if primera is not None else None
-        e['perdidas_energia'] = (perdidas_de_energia_markov(oraculo, primera.obras, k, markov, a.nombre)
-                                 if primera is not None and markov else None)
-        out[a.nombre] = e
-        if progreso is not None:
-            progreso(f'{a.nombre}: ' + ('ya cumple sin obra' if ya else
-                                        f"{'elegida ' + primera.nombre if primera is not None else 'ninguna variante cumple'}")
-                     + f' ({time.monotonic() - t0:.0f} s).')
+        with candado or nullcontext():
+            e = _seleccion_de_un_alimentador(oraculo, a, i, len(con_cargas), k, p, factores, evaluaciones_bayes,
+                                             semilla, valle, markov, progreso)
+        if e is not None:
+            out[a.nombre] = e
+        if listo is not None:
+            listo(a.nombre, e)
     return out
+
+
+def _seleccion_de_un_alimentador(oraculo: Oraculo, a: Alimentador, i: int, n: int, k: int, p: Parametros,
+                                 factores: Sequence[float], evaluaciones_bayes: int, semilla: int,
+                                 valle: Mapping[str, Any] | None, markov: Mapping[str, Any] | None,
+                                 progreso: Callable[[str], None] | None) -> dict[str, Any] | None:
+    """Un alimentador de :func:`seleccion_por_alimentador`; ``None`` si el oráculo no da elección."""
+    t0 = time.monotonic()
+    if progreso is not None:
+        progreso(f'{a.nombre}: selección de obras con el oráculo ({i} de {n} alimentadores con cargas '
+                 f'nuevas): {len(a.variantes)} variantes' + ('' if a.espacio is None else
+                                                             f' y hasta {evaluaciones_bayes} combinaciones'))
+    ya = _cumple_en(oraculo.evaluar([], k, p, factores, a.nombre, valle), p)
+    e = elegir_para_k(oraculo, [a], k, p, factores, evaluaciones_bayes=0 if ya else evaluaciones_bayes, permutaciones=0,
+                      semilla=semilla, pareto=not ya, valle=valle, progreso=progreso).get(a.nombre)
+    if e is None:
+        return None
+    e['ya_cumple'] = ya
+    primera = e['orden'][0] if e['orden'] and e['elegida'] else None
+    e['margen'] = round(margen_de_demanda(oraculo, [], k, p, a.nombre), 4)
+    e['margen_con_obra'] = round(margen_de_demanda(oraculo, primera.obras, k, p, a.nombre), 4) if primera is not None else None
+    e['perdidas_energia'] = (perdidas_de_energia_markov(oraculo, primera.obras, k, markov, a.nombre)
+                             if primera is not None and markov else None)
+    if progreso is not None:
+        progreso(f'{a.nombre}: ' + ('ya cumple sin obra' if ya else
+                                    f"{'elegida ' + primera.nombre if primera is not None else 'ninguna variante cumple'}")
+                 + f' ({time.monotonic() - t0:.0f} s).')
+    return e
 
 
 #: Las obras que el oráculo sabe calcular (``Oraculo._ramas_con`` y ``medir``): las demás solo las mide DIgSILENT.

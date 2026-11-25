@@ -106,6 +106,12 @@ sistema?»; «sí, implementa»):
   y cómo acaba cada uno, y el avance de sus variantes y de sus búsquedas por bloques, y atenderá la cancelación entre
   ellos. (2026-11-25: un sistema de 17 alimentadores pasó más de 40 minutos en la selección sin una línea y sin
   poder cancelarse.)
+- RF-59: MIENTRAS el oráculo elige las obras de los alimentadores con cargas nuevas, EL SISTEMA hará en DIgSILENT
+  los alimentadores sin cargas nuevas y confirmará cada alimentador con cargas en cuanto el oráculo lo elija, sin
+  esperar a los demás: el oráculo corre en un hilo aparte (solo CPU) y lo que ambos comparten (el oráculo, para el
+  año en que vuelven los problemas) se toma por turno. Si el oráculo falla a mitad, los que falten los mide
+  DIgSILENT (RF-4). Usuario (2026-11-25), Pisco: «cuando el oráculo termina le pasa a DIgSILENT; así van avanzando
+  casi en paralelo, ya son diferentes motores».
 - Determinismo: con la misma semilla, misma red y mismo perfil, el oráculo, Optuna, Markov y el árbol dan el mismo resultado.
 - Universal: nada de este método depende de una empresa, sistema o tensión (constitución 13).
 - Escala: nada fijado al número de alimentadores (constitución 2).

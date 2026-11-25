@@ -9124,9 +9124,12 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
     # 087:RF-1: el oráculo (el PINN promovido o el flujo físico) ordena; DIgSILENT mide por tandas y es el que decide.
     # 087:RF-30: sin oráculo, para poder comparar los dos métodos sobre el mismo sistema.
     usar = (completar_planeamiento(datos_perfil())[0]['escalera']).get('usar_oraculo', True)
-    seleccion = _seleccion_por_oraculo(ws, ctx, project, feeders, aplicadas, opciones, memo) if usar and aplicadas else {}
-    de_oraculo = seleccion.get('alimentadores') or {}
-    modelo = _modelo_de_obras(ctx) if de_oraculo else None                            # 087:RF-18 a RF-20
+    seleccion = (_seleccion_por_oraculo(ws, ctx, project, feeders, aplicadas, opciones, memo, en_segundo_plano=True)
+                 if usar and aplicadas else {})
+    # 087:RF-59: el oráculo elige en su hilo mientras DIgSILENT hace los sin cargas nuevas y confirma los ya elegidos.
+    en_curso = seleccion if isinstance(seleccion, _SeleccionEnCurso) else None
+    de_oraculo = {} if en_curso else (seleccion.get('alimentadores') or {})
+    modelo = _modelo_de_obras(ctx) if (de_oraculo or en_curso) else None              # 087:RF-18 a RF-20
     medidas: list[dict] = []
     # 098:RF-29: antes, los marcados sin cargas nuevas que violan límites en «Con proyecto»: su escalera, con la
     # transferencia primero. Arreglado el que recibió, el que cede vuelve a tener a quién transferir.
@@ -9151,7 +9154,7 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                         r['escalera'].get('alimentadores') or [])
     _sin_cargas_de([f for f in sin_cargas if f not in reciben])
     for f, cs in sorted(por_alim.items()):
-        e_or = de_oraculo.get(f)
+        e_or = en_curso.de(f) if en_curso else de_oraculo.get(f)                       # 087:RF-59
         if e_or and modelo is not None:
             e_or['orden'] = mo.ordenar(modelo, e_or['orden'], {t['nombre']: t for t in e_or.get('tabla') or []})
         comparacion: list[dict] = []
@@ -9356,6 +9359,8 @@ def escalera_por_alimentador(ws: Workspace, ctx: JobContext, project: str, feede
                    'ni la escalera ni transferir o trasladar a un vecino bastan: va al alimentador nuevo o a la SET nueva '
                    '(042:RF-24, 087:RF-31).'))
         (cumplen if ok else resto).append(f)
+    if en_curso is not None:
+        de_oraculo = en_curso.alimentadores()                                          # 087:RF-59: ya terminó
     _sin_cargas_de([f for f in sin_cargas if f in reciben])                            # 098:RF-44
     # 087:RF-45 a RF-47: todo el sistema junto; si no cumple, se rehace solo la obra del alimentador afectado, ahora con
     # las cargas nuevas de los demás activas, y se confirma otra vez. Como mucho RONDAS_CONJUNTO: no se insiste.
@@ -9645,9 +9650,86 @@ def _preparar_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: lis
             'opciones_eleccion': opciones_eleccion, 'ajustes': ajustes}
 
 
+class _SeleccionEnCurso:
+    """087:RF-59: la elección del oráculo en un hilo aparte (solo CPU) mientras DIgSILENT trabaja: cada alimentador queda
+    listo en cuanto se elige y quien confirma lo espera solo a él. Usuario (2026-11-25): «cuando el oráculo termina le pasa
+    a DIgSILENT; así van avanzando casi en paralelo, ya son diferentes motores».
+
+    Si el oráculo falla a mitad, los que faltan quedan sin elección y DIgSILENT los mide todos (087:RF-4); la cancelación
+    del trabajo se devuelve a quien espera."""
+
+    def __init__(self, ctx: JobContext, tanda: int, elegir: Callable[..., dict], t0: float, flujos: Callable[[], int]):
+        import threading
+
+        self.tanda = tanda
+        self._ctx, self._flujos, self._t0 = ctx, flujos, t0
+        self._listos: dict[str, dict | None] = {}
+        self._cond = threading.Condition()
+        self._fin = False
+        self._error: BaseException | None = None
+        self._hilo = threading.Thread(target=self._correr, args=(elegir,), name='oraculo_obras', daemon=True)
+        self._hilo.start()
+
+    def _correr(self, elegir: Callable[..., dict]) -> None:
+        from .jobs import JobCancelled
+
+        try:
+            elegir(self._listo)
+            self._ctx.log(f'Oráculo: {self._flujos()} flujos en {time.monotonic() - self._t0:.0f} s; DIgSILENT '
+                          'confirma cada alimentador en cuanto el oráculo lo elige (087:RF-1, RF-59).')
+        except JobCancelled as exc:
+            self._error = exc
+        except Exception as exc:  # noqa: BLE001 - 087:RF-4: sin oráculo se mide en DIgSILENT
+            self._ctx.log(f'El oráculo no puede ({exc}): se miden en DIgSILENT los que falten (087:RF-4).')
+        finally:
+            with self._cond:
+                self._fin = True
+                self._cond.notify_all()
+
+    def _listo(self, alimentador: str, eleccion: dict | None) -> None:
+        with self._cond:
+            self._listos[alimentador] = eleccion
+            self._cond.notify_all()
+
+    def de(self, alimentador: str) -> dict | None:
+        """La elección de ``alimentador``, esperando solo a que el oráculo la tenga (o termine)."""
+        with self._cond:
+            while alimentador not in self._listos and not self._fin:
+                self._cond.wait(timeout=5.0)
+                self._ctx.check_cancel()
+            if self._error is not None:
+                raise self._error
+            return self._listos.get(alimentador)
+
+    def alimentadores(self) -> dict[str, dict]:
+        self._hilo.join()
+        if self._error is not None:
+            raise self._error
+        return {f: e for f, e in self._listos.items() if e is not None}
+
+    def get(self, clave: str, defecto: Any = None) -> Any:
+        if clave == 'tanda':
+            return self.tanda
+        if clave == 'flujos':
+            return self._flujos()
+        if clave == 'oraculo_s':
+            return round(time.monotonic() - self._t0, 1)
+        if clave == 'alimentadores':
+            return self.alimentadores()
+        return defecto
+
+    def __getitem__(self, clave: str) -> Any:
+        return self.get(clave)
+
+
 def _seleccion_por_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders: list[str], aplicadas: list[dict],
-                           opciones: dict, memo: dict) -> dict:
-    """087:RF-1, RF-4: el orden de medir cada alimentador; vacío si el oráculo no puede, y entonces mide DIgSILENT todo."""
+                           opciones: dict, memo: dict, en_segundo_plano: bool = False) -> dict | _SeleccionEnCurso:
+    """087:RF-1, RF-4: el orden de medir cada alimentador; vacío si el oráculo no puede, y entonces mide DIgSILENT todo.
+
+    087:RF-59: con ``en_segundo_plano`` la lectura de la red se hace aquí (usa DIgSILENT) y la elección sigue en un hilo
+    (:class:`_SeleccionEnCurso`) mientras DIgSILENT confirma lo que ya está elegido."""
+    import threading
+
     from ...adaptadores import optimizacion_oraculo as oo
     from ...aplicacion import set_nueva as sn
 
@@ -9664,6 +9746,14 @@ def _seleccion_por_oraculo(ws: Workspace, ctx: JobContext, project: str, feeders
             ctx.check_cancel()
             ctx.log(texto)
 
+        if en_segundo_plano:
+            prep['candado'] = threading.Lock()                                          # 098:RF-39 con 087:RF-59
+            memo['oraculo_prep'] = prep
+            tanda = int(prep['ajustes'].get('confirmar_en_digsilent') or TANDA_DIGSILENT)
+            return _SeleccionEnCurso(ctx, tanda, lambda listo: oo.seleccion_por_alimentador(
+                prep['ora'], prep['alims'], prep['p'], prep['factores'], semilla=prep['p'].semilla, valle=prep['valle'],
+                markov=prep['markov'], evaluaciones_bayes=prep['opciones_eleccion']['evaluaciones_bayes'],
+                progreso=progreso, listo=listo, candado=prep['candado']), t0, lambda: prep['ora'].evaluaciones)
         alimentadores = oo.seleccion_por_alimentador(
             prep['ora'], prep['alims'], prep['p'], prep['factores'], semilla=prep['p'].semilla, valle=prep['valle'],
             markov=prep['markov'], evaluaciones_bayes=prep['opciones_eleccion']['evaluaciones_bayes'], progreso=progreso)
@@ -10476,6 +10566,8 @@ def _buscar_anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_c
     ora = prep.get('ora')
     candidato, por_oraculo = None, False
     if ora is not None and obras_corto is not None:
+        from contextlib import nullcontext
+
         try:
             k = len(ora.nuevas)
             antes = ora.evaluaciones
@@ -10483,7 +10575,9 @@ def _buscar_anio_de_problemas(ws, ctx: JobContext, project: str, f: str, obras_c
             def cumple_oraculo(anio: int) -> bool:
                 m = ora.medir(list(obras_corto), k, (1.0 + tasa) ** anio, f)
                 return eo.definitiva(m.para_criterio(), p)[0]
-            candidato = eo.primer_anio_que_falla(cumple_oraculo, desde, horizonte)
+            # 087:RF-59: el oráculo puede estar eligiendo otro alimentador en su hilo; se espera a que suelte.
+            with prep.get('candado') or nullcontext():
+                candidato = eo.primer_anio_que_falla(cumple_oraculo, desde, horizonte)
             por_oraculo = True
             out['oraculo'] = {'anio': candidato, 'flujos': ora.evaluaciones - antes}
         except Exception as exc:  # noqa: BLE001 - sin oráculo busca DIgSILENT
