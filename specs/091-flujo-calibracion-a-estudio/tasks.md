@@ -26,3 +26,6 @@
 - [x] T7. [DIgSILENT] Calibración, recalibración y estudio por la web con TM192 de los TXT originales, y el mensaje con DIgSILENT abierto. (RF-1, RF-7, RF-16, RF-17, RF-19, RF-21, RF-24, RF-25)
       Hecho cuando: el recorrido en el navegador deja el ajuste apagado y explicado hasta que le toca, el estudio con su aviso hasta la recalibración, y sus cifras constan en esta tarea.
       Cerrada el 2026-11-08 por orden del usuario, sin corrida propia: ya no es una tarea pendiente por proyecto; su comprobación pasa a la aceptación automática (spec 100).
+- [x] T8. La muerte a mitad de una orden no se informa como licencia. (RF-35)
+      Hecho cuando: `causa_sin_conexion` dice «murió a mitad» si el registro de una orden de los últimos 15 minutos lo anota, y la licencia solo sin esa causa.
+      Cerrada el 2026-11-24: rojo válido por aserción (1 failed, 1 passed) y verde (46 passed) en `tests/test_flujo_a_estudio.py`.

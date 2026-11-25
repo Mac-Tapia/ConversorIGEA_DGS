@@ -89,6 +89,7 @@ Lo que se informa
 - RF-32: EL SISTEMA dirá en el diagnóstico que Tesseract está disponible si lo encuentra en las rutas que usa para leer documentos.
 - RF-33: no se usa (lo superó 086:RF-22: preparar_entorno_sin_red decide HF_HUB_OFFLINE).
 - RF-34: SI la foto del gemelo tras una acción no se puede hacer, ENTONCES EL SISTEMA dirá su motivo en el Registro de esa acción.
+- RF-35: SI el proceso de DIgSILENT que atendía una orden murió a mitad en los últimos 15 minutos, ENTONCES EL SISTEMA dirá que murió a mitad y que suele ser falta de memoria del equipo, y no que se compruebe la licencia (el 2026-11-24 el ajuste de un sistema entero falló así con el pronóstico en la GPU y la web dijo «compruebe su licencia»).
 
 ## Fuera de alcance
 

@@ -64,6 +64,38 @@ def test_digsilent_sin_causa_registrada_no_pide_abrirlo(tmp_path):
     assert 'la vieja' not in texto and 'Ábralo' not in texto and 'Registro' in texto
 
 
+def _orden_muerta(cola: Path, ident: str, hace_s: float) -> None:
+    """Como deja ``pf_servidor.limpiar_cola`` una orden cuyo proceso de DIgSILENT murió a mitad."""
+    log = cola / f'{ident}.log'
+    log.write_text('  ajuste de PA217…\nERROR: el proceso de DIgSILENT que atendía la orden murió a mitad (019:RF-8).\n',
+                   encoding='utf-8')
+    t = time.time() - hace_s
+    os.utime(log, (t, t))
+
+
+def test_091_rf35_la_orden_que_murio_a_mitad_se_dice_y_no_se_achaca_a_la_licencia(tmp_path):
+    """091:RF-35 — el 24-11 el ajuste de Pisco falló porque el proceso de DIgSILENT murió a mitad (el equipo sin memoria)
+    y la web dijo «compruebe su licencia»: la muerte la anota el servidor siguiente en el registro de la orden, antes de
+    volver a conectar, y la causa solo miraba lo que venía después."""
+    (tmp_path / 'servidor.log').write_text(
+        '2026-11-24 22:15:28 Proceso 35156: conectando con DIgSILENT.\nConectado a DIgSILENT como operador (25 s).\n'
+        '2026-11-24 22:18:01 Orden b1b49ea67016 de un proceso anterior cerrada con código 3.\n'
+        '2026-11-24 22:18:03 Proceso 28056: conectando con DIgSILENT.\nConectado a DIgSILENT como operador (62 s).\n',
+        encoding='utf-8')
+    _orden_muerta(tmp_path, 'b1b49ea67016', hace_s=60)
+    texto = pf_arnes.causa_sin_conexion(abierto=lambda: [], cola=tmp_path)
+    assert 'murió a mitad' in texto and 'memoria' in texto, texto
+    assert 'licencia' not in texto, texto
+
+
+def test_091_rf35_una_muerte_antigua_no_es_la_causa_de_ahora(tmp_path):
+    """091:RF-35 — como RF-2: lo de hace horas no se da por causa de lo que pasa ahora."""
+    (tmp_path / 'servidor.log').write_text('2026-11-24 10:00:00 Proceso 1: conectando con DIgSILENT.\nConectado.\n',
+                                           encoding='utf-8')
+    _orden_muerta(tmp_path, 'vieja', hace_s=3 * 3600)
+    assert 'murió a mitad' not in pf_arnes.causa_sin_conexion(abierto=lambda: [], cola=tmp_path)
+
+
 def test_digsilent_ningun_mensaje_pide_abrirlo():
     """091:RF-3 / 091:RF-5 — ni el servidor ni la web piden abrir DIgSILENT para una acción."""
     assert 'Ábralo y reintente' not in SERVICES

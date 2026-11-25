@@ -379,7 +379,37 @@ def causa_sin_conexion(abierto: Callable[[], list[int]] | None = None, cola: Pat
     causa = ultima_causa(cola)
     if causa:
         return f'No se pudo usar DIgSILENT: {causa}'
+    if muerte_reciente(cola):
+        return MURIO_A_MITAD
     return 'No se pudo conectar con DIgSILENT: compruebe su licencia; el detalle está en el Registro.'
+
+
+#: 091:RF-35: lo que dice la web cuando el proceso de DIgSILENT murió atendiendo la orden; no es la licencia.
+MURIO_A_MITAD = ('El proceso de DIgSILENT murió a mitad de la orden (019:RF-8); suele ser falta de memoria del equipo: '
+                 'cierre lo que no use (otro cálculo, un entrenamiento) y vuelva a intentarlo; el detalle está en el Registro.')
+#: 091:RF-35: hasta cuándo una orden muerta explica el fallo de ahora (como RF-2, lo de hace horas no).
+VENTANA_MUERTE_S = 15 * 60
+
+
+def muerte_reciente(cola: Path | None = None, *, ahora: Callable[[], float] = time.time) -> bool:
+    """091:RF-35: una orden cuyo proceso de DIgSILENT murió a mitad en los últimos minutos.
+
+    El 24-11 el ajuste de Pisco falló así (el equipo se quedó sin memoria) y la web dijo «compruebe su licencia»: la
+    muerte la anota el servidor siguiente en el registro de la orden (``pf_servidor.limpiar_cola``) antes de volver a
+    conectar, y ``ultima_causa`` solo mira lo que viene después de la última conexión."""
+    carpeta = cola or ruta_cola()
+    try:
+        recientes = [p for p in carpeta.glob('*.log') if p.name != 'servidor.log'
+                     and ahora() - p.stat().st_mtime <= VENTANA_MUERTE_S]
+    except OSError:
+        return False
+    for p in recientes:
+        try:
+            if 'murió a mitad' in p.read_text(encoding='utf-8', errors='replace'):
+                return True
+        except OSError:
+            continue
+    return False
 
 
 def barrer_marcas(ruta: Path, vivo: Callable[[int], bool] = pid_vivo) -> None:
