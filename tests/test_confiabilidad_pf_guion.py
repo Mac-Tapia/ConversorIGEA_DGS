@@ -348,6 +348,23 @@ def test_datos_equipos_que_despejan_aislan_y_telemandados(semilla):
                 if s.loc_name.startswith(conf.NOMBRE_CABECERA)]
 
 
+def test_012_rf69_si_digsilent_no_crea_el_interruptor_de_cabecera_se_avisa_y_sigue(monkeypatch):
+    """012:RF-69 — Pisco (2026-11-25): DIgSILENT devolvió ``None`` al crear el interruptor de cabecera en un
+    cubículo vacío y el guion se cayó con «'NoneType' object has no attribute 'aUsage'» sin aplicar nada del
+    libro. Ahora ese alimentador queda sin interruptor creado, se dice cuál y por qué, y el libro se aplica."""
+    rng = random.Random(7)
+    app, alims, clases = _red(rng)
+    cub = _alim(app, alims[0]).obj_id
+    original = cub.CreateObject
+    monkeypatch.setattr(cub, 'CreateObject',
+                        lambda clase, *a, **k: None if clase == 'StaSwitch' else original(clase, *a, **k))
+    informe, rc = conf.aplicar_datos(app, _plan(alims, _libro(rng), clases))
+    assert rc == 0, informe
+    assert informe['alimentadores'][alims[0]]['interruptor_cabecera'] is False
+    assert any(alims[0] in a and 'interruptor de cabecera' in a for a in informe['avisos']), informe['avisos']
+    assert all(informe['alimentadores'][f]['interruptor_cabecera'] for f in alims[1:])
+
+
 def test_datos_clientes_un_cliente_y_sin_clientes():
     """012:RF-24, 012:RF-25, 012:RF-70 — se usa el número de clientes de cada carga; se cuentan
     las que no lo tienen y se avisa si todas tienen uno."""

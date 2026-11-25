@@ -222,3 +222,6 @@ Exposición leída de DIgSILENT (2026-11-14, «convertido o no»)
       Hecho el 2026-11-21 (MEJ23, código): rojo por aserción D:/csg/PM_IMPL/MEJ23_PFD/rojo.log y verde D:/csg/PM_IMPL/MEJ23_PFD/verde_nucleo.log,
       verde_vecinas.log, tsc.log, npm_test.log y build.log (ESTADO.txt: 0 F, 0 omitidas);
       la comprobación en DIgSILENT va con la T17.
+- [x] T24. Si DIgSILENT no crea el interruptor de cabecera, el libro se aplica igual y se dice dónde falta. (RF-69)
+      Pisco (2026-11-25): `CreateObject` devolvió None en un cubículo vacío y el guion se caía sin aplicar nada.
+      Cerrada el 2026-11-25: rojo con el error real y verde en `tests/test_confiabilidad_pf_guion.py`.

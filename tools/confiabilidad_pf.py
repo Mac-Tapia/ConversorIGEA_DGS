@@ -265,10 +265,17 @@ def _escribir_alimentador(elm, libro, modelos, clases_entrada) -> dict:
     cub = getattr(elm, 'obj_id', None)
     if cub is not None and not _cabecera_protegida(elm):                     # RF-69
         cab = cub.CreateObject('StaSwitch', nombre_libre(cub, 'StaSwitch', NOMBRE_CABECERA))
-        cab.aUsage, cab.on_off, cab.rel_hasProt, cab.rel_hasRecl = 'cbk', 1, 1, 0
-        cab.Tswitch, subido = tiempo_de_maniobra(t.get('manual', 0.0))
-        fila['tswitch_al_minimo'] += subido                                  # RF-94
-        fila['interruptor_cabecera'] = True
+        if cab is None:
+            # Pisco (2026-11-25): DIgSILENT devolvió None en un cubículo vacío y el guion se caía sin aplicar
+            # nada del libro; el resto del alimentador se escribe y se dice dónde falta la protección.
+            fila['aviso_cabecera'] = (f'{elm.loc_name}: DIgSILENT no creó el interruptor de cabecera en '
+                                      f'{cub.loc_name}; la confiabilidad no tendrá protección en su cabecera hasta '
+                                      'que se ponga uno.')
+        else:
+            cab.aUsage, cab.on_off, cab.rel_hasProt, cab.rel_hasRecl = 'cbk', 1, 1, 0
+            cab.Tswitch, subido = tiempo_de_maniobra(t.get('manual', 0.0))
+            fila['tswitch_al_minimo'] += subido                              # RF-94
+            fila['interruptor_cabecera'] = True
     cargas = elm.GetObjs('ElmLod')                                           # RF-24, RF-25
     fila['cargas_sin_clientes'] = sum(1 for c in cargas if not (getattr(c, 'NrCust', 0) or 0))
     fila['un_cliente'] = bool(cargas) and all(int(getattr(c, 'NrCust', 0) or 0) == 1 for c in cargas)
@@ -410,6 +417,8 @@ def aplicar_datos(app, plan: dict) -> tuple[dict, int]:
         variacion, _etapa = crear_variacion(app, VARIACION, 'confiabilidad')
         for f in feeders:
             fila = informe['alimentadores'][f] = _escribir_alimentador(elms[f], libro, modelos, clases_entrada)
+            if fila.get('aviso_cabecera'):                                   # RF-69
+                informe['avisos'].append(fila['aviso_cabecera'])
             if fila['un_cliente']:                                           # RF-70
                 informe['avisos'].append(f'{f}: todas sus cargas tienen un solo cliente; SAIFI y SAIDI '
                                          'quedarán ponderados por carga, no por cliente.')
