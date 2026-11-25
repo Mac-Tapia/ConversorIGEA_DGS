@@ -161,7 +161,7 @@ adaptador VNR (integrador f9).
       Hecho en esta entrega (LOTE-2): la pestaña «Estudio PIT» (features/pit/EstudioPit.tsx, api/pit.ts) con su
       matriz de cobertura (frontend/test/pitPanel.test.mjs: cada /api/pit/* con su llamada, su control en pantalla y
       su prueba de tests/test_pit_web.py); npm test 268/268, tsc, lint y build (f7).
-- [ ] T14. [DIgSILENT] Corrida real sobre una **copia** del proyecto de transmisión del área del primer caso (la
+- [x] T14. [DIgSILENT] Corrida real sobre una **copia** del proyecto de transmisión del área del primer caso (la
        primera empresa de prueba, con el área y el titular en su perfil): exportar la red, diagnosticar un año con los dos motores y comparar
        con la tolerancia de la 112 (0,005 p.u. en tensión, 1 % en corriente). (RF-2, RF-3, RF-5)
        Hecho cuando: la evidencia de la corrida (informe y registro) queda fuera de git con su huella y las diferencias
@@ -169,6 +169,16 @@ adaptador VNR (integrador f9).
        Primera corrida del 2026-11-20 (d8, bloque DIgSILENT): DIgSILENT da ComLdf con código 0 y el motor abierto no
        converge por un defecto del guion (ids por nombre, acoplamientos sin exportar, referencia en una máquina),
        corregido en T44 (RF-25). Falta repetir la corrida con el código de T44.
+       Hecho el 2026-11-24 (d8), con el código de T44 y de RF-43 (T62), sobre la copia AD08_b941f1045a (CSG_PRUEBAS_PFD),
+       caso «2026»: DIgSILENT ComLdf código 0 (7 504 barras, 2 062 ramas; vuelve al caso inicial); el motor abierto con la
+       red exportada converge (40 s) con mediana de tensión 0,00015 p.u.; 3 de 7 054 barras fuera de 0,005 p.u. y 9 de
+       1 797 ramas fuera del 1 %, explicadas: las barras internas del STATCOM de Pucallpa (0,011) y del SVC de Chiclayo
+       (0,008), con estatismo aproximado que el motor abierto avisa (RF-34), y San Ignacio 3,2 kV en el límite (0,005);
+       las ramas, los trafos junto a máquinas que regulan un nudo remoto por su controlador de estación (SanIgnacio_TR1
+       7,0 %, T24-61 6,5 %, man_271 3,2 %; sus barras de 13,8 kV a 0,002–0,003 p.u.) y seis entre el 1,0 % y el 1,2 %.
+       Los 30 que faltan no tienen cubículo conectado en DIgSILENT (trafos de reserva) o tienen un extremo abierto (L-66xx
+       de AD08, carga 0 %), comprobado con la sonda. Evidencia fuera de git: D:/csg/PM_IMPL/DIG_BLOQUE/62_pit_107T14_rf43
+       (sonda.log, digsilent_2026.json, comparacion_2026_v2.json) y el diagnóstico en 61_pit_107T14_n11/DIAGNOSTICO.md.
 - [x] T15. Aceptación con datos reales autorizados por la empresa: reproducir, fila por fila, un cuadro de un PIT
        publicado para el área del primer caso, con sus diferencias explicadas. (RF-6, RF-9)
        Hecho cuando: el expediente trae el cuadro reproducido, su cuadro publicado de referencia con su huella, y cada
@@ -587,3 +597,9 @@ adaptador VNR (integrador f9).
       fuera de línea, las barras fuera de 0,005 p.u. bajan de 6 a 3.
       Hecho en DIG2-SHNTY (d8, 23-11): rojo por aserción (N10_SINCODEX/USHNM/rojo_shnty_081202.log) y verde; fuera de
       línea DIG_BLOQUE2/T14_pit/ushnm/exp_rf42.json (3 barras y 9 ramas fuera).
+- [x] T62. La exportación calcula el flujo antes de leer la red, y el SVC no sale con límites inventados (corrida de T14
+      del 24-11). (RF-43)
+      Hecho cuando: `tests/test_pit_pf_guion.py` (107:RF-43) en verde, con rojo por aserción en la base.
+      Hecho el 2026-11-24 (d8): rojo en 92cfe1db (2 failed: los límites salían [0, 50] y sin aviso),
+      D:/csg/PM_IMPL/N12/107_T14/rojo.log; verde, 54 passed, D:/csg/PM_IMPL/N12/107_T14/verde.log; en DIgSILENT, de 5 212
+      barras fuera de tolerancia a 3 (T14).

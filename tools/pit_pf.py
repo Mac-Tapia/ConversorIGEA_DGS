@@ -380,6 +380,12 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
         return {'id': _id(o), 'nombre': str(o.loc_name)}
 
     out: list[dict[str, Any]] = []
+    # 107:RF-43: lo que se exporta de máquinas, SVC, compensación y controladores es lo que resuelve el flujo (c:Qmin,
+    # c:Qmax, m:Q, m:u). El 24-11, con la copia AD08 recién activada y sin flujo, los SVC salieron con sus nominales
+    # (un reactor de 50 Mvar como capacitivo [0, 50]) y el motor abierto quedó a 0,011 p.u. de mediana de DIgSILENT;
+    # el 22-11, con el flujo hecho, a 3 barras fuera de 0,005 p.u. Sin flujo resuelto no se inventa nada: el SVC sale
+    # sin límites y marcado.
+    resuelto = bool(_ejecutar(app, 'ComLdf').get('hecho'))
     for b in _objetos(app, '*.ElmTerm'):
         out.append(_sin_vacios({**ident(b), 'tipo': 'barra', 'kv': _num(b, 'uknom'), **comun, 'fuente': fuente(b)}))
     for g in _objetos(app, '*.ElmXnet'):
@@ -435,8 +441,9 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             out.append(_sin_vacios({**base, 'tipo_barra': 'PQ', 'q_mvar': -_num(s, 'm:Q:bus1'),
                                     'controlador': _id(ctrl), 'q_resuelta': True}))
             continue
-        qmin = _num(s, 'qmin')
-        limites = {'q_max_mvar': _num(s, 'qmax'), 'q_min_mvar': None if qmin is None else -abs(qmin)}
+        # 107:RF-43: los límites del SVC son los que resuelve DIgSILENT con la tensión; sus nominales no dicen qué parte es
+        # inductiva y cuál capacitiva (qmax es el reactor en los TCR de la copia AD08), así que sin flujo no se usan.
+        limites = (_limites_q(s, 1.0, solo_resueltos=True) if resuelto else {}) or {'limites_q_sin_resolver': True}
         # 107:RF-31: el SVC regula un nudo remoto (``p_rem``, la barra de alta en los 13 de la copia de transmisión) y
         # sus límites son los que resuelve DIgSILENT con la tensión (c:Qmin, c:Qmax), si los da; el estatismo se
         # exporta para que se vea, y el motor abierto lo avisa.
@@ -447,7 +454,7 @@ def exportar_red(app, plan: dict) -> list[dict[str, Any]]:
             # 1,000) y ninguna fórmula con sus atributos reproducía lo medido: se exporta el punto de operación que
             # resolvió DIgSILENT en esa misma red, la tensión del nudo, y el motor abierto lo avisa.
             base = {**base, 'vm_pu': _num(remoto, 'm:u'), 'estatismo_aproximado': True}
-        out.append(_sin_vacios({**base, 'tipo_barra': 'PV', **(_limites_q(s, 1.0, solo_resueltos=True) or limites),
+        out.append(_sin_vacios({**base, 'tipo_barra': 'PV', **limites,
                                 'barra_control': _id(remoto) if remoto is not None else None,
                                 'estatismo_pct': estatismo}))
     for c in _objetos(app, '*.ElmCoup'):

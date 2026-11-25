@@ -389,6 +389,11 @@ def calcular(red: RedArea, cargas: Mapping[str, tuple[float, float]], *, fuera: 
         # 107:RF-34: la limitación, dicha: con otra carga el SVC no reparte por estatismo.
         avisos.append(f"{', '.join(aproximados)}: estatismo aproximado por la tensión resuelta en el caso exportado; con "
                       'otra carga el SVC no reparte por estatismo')
+    sin_limites = sorted(g['id'] for g in red.de_tipo('red_externa') if g.get('limites_q_sin_resolver'))
+    if sin_limites:
+        # 107:RF-43: el flujo de DIgSILENT no resolvió sus límites al exportar: regulan sin tope, y se dice.
+        avisos.append(f"{', '.join(sin_limites)}: sin límites de Q resueltos por DIgSILENT al exportar (su flujo no "
+                      'convergió): regulan sin tope y su tensión puede no ser la de DIgSILENT')
     if avisos:
         res.mensaje = '; '.join(avisos)
     vm = net.res_bus.vm_pu

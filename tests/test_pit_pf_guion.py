@@ -237,10 +237,20 @@ class _OrdenLdf(Obj):
 
     def Execute(self):
         app = self._app_doble
+        app.flujos = getattr(app, 'flujos', 0) + 1
+        if getattr(app, 'ldf_falla', False):
+            return 1
+        # Repetir el flujo sobre el mismo caso da lo mismo que el anterior: lo que una prueba dejó resuelto no cambia.
         for i, b in enumerate(app.objetos['*.ElmTerm']):
-            object.__setattr__(b, 'm_u', 1.0 - 0.001 * i)
+            if getattr(b, 'm:u', None) is None and getattr(b, 'm_u', None) is None:
+                object.__setattr__(b, 'm_u', 1.0 - 0.001 * i)
         for i, o in enumerate(app.objetos['*.ElmLne'] + app.objetos['*.ElmTr2']):
             object.__setattr__(o, 'c:loading', 10.0 + i)
+        # 107:RF-43: como en DIgSILENT, lo resuelto (los límites de Q de un SVC con la tensión, c:Qmin y c:Qmax) solo
+        # existe después del flujo.
+        for s in app.objetos.get('*.ElmSvs', []):
+            for k, v in (getattr(s, 'tras_flujo', None) or {}).items():
+                object.__setattr__(s, k, v)
         return 0
 
 
@@ -605,7 +615,7 @@ def test_el_svc_se_exporta_como_nudo_pv_con_su_consigna_y_sus_limites():
     app = _AppTransmision()
     barra = app.b[('SY', '3')]
     app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVC', barra.GetParent(), usetp=1.01, qmax=40.0, qmin=30.0,
-                                   bus1=_Cub(barra))]
+                                   bus1=_Cub(barra), tras_flujo={'c:Qmin': -30.0, 'c:Qmax': 40.0})]
     red = _red_t(app)
     svc = [e for e in red.de_tipo('red_externa') if e['nombre'] == 'SVC']
     assert len(svc) == 1, red.de_tipo('red_externa')
@@ -824,7 +834,8 @@ def test_rf31_el_svc_regula_su_nudo_remoto_y_el_de_q_constante_sale_pq():
     barra, remoto = app.b[('SY', '3')], app.b[('SY', '2')]
     sub = barra.GetParent()
     app.objetos['*.ElmSvs'] = [
-        Obj(None, 'ElmSvs', 'SVR', sub, usetp=1.0, i_ctrl=1, p_rem=remoto, qmax=200.0, qmin=200.0, bus1=_Cub(barra)),
+        Obj(None, 'ElmSvs', 'SVR', sub, usetp=1.0, i_ctrl=1, p_rem=remoto, qmax=200.0, qmin=200.0, bus1=_Cub(barra),
+            tras_flujo={'c:Qmin': -200.0, 'c:Qmax': 200.0}),
         Obj(None, 'ElmSvs', 'SVQ', sub, usetp=1.0, i_ctrl=2, qsetp=3.0, qmax=10.0, qmin=10.0, bus1=_Cub(barra))]
     red = _red_t(app)
     por_nombre = {e['nombre']: e for e in red.de_tipo('red_externa')}
@@ -861,10 +872,43 @@ def test_rf31_el_pv_en_su_limite_de_q_deja_de_sostener_la_tension():
     app = _AppTransmision()
     barra = app.b[('SY', '3')]
     app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'SVC', barra.GetParent(), usetp=1.10, qmax=0.5, qmin=0.5,
-                                   bus1=_Cub(barra))]
+                                   bus1=_Cub(barra), tras_flujo={'c:Qmin': -0.5, 'c:Qmax': 0.5})]
     r = _flujo_t(_red_t(app), app)
     assert not isinstance(r, Exception) and r.converge, r
     assert r.tensiones_pu[guion._id(barra)] < 1.10 - 1e-3
+
+
+def test_rf43_la_exportacion_calcula_el_flujo_y_el_svc_lleva_los_limites_que_resuelve_digsilent():
+    """107:RF-43 — antes de leer la red se calcula el flujo del caso activo: los límites del SVC son los que resuelve
+    DIgSILENT (c:Qmin, c:Qmax), no sus nominales. (Copia AD08, 24-11: el SVC de Trujillo, un reactor de 50 Mvar sin
+    condensadores, tiene qmin 0 y qmax 50; sin flujo salía capacitivo [0, 50] y su barra subía a 1,21 p.u. donde
+    DIgSILENT da 0,97; resuelto es [−47,1, 0]: solo absorbe.)"""
+    app = _AppTransmision()
+    barra, remoto = app.b[('SY', '3')], app.b[('SY', '2')]
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'REACTOR', barra.GetParent(), usetp=1.0, i_ctrl=1, p_rem=remoto,
+                                   qmin=0.0, qmax=50.0, bus1=_Cub(barra),
+                                   tras_flujo={'c:Qmin': -47.1, 'c:Qmax': 0.0})]
+    red = _red_t(app)
+    assert app.flujos == 1
+    s = {e['nombre']: e for e in red.de_tipo('red_externa')}['REACTOR']
+    assert (s['q_min_mvar'], s['q_max_mvar']) == (-47.1, 0.0), s
+    assert not s.get('limites_q_sin_resolver')
+
+
+def test_rf43_sin_flujo_el_svc_sale_sin_limites_y_el_motor_abierto_lo_dice():
+    """107:RF-43 — si el flujo de DIgSILENT no converge, el SVC no lleva límites inventados con sus nominales: sale sin
+    ellos, marcado, y el motor abierto lo avisa en su mensaje."""
+    app = _AppTransmision()
+    app.ldf_falla = True
+    barra = app.b[('SY', '3')]
+    app.objetos['*.ElmSvs'] = [Obj(None, 'ElmSvs', 'REACTOR', barra.GetParent(), usetp=1.0, i_ctrl=1, qmin=0.0,
+                                   qmax=50.0, bus1=_Cub(barra))]
+    red = _red_t(app)
+    s = {e['nombre']: e for e in red.de_tipo('red_externa')}['REACTOR']
+    assert 'q_min_mvar' not in s and 'q_max_mvar' not in s and s.get('limites_q_sin_resolver') is True, s
+    r = _flujo_t(red, app)
+    assert not isinstance(r, Exception), r
+    assert 'sin límites de Q resueltos' in r.mensaje, r.mensaje
 
 
 def test_rf31_dos_maquinas_en_la_misma_barra_con_consignas_distintas_calculan_con_una_y_se_avisa():

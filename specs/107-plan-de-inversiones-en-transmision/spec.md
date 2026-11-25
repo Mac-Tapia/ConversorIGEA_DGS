@@ -1,6 +1,6 @@
 # Spec 107 — Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario
 
-Estado: implementada (2026-11-19: el PIT con DIgSILENT desde la web, T42 y T43 cerradas; queda T14 en DIgSILENT) · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
+Estado: cumplida (2026-11-24: T14 cerrada con la corrida real en DIgSILENT, 3 barras y 9 ramas fuera de tolerancia explicadas, y T62; todas sus tareas cerradas) · antes implementada (2026-11-19: el PIT con DIgSILENT desde la web, T42 y T43 cerradas; queda T14 en DIgSILENT) · Fecha: 2026-11-14 · Origen: Plan Maestro v1.6, BP-17, y orden del usuario del 2026-11-14:
 «haz nuevos spec» para las brechas sin spec. G0: `D:/csg/G0_PLAN_MAESTRO/D/D_FILAS_BP.md`.
 
 ## Contexto y objetivo
@@ -337,6 +337,12 @@ común.
   RF-27 y RF-39. (En la copia de transmisión dos filtros amortiguados de 3,5.º armónico daban 11,19 Mvar a 1,0594 p.u.
   con una Qact que a esa tensión son 9,22, y su barra de 33 kV quedaba 0,006 p.u. baja; con RF-39 a RF-42 las barras
   fuera de 0,005 p.u. bajan de 81 a 3, dos de ellas internas de un SVC y un STATCOM, y las ramas fuera del 1 %, de 20 a 9.)
+- RF-43: (corrida de 107 T14 del 24-11) ANTES de leer la red, EL SISTEMA calculará el flujo de carga del caso activo en
+  DIgSILENT, porque los límites de Q de las máquinas y de los SVC (c:Qmin, c:Qmax), la Q resuelta de los controladores
+  (RF-41) y la de la compensación (RF-42) son resultados del flujo. SI no converge, ENTONCES el SVC saldrá sin límites y
+  marcado, nunca con sus nominales qmin y qmax, y el motor abierto lo avisará. (Copia AD08 recién activada, sin flujo:
+  el SVC de Trujillo, un reactor de 50 Mvar, salía capacitivo [0, 50], su barra subía a 1,21 p.u. donde DIgSILENT da
+  0,97, y 5 212 barras quedaban fuera de 0,005 p.u.; con el flujo primero, 3.)
 ## Requisitos no funcionales
 - Universal: cualquier área de demanda y titular. Las pruebas usan al menos dos perfiles sintéticos.
 - Determinismo: el mismo caso, con la misma norma y los mismos costos, da el mismo expediente.
