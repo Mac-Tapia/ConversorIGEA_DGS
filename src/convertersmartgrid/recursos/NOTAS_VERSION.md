@@ -1,5 +1,21 @@
 # Notas de la versión
 
+## 1.0.0rc7 (candidata, sin aceptar)
+
+Candidata a la 1.0.0, con lo probado de punta a punta en un sistema eléctrico real de 17 alimentadores.
+
+Cambia en «Con proyecto»:
+
+- La obra de corto plazo se elige con el límite de carga de los estudios; el de planeamiento, solo para la definitiva.
+- El oráculo y DIgSILENT trabajan a la vez: cada alimentador se confirma en cuanto el oráculo lo elige, y no se
+  mide en DIgSILENT un escalón que no puede costar menos que la obra ya confirmada.
+- Cada alimentador se mide con las cargas nuevas de todos; una obra aprobada no se retira y la confirmación de
+  todo el sistema comprueba antes que estén activas.
+- Lo medido queda guardado y se reutiliza tras reiniciar; un trabajo interrumpido se puede reanudar.
+- Un solo resumen ejecutivo del sistema, con un botón, y las obras se pueden retirar por su nombre.
+
+Pendiente de aceptar: la prueba en un equipo limpio, y las corridas en DIgSILENT con esta versión congelada.
+
 ## 1.0.0rc6 (candidata, sin aceptar)
 
 Candidata a la 1.0.0. Las notas completas de la publicación se instalan con el programa, en

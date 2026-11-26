@@ -7,7 +7,7 @@ from __future__ import annotations
 # La única versión del programa (086:RF-43, RF-92): pyproject la lee de aquí, el candidato la pone en el nombre de su rueda
 # y el .iss la saca de ese nombre. No se escribe en ningún otro sitio: el rc5 se armó con «--version» y «/DVersion» a mano
 # mientras aquí seguía 1.0.0rc1, y su «Acerca de» enseñaba las notas del rc1.
-__version__ = '1.0.0rc6'
+__version__ = '1.0.0rc7'
 
 # 106:RF-18: antes del primer cuInit de cualquier modelo del producto, en este proceso o en un hijo que importe el
 # paquete. Con el controlador NVIDIA 560.94, iniciar CUDA dejaba un hilo en una DLL ya descargada y el proceso moría con
