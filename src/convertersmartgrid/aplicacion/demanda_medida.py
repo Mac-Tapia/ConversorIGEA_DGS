@@ -1274,6 +1274,38 @@ def poner_tension(res: MaximaCabecera, nominal_kv: float | None) -> MaximaCabece
     return res
 
 
+def tension_de_su_barra(res: Sequence[MaximaCabecera], barras: Sequence[Any],
+                        maxima_de: Mapping[tuple[str, str], MaximaCabecera]) -> None:
+    """021:RF-78 (26-11): a cada máxima sin tensión propia, la de la barra de su SET y su nivel en el mismo registro.
+
+    LL202 (L-LL122) y LL203 salían con V (kV) y V (pu) en «—» en el ámbito de alimentadores: la hoja del alimentador no
+    trae tensión. El operador: «se deben extraer las tensiones de barra de 10 kV o 22,9 kV según corresponde de su SET».
+    ``barras`` son las de :func:`barras_de_calibracion` (clave, kv, medidores, alimentadores) y ``maxima_de`` las
+    lecturas de sus medidores por ``(clave, medidor)``. La que trae su tensión no cambia.
+    """
+    de_feeder = {str(f).upper(): b for b in barras for f in getattr(b, 'alimentadores', ())}
+    for r in res:
+        if r.error or r.tension_kv is not None or not r.fecha:
+            continue
+        b = de_feeder.get(str(r.alimentador).upper())
+        if b is None:
+            continue
+        try:
+            fecha = datetime.fromisoformat(str(r.fecha))
+        except ValueError:
+            continue
+        t = tension_de_barra([x for m in b.medidores if (x := maxima_de.get((b.clave, m))) is not None], fecha, b.kv)
+        if t['tension_kv'] is None:
+            r.tension_aviso = (f'sin tensión en su hoja ni en la barra {b.clave} ({", ".join(b.medidores) or "sin medidor"}) '
+                               f'el {r.fecha}')
+            continue
+        r.tension_kv, r.tension_pu, r.tension_nominal_kv = t['tension_kv'], t['tension_pu'], b.kv
+        r.tension = t['tension_kv']
+        r.tension_columna = f"barra {b.clave} ({', '.join(t['tension_medidores'])}" + (
+            f", {t['tension_columna']})" if t['tension_columna'] else ')')
+        r.tension_aviso = None
+
+
 def tension_de_barra(maximas_de: Sequence[MaximaCabecera], fecha: datetime | None,
                      nominal_kv: float | None) -> dict[str, Any]:
     """La tensión de una barra en la fecha y hora de su máxima: la media de sus medidores (021:RF-78).

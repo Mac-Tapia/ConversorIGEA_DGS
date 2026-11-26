@@ -1610,3 +1610,28 @@ def test_la_hoja_de_kvar_de_otro_medidor_pedido_no_da_fila_de_error(tmp_path):
     assert any('IN111_V19' in a and 'ya incluid' in a for a in res[0].avisos), res[0].avisos
     (solo,) = dm.maximas([tmp_path / 'c.xlsx'], [('X', 'SOLO_Q')])
     assert solo.error and 'kW' in solo.error
+
+
+def test_021_rf78_sin_tension_en_su_hoja_toma_la_de_la_barra_de_su_set():
+    """021:RF-78 (26-11) — LL202 (L-LL122) y LL203 salían con V (kV) y V (pu) en «—»: la hoja del alimentador no trae
+    tensión. El operador: «se deben extraer las tensiones de barra de 10 kV o 22,9 kV según corresponde de su SET». Sin
+    tensión propia, la de los medidores de la barra de su SET y su nivel en el mismo registro de la máxima; la que trae la
+    suya no cambia; sin medidor de barra con tensión en ese registro, se dice."""
+    from datetime import datetime as dt
+
+    assert hasattr(dm, 'tension_de_su_barra'), 'falta 021:RF-78 en el ámbito de alimentadores'
+    fecha = dt(2026, 1, 9, 20, 30)
+    sin = dm.MaximaCabecera(medidor='L-LL122', alimentador='LL202', fecha='2026-01-09 20:30:00', kw=9296.0)
+    con = dm.MaximaCabecera(medidor='L-X', alimentador='X1', fecha='2026-01-09 20:30:00', kw=10.0, tension=10.1,
+                            tension_kv=10.1, tension_pu=1.01)
+    otro = dm.MaximaCabecera(medidor='L-Y', alimentador='Y1', fecha='2026-01-09 20:30:00', kw=10.0)
+    b1 = dm.MaximaCabecera(medidor='B-LL1', alimentador='SET 41 22.9 kV')
+    b1.tensiones = {fecha: (23.2, 'V ab')}
+    barras = [type('B', (), {'clave': 'SET 41 22.9 kV', 'kv': 22.9, 'medidores': ['B-LL1'],
+                             'alimentadores': ['LL202', 'X1']})(),
+              type('B', (), {'clave': 'SET 9 10 kV', 'kv': 10.0, 'medidores': ['B-Y'], 'alimentadores': ['Y1']})()]
+    dm.tension_de_su_barra([sin, con, otro], barras, {('SET 41 22.9 kV', 'B-LL1'): b1})
+    assert sin.tension_kv == pytest.approx(23.2) and sin.tension_pu == pytest.approx(23.2 / 22.9)
+    assert 'SET 41 22.9 kV' in sin.tension_columna and 'B-LL1' in sin.tension_columna
+    assert (con.tension_kv, con.tension_pu) == (10.1, 1.01), 'la que trae su tensión no cambia'
+    assert otro.tension_kv is None and 'SET 9 10 kV' in (otro.tension_aviso or '')

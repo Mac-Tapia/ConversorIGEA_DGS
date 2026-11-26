@@ -294,3 +294,8 @@ Añadido el 2026-10-17 (calibrar NA293 y NA295 con su central en julio y a la ve
       Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/VNR_SM115/rojo_trafomix.log`; verde 35 passed (`verde_trafomix.log`) y
       875 passed, 3 skipped (`verde_vecinas.log`). Diagnóstico: `D:/csg/PM_IMPL/VNR_SM115/diagnostico.md`. La corrida
       real es la de la 100 T4 con VNR-GIS.
+- [x] T27. Sin tensión en su hoja, la máxima de un alimentador toma la de la barra de su SET. (RF-78)
+      Hecho cuando: `tests/test_demanda_medida.py` (021:RF-78) en verde con su rojo por aserción, y LL202 con su tensión
+      con datos reales.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/TENSION_BARRA/rojo.log`; verde 104 passed; real: LL202 23,673 kV
+      (1,034 pu) y LL203 23,773 kV (1,038 pu) de B-LL2T1, barra SET 52 22,9 kV.

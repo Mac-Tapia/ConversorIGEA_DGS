@@ -3246,6 +3246,7 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     _tension_en_pu(ws, res)                                                     # 021:RF-74 a RF-76
+    _tension_de_sus_barras(ws, ctx, res, libros, periodo)                       # 021:RF-78 (26-11)
     for r in res:
         if r.error:
             ctx.log(f'  {r.medidor}: {r.error}')
@@ -3371,6 +3372,42 @@ def _tension_en_pu(ws: Workspace, res: list) -> None:
     for r in res:
         dueno = r.alimentador[len('Central '):] if r.alimentador.lower().startswith('central ') else r.alimentador
         poner_tension(r, nominal.get(dueno.strip().upper()))
+
+
+def _tension_de_sus_barras(ws: Workspace, ctx: JobContext, res: list, libros, periodo: str | None) -> None:
+    """021:RF-78 (26-11): las máximas sin tensión en su hoja toman la de la barra de su SET y su nivel, en su registro.
+
+    LL202 y LL203 salían con V (kV) y V (pu) en «—»; la tensión está en los medidores de barra de 10 o 22,9 kV de su
+    SET, que el libro de medidores ya da. Sin estructura de la empresa o sin libro de medidores no se supone nada.
+    """
+    from ...aplicacion.demanda_medida import (DemandaError, barras_de_calibracion, leer_medidores_de_barra, maximas,
+                                              tension_de_su_barra)
+
+    faltan = sorted({str(r.alimentador).upper() for r in res
+                     if not r.error and r.tension_kv is None and not str(r.alimentador).lower().startswith('central ')})
+    if not faltan:
+        return
+    try:
+        # Un dato que falta (estructura, libro de medidores) deja la máxima sin la tensión de barra, nunca sin máxima.
+        estructura = estructura_del_espacio(ws)
+        if estructura is None:
+            return
+        medidores = leer_medidores_de_barra(_demanda_ruta(ws, 'medidores'), demanda_alias())
+        barras, _avisos = barras_de_calibracion(estructura, medidores, faltan, _kv_alimentadores(ws), {})
+        barras = [b for b in barras if not getattr(b, 'alta', False) and b.medidores
+                  and set(map(str.upper, b.alimentadores)) & set(faltan)]
+        pares = [(b.clave, m) for b in barras for m in b.medidores]
+        if not pares:
+            return
+        lecturas = maximas(libros, pares, alias=demanda_alias(), periodo=periodo, cancelado=ctx.cancel.is_set,
+                           correcciones=ws.correcciones_cabecera)
+    except (DemandaError, UserError, OSError, ValueError) as exc:
+        ctx.log(f'  aviso: tensión de las barras de SET no leída: {exc}')
+        return
+    tension_de_su_barra(res, barras, {(r.alimentador, r.medidor): r for r in lecturas})
+    for r in res:
+        if r.tension_columna and str(r.tension_columna).startswith('barra '):
+            ctx.log(f'  {r.alimentador}: tensión de la {r.tension_columna}: {r.tension_kv:,.3f} kV')
 
 
 def _con_tension_de_la_fuente(res: list, barras: list[dict] | None) -> list[dict]:

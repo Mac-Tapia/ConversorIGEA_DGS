@@ -286,6 +286,9 @@ tensión se suba a la fuente en pu en DIgSILENT»)
   resultado de la API de la máxima.
 - RF-78: EN el análisis por SET y por sistema, EL SISTEMA dará la tensión de cada barra con medidor en
   la fecha y hora de su máxima coincidente, como la media de los medidores de esa barra que la miden.
+- Aclaración de RF-78 (26-11): también en el ámbito de alimentadores, la máxima cuya hoja no trae tensión toma la de
+  los medidores de la barra de su SET y su nivel (10 o 22,9 kV) en el mismo registro, y lo dice; la que trae la suya no
+  cambia. (LL202 y LL203: V (kV) y V (pu) en «—»; con la barra de 22,9 kV de la SET 52, 23,673 y 23,773 kV.)
 - RF-79: CUANDO el operador prepara el ajuste en 2.4 o recalibra «Sin proyecto», EL SISTEMA tomará
   por defecto como consigna de la fuente de cada alimentador su tensión medida en pu, y el campo
   «Tensión en la fuente» la mostrará con «medida a las <fecha y hora> en <medidor>».

@@ -858,9 +858,9 @@ def test_tension_en_la_fuente_va_en_el_plan(client):
 def test_poner_los_bancos_que_falten_va_en_el_plan(client, monkeypatch):
     """021:RF-64, 021:RF-65 — la casilla va en el plan con el tamaño por tensión del
     perfil; sin marcarla, el plan no lo pide."""
-    monkeypatch.setattr(services, 'datos_perfil', lambda: {'calibracion': {
+    monkeypatch.setattr(services, 'datos_perfil', lambda *_a, **_k: {'calibracion': {
         'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}}, raising=False)
-    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda: {'calibracion': {
+    monkeypatch.setattr('convertersmartgrid.dominio.perfil_empresa.datos_perfil', lambda *_a, **_k: {'calibracion': {
         'bancos_kvar_por_tension': {'10': 300, '22.9': 450}}})
     wid, job = _maxima(client)
     plan = _recibido(client, wid, _plan(client, wid, job, completar_bancos=True).json()['token'])
