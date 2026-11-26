@@ -790,3 +790,31 @@ def test_005_rf24_el_proyecto_borrado_no_se_reimporta_encima_de_otra_version(her
     assert _correr(herramienta, web) == 2
     assert ('POST', '/powerfactory/flow') not in web.llamadas
     assert '20261112-113130_CSG_TXT_SISTEMA_PISCO' in capsys.readouterr().out
+
+
+def test_100_rf15_otro_guion_vivo_sobre_el_mismo_espacio_no_deja_convertir_ni_importar(herramienta, monkeypatch,
+                                                                                         tmp_path, capsys):
+    """100:RF-15 — 25-11: dos ``sistema_web.py`` sobre el mismo espacio importaron el mismo alimentador a la vez; la
+    importación de uno borró el proyecto que el otro tenía con trabajos en cola (005:RF-22). Se reconoce el otro guion
+    por su línea de órdenes (con ``--espacio E`` o ``--espacio=E``), no el propio ni su lanzador, ni el de otro
+    espacio; y con uno vivo la orden sale con 1 sin convertir nada."""
+    assert hasattr(herramienta, 'otro_guion_del_espacio'), 'sistema_web.py no mira si otro guion tiene el espacio (100 T8)'
+    guion = 'C:/x/tools/sistema_web.py'
+    procesos = [(10, ['py', guion, '--espacio', 'E', '--red', 'A1']),        # el propio
+                (11, ['py', guion, '--espacio', 'OTRO', '--red', 'A1']),
+                (12, ['py', 'otro.py', '--espacio', 'E']),
+                (13, ['py', guion, '--espacio=E', '--zonal', 'Z'])]
+    assert herramienta.otro_guion_del_espacio('E', procesos=procesos, propios={10}) == 13
+    assert herramienta.otro_guion_del_espacio('E', procesos=procesos[:3], propios={10}) is None
+    assert herramienta.otro_guion_del_espacio('E', procesos=procesos, propios={10, 13}) is None
+    assert herramienta.otro_guion_del_espacio('E-sin-guion-vivo-en-la-prueba') is None   # los procesos de la máquina
+
+    hechos = []
+    monkeypatch.setattr(herramienta, 'otro_guion_del_espacio', lambda espacio, **k: 4242 if espacio == 'E' else None)
+    monkeypatch.setattr(herramienta, 'correr', lambda *a, **k: hechos.append('correr') or 0)
+    monkeypatch.setattr(herramienta, 'libros_de_la_demanda', lambda d, dados: ({}, []))
+    monkeypatch.setattr(herramienta, 'Web', lambda *a, **k: object())
+    assert herramienta.main(['--espacio', 'E', '--red', 'A1', '--demanda-dir', str(tmp_path)]) == 1
+    salida = capsys.readouterr().out
+    assert hechos == [] and '4242' in salida and 'espacio E' in salida
+    assert herramienta.main(['--espacio', 'F', '--red', 'A1', '--demanda-dir', str(tmp_path)]) == 0 and hechos == ['correr']

@@ -484,3 +484,17 @@ def test_cada_alimentador_del_sistema_deja_su_perfil(guion):
         perfil = inf['perfil_tension']
         assert perfil['puntos'] and all(p['barra'].startswith(f'{f}_') for p in perfil['puntos']), f
         assert perfil['banda'] == [0.95, 1.05]
+
+
+@pytest.mark.parametrize('bancos', (True, False), ids=('con_bancos_que_faltan', 'sin_bancos'))
+def test_100_rf17_el_proyecto_que_ya_no_esta_da_un_informe_claro_y_no_un_error_interno(guion, bancos):
+    """100:RF-17 — 25-11: el proyecto a calibrar ya no estaba en DIgSILENT (lo borró la importación de otra versión del
+    mismo alimentador, 005:RF-22) y la calibración con los bancos que faltan reventó con «'NoneType' object has no
+    attribute 'GetContents'». Ahora cada informe nombra el proyecto, la carpeta y la causa probable, con código 2."""
+    plan = {**_de(_plan(kvar=10.0), 'F1', 300.0), 'project': '20411125-232931_CSG_TXT_ZZ901', 'folder': 'Red'}
+    if bancos:
+        plan.update(completar_bancos=True, bancos_kvar_por_tension={'10': 2.0})
+    [(inf, rc)] = guion.ejecutar_proyecto(_app(escenario=True), [plan])
+    assert rc == 2
+    assert 'ya no está en DIgSILENT' in inf['error'] and '20411125-232931_CSG_TXT_ZZ901' in inf['error'], inf['error']
+    assert "'Red'" in inf['error'] and 'otra versión' in inf['error']

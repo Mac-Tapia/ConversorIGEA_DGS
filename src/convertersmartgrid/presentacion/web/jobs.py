@@ -331,6 +331,8 @@ class JobContext:
         self.job = job
         self._emit = emit
         self._diario = diario
+        # 100:RF-16: los demás trabajos sin terminar de la web; ``JobManager`` lo cambia al ejecutar.
+        self.pendientes: Callable[[], list[Job]] = list
 
     @property
     def cancel(self) -> threading.Event:
@@ -1176,6 +1178,9 @@ class JobManager:
         try:
             self._emit(job.workspace_id, 'job', job.public())
             ctx = JobContext(job, self._emit, self._diario)
+            # 100:RF-16: la importación no borra un proyecto que otro trabajo de cualquier espacio tiene en cola o
+            # en curso (25-11: dos clientes importaban el mismo alimentador y se borraban el proyecto en cola).
+            ctx.pendientes = lambda: [j for j in self.list() if j is not job and j.status not in FINISHED]
             if job.relanzado_de:
                 ctx.log(f'Se relanza solo el trabajo {job.relanzado_de}, interrumpido al caer la web (096:RF-5, RF-7).')
         except Exception as exc:  # noqa: BLE001 - 086:RF-112: un inicio que no se pudo observar no se ejecuta

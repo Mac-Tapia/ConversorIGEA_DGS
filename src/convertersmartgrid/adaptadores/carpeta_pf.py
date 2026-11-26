@@ -246,19 +246,51 @@ def proyectos_que_borraria(rutas: Iterable[str], red: str, fuente: str | None) -
                    for n in versiones_anteriores(nombres, nombre_de_importacion(_SELLO_FUTURO, red, sigla))})
 
 
-def eliminar_versiones_anteriores(app, carpeta, nuevo: str) -> list[str]:
-    """005:RF-22: borra de la carpeta las versiones obsoletas de ``nuevo``, salvo la activa.
+#: Un nombre de proyecto importado dentro de un texto (el título de un trabajo de la web), con su sello delante.
+_NOMBRE_CON_SELLO = re.compile(r'\b\d{8}-\d{6}_\S+')
+
+
+def proyectos_nombrados(textos: Iterable[str | None]) -> set[str]:
+    """100:RF-16: los proyectos importados que nombran estos textos, por su sello (``<sello>_<resto>``).
+
+    Los trabajos de DIgSILENT de la web llevan su proyecto en el título («Ajustar … · <proyecto>»).
+    """
+    return {m.group(0).rstrip('.,;:)»') for t in textos if t for m in _NOMBRE_CON_SELLO.finditer(str(t))}
+
+
+def proyecto_ausente(ruta: str, carpeta: str | None) -> str:
+    """100:RF-17: por qué un guion no encuentra su proyecto, con el proyecto, la carpeta y la causa probable.
+
+    El 25-11 una calibración en cola encontró su proyecto borrado por la importación de otra versión del mismo
+    alimentador (005:RF-22) y el informe solo decía «'NoneType' object has no attribute 'GetContents'».
+    """
+    return (f'El proyecto {ruta!r} ya no está en DIgSILENT (ni en la carpeta {carpeta!r} ni en la raíz del usuario): '
+            'lo pudo retirar la importación de otra versión del mismo alimentador, o se borró a mano. '
+            'Conviértalo e impórtelo de nuevo antes de repetir esta orden.')
+
+
+def eliminar_versiones_anteriores(app, carpeta, nuevo: str, conservar: Iterable[str] = ()) -> list[str]:
+    """005:RF-22: borra de la carpeta las versiones obsoletas de ``nuevo``, salvo la activa y las de ``conservar``.
 
     Pisco (2026-11-03): cinco importaciones del mismo sistema quedaban en la carpeta y el operador no
     sabía cuál era la vigente. Devuelve un aviso por cada una, borrada o no.
+
+    100:RF-16: ``conservar`` son los proyectos con trabajos de la web aún en cola o en curso. El 25-11 dos clientes
+    importaban el mismo alimentador a la vez y cada importación borraba el proyecto que el otro tenía en cola para
+    calibrar.
     """
     proyectos = {p.loc_name: p for p in _hijos(carpeta, 'IntPrj')}
     activo = app.GetActiveProject()
+    ocupados = {c.lower() for c in conservar}
     avisos = []
     for nombre in versiones_anteriores(proyectos, nuevo):
         p = proyectos[nombre]
         if activo is not None and activo is p:
             avisos.append(f'{nombre} es una versión anterior de {nuevo}, pero está activo: no se borra.')
+            continue
+        if nombre.lower() in ocupados:
+            avisos.append(f'{nombre} es una versión anterior de {nuevo}, pero tiene trabajos pendientes en la web: '
+                          'no se borra.')
             continue
         try:
             ok = int(p.Delete() or 0) == 0

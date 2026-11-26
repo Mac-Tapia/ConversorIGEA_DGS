@@ -18,8 +18,10 @@ import re
 import statistics
 import subprocess
 import sys
+import sysconfig
 import threading
 import time
+import traceback
 from collections.abc import Callable, Iterable, Mapping
 from dataclasses import asdict, dataclass, field
 from datetime import datetime
@@ -57,37 +59,95 @@ class Aviso:
     trabajo: str | None = None
 
 
+def donde_fallo(exc: BaseException) -> str:
+    """``fichero:línea`` del último paso de la traza que no es de la biblioteca estándar (086:RF-138).
+
+    Del 24-10 al 26-11 la vigilancia dejó 3391 avisos «la vigilancia falló: TypeError('sequence item 0: …')» sin
+    decir dónde; el ``join`` que fallaba es de C y no deja paso propio, así que la línea útil es la que lo llama.
+    """
+    pasos = traceback.extract_tb(exc.__traceback__)
+    estandar = os.path.normcase(sysconfig.get_paths().get('stdlib') or '\0')
+    propios = [p for p in pasos if not os.path.normcase(p.filename).startswith(estandar)]
+    paso = (propios or pasos or [None])[-1]
+    return f'{Path(paso.filename).name}:{paso.lineno}' if paso is not None else 'sin traza'
+
+
+def _aviso_de_revision(t: Mapping[str, Any], exc: Exception) -> Aviso:
+    """086:RF-137: el trabajo que no se pudo revisar, con su causa y su línea; la vuelta sigue con los demás."""
+    ident = t.get('id') if isinstance(t, Mapping) else None
+    titulo = (t.get('title') if isinstance(t, Mapping) else None) or ident or 'sin nombre'
+    return Aviso(f'revision:{ident}', 'aviso',
+                 f'No se pudo revisar «{titulo}»: {exc!r} en {donde_fallo(exc)}; los demás trabajos sí se revisaron.',
+                 trabajo=ident)
+
+
+def nombres_de_alimentadores(valor: Any) -> list[str]:
+    """Los nombres de los alimentadores de un resultado, vengan como texto o como diccionario (086:RF-136).
+
+    «Verificar el Caso base» (``services.pf_verificar_base``) devuelve ``feeders`` como una fila por alimentador
+    (``{'feeder': …, 'status': …, 'flujo': …}``) y el resto de trabajos como nombres: el ``' '.join`` de la
+    vigilancia reventaba con la primera fila y abortaba la vuelta entera cada minuto. Lo que no trae nombre se omite.
+    """
+    if isinstance(valor, str):
+        valor = [valor]
+    if not isinstance(valor, (list, tuple)):
+        return []
+    nombres = []
+    for v in valor:
+        if isinstance(v, Mapping):
+            v = next((v[k] for k in ('feeder', 'alimentador', 'short_name', 'name') if v.get(k)), None)
+        if isinstance(v, str) and v.strip():
+            nombres.append(v.strip())
+    return nombres
+
+
 def revisar_trabajos(trabajos: Iterable[Mapping[str, Any]], ahora: float,
                      reintentados: set[str] | None = None) -> list[Aviso]:
-    """Fallos, trabajos largos para lo que suelen tardar y colas paradas (RF-22)."""
+    """Fallos, trabajos largos para lo que suelen tardar y colas paradas (RF-22).
+
+    Un trabajo que no se deja revisar da su propio aviso y no tapa a los demás (086:RF-137).
+    """
     trabajos = list(trabajos)
     reintentados = reintentados or set()
     duraciones: dict[str, list[float]] = {}
     for t in trabajos:
-        if t.get('status') == 'done' and t.get('started_at') is not None and t.get('finished_at') is not None:
-            duraciones.setdefault(t['kind'], []).append(t['finished_at'] - t['started_at'])
-    ocupados = {t.get('lane') for t in trabajos if t.get('status') == 'running'}
+        try:
+            if t.get('status') == 'done' and t.get('started_at') is not None and t.get('finished_at') is not None:
+                duraciones.setdefault(t['kind'], []).append(t['finished_at'] - t['started_at'])
+        except (AttributeError, KeyError, TypeError):  # un trabajo con otra forma: sin duración, se avisa abajo (RF-137)
+            continue
+    ocupados = {t.get('lane') for t in trabajos if isinstance(t, Mapping) and t.get('status') == 'running'}
     avisos = []
     for t in trabajos:
-        estado = t.get('status')
-        if estado == 'failed':
-            error = str(t.get('error') or '')
-            transitorio = any(p.search(error) for p in TRANSITORIOS) and t.get('kind') in TRABAJOS_IDEMPOTENTES
-            reintentar = transitorio and t['id'] not in reintentados and not t['title'].endswith('(reintento)')
-            avisos.append(Aviso(f"fallo:{t['id']}", 'error', f"Falló «{t['title']}»: {error[:300]}",
-                                'reintentar' if reintentar else None, trabajo=t['id']))
-        elif estado == 'running' and t.get('started_at') is not None:
-            pasado = ahora - t['started_at']
-            previas = duraciones.get(t['kind']) or []
-            if previas and pasado > max(MINIMO_LARGO_S, VECES_MEDIANA * statistics.median(previas)):
-                avisos.append(Aviso(f"largo:{t['id']}", 'aviso',
-                                    f"«{t['title']}» lleva {pasado / 60:.0f} min; suele tardar "
-                                    f"{statistics.median(previas) / 60:.0f} min.", trabajo=t['id']))
-        elif estado == 'queued' and t.get('created_at') is not None \
-                and ahora - t['created_at'] > COLA_PARADA_S and t.get('lane') not in ocupados:
-            avisos.append(Aviso(f"cola:{t['id']}", 'aviso',
-                                f"«{t['title']}» espera desde hace {(ahora - t['created_at']) / 60:.0f} min "
-                                'con su carril libre: la cola parece parada.', trabajo=t['id']))
+        try:
+            avisos.extend(_revisar_un_trabajo(t, ahora, reintentados, duraciones, ocupados))
+        except Exception as exc:  # noqa: BLE001 - 086:RF-137: un trabajo con otra forma no aborta la vuelta
+            avisos.append(_aviso_de_revision(t, exc))
+    return avisos
+
+
+def _revisar_un_trabajo(t: Mapping[str, Any], ahora: float, reintentados: set[str],
+                        duraciones: Mapping[str, list[float]], ocupados: set[Any]) -> list[Aviso]:
+    avisos = []
+    estado = t.get('status')
+    if estado == 'failed':
+        error = str(t.get('error') or '')
+        transitorio = any(p.search(error) for p in TRANSITORIOS) and t.get('kind') in TRABAJOS_IDEMPOTENTES
+        reintentar = transitorio and t['id'] not in reintentados and not t['title'].endswith('(reintento)')
+        avisos.append(Aviso(f"fallo:{t['id']}", 'error', f"Falló «{t['title']}»: {error[:300]}",
+                            'reintentar' if reintentar else None, trabajo=t['id']))
+    elif estado == 'running' and t.get('started_at') is not None:
+        pasado = ahora - t['started_at']
+        previas = duraciones.get(t['kind']) or []
+        if previas and pasado > max(MINIMO_LARGO_S, VECES_MEDIANA * statistics.median(previas)):
+            avisos.append(Aviso(f"largo:{t['id']}", 'aviso',
+                                f"«{t['title']}» lleva {pasado / 60:.0f} min; suele tardar "
+                                f"{statistics.median(previas) / 60:.0f} min.", trabajo=t['id']))
+    elif estado == 'queued' and t.get('created_at') is not None \
+            and ahora - t['created_at'] > COLA_PARADA_S and t.get('lane') not in ocupados:
+        avisos.append(Aviso(f"cola:{t['id']}", 'aviso',
+                            f"«{t['title']}» espera desde hace {(ahora - t['created_at']) / 60:.0f} min "
+                            'con su carril libre: la cola parece parada.', trabajo=t['id']))
     return avisos
 
 
@@ -119,40 +179,53 @@ def _recorrer(x: Any, ruta: str = ''):
 
 def revisar_calidad(trabajos: Iterable[Mapping[str, Any]], tolerancia_pct: float = 1.0) -> list[Aviso]:
     """Flujos que no convergen, calibraciones fuera de tolerancia y violaciones en los resultados
-    de los trabajos terminados; cada uno con la orden que lo trataría (RF-24)."""
+    de los trabajos terminados; cada uno con la orden que lo trataría (RF-24).
+
+    Cada trabajo se revisa por su cuenta: uno cuyo resultado tiene otra forma da su aviso y los demás siguen
+    (086:RF-137).
+    """
     avisos = []
     for t in trabajos:
-        if t.get('status') not in ('done', 'parcial', 'no_converge') or not isinstance(t.get('result'), Mapping):
-            continue
-        r = t['result']
-        pendientes = r.get('pendientes') or []
-        if t.get('status') != 'done':                                          # 081:RF-23
-            avisos.append(Aviso(f"parcial:{t['id']}", 'error',
-                                f"«{t['title']}» terminó {t['status']}: "
-                                + ('; '.join(f"{p.get('alimentador')} {p.get('estado')}" for p in pendientes[:10])
-                                   or 'vea su Registro') + '.', trabajo=t['id']))
-        if r.get('caso_base_cambio'):                                          # 081:RF-34
-            avisos.append(Aviso(f"caso_base:{t['id']}", 'error', r['caso_base_cambio']['texto'], trabajo=t['id']))
-        proyecto = r.get('project') or ''
-        feeders = ' '.join(r.get('feeders') or [])
-        no_converge = [ruta for ruta, v in _recorrer(r) if ruta.split('.')[-1] in ('converge', 'converged')
-                       and v is False]
-        if no_converge:
-            avisos.append(Aviso(f"converge:{t['id']}", 'error',
-                                f"«{t['title']}»: {cuenta(len(no_converge), 'flujo', 'flujos')} sin converger.", trabajo=t['id'],
-                                propuesta=f'verifica el caso base de {proyecto} {feeders}'.strip()
-                                if proyecto else None))
-        fuera = [abs(v) for ruta, v in _recorrer(r) if re.search(r'error_pct$', ruta)
-                 and isinstance(v, (int, float)) and abs(v) > tolerancia_pct]
-        if fuera:
-            avisos.append(Aviso(f"calibracion:{t['id']}", 'aviso',
-                                f"«{t['title']}»: {cuenta(len(fuera), 'calibración', 'calibraciones')} fuera de ±{tolerancia_pct:g} % "
-                                f'(peor {max(fuera):.2f} %).', trabajo=t['id']))
-        violaciones = r.get('violaciones')
-        if isinstance(violaciones, list) and violaciones and proyecto:
-            avisos.append(Aviso(f"norma:{t['id']}", 'aviso',
-                                f"«{t['title']}»: {cuenta(len(violaciones), 'violación', 'violaciones')} de la norma.",
-                                trabajo=t['id'], propuesta=f'haz el pide de {proyecto} {feeders}'.strip()))
+        try:
+            avisos.extend(_calidad_de_un_trabajo(t, tolerancia_pct))
+        except Exception as exc:  # noqa: BLE001 - 086:RF-137: un resultado con otra forma no aborta la vuelta
+            avisos.append(_aviso_de_revision(t, exc))
+    return avisos
+
+
+def _calidad_de_un_trabajo(t: Mapping[str, Any], tolerancia_pct: float) -> list[Aviso]:
+    avisos = []
+    if t.get('status') not in ('done', 'parcial', 'no_converge') or not isinstance(t.get('result'), Mapping):
+        return avisos
+    r = t['result']
+    pendientes = r.get('pendientes') or []
+    if t.get('status') != 'done':                                          # 081:RF-23
+        avisos.append(Aviso(f"parcial:{t['id']}", 'error',
+                            f"«{t['title']}» terminó {t['status']}: "
+                            + ('; '.join(f"{p.get('alimentador')} {p.get('estado')}" for p in pendientes[:10])
+                               or 'vea su Registro') + '.', trabajo=t['id']))
+    if r.get('caso_base_cambio'):                                          # 081:RF-34
+        avisos.append(Aviso(f"caso_base:{t['id']}", 'error', r['caso_base_cambio']['texto'], trabajo=t['id']))
+    proyecto = r.get('project') or ''
+    feeders = ' '.join(nombres_de_alimentadores(r.get('feeders')))          # 086:RF-136
+    no_converge = [ruta for ruta, v in _recorrer(r) if ruta.split('.')[-1] in ('converge', 'converged')
+                   and v is False]
+    if no_converge:
+        avisos.append(Aviso(f"converge:{t['id']}", 'error',
+                            f"«{t['title']}»: {cuenta(len(no_converge), 'flujo', 'flujos')} sin converger.", trabajo=t['id'],
+                            propuesta=f'verifica el caso base de {proyecto} {feeders}'.strip()
+                            if proyecto else None))
+    fuera = [abs(v) for ruta, v in _recorrer(r) if re.search(r'error_pct$', ruta)
+             and isinstance(v, (int, float)) and abs(v) > tolerancia_pct]
+    if fuera:
+        avisos.append(Aviso(f"calibracion:{t['id']}", 'aviso',
+                            f"«{t['title']}»: {cuenta(len(fuera), 'calibración', 'calibraciones')} fuera de ±{tolerancia_pct:g} % "
+                            f'(peor {max(fuera):.2f} %).', trabajo=t['id']))
+    violaciones = r.get('violaciones')
+    if isinstance(violaciones, list) and violaciones and proyecto:
+        avisos.append(Aviso(f"norma:{t['id']}", 'aviso',
+                            f"«{t['title']}»: {cuenta(len(violaciones), 'violación', 'violaciones')} de la norma.",
+                            trabajo=t['id'], propuesta=f'haz el pide de {proyecto} {feeders}'.strip()))
     return avisos
 
 
@@ -432,14 +505,27 @@ class Vigilante:
             lanzar_suite_separada(self.repo)
         return nuevos
 
+    def vuelta(self) -> list[Aviso]:
+        """Una vuelta del bucle: ``tic`` sin dejar que su fallo tumbe la web.
+
+        086:RF-138: el fallo se avisa con su ``fichero:línea`` y una vez por causa. Del 24-10 al 26-11 quedaron
+        3391 avisos «la vigilancia falló: TypeError(…)» idénticos, uno por minuto, sin decir dónde fallaba.
+        """
+        try:
+            return self.tic()
+        except Exception as exc:  # noqa: BLE001 - la vigilancia no puede tumbar la web
+            donde = donde_fallo(exc)
+            clave = f'vigilancia:{type(exc).__name__}:{donde}'
+            if clave not in self.vistos:
+                self.vistos.add(clave)
+                almacen.anotar('avisos', {'clave': clave, 'nivel': 'error',
+                                          'texto': f'la vigilancia falló: {exc!r} en {donde}'})
+            return []
+
     def arrancar(self) -> threading.Thread:
         def bucle():
             while not self._parar.wait(self.intervalo_s):
-                try:
-                    self.tic()
-                except Exception as exc:  # noqa: BLE001 - la vigilancia no puede tumbar la web
-                    almacen.anotar('avisos', {'clave': 'vigilancia', 'nivel': 'error',
-                                              'texto': f'la vigilancia falló: {exc!r}'})
+                self.vuelta()
 
         hilo = threading.Thread(target=bucle, name='csg-vigilancia', daemon=True)
         hilo.start()

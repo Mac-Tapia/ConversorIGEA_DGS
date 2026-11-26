@@ -21,7 +21,11 @@ git). Nada de esto crea tareas ni casillas de pendiente (RF-4): el resultado es 
     python tools/aceptacion_version.py --matriz config/aceptacion/matriz.json --version <hash> --salida <carpeta>
         [--desde <caso>] [--solo <id,...>] [--variables vars.json]
 
-Códigos de salida: 0 versión aceptada; 1 no aceptada (el informe dice qué caso y por qué); 2 matriz inválida.
+- Una aceptación por carpeta de salida (RF-14): mientras corre, ``<salida>/.aceptacion_en_curso.json`` dice su PID;
+  otra que pida la misma carpeta no corre ningún caso.
+
+Códigos de salida: 0 versión aceptada; 1 no aceptada (el informe dice qué caso y por qué); 2 matriz inválida; 3 otra
+aceptación viva tiene la carpeta de salida.
 """
 from __future__ import annotations
 
@@ -57,6 +61,65 @@ Ejecutor = Callable[[Sequence[str], Path, Path], int]
 
 class MatrizError(ValueError):
     """La matriz no se puede usar: dice por qué."""
+
+
+class AceptacionOcupada(RuntimeError):
+    """100:RF-14: otra aceptación viva tiene la carpeta de salida."""
+
+
+#: 100:RF-14: el candado de la carpeta de salida, con el PID de la aceptación que la tiene.
+CANDADO = '.aceptacion_en_curso.json'
+
+
+def _pid_vivo(pid: int) -> bool:
+    try:
+        import psutil
+    except ImportError:  # sin psutil no se sabe: se da por vivo, mejor negarse que pisar otra corrida
+        return True
+    try:
+        return psutil.pid_exists(pid) and psutil.Process(pid).status() != psutil.STATUS_ZOMBIE
+    except psutil.Error:
+        return False
+
+
+def tomar_candado(salida: Path, vivo: Callable[[int], bool] = _pid_vivo) -> Path:
+    """100:RF-14: toma la carpeta de salida para esta aceptación, o ``AceptacionOcupada`` si otra viva la tiene.
+
+    El 25-11 dos lanzadores de la noche arrancaron a la vez dos aceptaciones con la misma salida y el mismo espacio:
+    cada importación de una borró el proyecto que la otra tenía en cola (005:RF-22), y sus registros se pisaban. El
+    candado de un proceso que ya no vive (cortado por PID) no cuenta: se toma de nuevo.
+    """
+    ruta = salida / CANDADO
+    datos = json.dumps({'pid': os.getpid(), 'inicio': _ahora()}, ensure_ascii=False)
+    for _ in range(2):
+        try:
+            fd = os.open(ruta, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+        except FileExistsError:
+            try:
+                otro = json.loads(ruta.read_text(encoding='utf-8'))
+                pid = int(otro.get('pid'))
+            except (OSError, ValueError, TypeError, AttributeError):
+                otro, pid = {}, -1
+            if pid != os.getpid() and pid > 0 and vivo(pid):
+                raise AceptacionOcupada(
+                    f'otra aceptación (proceso {pid}, desde {otro.get("inicio")}) usa ya la carpeta {salida}: dos a '
+                    'la vez sobre el mismo espacio se borran los proyectos; espere a que termine o córtela por su PID'
+                ) from None
+            ruta.unlink(missing_ok=True)           # de un proceso muerto o ilegible: se toma de nuevo
+            continue
+        with os.fdopen(fd, 'w', encoding='utf-8') as f:
+            f.write(datos)
+        return ruta
+    raise AceptacionOcupada(f'no se pudo tomar el candado {ruta}: otra aceptación lo tomó a la vez')
+
+
+def soltar_candado(ruta: Path) -> None:
+    """Suelta el candado solo si es de esta aceptación."""
+    try:
+        if int(json.loads(ruta.read_text(encoding='utf-8')).get('pid')) == os.getpid():
+            ruta.unlink(missing_ok=True)
+    except (OSError, ValueError, TypeError, AttributeError):
+        pass
 
 
 def cargar_matriz(ruta: Path | str) -> dict[str, Any]:
@@ -225,10 +288,21 @@ def borrador_de_regresion(caso: Mapping[str, Any], version: str, carpeta: Path) 
 def aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path | str, *,
                     variables: Mapping[str, str] | None = None, desde: str | None = None,
                     solo: Sequence[str] | None = None, ejecutar: Ejecutor = _ejecutar_proceso, repo: Path = REPO,
-                    regresiones: Path | None = None) -> dict[str, Any]:
-    """El recorrido en serie de la matriz y el informe de la versión (RF-2, RF-3, RF-5, RF-6, RF-7)."""
+                    regresiones: Path | None = None, vivo: Callable[[int], bool] = _pid_vivo) -> dict[str, Any]:
+    """El recorrido en serie de la matriz y el informe de la versión (RF-2, RF-3, RF-5, RF-6, RF-7), con la carpeta
+    de salida tomada por esta aceptación mientras dura (RF-14)."""
     salida = Path(salida)
     salida.mkdir(parents=True, exist_ok=True)
+    candado = tomar_candado(salida, vivo)
+    try:
+        return _aceptar_version(matriz, version, salida, variables=variables, desde=desde, solo=solo,
+                                ejecutar=ejecutar, repo=repo, regresiones=regresiones)
+    finally:
+        soltar_candado(candado)
+
+
+def _aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path, *, variables, desde, solo, ejecutar,
+                     repo: Path, regresiones: Path | None) -> dict[str, Any]:
     variables = dict(os.environ if variables is None else variables)
     ids = [c['id'] for c in matriz['casos']]
     for pedido in [desde, *(solo or ())]:
@@ -280,6 +354,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     except MatrizError as exc:
         print(f'matriz inválida: {exc}', file=sys.stderr)
         return 2
+    except AceptacionOcupada as exc:
+        print(f'no se corre: {exc}', file=sys.stderr)
+        return 3
     v = informe['veredicto']
     print(f'versión {a.version}: {"ACEPTADA" if v["aceptada"] else "NO ACEPTADA"}')
     for m in v['motivos']:

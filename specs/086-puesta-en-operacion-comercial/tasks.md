@@ -647,3 +647,12 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       «Buscar la máxima» la pide. (RF-126)
       Hecho cuando: `frontend/test/ambitoMaxima.test.mjs` (086:RF-126) en rojo por aserción con la pantalla anterior y en
       verde con la nueva, `npm test`, `tsc` y `npm run build` en verde, y la pantalla revisada en el navegador.
+- [x] T114 VIGILANCIA-FEEDERS (26-11; 3391 avisos «la vigilancia falló: TypeError('sequence item 0: expected str
+      instance, dict found')» del 24-10 al 26-11): `vigilancia.nombres_de_alimentadores` en `revisar_calidad`; cada
+      trabajo se revisa aparte en `revisar_trabajos` y `revisar_calidad` (`_aviso_de_revision`, clave `revision:<id>`);
+      `Vigilante.vuelta` avisa con `donde_fallo` (fichero:línea) una vez por causa. (RF-136, RF-137, RF-138)
+      Hecho cuando: `tests/test_asistente_vigilancia.py` (086:RF-136, 086:RF-137, 086:RF-138) en rojo por aserción con
+      la vigilancia anterior y en verde con la nueva, con `tests/test_inventario.py` y `tests/test_trazabilidad_specs.py`.
+      Hecho el 2026-11-26 (agente de vigilancia, worktree `wt_vigilancia`): rojo por aserción
+      D:/csg/PM_IMPL/VIGILANCIA/rojo.log (3 failed, 5 passed: el TypeError real reproducido) y verde
+      D:/csg/PM_IMPL/VIGILANCIA/verde_vigilancia.log (8 passed) y verde_gobierno.log.

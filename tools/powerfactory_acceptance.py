@@ -50,6 +50,7 @@ import re
 import shutil
 import sys
 import time
+from collections.abc import Sequence
 from datetime import datetime
 from pathlib import Path
 from typing import Any
@@ -442,6 +443,7 @@ def import_dgs_file(
     *,
     project_name: str | None = None,
     carpeta: str | None = None,
+    conservar: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Importa un DGS con ComImport en un proyecto nuevo dentro de la carpeta (spec 005).
 
@@ -452,7 +454,8 @@ def import_dgs_file(
     un proyecto antiguo que se llame igual (RF-20). Si no se puede mover, el proyecto
     recién creado se borra, para no dejarlo suelto en la raíz (RF-9).
 
-    ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``).
+    ``carpeta`` None toma la del perfil de empresa (``config/perfil_empresa.json``). ``conservar``: los proyectos
+    con trabajos pendientes en la web, que la retirada de las versiones anteriores no borra (100:RF-16).
     """
     from convertersmartgrid.adaptadores.carpeta_pf import (
         CarpetaError, asegurar_carpeta, eliminar_versiones_anteriores, nombre_de_perfil, nombre_libre,
@@ -569,7 +572,7 @@ def import_dgs_file(
                       f'no el importado {nombre!r}.')
     if not errors:
         # 005:RF-22: importado y activo el nuevo, las versiones obsoletas del mismo proyecto sobran.
-        warnings += eliminar_versiones_anteriores(app, destino, nombre)
+        warnings += eliminar_versiones_anteriores(app, destino, nombre, conservar)
 
     return {
         'project_name': nombre,
@@ -1838,6 +1841,7 @@ def run_import_activate_flow(
     persist_dgs: bool = True,
     persist_dir: Path | str | None = None,
     export_converged_dgs: bool = True,
+    conservar: Sequence[str] = (),
 ) -> dict[str, Any]:
     """Import DGS, activate study/scenario, run load flow and optional study suite.
 
@@ -1861,7 +1865,7 @@ def run_import_activate_flow(
 
     try:
         import_info = import_dgs_file(app, Path(dgs_path), project_name=project_name,
-                                      carpeta=carpeta)
+                                      carpeta=carpeta, conservar=conservar)
     except Exception as exc:
         report['errors'].append(f'DGS import failed: {exc}')
         return report
@@ -3477,6 +3481,9 @@ def _parser() -> argparse.ArgumentParser:
     p.add_argument('--pf-carpeta', metavar='NOMBRE',
                    help='Carpeta de DIgSILENT donde queda el proyecto importado (spec 005). '
                         'Por defecto, la del perfil de empresa o «ConverterSmartGrid».')
+    p.add_argument('--conservar', nargs='*', default=[], metavar='PROYECTO',
+                   help='Proyectos con trabajos pendientes en la web: la retirada de las versiones anteriores '
+                        'del importado no los borra (100:RF-16)')
     p.add_argument('--feeder-metadata', help='Sidecar de procedencia por alimentador ligado al DGS')
     p.add_argument('--source-run-id', help='Ejecución fuente que debe declarar el sidecar')
     p.add_argument('--source-mode', choices=('txt', 'mdb', 'vnr'), help='Modo de la ejecución fuente')
@@ -3721,6 +3728,7 @@ def main(argv=None) -> int:
                 Path(args.import_dgs),
                 project_name=args.project_name,
                 carpeta=args.pf_carpeta,
+                conservar=args.conservar,
                 feeder_metadata_path=args.feeder_metadata,
                 ensure_scenario=ensure_scenario,
                 run_load_flow_flag=want_flow and not run_studies,
@@ -3827,6 +3835,7 @@ def main(argv=None) -> int:
                 Path(args.import_dgs),
                 project_name=args.project_name,
                 carpeta=args.pf_carpeta,
+                conservar=args.conservar,
             )
             time.sleep(0.5)
             if not import_info['ok']:

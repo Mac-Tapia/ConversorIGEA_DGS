@@ -71,6 +71,7 @@ from casos_pf import caso as caso_del_sistema
 import transferencia_operador_pf as transferencia_pf
 from _plural import cuenta, plural
 
+from convertersmartgrid.adaptadores.carpeta_pf import proyecto_ausente
 from convertersmartgrid.dominio.comprobacion_flujo import huella_de_caso
 from convertersmartgrid.aplicacion.demanda_medida import BANDA_TENSION_FUENTE_PU, origen_de_la_tension
 from convertersmartgrid.dominio.native_action import native_action_block_report
@@ -3074,8 +3075,7 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
                'modo': 'simular' if simular else 'aplicar', 'avisos': [], 'cancelado': False}
     proyecto = activar_proyecto(app, plan['project'], plan.get('folder'))
     if proyecto is None:
-        return {**informe, 'error': f"no existe el proyecto {plan['project']!r} en la carpeta "
-                                    f"{plan.get('folder')!r} de DIgSILENT"}, 2
+        return {**informe, 'error': proyecto_ausente(plan['project'], plan.get('folder'))}, 2   # 100:RF-17
     alims = Alimentadores(app, proyecto, [feeder])
     elm = alims.elm.get(feeder)
     if elm is None or getattr(elm, 'obj_id', None) is None:
@@ -3833,6 +3833,12 @@ def _con_bancos_que_faltan(app, planes: list[dict], *, cancelado, estado: dict) 
         plan['manuales_de_la_primera'] = [m['sed'] for m in inf.get('cargas_manuales') or []]
     pedidos, avisos = {}, []
     proyecto = activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
+    if proyecto is None:
+        # 100:RF-17: el 25-11 el proyecto ya no estaba (lo borró la importación de otra versión del mismo alimentador);
+        # la primera pasada lo dijo en su informe y aquí ``Alimentadores(app, None, …)`` reventaba con «'NoneType'
+        # object has no attribute 'GetContents'», que era lo único que llegaba a la web.
+        motivo = proyecto_ausente(planes[0]['project'], planes[0].get('folder'))
+        return [({**inf, 'error': inf.get('error') or motivo}, rc or 2) for inf, rc in primera]
     alims = Alimentadores(app, proyecto, [p['feeder'] for p in planes])
     for plan, (inf, _rc) in zip(planes, primera):
         f = plan['feeder']
@@ -4198,8 +4204,7 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                      'se calibra un proyecto cada vez (021:RF-54)')
     proyecto = activar_proyecto(app, nombre, planes[0].get('folder'))
     if proyecto is None:
-        return todos(f"no existe el proyecto {nombre!r} en la carpeta "
-                     f"{planes[0].get('folder')!r} de DIgSILENT")
+        return todos(proyecto_ausente(nombre, planes[0].get('folder')))                    # 100:RF-17
     crono.marca('activar el proyecto')
     alims = Alimentadores(app, proyecto, feeders)
     crono.marca('leer los alimentadores')

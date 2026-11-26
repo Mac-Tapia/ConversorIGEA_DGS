@@ -32,3 +32,16 @@ por motor, con el estado de las specs como única fuente.
 - RF-11: EL SISTEMA escribirá los nombres y motivos de la matriz para el operador, sin números de spec, de requisito ni plurales entre paréntesis.
 - RF-12: MIENTRAS un estudio esté «sin validar» con el motor que usa su botón o su pestaña, EL SISTEMA lo marcará «Sin validar» junto a su nombre sin impedir usarlo; SI está «no disponible», ENTONCES lo apagará con su motivo; un estudio validado no llevará marca.
 - RF-13: EL SISTEMA leerá el estado de las specs de `specs/` si está y, si no (el programa instalado, cuya entrega la excluye), del recurso `recursos/estado_specs.json` que viaja en el paquete, escrito junto a `specs/README.md` con su huella; solo sin ninguno de los dos dará lo validable por «sin validar», y la matriz dirá de cuál de los tres orígenes salió.
+
+
+### Dos corridas sobre el mismo espacio (2026-11-26)
+
+El 25-11 dos lanzadores de la noche arrancaron a la vez dos aceptaciones con la misma carpeta de salida y el mismo
+espacio de la web. Cada una importaba el mismo alimentador; la retirada de las versiones anteriores al importar
+(005:RF-22) borraba el proyecto que la otra tenía en cola para calibrar, y la calibración fallaba con un error interno
+del guion («'NoneType' object has no attribute 'GetContents'») en vez de decir que el proyecto ya no estaba.
+
+- RF-14: SI otra aceptación viva tiene la carpeta de salida pedida, ENTONCES EL SISTEMA no correrá ningún caso y terminará con un código propio y un mensaje que nombre el proceso que la tiene.
+- RF-15: SI otro `sistema_web.py` vivo trabaja sobre el mismo espacio de la web, ENTONCES EL SISTEMA no convertirá ni importará nada y terminará con un fallo que nombre ese proceso.
+- RF-16: CUANDO una importación retire las versiones anteriores de su proyecto (005:RF-22), EL SISTEMA conservará, con un aviso, las que nombre un trabajo de la web en cola o en curso.
+- RF-17: SI el proyecto de una calibración ya no está en DIgSILENT, ENTONCES EL SISTEMA dejará en cada informe un error que nombre el proyecto, la carpeta y la causa probable, con el código de proyecto ausente, en vez de un error interno del guion.

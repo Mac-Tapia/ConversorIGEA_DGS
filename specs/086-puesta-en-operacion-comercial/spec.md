@@ -592,6 +592,16 @@ mientras los demás casos pasaban a 1,0278.
   con central) de una máxima que esté entre ellas; si no lo está, dirá en una frase que hay que volver a buscarla. Al
   abrir la web tras otra búsqueda o un reinicio del servidor, pedía las de la máxima anterior y recibía 404: ocho
   errores en la consola por cada carga.
+- RF-136: (vigilancia del asistente, 26-11; amplía 026:RF-24, cumplida) EL SISTEMA tomará los alimentadores del
+  resultado de un trabajo tanto si vienen como nombres como si vienen como filas con su nombre, y omitirá los que no
+  traigan nombre, sin abortar la vuelta de la vigilancia por la forma de un resultado. Del 24-10 al 26-11 el resultado
+  de «Verificar el Caso base», una fila por alimentador, abortó la vigilancia cada minuto (3391 avisos
+  «la vigilancia falló: TypeError»): ni reintentos, ni avisos de calidad, ni ciclos de aprendizaje.
+- RF-137: SI la revisión de un trabajo concreto falla, ENTONCES EL SISTEMA saltará la revisión de ese trabajo con un
+  aviso que nombre el trabajo y la causa, y seguirá revisando los demás trabajos de la misma vuelta.
+- RF-138: CUANDO una vuelta entera de la vigilancia falle, EL SISTEMA avisará «la vigilancia falló» con la causa y el
+  fichero y la línea del último paso de la traza que no sea de la biblioteca estándar, una sola vez por causa
+  (tipo de error y línea) mientras viva la web, en vez de un aviso idéntico por minuto.
 
 ## Fuera de alcance
 

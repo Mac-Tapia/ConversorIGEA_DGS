@@ -204,3 +204,41 @@ def test_100_rf7_veredicto_la_salida_da_1_si_no_se_acepta_y_2_con_una_matriz_inv
     assert mod.main(['--matriz', str(MATRIZ), '--version', 'x' * 40, '--salida', str(tmp_path / 's'),
                      '--variables', str(vacio)]) == 1
     assert 'NO ACEPTADA' in capsys.readouterr().out
+
+
+# --- T7: una aceptación por carpeta de salida (RF-14) ---------------------------------------------------------------
+def test_100_rf14_otra_aceptacion_viva_en_la_misma_salida_no_deja_correr_ningun_caso(tmp_path):
+    """100:RF-14 — 25-11: dos lanzadores de la noche arrancaron dos aceptaciones a la vez sobre la misma carpeta y el
+    mismo espacio; cada importación de una borró el proyecto de la otra (005:RF-22) y la calibración falló con un
+    error interno. Con el candado vivo de otra, ningún caso se corre y el error nombra su proceso; con el candado de un
+    proceso muerto, se toma, se corre y se suelta al terminar."""
+    mod = _herramienta()
+    assert hasattr(mod, 'CANDADO'), 'la aceptación no toma un candado de su carpeta de salida (100 T7)'
+    matriz, salida = mod.cargar_matriz(MATRIZ), tmp_path / 's'
+    salida.mkdir()
+    candado = salida / mod.CANDADO
+    candado.write_text(json.dumps({'pid': 4242, 'inicio': '2041-01-01T23:25:55'}), encoding='utf-8')
+    web = WebFalsa()
+    with pytest.raises(mod.AceptacionOcupada, match='4242'):
+        mod.aceptar_version(matriz, 'a' * 40, salida, variables=_variables(random.Random(SEMILLA)), ejecutar=web,
+                            regresiones=tmp_path / 'reg', vivo=lambda pid: pid == 4242)
+    assert web.llamadas == [] and json.loads(candado.read_text(encoding='utf-8'))['pid'] == 4242
+    informe = mod.aceptar_version(matriz, 'a' * 40, salida, variables=_variables(random.Random(SEMILLA)), ejecutar=web,
+                                  regresiones=tmp_path / 'reg', vivo=lambda pid: False)
+    assert web.llamadas and informe['veredicto']['aceptada'] and not candado.exists()
+
+
+def test_100_rf14_la_orden_sale_con_3_si_otra_aceptacion_tiene_la_salida(tmp_path, capsys):
+    """100:RF-14 — por la línea de órdenes: con la carpeta tomada por un proceso vivo (aquí, el que lanzó pytest),
+    sale con 3 y dice qué proceso la tiene, sin tocar el informe."""
+    import os
+
+    mod = _herramienta()
+    assert hasattr(mod, 'CANDADO'), 'la aceptación no toma un candado de su carpeta de salida (100 T7)'
+    salida = tmp_path / 's'
+    salida.mkdir()
+    (salida / mod.CANDADO).write_text(json.dumps({'pid': os.getppid(), 'inicio': 'antes'}), encoding='utf-8')
+    assert mod.main(['--matriz', str(MATRIZ), '--version', 'x' * 40, '--salida', str(salida)]) == 3
+    err = capsys.readouterr().err
+    assert str(os.getppid()) in err and 'otra aceptación' in err
+    assert not (salida / 'informe.json').exists()

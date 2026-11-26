@@ -738,6 +738,41 @@ def con_proyecto(web: Web, proyecto: str, feeders: list[str], *, tipo_cambio: fl
     return 0 if estado['status'] == 'done' else 1
 
 
+def _procesos_de_la_maquina() -> tuple[list[tuple[int, list[str]]], set[int]]:
+    """Los procesos vivos con su línea de órdenes, y los propios: este, sus antecesores (el lanzador del ``.venv``,
+    que repite la misma línea) y sus hijos."""
+    import psutil
+
+    yo = psutil.Process()
+    propios = {yo.pid} | {p.pid for p in yo.parents()} | {p.pid for p in yo.children(recursive=True)}
+    procesos = []
+    for proc in psutil.process_iter(['pid', 'cmdline']):
+        try:
+            procesos.append((proc.info['pid'], list(proc.info.get('cmdline') or [])))
+        except (psutil.Error, OSError):  # un proceso que desaparece o que no se deja mirar
+            continue
+    return procesos, propios
+
+
+def otro_guion_del_espacio(espacio: str, *, procesos=None, propios=None) -> int | None:
+    """100:RF-15: el PID de otro ``sistema_web.py`` vivo sobre el mismo espacio de la web, o None.
+
+    El 25-11 dos aceptaciones lanzaron a la vez este guion sobre el mismo espacio: cada uno importaba el mismo
+    alimentador y la retirada de las versiones anteriores (005:RF-22) borraba el proyecto que el otro tenía en cola.
+    """
+    if procesos is None:
+        procesos, propios = _procesos_de_la_maquina()
+    propios = set(propios or ())
+    for pid, cmd in procesos:
+        if pid in propios or not any(str(c).replace('\\', '/').endswith('sistema_web.py') for c in cmd):
+            continue
+        valores = [cmd[i + 1] for i, c in enumerate(cmd[:-1]) if c == '--espacio']
+        valores += [c.split('=', 1)[1] for c in cmd if str(c).startswith('--espacio=')]
+        if espacio in valores:
+            return pid
+    return None
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Convierte, importa y calibra un sistema eléctrico '
                                             'entero por la web (spec 022 y 025)')
@@ -794,6 +829,13 @@ def main(argv=None) -> int:
         sys.stdout.reconfigure(encoding='utf-8', errors='replace', line_buffering=True)
     except (AttributeError, ValueError):
         pass
+    otro = otro_guion_del_espacio(args.espacio)                                       # 100:RF-15
+    if otro is not None:
+        # Código 1 (fallo, no recuperable): repetirlo mientras el otro sigue haría lo mismo.
+        print(f'ERROR: otro sistema_web.py (proceso {otro}) trabaja ya sobre el espacio {args.espacio}: dos a la vez '
+              'importan el mismo alimentador y cada importación borra el proyecto que el otro tiene en cola. '
+              'Espere a que termine o cancélelo, y vuelva a lanzar esta orden.')
+        return 1
     web = Web(args.url, args.espacio)
     if args.con_proyecto and args.proyecto:
         try:

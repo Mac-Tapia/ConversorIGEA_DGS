@@ -1159,3 +1159,68 @@ def test_al_importar_se_eliminan_las_versiones_anteriores():
     otro.Activate()
     assert 'activo' in eliminar_versiones_anteriores(app, carpeta, nuevo)[0]
     assert otro in carpeta.GetContents('*.IntPrj')
+
+
+def test_100_rf16_la_retirada_de_versiones_conserva_las_que_tienen_trabajos_pendientes(dgs):
+    """100:RF-16 — 25-11: la importación de otra versión del mismo alimentador borró (005:RF-22) el proyecto que la
+    web aún tenía en cola para calibrar, y la calibración falló. Los nombres salen de los títulos de los trabajos
+    pendientes; la retirada se salta esos con un aviso y sigue borrando los demás, también al importar."""
+    from convertersmartgrid.adaptadores import carpeta_pf
+
+    assert hasattr(carpeta_pf, 'proyectos_nombrados'), 'la retirada no sabe qué proyectos tienen trabajos (100 T9)'
+    eliminar_versiones_anteriores, proyectos_nombrados = carpeta_pf.eliminar_versiones_anteriores, carpeta_pf.proyectos_nombrados
+
+    ocupado, libre = '20411125-232931_CSG_TXT_ZZ901', '20411125-232635_CSG_TXT_ZZ901'
+    assert proyectos_nombrados([f'Ajustar ZZ901 a la máxima · {ocupado}', 'Leer proyectos de DIgSILENT',
+                                f'Verificar el Caso base · {ocupado}', None]) == {ocupado}
+    app = _app()
+    carpeta = asegurar_carpeta(app.usuario, 'Red')
+    nuevo = '20411125-233228_CSG_TXT_ZZ901'
+    for n in (nuevo, ocupado, libre):
+        _proyecto(app, carpeta, n)
+    avisos = eliminar_versiones_anteriores(app, carpeta, nuevo, conservar={ocupado})
+    assert _proyectos_en(carpeta) == sorted([nuevo, ocupado])
+    assert any(ocupado in a and 'trabajos pendientes' in a for a in avisos), avisos
+
+    app = _app()
+    carpeta = asegurar_carpeta(app.usuario, 'Red')
+    viejo, en_cola = '20411125-000000_CSG_SI293', '20411125-000001_CSG_SI293'
+    for n in (viejo, en_cola):
+        _proyecto(app, carpeta, n)
+    info = _mod_aceptacion().import_dgs_file(app, dgs, project_name='20411126-000000_CSG_SI293', carpeta='Red',
+                                             conservar=[en_cola])
+    assert info['ok'] and _proyectos_en(carpeta) == sorted(['20411126-000000_CSG_SI293', en_cola])
+    assert any(en_cola in a for a in info['warnings'])
+
+def test_100_rf16_la_web_pasa_a_la_importacion_los_proyectos_de_sus_trabajos_pendientes():
+    """100:RF-16 — cada trabajo ve los demás sin terminar de la web (de cualquier espacio y carril), y la importación
+    toma de ellos los proyectos que no puede borrar: por el título y por la petición con que se relanza."""
+    import threading
+
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.jobs import JobManager
+
+    jobs = JobManager(lambda *_a: None)
+    retener, visto = threading.Event(), []
+    try:
+        jobs.submit('A', 'ajuste', 'Ajustar ZZ901 a la máxima · 20411125-232931_CSG_TXT_ZZ901',
+                    lambda _ctx: retener.wait(5), lane='engine')
+        b = jobs.submit('B', 'pf', 'Importar ZZ901', lambda ctx: visto.extend(services.proyectos_con_trabajos_pendientes(ctx)),
+                        lane='powerfactory')
+        for _ in range(100):
+            if b.status in ('done', 'failed'):
+                break
+            time.sleep(0.05)
+        assert b.status == 'done', b.error
+        assert visto == ['20411125-232931_CSG_TXT_ZZ901']
+    finally:
+        retener.set()
+        jobs.shutdown(timeout_s=2)
+
+    class Ctx:
+        def pendientes(self):
+            class J:
+                title, reanudar = 'Recalibrar', {'tipo': 'recalibrar', 'datos': {'project': '20411125-000000_CSG_X1'}}
+            return [J()]
+    assert services.proyectos_con_trabajos_pendientes(Ctx()) == ['20411125-000000_CSG_X1']
+    assert services.proyectos_con_trabajos_pendientes(object()) == []

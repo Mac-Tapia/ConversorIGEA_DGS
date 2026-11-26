@@ -1339,6 +1339,23 @@ def _causas_de_no_convergencia(flujo: dict, preflight: dict, feeder: str) -> lis
             for c in causas]
 
 
+def proyectos_con_trabajos_pendientes(ctx) -> list[str]:
+    """100:RF-16: los proyectos de DIgSILENT que nombran los demás trabajos sin terminar de la web.
+
+    Por el título («Ajustar … · <proyecto>») y por la petición con que se relanzan. El 25-11 dos clientes importaban
+    el mismo alimentador a la vez y la retirada de las versiones anteriores (005:RF-22) borró el proyecto que el otro
+    tenía en cola para calibrar. Sin la lista (un contexto de prueba), ninguno.
+    """
+    from ...adaptadores.carpeta_pf import proyectos_nombrados
+
+    pendientes = getattr(ctx, 'pendientes', None)
+    textos: list[str] = []
+    for j in (pendientes() if callable(pendientes) else []):
+        datos = (getattr(j, 'reanudar', None) or {}).get('datos') or {}
+        textos += [getattr(j, 'title', None) or '', str(datos.get('project') or '')]
+    return sorted(proyectos_nombrados(textos))
+
+
 def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_errors, artifacts) -> dict:
     """Calcula e importa las mismas copias privadas durante toda la vida del proceso."""
     script = _script('powerfactory_acceptance.py')
@@ -1407,6 +1424,11 @@ def _importar_dgs_fijados(ws, ctx, jobs, missing, source_evidence, control, pin_
         # modifica el modelo (escala cargas) sin pedirlo. Los estudios se lanzan aparte.
         cmd = [str(interpreter), str(script), '--import-dgs', str(dgs),
                '--ensure-scenario', '--run-load-flow', '--pf-carpeta', carpeta]
+        # 100:RF-16: justo antes de cada importación, por si otro trabajo se encoló durante la anterior.
+        conservar = proyectos_con_trabajos_pendientes(ctx)
+        if conservar:
+            ctx.log(f'  Con trabajos pendientes en la web, no se borran al importar: {", ".join(conservar)}')
+            cmd += ['--conservar', *conservar]
         metadata_path = dgs.with_name(f'{dgs.stem}_feeder_metadata.json')
         cmd += ['--feeder-metadata', str(metadata_path)]
         if source_evidence is not None:

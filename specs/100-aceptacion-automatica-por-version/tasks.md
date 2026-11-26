@@ -20,3 +20,15 @@
       Hecho cuando: `node --test test/matrizEstudios.test.mjs` y `tsc` en verde, con su rojo sobre faf67626.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T7. `tools/aceptacion_version.py` toma un candado de su carpeta de salida y sale con 3 si otra viva la tiene. (RF-14)
+      Hecho cuando: `pytest -q tests/test_aceptacion_version.py -k rf14` en verde, con su rojo por aserción sobre cf484bd4.
+      Hecho el 2026-11-26 (agente cal-borrado, entregado por parche a d8): rojo y verde en D:/csg/PM_IMPL/CAL_BORRADO.
+- [x] T8. `tools/sistema_web.py` no empieza si otro `sistema_web.py` vivo tiene el mismo espacio. (RF-15)
+      Hecho cuando: `pytest -q tests/test_sistema_web.py -k rf15` en verde, con su rojo por aserción sobre cf484bd4.
+      Hecho el 2026-11-26 (agente cal-borrado): rojo y verde en D:/csg/PM_IMPL/CAL_BORRADO.
+- [x] T9. La web pasa a la importación los proyectos de sus trabajos pendientes (`--conservar`) y la retirada de versiones anteriores no los borra. (RF-16)
+      Hecho cuando: `pytest -q tests/test_carpeta_pf.py -k rf16` en verde, con su rojo por aserción sobre cf484bd4.
+      Hecho el 2026-11-26 (agente cal-borrado): rojo y verde en D:/csg/PM_IMPL/CAL_BORRADO.
+- [x] T10. La calibración con un proyecto que ya no está deja el error claro en cada informe, también con los bancos que faltan. (RF-17)
+      Hecho cuando: `pytest -q tests/test_ajuste_proyecto_guion.py -k rf17` en verde, con su rojo sobre cf484bd4 (el `AttributeError` del 25-11).
+      Hecho el 2026-11-26 (agente cal-borrado): rojo y verde en D:/csg/PM_IMPL/CAL_BORRADO.
