@@ -54,6 +54,7 @@ es de 60 Hz y las normas de referencia son las peruanas.
 | `gemelo` | empresa | Modelos que no se venden en la 1.0 | Sin efecto |
 | `asistente` | empresa | Subtipos de estudio del asistente | Los del programa |
 | `valle` | empresa | Puntos de la búsqueda de la ventana de valle | Los del programa |
+| `obras_graficas` | empresa | Color y achurado de las obras nuevas en los diagramas de DIgSILENT: `color_indice` (color de la paleta de DIgSILENT; 2 es el rojo), `coloreado` (`variaciones`, `etapa_de_registro`, `ubicacion_original` o null), `paginas` (101 datos básicos, 102 flujo de carga…), y `grafico`, `conector` y `normal` con atributos de `IntGrf` e `IntGrfcon` («color» es el de `color_indice`) | Rojo (2), «Modificaciones en variaciones» en 101 y 102, sin atributos de símbolo |
 
 ### Límites de los estudios
 

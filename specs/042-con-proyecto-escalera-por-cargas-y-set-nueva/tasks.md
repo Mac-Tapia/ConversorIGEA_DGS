@@ -178,3 +178,12 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
 - [x] T68. Retirar obras por su nombre desde la web. (RF-108)
       Hecho cuando: la ruta encola `retirar_obras` y rechaza las que no constan.
       Cerrada el 2026-11-25: rojo válido y verde en sus pruebas.
+- [x] T69. Las obras nuevas, coloreadas y achuradas en los diagramas de cualquier proyecto. (RF-109 a RF-112)
+      Hecho cuando: `resaltar_obras` pone el color a las `Obra_*`, deja «Modificaciones en variaciones» en las páginas
+      del estilo, marca los símbolos de lo que graban y devuelve los de una obra retirada, con el estilo de
+      `obras_graficas` o su valor por defecto; y `tests/test_obras_pf_guion_042.py` lo prueba con rojo por aserción.
+      Cerrada el 2026-11-25: rojo por aserción (las funciones vacías) y verde en `tests/test_obras_pf_guion_042.py`.
+- [ ] T70. [DIgSILENT] El estilo de las obras, comparado con el del proyecto de prueba NA203_NA205. (RF-109, RF-110)
+      Hecho cuando: tras aplicar obras en un proyecto real, el informe trae `resaltado` sin avisos, cada `Obra_*` tiene
+      el color del estilo, el coloreado del diagrama muestra las obras como en NA203_NA205 y, al retirarlas, sus
+      símbolos vuelven a su estilo sin obra.

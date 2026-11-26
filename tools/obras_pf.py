@@ -3360,6 +3360,126 @@ def georreferenciar_obras(app, filas: list[dict]) -> None:
             fila.setdefault('avisos', []).append('Hay elementos de esta obra sin coordenadas en sus barras (042:RF-36).')
 
 
+#: 042:RF-109: atributo del color de una variación («Variation Colour» del manual de PF 2024, 16.2); el primero que
+#: tenga la versión instalada.
+ATRIBUTOS_COLOR_VARIACION = ('icolor', 'iColor')
+
+
+def _tiene(obj, atributo: str) -> bool:
+    """Si el objeto tiene el atributo en esta versión de DIgSILENT, sin escribir nada para saberlo."""
+    try:
+        if hasattr(obj, 'HasAttribute'):
+            return bool(obj.HasAttribute(atributo))
+        obj.GetAttribute(atributo)
+        return True
+    except Exception:  # noqa: BLE001 - un atributo que no es de esta clase o versión
+        return False
+
+
+def _valor_de_estilo(valor, color):
+    return color if valor == 'color' else valor
+
+
+def _poner_estilo(obj, atributos: dict, color, avisos: set) -> bool:
+    """Escribe los atributos del estilo que tenga el objeto; el que no tenga se dice una vez (042:RF-112). Cierto si
+    cambió alguno."""
+    cambio = False
+    for atributo, valor in atributos.items():
+        valor = _valor_de_estilo(valor, color)
+        if valor is None or not _tiene(obj, atributo):
+            avisos.add(f'{obj.GetClassName()}.{atributo}')
+            continue
+        if obj.GetAttribute(atributo) != valor:
+            obj.SetAttribute(atributo, valor)
+            cambio = True
+    return cambio
+
+
+def _con_estilo(obj, atributos: dict, color) -> bool:
+    """Si el objeto lleva ya todos los atributos del estilo de obra: así se reconoce lo que marcó una obra retirada."""
+    return bool(atributos) and all(_tiene(obj, a) and obj.GetAttribute(a) == _valor_de_estilo(v, color)
+                                   for a, v in atributos.items())
+
+
+def _resaltar_sin_tumbar(app, proyecto, informe: dict) -> None:
+    """Marcar las obras en los diagramas no puede perder las obras ya aplicadas ni las ya retiradas."""
+    try:
+        informe['resaltado'] = resaltar_obras(app, proyecto)
+        informe['avisos'] += informe['resaltado']['avisos']
+    except Exception as exc:  # noqa: BLE001 - sin el estilo las obras calculan igual; se dice
+        informe['avisos'].append(f'No se pudieron marcar las obras en los diagramas: {type(exc).__name__}: {exc}.')
+
+
+def resaltar_obras(app, proyecto, estilo: dict | None = None) -> dict:
+    """042:RF-109 a RF-112: las obras nuevas, coloreadas y achuradas en todos los diagramas, en cualquier proyecto.
+
+    Usuario (2026-11-25): «los achurados y coloreados deben ser como se hizo en NA205_NA203, esto debe ser universal
+    para cualquier proyecto en DIgSILENT para identificar las nuevas obras». Las obras son las variaciones ``Obra_*``,
+    también las del operador: lo que no es de ninguna no se marca. Se hace con lo nativo de DIgSILENT: el color de
+    cada variación y el coloreado «Modificaciones en variaciones» (``SetColscheme.SetColouring``), que pinta lo que la
+    obra añade o cambia y deja de pintarlo solo cuando la obra se retira. Los atributos de ``grafico`` y ``conector``
+    del estilo van a los símbolos de lo que las obras graban; los símbolos no están en la variación (016:RF-89), así
+    que en cada pasada se recalcula todo: el que lleva el estilo de obra y ya no es de ninguna vuelve a ``normal``.
+    Se llama con «Con proyecto» activo, después de dibujar las obras.
+    """
+    from convertersmartgrid.dominio.perfil_empresa import estilo_obras_graficas
+
+    estilo = estilo_obras_graficas(datos_perfil()) if estilo is None else estilo
+    hecho: dict[str, Any] = {'variaciones': [], 'graficos': 0, 'normales': 0, 'coloreado': [], 'avisos': []}
+    sin_atributo: set[str] = set()
+    # Índice de la paleta, como icolor de la variación e iCol del símbolo en NA203_NA205 (1 y 4): un ARGB de
+    # EncodeColour en un atributo de paleta no daría el color pedido.
+    color = estilo['color_indice']
+    carpeta = app.GetProjectFolder('scheme')
+    obras = [v for v in ((carpeta.GetContents('*.IntScheme', 1) if carpeta is not None else None) or [])
+             if str(v.loc_name).startswith('Obra_')]
+    de_obra = set()
+    for v in obras:
+        atributo = next((a for a in ATRIBUTOS_COLOR_VARIACION if _tiene(v, a)), None)
+        if color is not None and atributo is None:
+            sin_atributo.add('IntScheme.' + '/'.join(ATRIBUTOS_COLOR_VARIACION))
+        elif color is not None:
+            if v.GetAttribute(atributo) != color:
+                v.SetAttribute(atributo, color)
+            hecho['variaciones'].append(v.loc_name)
+        for etapa in v.GetContents('*.IntSstage') or []:
+            de_obra |= {(o.GetClassName(), o.loc_name) for o in etapa.GetContents('*', 1) or []}
+    if estilo['grafico'] or estilo['conector']:
+        for net in proyecto.GetContents('*.IntGrfnet', 1) or []:
+            for grf in net.GetContents('*.IntGrf') or []:
+                obj = getattr(grf, 'pDataObj', None)
+                if obj is None:
+                    continue
+                conectores = list(grf.GetContents('*.IntGrfcon') or []) if estilo['conector'] else []
+                if (obj.GetClassName(), obj.loc_name) in de_obra:
+                    cambio = _poner_estilo(grf, estilo['grafico'], color, sin_atributo)
+                    for con in conectores:
+                        cambio = _poner_estilo(con, estilo['conector'], color, sin_atributo) or cambio
+                    hecho['graficos'] += 1
+                elif (_con_estilo(grf, estilo['grafico'], color)
+                      or any(_con_estilo(c, estilo['conector'], color) for c in conectores)):
+                    normal = estilo['normal']
+                    _poner_estilo(grf, {a: normal[a] for a in estilo['grafico']}, color, sin_atributo)
+                    for con in conectores:
+                        _poner_estilo(con, {a: normal[a] for a in estilo['conector']}, color, sin_atributo)
+                    hecho['normales'] += 1
+    if estilo.get('modo'):
+        for esquema in proyecto.GetContents('*.SetColscheme', 1) or []:
+            for pagina in estilo['paginas']:
+                try:
+                    ok = esquema.SetColouring(str(pagina), -1, -1, estilo['modo'])
+                except Exception as exc:  # noqa: BLE001 - un esquema que no se deja no impide los demás
+                    ok, sin_atributo = 0, sin_atributo | {f'SetColscheme.SetColouring ({type(exc).__name__})'}
+                hecho['coloreado'].append({'esquema': esquema.loc_name, 'pagina': pagina, 'ok': bool(ok)})
+        if not hecho['coloreado']:
+            hecho['avisos'].append('El proyecto no tiene esquema de coloreado (SetColscheme): las obras se ven con su '
+                                   'color al elegir «Modificaciones en variaciones» en el coloreado del diagrama.')
+    if sin_atributo:
+        hecho['avisos'].append('Esta versión de DIgSILENT no tiene, del estilo de las obras, '
+                               + ', '.join(sorted(sin_atributo)) + '; se omiten.')
+    return hecho
+
+
 def aplicar(app, plan: dict, *, simular: bool = False,
             cancelado=lambda: False) -> tuple[dict, int]:
     """Simula o aplica las obras del plan. Devuelve (informe, código de salida)."""
@@ -3460,6 +3580,7 @@ def aplicar(app, plan: dict, *, simular: bool = False,
             except Exception as exc:  # noqa: BLE001 - situarlas no puede perder las obras ya aplicadas
                 informe['avisos'].append(f'No se pudieron leer las coordenadas de las obras: {exc}.')
             informe['dibujo'] = completar_diagrama(app, proyecto)
+            _resaltar_sin_tumbar(app, proyecto, informe)                          # 042:RF-109 a RF-112
     finally:
         if ajenas:
             casos['con'].Activate()
@@ -3571,6 +3692,10 @@ def retirar_obras(app, plan: dict) -> tuple[dict, int]:
         if filas:
             quitar_aperturas(plan, filas)
             informe['operacion_restituida'] = sorted(f['variacion'] for f in filas)
+        if informe['retiradas']:
+            # 042:RF-110: el símbolo que marcó una obra retirada vuelve a su estilo sin obra.
+            casos['con'].Activate()
+            _resaltar_sin_tumbar(app, proyecto, informe)
     finally:
         if inicial is not None:
             inicial.Activate()

@@ -20,7 +20,7 @@ from ..aplicacion.escalera_optima import EscaleraError, alternativas_del_perfil,
 from .informes import ConfigInforme, InformeError
 from ..aplicacion.protecciones import ProteccionesError, criterios_de_perfil
 from ..dominio.perfil_empresa import (PerfilEmpresa, PerfilError, bancos_kvar_por_tension, centrales_termicas, datos_perfil,
-                             factor_potencia_cargas, moneda_informes, transformadores_sed)
+                             estilo_obras_graficas, factor_potencia_cargas, moneda_informes, transformadores_sed)
 from ..dominio.util import cuenta
 
 _TIPOS = {'string': str, 'object': Mapping, 'array': (list, tuple)}
@@ -139,6 +139,7 @@ def _reglas_de_dominio(datos: dict[str, Any], r: Resultado) -> None:
         lambda: bancos_kvar_por_tension(datos),
         lambda: transformadores_sed(datos),
         lambda: centrales_termicas(datos),
+        lambda: estilo_obras_graficas(datos),                                 # 042:RF-111
         lambda: ConfigInforme.de_perfil(datos, Path('.')),
         lambda: criterios_de_perfil(datos),                                   # 049:RF-5, RF-6
         *[(lambda c=c: factor_potencia_cargas(datos, c))

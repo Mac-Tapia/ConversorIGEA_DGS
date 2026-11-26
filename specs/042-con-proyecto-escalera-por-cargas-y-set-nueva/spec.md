@@ -1,6 +1,6 @@
 # Spec 042 — «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben
 
-Estado: cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras revisar
+Estado: implementada (2026-11-25: falta T70 en DIgSILENT, el estilo de las obras en un proyecto real; antes, cumplida el 2026-11-08 por orden del usuario, con su aceptación en la spec 100) · Fecha: 2026-10-31 · Origen: petición del usuario, 2026-10-31, tras revisar
 NA293 + NA295 en DIgSILENT («para con proyecto debe usar la optimización, de proponer nuevas obras
 por variaciones por cierta cantidad de cargas nuevas hasta donde se puede hacer las mejoras de
 infraestructura física existente, y si ya no se puede se proponen nuevas para lo que ya no están
@@ -257,6 +257,22 @@ según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94
 - RF-108: EL SISTEMA dejará que el operador retire de «Con proyecto», por su nombre, las variaciones de obra
   aplicadas, también las suyas, y las quitará de lo aplicado (`POST …/pf/obras/retirar`). Pisco (2026-11-25): una SET
   nueva y un expreso quedaron aplicados sin la escalera y «rehacer obras» no los retira, porque protege las del operador.
+- RF-109: CUANDO EL SISTEMA aplica obras en «Con proyecto», pondrá a cada variación de obra (`Obra_*`), también a las
+  del operador, el color de las obras nuevas, y dejará el coloreado nativo de DIgSILENT «Modificaciones en
+  variaciones» en las páginas de cálculo del estilo, para que lo que cada obra añade o cambia se vea de ese color en
+  todos los diagramas de cualquier proyecto. Usuario (2026-11-25): «los achurados y coloreados deben ser como se hizo
+  en NA205_NA203, esto debe ser universal para cualquier proyecto en DIgSILENT para identificar las nuevas obras».
+- RF-110: DONDE el estilo da atributos de símbolo (`grafico`) o de trazo (`conector`), EL SISTEMA los escribirá en los
+  símbolos de lo que graban las variaciones de obra, y devolverá a su valor sin obra (`normal`) el símbolo que lleve el
+  estilo de obra sin ser ya de ninguna, también al retirar obras (RF-108).
+- RF-111: EL SISTEMA tomará el estilo de las obras de `obras_graficas` del perfil y, sin ella, el valor por defecto
+  documentado (rojo, el color 2 de la paleta de DIgSILENT, «Modificaciones en variaciones», páginas de datos básicos y
+  de flujo de carga, sin atributos de símbolo); SI un valor de `obras_graficas` es imposible, ENTONCES lo rechazará con
+  un error que nombre la clave. El color es un índice de la paleta, como `icolor` de la variación e `iCol` del símbolo:
+  en NA203_NA205 (sonda del 2026-11-25) las variaciones de obra llevan su color (1 y 4) y los símbolos de sus obras los
+  mismos atributos que los demás; lo que distingue a las obras es el color de su variación.
+- RF-112: SI la versión de DIgSILENT no tiene un atributo del estilo o el proyecto no tiene esquema de coloreado,
+  ENTONCES EL SISTEMA lo omitirá con un aviso que lo nombre y marcará lo demás, sin perder las obras aplicadas.
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a
   carga y, cuando ya no cabe, la SET nueva. Reutiliza sus variantes, sorteos y costos.
 - Usa la tasa de crecimiento de la 029 y las cargas nuevas sin duplicados de la 040.

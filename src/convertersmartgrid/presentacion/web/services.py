@@ -15116,15 +15116,40 @@ def _nodos_de_los_tramos(ws: Workspace) -> dict[str, dict[str, tuple[str, str]]]
     return por_alim
 
 
-def _obras_aplicadas_para_resumen(ws: Workspace, project: str) -> dict[str, list[dict]]:
+def _lecturas_de_variaciones(ws: Workspace, project: str) -> list[tuple[float, set[str]]]:
+    """017:RF-153: las variaciones activas de cada lectura de la escalera del proyecto guardada en el espacio (en «Con
+    proyecto»), con la hora de la lectura, de la más antigua a la más reciente."""
+    out = []
+    for ruta in ws.root.glob('runs/*/salida/escalera_datos_*.json'):
+        try:
+            datos = json.loads(ruta.read_text(encoding='utf-8'))
+            cuando = ruta.stat().st_mtime
+        except (OSError, ValueError):
+            continue
+        if str(datos.get('project') or '').strip() == project.strip() and 'variaciones_activas' in datos:
+            out.append((cuando, {str(v) for v in datos.get('variaciones_activas') or []}))
+    return sorted(out, key=lambda x: x[0])
+
+
+def _obras_aplicadas_para_resumen(ws: Workspace, project: str, avisos: list[str] | None = None) -> dict[str, list[dict]]:
     """017:RF-151, RF-152: las obras aplicadas del proyecto por alimentador, una por alternativa (las variaciones de una
     misma elección se juntan y su costo cuenta una vez), con dónde va cada una por sus nodos."""
     from ...aplicacion.resumen_casos import ubicacion_de_obra
 
     nodos = _nodos_de_los_tramos(ws)
+    lecturas = _lecturas_de_variaciones(ws, project)
     por_alim: dict[str, dict[str, dict]] = {}
     for a in getattr(ws, 'obras_aplicadas', None) or []:
         if a.get('project') != project.strip():
+            continue
+        # 017:RF-153: una lectura de DIgSILENT posterior a su aplicación que no la tiene activa dice que ya no está.
+        # Pisco (2026-11-25): el expreso y la SET nueva de AL209 se retiraron cuando se cortó la web, sin guardarse.
+        # La más reciente: una intermedia pudo apartar las obras de otros alimentadores (antes de 087:RF-60).
+        posterior = lecturas[-1][1] if lecturas and lecturas[-1][0] > float(a.get('aplicada') or 0) else None
+        if posterior is not None and str(a.get('variacion')) not in posterior:
+            if avisos is not None:
+                avisos.append(f"{a.get('variacion')} consta como aplicada en el espacio, pero DIgSILENT ya no la tiene "
+                              'activa en «Con proyecto»: no se cuenta en el resumen.')
             continue
         obra = a.get('obra') or {}
         f = str(obra.get('alimentador') or '')
@@ -15155,6 +15180,7 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
     if not project.strip():
         raise UserError('Elija el proyecto de DIgSILENT.')
     datos_caso: dict[str, Any] = {}
+    avisos_obras: list[str] = []                                                        # 017:RF-153
     todos = caso == 'sistema'                                                           # 017:RF-149
     if todos or caso == 'sin_proyecto':
         ajuste = ajuste_aplicado_en_disco(ws, project) or {}
@@ -15171,7 +15197,7 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
         datos_caso['alternativas'] = propias
         # 017:RF-151: lo que se aplica es lo del registro de obras aplicadas (lo que DIgSILENT tiene y retirar quita);
         # el fichero de alternativas junta corridas distintas.
-        datos_caso['aplicadas'] = _obras_aplicadas_para_resumen(ws, project)
+        datos_caso['aplicadas'] = _obras_aplicadas_para_resumen(ws, project, avisos_obras)
         ajuste = ajuste_aplicado_en_disco(ws, project) or {}
         calibrados = [str(i.get('feeder')) for i in ajuste.get('informes') or [] if i.get('feeder')]
         datos_caso['sin_obra'] = [f for f in calibrados if f not in datos_caso['aplicadas']]
@@ -15196,5 +15222,6 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
                                   rotulos=rotulos)
     if aviso:
         hecho['huecos'] = [aviso, *hecho['huecos']]
+    hecho['huecos'] = [*hecho['huecos'], *avisos_obras]
     return {'project': project.strip(), 'caso': caso, 'docx': destino.name, 'xlsx': hecho['xlsx'],
             'huecos': hecho['huecos'], 'conclusiones': hecho['conclusiones'], 'filas': hecho['filas']}

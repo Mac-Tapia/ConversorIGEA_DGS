@@ -22,6 +22,7 @@
     "gemelo": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Semilla y aceptación de los modelos, que no se venden en la 1.0", "x-si-falta": "Sin efecto en la 1.0.", "x-origen": "empresa"},
     "asistente": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Subtipos de estudio que entiende el asistente", "x-si-falta": "Los del programa.", "x-origen": "empresa"},
     "valle": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Puntos de la búsqueda de la ventana de valle", "x-si-falta": "Los del programa.", "x-origen": "empresa"},
+    "obras_graficas": {"type": ["object", "null"], "x-opcional": true, "x-funcion": "Color y achurado de las obras nuevas en los diagramas de DIgSILENT", "x-si-falta": "Rojo (color 2 de la paleta), con el coloreado «Modificaciones en variaciones» en datos básicos y flujo de carga, sin atributos de símbolo.", "x-origen": "empresa"},
     "editor_ajuste_m": {"type": ["number", "null"], "exclusiveMinimum": 0, "x-funcion": "Proponer el ajuste de un extremo a un nodo cercano en el plano de la red", "x-si-falta": "El plano propone el ajuste dentro de 5 m y dice que es el radio de por defecto.", "x-origen": "empresa"},
     "estudios": {
       "type": ["object", "null"],

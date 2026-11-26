@@ -375,3 +375,131 @@ def test_retirar_obras_solo_las_del_alimentador():
         'Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1', 'Obra_terna_F11', 'Carga_F1']})
     assert codigo == 0 and borradas == apagadas == ['Obra_terna_F1', 'Obra_terna_F1_2', 'Obra_condensador_F1']
     assert informe['retiradas'] == borradas
+
+
+class _ObjetoPF:
+    """Un objeto de DIgSILENT con sus atributos: ``HasAttribute``, ``GetAttribute`` y ``SetAttribute`` (042:RF-109)."""
+
+    def __init__(self, clase, nombre, hijos=(), **atributos):
+        self.clase, self.loc_name, self.hijos, self.atributos = clase, nombre, list(hijos), dict(atributos)
+        self.escritos = []
+
+    def GetClassName(self):
+        return self.clase
+
+    def HasAttribute(self, nombre):
+        return int(nombre in self.atributos)
+
+    def GetAttribute(self, nombre):
+        return self.atributos[nombre]
+
+    def SetAttribute(self, nombre, valor):
+        self.atributos[nombre] = valor
+        self.escritos.append(nombre)
+
+    def GetContents(self, patron='*', recursivo=0):
+        clase = patron[2:] if patron.startswith('*.') else None
+        todos = []
+        for h in self.hijos:
+            todos.append(h)
+            if recursivo and isinstance(h, _ObjetoPF):
+                todos += h.GetContents('*', 1)
+        return [h for h in todos if clase is None or h.GetClassName() == clase]
+
+
+#: Un estilo con achurado: el color de la obra en el símbolo y un trazo en su conector, con sus valores sin obra.
+ESTILO_ACHURADO = {'color_indice': 2, 'coloreado': 'variaciones', 'paginas': [101, 102],
+                   'grafico': {'iCol': 'color'}, 'conector': {'iStyle': 3}, 'normal': {'iCol': 1, 'iStyle': 0}}
+
+
+def _proyecto_con_obras():
+    """Una obra que añade un tramo y cambia un banco; una carga nueva; y el símbolo de un tramo que marcó una obra ya
+    retirada. Los símbolos están en el diagrama, fuera de las variaciones (016:RF-89)."""
+    from types import SimpleNamespace as N
+
+    rojo = 2                                         # el rojo de la paleta de DIgSILENT
+    tramo, banco, viejo, carga = (_ObjetoPF('ElmLne', 'L_nueva'), _ObjetoPF('ElmShnt', 'Banco'),
+                                  _ObjetoPF('ElmLne', 'L_retirada'), _ObjetoPF('ElmLod', 'Carga_1'))
+    etapa = _ObjetoPF('IntSstage', 'Etapa', [_ObjetoPF('ElmLne', 'L_nueva'), _ObjetoPF('ElmShnt', 'Banco')])
+    obra = _ObjetoPF('IntScheme', 'Obra_seccion_F1', [etapa], icolor=0)
+    de_carga = _ObjetoPF('IntScheme', 'Carga_F1', [_ObjetoPF('IntSstage', 'E', [_ObjetoPF('ElmLod', 'Carga_1')])], icolor=7)
+
+    def simbolo(obj, col=1, trazo=0):
+        g = _ObjetoPF('IntGrf', f'G_{obj.loc_name}', [_ObjetoPF('IntGrfcon', 'GCO_1', iStyle=trazo),
+                                                      _ObjetoPF('IntGrfcon', 'GCO_2', iStyle=trazo)], iCol=col)
+        g.pDataObj = obj
+        return g
+
+    graficos = {n: simbolo(o, *e) for n, o, e in (('nuevo', tramo, ()), ('banco', banco, ()), ('carga', carga, ()),
+                                                     ('retirado', viejo, (rojo, 3)))}
+    llamadas = []
+    esquema = N(loc_name='Colores', SetColouring=lambda *a: llamadas.append(a) or 1)
+    diagrama = _ObjetoPF('IntGrfnet', 'F1', list(graficos.values()))
+    proyecto = N(GetContents=lambda patron, *_a: {'*.IntGrfnet': [diagrama], '*.SetColscheme': [esquema]}[patron])
+    app = N(GetProjectFolder=lambda _c: _ObjetoPF('IntPrjfolder', 'Variaciones', [obra, de_carga]))
+    return app, proyecto, obra, de_carga, graficos, llamadas, rojo
+
+
+def test_las_obras_se_colorean_y_achuran_en_los_diagramas():
+    """042:RF-109, 042:RF-110 — la variación de obra con el color de las obras, el coloreado nativo «Modificaciones en
+    variaciones» en las páginas del perfil, y el símbolo de lo que graba la obra con su achurado; la carga nueva no se
+    marca, y el símbolo que marcó una obra retirada vuelve a su estilo sin obra."""
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf109', tools_en_path=True)
+    app, proyecto, obra, de_carga, graficos, llamadas, rojo = _proyecto_con_obras()
+    hecho = guion.resaltar_obras(app, proyecto, guion_estilo(ESTILO_ACHURADO))
+    assert obra.atributos['icolor'] == rojo and de_carga.atributos['icolor'] == 7
+    assert hecho['variaciones'] == ['Obra_seccion_F1']
+    assert llamadas == [('101', -1, -1, 8), ('102', -1, -1, 8)]
+    for n in ('nuevo', 'banco'):
+        assert graficos[n].atributos['iCol'] == rojo
+        assert [c.atributos['iStyle'] for c in graficos[n].hijos] == [3, 3]
+    assert graficos['carga'].atributos['iCol'] == 1 and graficos['carga'].escritos == []
+    assert graficos['retirado'].atributos['iCol'] == 1
+    assert [c.atributos['iStyle'] for c in graficos['retirado'].hijos] == [0, 0]
+    assert (hecho['graficos'], hecho['normales']) == (2, 1) and hecho['avisos'] == []
+    # Otra pasada no reescribe nada: el estilo se recalcula y ya está.
+    for g in graficos.values():
+        g.escritos.clear()
+    guion.resaltar_obras(app, proyecto, guion_estilo(ESTILO_ACHURADO))
+    assert all(g.escritos == [] for g in graficos.values())
+
+
+def guion_estilo(seccion):
+    from convertersmartgrid.dominio.perfil_empresa import estilo_obras_graficas
+
+    return estilo_obras_graficas({'obras_graficas': seccion})
+
+
+def test_el_estilo_de_las_obras_es_del_perfil():
+    """042:RF-111 — sin la clave, el valor por defecto documentado; cada subclave pisa la suya; un valor imposible se
+    rechaza nombrando la clave, y un atributo sin su valor sin obra también."""
+    from convertersmartgrid.dominio.perfil_empresa import ESTILO_OBRAS_GRAFICAS, PerfilError, estilo_obras_graficas
+
+    defecto = estilo_obras_graficas({})
+    assert defecto['color_indice'] == ESTILO_OBRAS_GRAFICAS['color_indice'] == 2 and defecto['modo'] == 8
+    assert defecto['grafico'] == defecto['conector'] == {}
+    propio = estilo_obras_graficas({'obras_graficas': {'color_indice': 4, 'coloreado': 'ubicacion_original'}})
+    assert propio['color_indice'] == 4 and propio['modo'] == 30 and propio['paginas'] == [101, 102]
+    assert estilo_obras_graficas({'obras_graficas': {'coloreado': None}})['modo'] is None
+    for malo, clave in (({'color_indice': 300}, 'color_indice'), ({'coloreado': 'rojo'}, 'coloreado'),
+                        ({'paginas': ['flujo']}, 'paginas'), ({'grafico': {'iCol': 'rojo'}}, 'grafico.iCol'),
+                        ({'achurado': 1}, 'achurado'), ({'grafico': {'iCol': 2}}, 'normal')):
+        with pytest.raises(PerfilError, match=clave):
+            estilo_obras_graficas({'obras_graficas': malo})
+
+
+def test_un_atributo_que_la_version_no_tiene_se_omite_con_aviso():
+    """042:RF-112 — el símbolo sin el atributo del estilo y el proyecto sin esquema de coloreado: se dice, no se cae, y
+    lo demás se marca igual."""
+    from types import SimpleNamespace as N
+
+    guion = cargar_herramienta('obras_pf.py', 'obras_rf112', tools_en_path=True)
+    app, con_esquema, obra, _carga, graficos, _llamadas, rojo = _proyecto_con_obras()
+    diagramas = con_esquema.GetContents('*.IntGrfnet')
+    proyecto = N(GetContents=lambda patron, *_a: {'*.IntGrfnet': diagramas, '*.SetColscheme': []}[patron])
+    estilo = guion_estilo({**ESTILO_ACHURADO, 'grafico': {'iCol': 'color', 'iHatch': 5},
+                           'normal': {'iCol': 1, 'iStyle': 0, 'iHatch': 0}})
+    hecho = guion.resaltar_obras(app, proyecto, estilo)
+    assert obra.atributos['icolor'] == rojo and graficos['nuevo'].atributos['iCol'] == rojo
+    assert any('IntGrf.iHatch' in a for a in hecho['avisos'])
+    assert any('SetColscheme' in a for a in hecho['avisos'])

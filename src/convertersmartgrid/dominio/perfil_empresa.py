@@ -405,6 +405,79 @@ def centrales_termicas(datos: dict[str, Any]) -> dict[str, dict[str, str]]:
     return out
 
 
+#: 042:RF-111: el coloreado nativo de DIgSILENT con que se ven las obras; el número es el «normal» de
+#: ``SetColscheme.SetColouring`` (referencia de Python de PowerFactory 2024, tabla 5.5.6).
+MODOS_COLOREADO_OBRAS = {'variaciones': 8, 'etapa_de_registro': 24, 'ubicacion_original': 30}
+
+#: 042:RF-109 a RF-112: cómo se ven las obras nuevas en los diagramas si el perfil no dice otra cosa. Rojo, el color
+#: con que los planos de planeamiento marcan lo nuevo, puesto a cada variación ``Obra_*`` y mostrado con el coloreado
+#: «Modificaciones en variaciones» en datos básicos (101) y en el flujo de carga (102), que es la página que queda tras
+#: el flujo de «Con proyecto». ``grafico`` y ``conector`` son atributos de los ``IntGrf`` e ``IntGrfcon`` de lo que la
+#: obra añade (el achurado o el trazo de su símbolo); vacíos, solo el coloreado nativo, que vuelve solo al retirar la obra.
+#: El color es un índice de la paleta de DIgSILENT, como ``icolor`` de la variación e ``iCol`` del símbolo: la sonda de
+#: NA203_NA205 (2026-11-25), el proyecto que el usuario dio de modelo, los tiene así (1 y 4), y los símbolos de sus obras
+#: llevan los mismos atributos que los demás; lo que las distingue es el color de su variación. 2 es el rojo.
+ESTILO_OBRAS_GRAFICAS: dict[str, Any] = {
+    'color_indice': 2,
+    'coloreado': 'variaciones',
+    'paginas': [101, 102],
+    'grafico': {},
+    'conector': {},
+    'normal': {},
+}
+
+
+def _atributos_graficos(seccion: str, valor: Any) -> dict[str, Any]:
+    if not isinstance(valor, Mapping):
+        raise PerfilError(f'obras_graficas.{seccion} tiene que ser {{"atributo": valor, ...}}, no {valor!r}.')
+    out = {}
+    for atributo, v in valor.items():
+        if not isinstance(atributo, str) or not re.fullmatch(r'[A-Za-z_][A-Za-z0-9_]*', atributo):
+            raise PerfilError(f'obras_graficas.{seccion}: {atributo!r} no es un nombre de atributo de DIgSILENT.')
+        if not (v == 'color' or (isinstance(v, (int, float)) and not isinstance(v, bool) and math.isfinite(v))):
+            raise PerfilError(f'obras_graficas.{seccion}.{atributo} tiene que ser un número o «color», no {v!r}.')
+        out[atributo] = v
+    return out
+
+
+def estilo_obras_graficas(datos: Mapping[str, Any]) -> dict[str, Any]:
+    """El estilo de las obras nuevas en los diagramas de DIgSILENT, de ``obras_graficas`` del perfil (042:RF-111).
+
+    Usuario (2026-11-25): «los achurados y coloreados deben ser como se hizo en NA205_NA203, esto debe ser universal
+    para cualquier proyecto en DIgSILENT para identificar las nuevas obras». El estilo es de la empresa, no del
+    código (P13): sin la clave, :data:`ESTILO_OBRAS_GRAFICAS`; cada subclave del perfil pisa solo la suya.
+    """
+    seccion = datos.get('obras_graficas')
+    if seccion is None:
+        seccion = {}
+    if not isinstance(seccion, Mapping):
+        raise PerfilError(f'obras_graficas tiene que ser un objeto, no {seccion!r}.')
+    estilo = {**ESTILO_OBRAS_GRAFICAS, **{k: v for k, v in seccion.items() if not str(k).startswith('_')}}
+    desconocidas = sorted(set(estilo) - set(ESTILO_OBRAS_GRAFICAS))
+    if desconocidas:
+        raise PerfilError(f'obras_graficas no tiene las claves {", ".join(desconocidas)}.')
+    indice = estilo['color_indice']
+    if not isinstance(indice, int) or isinstance(indice, bool) or not 0 <= indice <= 255:
+        raise PerfilError(f'obras_graficas.color_indice tiene que ser un color de la paleta de DIgSILENT, de 0 a 255, '
+                          f'no {indice!r}.')
+    if estilo['coloreado'] is not None and estilo['coloreado'] not in MODOS_COLOREADO_OBRAS:
+        raise PerfilError(f'obras_graficas.coloreado tiene que ser {", ".join(MODOS_COLOREADO_OBRAS)} o null, '
+                          f'no {estilo["coloreado"]!r}.')
+    paginas = estilo['paginas']
+    if not isinstance(paginas, (list, tuple)) or not all(isinstance(p, int) and not isinstance(p, bool) and p > 0
+                                                         for p in paginas):
+        raise PerfilError(f'obras_graficas.paginas tiene que ser una lista de páginas de cálculo de DIgSILENT '
+                          f'(101 datos básicos, 102 flujo de carga…), no {paginas!r}.')
+    salida = {'color_indice': indice, 'coloreado': estilo['coloreado'],
+              'modo': MODOS_COLOREADO_OBRAS.get(estilo['coloreado']), 'paginas': list(paginas),
+              **{s: _atributos_graficos(s, estilo[s]) for s in ('grafico', 'conector', 'normal')}}
+    # Sin el valor normal, el símbolo de un tramo existente que una obra retirada cambió se quedaría marcado.
+    sin_normal = sorted((set(salida['grafico']) | set(salida['conector'])) - set(salida['normal']))
+    if sin_normal:
+        raise PerfilError(f'obras_graficas.normal tiene que dar el valor sin obra de {", ".join(sin_normal)}.')
+    return salida
+
+
 def datos_perfil(ruta: Path | None = None, *, carpeta: Path | None = None) -> dict[str, Any]:
     """Todas las claves del perfil activo, con la herencia resuelta.
 

@@ -68,7 +68,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 039 Fijas del máximo del mes o coincidentes con la cabecera | cumplida | T11 cerrada (21-11, corrida real de MEJ27-FIJAS en DIgSILENT); todas sus tareas cerradas |
   | 040 Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida |  |
   | 041 Reparto probabilístico de las SED escaladas | cumplida |  |
-  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | cumplida |  |
+  | 042 «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | falta T70 (DIgSILENT): el estilo de las obras nuevas en un proyecto real |
   | 043 Consolidación y gobierno de modelos | aprobada | falta T9 |
   | 044 Evaluación causal y verificación completa | cumplida |  |
   | 045 Gemelo físico y contratos PINN/GNN | cumplida | T6 cerrada (22-11, en la GPU: el híbrido aprobado en global y en sus familias); todas sus tareas cerradas |

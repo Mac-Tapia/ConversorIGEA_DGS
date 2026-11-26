@@ -155,6 +155,33 @@ def test_017_rf151_rf152_el_servicio_lee_lo_aplicado_y_los_nodos_guardados(tmp_p
     assert 'T1 N1→N2' in fila['ubicacion'][0] and 'T2 N2→N3' in fila['ubicacion'][1]
 
 
+def test_017_rf153_la_obra_que_digsilent_ya_no_tiene_no_se_da_por_aplicada(tmp_path):
+    """017:RF-153 — Pisco (2026-11-25): el expreso y la SET nueva de AL209 se retiraron en DIgSILENT cuando se cortó la
+    web, antes de guardar el espacio, y el resumen los seguía dando por aplicados."""
+    import os
+    import types
+
+    from convertersmartgrid.presentacion.web import services as s
+
+    salida = tmp_path / 'runs' / 'r1' / 'salida'
+    salida.mkdir(parents=True)
+    lectura = salida / 'escalera_datos_a.json'
+    lectura.write_text(json.dumps({'project': 'P', 'variaciones_activas': ['Obra_seccion_F2'],
+                                   'alimentadores': {}}), encoding='utf-8')
+    os.utime(lectura, (200, 200))
+    ws = types.SimpleNamespace(root=tmp_path, obras_aplicadas=[
+        {'project': 'P', 'variacion': 'Obra_expreso_F1', 'origen': 'operador', 'aplicada': 100,
+         'obra': {'alimentador': 'F1', 'clase': 'expreso'}},
+        {'project': 'P', 'variacion': 'Obra_seccion_F2', 'origen': 'escalera', 'aplicada': 100,
+         'eleccion': {'nombre': 'sección S', 'costo_anual': 5.0}, 'obra': {'alimentador': 'F2', 'clase': 'seccion'}},
+        {'project': 'P', 'variacion': 'Obra_terna_F1', 'origen': 'escalera', 'aplicada': 300,
+         'eleccion': {'nombre': 'terna T', 'costo_anual': 9.0}, 'obra': {'alimentador': 'F1', 'clase': 'terna'}}])
+    avisos: list[str] = []
+    ap = s._obras_aplicadas_para_resumen(ws, 'P', avisos)
+    assert [a['nombre'] for a in ap['F1']] == ['terna T'] and [a['nombre'] for a in ap['F2']] == ['sección S']
+    assert len(avisos) == 1 and 'Obra_expreso_F1' in avisos[0]
+
+
 def test_017_rf149_un_solo_resumen_del_sistema_con_los_tres_casos(tmp_path):
     """017:RF-149 — usuario (2026-11-25): «tiene que ser un solo resumen ejecutivo; es un solo proyecto de sistema»."""
     from convertersmartgrid.adaptadores.informe_docx import escribir_resumen_caso

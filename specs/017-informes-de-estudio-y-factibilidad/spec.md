@@ -642,6 +642,10 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   sección de 73 727, y SI112 salía sin su obra.
 - RF-152: El nodo de inicio y de fin de cada tramo de una obra aplicada saldrá de la última lectura de su
   alimentador guardada en el espacio, sin DIgSILENT; el tramo que no esté en ella se nombra solo.
+- RF-153: SI una lectura de DIgSILENT del proyecto, posterior a la aplicación de una obra, no la tiene entre sus
+  variaciones activas, ENTONCES el resumen no la dará por aplicada y lo dirá como aviso, con su nombre. Pisco
+  (2026-11-25): un expreso y una SET nueva de AL209 se retiraron en DIgSILENT cuando se cortó la web, antes de guardar el
+  espacio, y el resumen los seguía dando por aplicados.
 
 ## Requisitos no funcionales
 
