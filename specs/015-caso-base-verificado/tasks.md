@@ -267,3 +267,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T31. Un alimentador poco cargado no invalida por el factor de sus escaladas. (RF-71, enmienda del 2026-11-24)
       Hecho cuando: `escaladas_casi_cero` invalida con el factor bajo solo si la cabecera sola da un factor normal, y avisa «poco cargado» si no.
       Cerrada el 2026-11-24: rojo válido por aserción (1 failed, 2 passed) y verde (291 passed) en `tests/test_ajuste_cabecera.py` y los guiones del ajuste.
+- [x] T32. La escalada sin tensión por una maniobra abierta no entra al reparto. (RF-76)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (015:RF-76) en verde con su rojo por aserción sobre el guion
+      de cf484bd4, y el caso de varios alimentadores desde VNR-GIS de la 100 T4 aceptado.
+      Hecho el 2026-11-26 (código): rojo `D:/csg/PM_IMPL/VNR_SM117/rojo.log`, verde 109 passed (`verde.log`); la
+      zona sin servicio se encontró leyendo el DGS (frontera: seccionador 883730 abierto en el tramo 313492). La
+      corrida real es la repetición de la 100 T4 con VNR-GIS.

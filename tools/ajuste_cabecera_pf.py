@@ -205,6 +205,42 @@ def kva_por_sed(cargas: dict, kva_entrada: dict) -> tuple[dict, dict]:
     return kva, origen
 
 
+def escaladas_sin_servicio(app, cargas: dict, fijas) -> list[str]:
+    """015:RF-76 — las escaladas cuya barra DIgSILENT da sin tensión por la red (``IsEnergized`` a 0).
+
+    Una maniobra abierta las deja sin camino a la fuente: no consumen nada en el flujo, y repartirles
+    por su kVA las da por servidas. El 26-11, SM116_SM117 desde VNR-GIS: SE42162 (160 kVA) cuelga del
+    tramo 313492 con su seccionador 883730 abierto; desde TXT y MDB trae 0 kW, pero VNR-GIS le pone
+    136 kW nominales y la validación física invalidaba la calibración. Se devuelven en orden, para el
+    informe; si DIgSILENT no sabe la tensión de ninguna barra, ninguna.
+    """
+    ldf = app.GetFromStudyCase('ComLdf')
+    if ldf is not None:
+        ldf.Execute()          # la topología del último cálculo; converja o no, IsEnergized ya la tiene
+    sin, sabe = set(), False
+    for b in app.GetCalcRelevantObjects('*.ElmTerm') or []:
+        try:
+            estado = int(b.IsEnergized())
+        except (AttributeError, TypeError, ValueError):     # sin el dato, esa barra no cuenta
+            estado = -1
+        sabe = sabe or estado in (0, 1)
+        if estado == 0:
+            sin.add(b.GetFullName())
+    if not sabe or not sin:
+        return []
+    out = []
+    for sed in sorted(cargas):
+        if sed in fijas:
+            continue
+        try:
+            barra = cargas[sed].bus1.cterm
+        except AttributeError:                               # una carga sin conectar no tiene barra
+            barra = None
+        if barra is not None and barra.GetFullName() in sin:
+            out.append(sed)
+    return out
+
+
 # =========================================================================== remedios del flujo
 class Remedios:
     """Ajustes del ``ComLdf`` de la escalera (RF-16): se guardan para restituirlos."""
@@ -3030,6 +3066,17 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                 f"{x['sed']} ({', '.join(x['clientes']) or 'cambio manual'}) "
                 f"{x['kva_carga']:,.0f} kVA en {x['kva']:,.0f} kVA ({x['carga_pct']:,.0f} %)"
                 for x in sobre))
+    # 015:RF-76: la escalada sin tensión por una maniobra abierta no entra al reparto: queda en 0 kW, como sin kVA.
+    sin_servicio = [] if simular else escaladas_sin_servicio(app, cargas, fijas)
+    if sin_servicio:
+        for s in sin_servicio:
+            kva[s], kva_origen[s] = None, 'sin servicio'
+        comun.update(kva=kva, kva_origen=kva_origen)
+        informe['escaladas_sin_servicio'] = sin_servicio
+        informe['avisos'].append(
+            f'{cuenta(len(sin_servicio), "SED escalada", "SED escaladas")} sin tensión por la red (una maniobra '
+            f'abierta la deja sin camino a la fuente) {plural(len(sin_servicio), "queda", "quedan")} en 0 kW y fuera '
+            'del reparto: ' + ', '.join(sin_servicio[:20]) + '.')
     if plan.get('central'):
         # Spec 021: una central en el troncal; se calibra por zonas (RF-35 a RF-45). Las fijas
         # sobre su transformador se miran antes, también con central: en NA295 (2026-10-17)

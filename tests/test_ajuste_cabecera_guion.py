@@ -2455,3 +2455,48 @@ def test_083_rf35_las_cargas_de_una_orden_cortada_no_son_cambios_a_mano(guion, m
     assert _carga(app, 'F1_S2').plini == pytest.approx(0.040), 'recalibrada con su cliente'
     assert _carga(app, 'F1_S3').plini == pytest.approx(0.077 / escala), 'el cambio a mano no se sobrescribe'
     assert guion.leer_diario('P') == {}, 'la orden que terminó cierra el diario'
+
+
+def test_la_escalada_sin_tension_por_una_maniobra_abierta_no_entra_al_reparto(guion):
+    """015:RF-76 — el 26-11, SM116_SM117 desde VNR-GIS: SE42162 cuelga del tramo 313492 con su seccionador abierto;
+    VNR-GIS le pone 136 kW nominales y la validación física invalidaba la calibración porque no consumía. La escalada
+    con su barra sin tensión (``IsEnergized`` a 0) sale del reparto; la fija, la que tiene tensión y la que no tiene
+    barra no; y si DIgSILENT no sabe la tensión de ninguna barra, ninguna."""
+    assert hasattr(guion, 'escaladas_sin_servicio'), 'falta 015:RF-76: la calibración no mira las barras sin tensión'
+
+    class Barra:
+        def __init__(self, nombre, estado):
+            self.nombre, self.estado = nombre, estado
+
+        def IsEnergized(self):
+            return self.estado
+
+        def GetFullName(self):
+            return f'Red/{self.nombre}.ElmTerm'
+
+    class Carga:
+        def __init__(self, barra):
+            self.bus1 = type('Cub', (), {'cterm': barra})() if barra is not None else None
+
+    class Ldf:
+        ejecutado = 0
+
+        def Execute(self):
+            Ldf.ejecutado += 1
+            return 1                                    # aunque no converja, la topología vale
+
+    class App:
+        def __init__(self, barras):
+            self.barras = barras
+
+        def GetFromStudyCase(self, clase):
+            return Ldf() if clase == 'ComLdf' else None
+
+        def GetCalcRelevantObjects(self, patron):
+            return self.barras
+
+    viva, muerta, otra = Barra('A', 1), Barra('SE42162_BT', 0), Barra('SE9_BT', 0)
+    cargas = {'SE1': Carga(viva), 'SE42162': Carga(muerta), 'SE9': Carga(otra), 'SUELTA': Carga(None)}
+    assert guion.escaladas_sin_servicio(App([viva, muerta, otra]), cargas, fijas={'SE9': object()}) == ['SE42162']
+    assert Ldf.ejecutado == 1, 'la topología sale de un cálculo'
+    assert guion.escaladas_sin_servicio(App([Barra('A', -1), Barra('B', -1)]), cargas, fijas={}) == []

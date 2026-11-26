@@ -297,6 +297,12 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
 - RF-75: (orden del usuario del 20-11; amplía RF-68) EL SISTEMA dirá en cada SED del informe de la calibración, además de
   `kva` y `kva_de`, `kva_fuente` (DGS o TXT, sin las variaciones de DIgSILENT) y `kva_grupo` (la SED y sus hermanas
   «<sed>-n» en la fuente). Con `SED_NTP_` encendida el informe decía 3 150 kVA y ocultaba los 100 kVA de la fuente.
+- RF-76: SI una SED escalada tiene su barra sin tensión por la red (`ElmTerm.IsEnergized` a 0 tras un cálculo: una
+  maniobra abierta la deja sin camino a la fuente), ENTONCES EL SISTEMA la dejará en 0 kW y fuera del reparto, como una
+  escalada sin potencia instalada (RF-45), y lo dirá en el informe (`escaladas_sin_servicio`) y en un aviso; las fijas
+  no cambian. (26-11, SM116_SM117 desde VNR-GIS: SE42162, de 160 kVA, cuelga del tramo 313492 con su seccionador
+  abierto; VNR-GIS le pone 136 kW nominales, no los consumía y la validación física invalidaba la calibración; desde
+  TXT y MDB trae 0 kW.)
 
 ## Requisitos que esta spec cambia
 
