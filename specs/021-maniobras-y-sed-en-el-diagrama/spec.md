@@ -303,6 +303,11 @@ tensión se suba a la fuente en pu en DIgSILENT»)
 - RF-85: EN el análisis por SET y por sistema, EL SISTEMA tomará para la fuente de un alimentador la
   tensión de la barra de media de su SET, donde está su red externa, si la mide; si no, la de su
   cabecera.
+- RF-86: SI una SED de medición (trafomix, RF-1) trae carga Y tiene alguna SED aguas abajo desde la fuente, ENTONCES
+  EL SISTEMA quitará su carga y la nombrará en el informe de la conversión (`trafomix.medidas_aguas_abajo`), porque lo
+  que mide es la demanda de esas SED; sin SED aguas abajo, la conservará como carga de MT, como hasta ahora. Se decide
+  por la red, no por el nombre (P13). (26-11, VNR-GIS: 1 304 de las 1 306 «M…» traían 10 kW de relleno de
+  `MaxDemTotal`, 15 en SM115 y unos 13 MW en el paquete, que no existen.)
 
 ## Requisitos no funcionales
 

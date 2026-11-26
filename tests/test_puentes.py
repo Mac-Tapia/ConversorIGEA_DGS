@@ -356,6 +356,28 @@ def test_trafomix_con_carga_la_conserva_en_media_tension():
     assert inf.cargas_conservadas_mt
 
 
+def test_trafomix_con_su_sed_aguas_abajo_no_suma_su_carga():
+    """021:RF-86 — una SED de medición con carga y una SED aguas abajo no lleva demanda propia: la medida es la de las
+    SED que cuelgan de ella, y su carga se quita con aviso. El 26-11, desde VNR-GIS, 1 304 de las 1 306 «M…» traían
+    10 kW de relleno (MaxDemTotal) y se conservaban como carga de MT: 15 en SM115, unos 13 MW que no existen. Se ve por
+    la red, no por el nombre: sin SED debajo, la carga se conserva (la prueba de arriba)."""
+    from dataclasses import replace
+
+    from convertersmartgrid.dominio.trafomix import excluir_trafomix
+
+    m = _modelo()                                   # S-A-B-C-D (SE1 en D) y C-E-F
+    trafomix = Sed('M50099', 'M50099', 'B', 15.0, 'L2', 'DM', ('L2', 'DM'))
+    carga = replace(m.loads[0], section_id='L2', device_number='DM', node_id='B', p_mw=0.01, q_mvar=0.0,
+                    sed_code='M50099')
+    m.seds.append(trafomix)
+    m.loads.append(carga)
+    inf = excluir_trafomix(m, _patron_ed())
+    assert [s.code for s in m.seds] == ['SE1']
+    assert [ld.sed_code for ld in m.loads] == ['SE1'], 'la carga del trafomix con su SED debajo se quita'
+    assert inf.cargas_conservadas_mt == [] and inf.cargas_medidas_aguas_abajo == ['M50099']
+    assert 'M50099' in inf.texto() and any('M50099' in w for w in m.warnings)
+
+
 def test_el_fusible_del_trafomix_excluido_se_quita_con_su_barra():
     """021:RF-7, 021:RF-8 — f3 llevaba a la barra del trafomix M50226; excluido, la barra se
     queda sin nada y no se escriben ni ella ni f3. El informe lo nombra."""

@@ -1812,7 +1812,15 @@ def percentil(valores: Iterable[float], q: float) -> float | None:
 
 def reparto_p50(rep: Reparto, kw_por_sed: Mapping[str, list[float]]) -> Reparto:
     """El reparto de las medianas (041:RF-5): por escalada, la mediana de su P en las muestras,
-    con su Q a su mismo FP; se cuadra después a la cabecera como cualquiera."""
+    con su Q a su mismo FP; se cuadra después a la cabecera como cualquiera.
+
+    La P base total es la del determinista, como en cada muestra (:func:`muestra_de_reparto`), y
+    los factores llevan la diferencia: las demandas siguen siendo las medianas, y el factor con que
+    DIgSILENT cuadra el P50 mide la utilización igual que el determinista. Sin esto, el 26-11 en
+    SM115 desde VNR-GIS las muestras cuadradas con el oráculo dejaron medianas 1,354 veces el
+    reparto, la base pasó de 4 440 a 6 013 kW y el P50 se cuadró con 0,0397: la 015:RF-71 lo
+    invalidó frente a 0,05 con una utilización real de 0,0537.
+    """
     base = {}
     for s, (p, q) in rep.base.items():
         med = percentil(kw_por_sed.get(s) or [], 0.5)
@@ -1821,7 +1829,11 @@ def reparto_p50(rep: Reparto, kw_por_sed: Mapping[str, list[float]]) -> Reparto:
             base[s] = (p, q)
             continue
         base[s] = (p * med / actual, q * med / actual)
-    return replace(rep, base=base)
+    antes, ahora = sum(p for p, _ in rep.base.values()), sum(p for p, _ in base.values())
+    if antes <= 0 or ahora <= 0:
+        return replace(rep, base=base)
+    k = antes / ahora
+    return replace(rep, base={s: (p * k, q * k) for s, (p, q) in base.items()}, a=rep.a / k, b=rep.b / k)
 
 
 def resumen_probabilistico(rep: Reparto, muestras: list[dict[str, Any]],

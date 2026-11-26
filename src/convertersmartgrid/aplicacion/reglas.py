@@ -237,6 +237,7 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
         informe['trafomix'] = {'excluidos': t.excluidos,
                                'cargas_nulas_quitadas': t.cargas_nulas_quitadas,
                                'con_carga_en_mt': t.cargas_conservadas_mt,
+                               'medidas_aguas_abajo': t.cargas_medidas_aguas_abajo,     # 021:RF-86
                                'maniobras_quitadas': len(t.maniobras_quitadas)}
     if reglas.redimensionar_sed:
         from ..dominio.sed_potencia import redimensionar_sobrecargadas

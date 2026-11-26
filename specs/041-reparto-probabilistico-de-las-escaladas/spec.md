@@ -36,6 +36,10 @@ SED, que van al informe.
   tocarlas; el P50 (RF-5) se cuadra entero, P y Q, como cualquier calibración (035:RF-28).
 - RF-5: EL SISTEMA escribirá en «Sin proyecto» el reparto P50: por SED, la mediana de su P en los
   N repartos, cuadrado de nuevo a la cabecera; es el que queda en DIgSILENT y se valida como hoy.
+  El P50 conserva la P base total del determinista, como cada muestra (RF-1), y sus factores llevan la diferencia: el
+  factor con que se cuadra mide la utilización igual que el determinista. (26-11, SM115 desde VNR-GIS con el oráculo,
+  083:RF-20: medianas 1,354 veces el reparto; el P50 se cuadró con 0,0397 y la 015:RF-71 lo invalidó frente a 0,05
+  con una utilización real de 0,0537.)
 - RF-6: EL SISTEMA dirá en el informe y en la web, por SED escalada, su potencia, su P05, P50 y
   P95 de kW y de cargabilidad, y la probabilidad de pasar del 100 % de su transformador; y por
   alimentador, la probabilidad de que alguna barra quede fuera de la banda de tensión del perfil.

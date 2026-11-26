@@ -17,3 +17,7 @@
       Hecho el 2026-10-31, con tools/sistema_web.py (periodo 2026-09, coincidente): NA293 200/200
       repartos cuadrados, fuente las 15 fijas (dispersión 0,45, pendiente 0,13), P50 escrito y
       validado; SM298 200/200 (0,60 y 0,32), P50 escrito y validado.
+- [x] T5. El P50 conserva la base total del determinista. (RF-5)
+      Hecho cuando: `tests/test_reparto_probabilistico.py` (041:RF-5) en verde con su rojo por aserción.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/VNR_SM115/rojo_p50.log` (1194 frente a 882); verde 194 passed
+      (`verde_p50.log`) y 875 passed (`verde_vecinas.log`).

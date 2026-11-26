@@ -12,7 +12,10 @@ en la SED que miden. Por eso se excluyen enteras: ni SED, ni transformador, ni l
 carga de 0 kW. El tramo de red en el que están se conserva.
 
 Si algún trafomix trajera carga, esa carga **no se pierde**: queda como carga de
-media tensión en su nodo, sin transformador, y se avisa.
+media tensión en su nodo, sin transformador, y se avisa. Salvo que tenga alguna SED aguas
+abajo (spec 021, RF-86): entonces la demanda que mide es la de esas SED, y su carga se quita y
+se nombra. Desde VNR-GIS, el 26-11, 1 304 de las 1 306 «M…» traían 10 kW de relleno
+(``MaxDemTotal``), unos 13 MW que no existen; se ve por la red, no por el nombre.
 
 El fusible que llevaba al trafomix se queda sin destino: su barra no tiene nada más. En
 NA293 + NA295 (260924.mdb) eso dejaba 88 barras muertas con su ``ElmCoup``, como
@@ -47,10 +50,14 @@ class InformeTrafomix:
     cargas_nulas_quitadas: int = 0
     cargas_conservadas_mt: list[str] = field(default_factory=list)
     maniobras_quitadas: list[str] = field(default_factory=list)
+    cargas_medidas_aguas_abajo: list[str] = field(default_factory=list)
 
     def texto(self) -> str:
         t = (f'Trafomix (medición MT, patrón {self.patron}): {self.excluidos} excluidos como SED; '
              f'{self.cargas_nulas_quitadas} cargas de 0 kW quitadas.')
+        if self.cargas_medidas_aguas_abajo:
+            t += (f' {len(self.cargas_medidas_aguas_abajo)} traían carga y tienen SED aguas abajo, que es lo que '
+                  f'miden: su carga se quita ({", ".join(self.cargas_medidas_aguas_abajo[:8])}).')
         if self.cargas_conservadas_mt:
             t += (f' {len(self.cargas_conservadas_mt)} traían carga y se conservan como '
                   f'carga de MT: {", ".join(self.cargas_conservadas_mt[:8])}.')
@@ -76,6 +83,7 @@ def excluir_trafomix(model: FeederModel, patron: str | None) -> InformeTrafomix:
         claves_quitar.add(sed.load_key)
         barras_trafomix.add(sed.node_id)
     model.seds = quedan
+    con_sed_debajo = _con_sed_aguas_abajo(model, barras_trafomix) if barras_trafomix else set()
 
     cargas = []
     for carga in model.loads:
@@ -84,6 +92,8 @@ def excluir_trafomix(model: FeederModel, patron: str | None) -> InformeTrafomix:
             cargas.append(carga)
         elif abs(carga.p_mw) < 1e-9 and abs(carga.q_mvar) < 1e-9:
             informe.cargas_nulas_quitadas += 1
+        elif carga.node_id in con_sed_debajo:              # 021:RF-86: lo que mide está en sus SED
+            informe.cargas_medidas_aguas_abajo.append(carga.sed_code or carga.device_number)
         else:
             cargas.append(carga)
             informe.cargas_conservadas_mt.append(carga.sed_code or carga.device_number)
@@ -92,6 +102,38 @@ def excluir_trafomix(model: FeederModel, patron: str | None) -> InformeTrafomix:
     if informe.excluidos:
         model.warnings.append(informe.texto())
     return informe
+
+
+def _con_sed_aguas_abajo(model: FeederModel, barras: set[str]) -> set[str]:
+    """Las barras de trafomix con alguna SED (de las que quedan) en su rama, aguas abajo desde la fuente (021:RF-86).
+
+    Un recorrido en anchura desde ``source_node`` por los tramos y las maniobras cerradas da a cada
+    barra su padre; de las hojas hacia la fuente, cada barra sabe si su rama lleva una SED. Lineal
+    en la red: vale para un alimentador o para todos los de un sistema.
+    """
+    vecinos: dict[str, list[str]] = {}
+
+    def unir(a: str | None, b: str | None) -> None:
+        if a and b and a != b:
+            vecinos.setdefault(a, []).append(b)
+            vecinos.setdefault(b, []).append(a)
+
+    for ln in model.lines:
+        unir(ln.from_node, ln.to_node)
+    for c in model.couplers:
+        if c.on_off:
+            unir(c.node_a, c.node_b)
+    orden, padre = [model.source_node], {model.source_node: None}
+    for n in orden:
+        for v in vecinos.get(n, ()):
+            if v not in padre:
+                padre[v] = n
+                orden.append(v)
+    debajo = {s.node_id for s in model.seds if s.node_id in padre}
+    for n in reversed(orden):
+        if n in debajo and padre[n] is not None:
+            debajo.add(padre[n])
+    return barras & debajo
 
 
 def _quitar_maniobras_sin_destino(model: FeederModel, barras: set[str]) -> list[str]:

@@ -288,3 +288,9 @@ Añadido el 2026-10-17 (calibrar NA293 y NA295 con su central en julio y a la ve
       desvío +0,15 %; informe de la aplicación con `tension_fuente` = {origen: operador, pu: 1.0278}; sonda nativa
       de solo lectura (ElmXnet.usetp por caso) = 1,0278 pu en «Caso base», «Sin proyecto», «Cargas nuevas» y «Con
       proyecto». Evidencia: D:/csg/INTEGRA_54/cierre_tareas/digsilent/ (registro de la corrida C1 y sonda_usetp5.out).
+- [x] T26. La carga de un trafomix con SED aguas abajo no se suma. (RF-86)
+      Hecho cuando: `tests/test_puentes.py` (021:RF-86) en verde con su rojo por aserción, y las vecinas del trafomix,
+      del reparto y de VNR-GIS en verde.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/VNR_SM115/rojo_trafomix.log`; verde 35 passed (`verde_trafomix.log`) y
+      875 passed, 3 skipped (`verde_vecinas.log`). Diagnóstico: `D:/csg/PM_IMPL/VNR_SM115/diagnostico.md`. La corrida
+      real es la de la 100 T4 con VNR-GIS.

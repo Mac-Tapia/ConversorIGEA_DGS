@@ -97,6 +97,24 @@ def test_montecarlo_da_percentiles_por_potencia_y_el_p50():
     assert otra == resumen
 
 
+def test_el_p50_conserva_la_base_total_y_su_factor_se_compara_con_el_determinista():
+    """041:RF-5 — el P50 lleva la mediana de cada escalada y la P base total del determinista, así que el factor que
+    lo cuadra mide la utilización como el determinista. El 26-11, SM115 desde VNR-GIS: muestras cuadradas con el
+    oráculo, medianas 1,354 veces el reparto determinista; la base del P50 pasaba de 4 440 a 6 013 kW, DIgSILENT la
+    cuadraba con 0,0397 y la 015:RF-71 lo invalidaba frente a 0,05, con una utilización real de 0,0537."""
+    from convertersmartgrid.dominio.ajuste_cabecera import reparto_p50
+
+    rep = _reparto().con_factores(0.0532, 0.0532)
+    kw = {s: [1.354 * rep.a * p] for s, (p, _q) in rep.base.items()}
+    p50 = reparto_p50(rep, kw)
+    total = sum(p for p, _ in rep.base.values())
+    assert sum(p for p, _ in p50.base.values()) == pytest.approx(total)
+    assert p50.a == pytest.approx(1.354 * rep.a)
+    for s in rep.base:
+        assert p50.demandas[s].kw == pytest.approx(kw[s][0])
+        assert p50.base[s][1] / p50.base[s][0] == pytest.approx(rep.base[s][1] / rep.base[s][0])
+
+
 def test_percentil_interpola():
     """041:RF-6 — percentil lineal, ``None`` sin valores."""
     assert percentil([], 0.5) is None
