@@ -322,6 +322,34 @@ def test_la_web_que_corta_se_reintenta(herramienta, monkeypatch):
     assert web.get('') == {'ok': 1}
 
 
+def test_las_peticiones_que_calcula_la_web_esperan_sin_repetirse(herramienta, monkeypatch):
+    """086:RF-139 — el 26-11, Pisco desde VNR-GIS (21 alimentadores): el cruce de clientes y el plan del ajuste los
+    calcula la web en la misma petición y pasaban de 300 s; cada «ReadTimeout» repetía la petición, la web empezaba otra
+    vez y la aceptación dio vueltas dos horas sin avanzar. Esas dos esperan hasta PLAZO_SINCRONO_S; las demás, 300 s."""
+    assert getattr(herramienta, 'PLAZO_SINCRONO_S', 0) >= 3600, 'falta el plazo largo de las peticiones síncronas'
+    web = herramienta.Web('http://web', 'e', reintentos=1, pausa=0)
+    vistos = []
+    respuesta = type('R', (), {'status_code': 200, 'json': lambda self: {'ok': 1}})()
+    monkeypatch.setattr(web.http, 'request', lambda *a, **k: (vistos.append(k.get('timeout')), respuesta)[1])
+    web.get('')
+    web.post('/demanda/ajuste/plan', json={}, timeout=herramienta.PLAZO_SINCRONO_S)
+    assert vistos == [300, herramienta.PLAZO_SINCRONO_S]
+
+    class Registra(WebFalsa):
+        def post(self, ruta, **kw):
+            if ruta in ('/demanda/ajuste/plan', '/demanda/clientes/cruzar'):
+                self.plazos[ruta] = kw.get('timeout')
+            return super().post(ruta, **kw)
+
+    falsa = Registra(proyecto='P', informes=[VALIDO])
+    falsa.plazos = {}
+    herramienta.correr(falsa, 'Pisco', demanda_dir=Path('l'), periodo='2026-07', reconvertir=False,
+                       transformadores=False, tension_pu=None, bancos=True,
+                       libros={**LIBROS, 'suministros': Path('l/s.xlsx')})
+    assert falsa.plazos == {'/demanda/ajuste/plan': herramienta.PLAZO_SINCRONO_S,
+                                     '/demanda/clientes/cruzar': herramienta.PLAZO_SINCRONO_S}
+
+
 def test_solo_una_parte_del_sistema(herramienta):
     """022:RF-56 — ``--alimentadores`` calibra solo esos, para aislar el que no deja converger;
     sin medidores elegidos no hay qué calibrar."""

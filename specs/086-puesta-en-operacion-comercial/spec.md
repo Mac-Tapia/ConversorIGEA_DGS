@@ -602,6 +602,10 @@ mientras los demás casos pasaban a 1,0278.
 - RF-138: CUANDO una vuelta entera de la vigilancia falle, EL SISTEMA avisará «la vigilancia falló» con la causa y el
   fichero y la línea del último paso de la traza que no sea de la biblioteca estándar, una sola vez por causa
   (tipo de error y línea) mientras viva la web, en vez de un aviso idéntico por minuto.
+- RF-139: CUANDO la cadena de la web (`tools/sistema_web.py`) pide algo que la web calcula en la misma petición (el
+  cruce de clientes y el plan del ajuste), EL SISTEMA esperará la respuesta hasta `PLAZO_SINCRONO_S` (1 h) en vez de
+  cortar a los 300 s y repetirla; las demás peticiones siguen con 300 s. (26-11, Pisco desde VNR-GIS, 21 alimentadores:
+  cada «ReadTimeout» repetía el plan, la web volvía a empezar y la aceptación dio vueltas dos horas sin avanzar.)
 
 ## Fuera de alcance
 

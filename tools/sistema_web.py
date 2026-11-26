@@ -59,6 +59,10 @@ from _plural import cuenta  # noqa: E402
 TERMINADOS = ('done', 'parcial', 'no_converge', 'failed', 'cancelled', 'interrumpido')
 #: Sin estos dos no hay calibración; sin clientes o suministros, todo por kVA (013:RF-13).
 NECESARIOS = ('medidores', 'cabecera')
+#: 086:RF-139: lo que la web calcula en la misma petición (el cruce de clientes y el plan del ajuste) espera hasta
+#: este plazo. Con 300 s, Pisco desde VNR-GIS (21 alimentadores, 26-11) cortaba, reintentaba y la web volvía a
+#: empezar: dos horas de «la web no respondió» sin avanzar.
+PLAZO_SINCRONO_S = 3600.0
 
 
 class Web:
@@ -86,7 +90,7 @@ class Web:
                     # 086:RF-132: los pasos de este trabajo entran en la reserva de DIgSILENT de su espacio
                     # (``jobs.CABECERA_TRABAJO_PROPIO``); las acciones de otros esperan o se rechazan antes de empezar.
                     self.http.headers['X-CSG-Trabajo-Propio'] = propio
-                return self.http.request(metodo, self.url + ruta, timeout=300, **kw)
+                return self.http.request(metodo, self.url + ruta, **{'timeout': 300, **kw})
             except requests.RequestException as exc:
                 if intento + 1 == self.reintentos:
                     raise
@@ -598,7 +602,7 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         web.post('/demanda/clientes/cruzar', json={
             'alimentadores': sistema['alimentadores'], 'periodo': periodo,
             'criterio': criterio_fijas, 'criterio_por_alimentador': por_alimentador, **con_a_su_maxima,
-            **({'maximas': maximas} if maximas else {})})
+            **({'maximas': maximas} if maximas else {})}, timeout=PLAZO_SINCRONO_S)              # 086:RF-139
     # El vínculo exige que la última relectura de DIgSILENT vea el proyecto (spec 018): tras
     # importar, Chincha (2026-10-18) dio PROJECT_BINDING_PROJECT_MISMATCH sin ella.
     if not _terminado(web.esperar(web.post('/powerfactory/projects'))):
@@ -609,7 +613,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         # 083:RF-31: sin la opción de simular antes, el guion cambia los transformadores en la misma pasada.
         'transformadores_automaticos': not transformadores,
         'centrales': del_perfil, 'criterio_fijas': criterio_fijas,             # 039:RF-1
-        'criterio_por_alimentador': por_alimentador, **con_a_su_maxima})       # 039:RF-8, RF-16
+        'criterio_por_alimentador': por_alimentador, **con_a_su_maxima},       # 039:RF-8, RF-16
+        timeout=PLAZO_SINCRONO_S)                                              # 086:RF-139
     for aviso in plan.get('avisos', []):
         if 'por su banco propio' not in aviso:  # las fijas compensadas por su banco, una por cliente: no se repiten
             print(f'  aviso: {aviso}', flush=True)

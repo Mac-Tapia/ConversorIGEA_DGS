@@ -656,3 +656,8 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       Hecho el 2026-11-26 (agente de vigilancia, worktree `wt_vigilancia`): rojo por aserción
       D:/csg/PM_IMPL/VIGILANCIA/rojo.log (3 failed, 5 passed: el TypeError real reproducido) y verde
       D:/csg/PM_IMPL/VIGILANCIA/verde_vigilancia.log (8 passed) y verde_gobierno.log.
+- [x] T115 PLAZO-SINCRONO (26-11). Las peticiones que calcula la web esperan sin repetirse. (RF-139)
+      Hecho cuando: `tests/test_sistema_web.py` (086:RF-139) en verde con su rojo por aserción, y el sistema desde
+      VNR-GIS de la 100 T4 llega a calibrar.
+      Hecho el 2026-11-26 (código): rojo `D:/csg/PM_IMPL/PLAZO_SINCRONO/rojo.log`, verde 54 passed (`verde.log`). La
+      corrida real es la aceptación de la versión que lo lleva.
