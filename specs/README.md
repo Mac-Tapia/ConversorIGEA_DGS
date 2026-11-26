@@ -34,7 +34,7 @@ retirada.
 | [025](025-calibracion-por-anio/spec.md) | Calibración por año de medición | cumplida | 93 | 93 | — |
 | [026](026-asistente-ordenes/spec.md) | Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | 51 | 51 | — |
 | [027](027-cierre-agente-en-produccion/spec.md) | Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | 78 | 71 | T11 |
-| [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | cumplida | 44 | 44 | — |
+| [028](028-escaneo-del-alimentador/spec.md) | Escaneo del alimentador antes de recalibrar | cumplida | 45 | 45 | — |
 | [029](029-crecimiento-por-alimentador/spec.md) | Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida | 7 | 7 | — |
 | [030](030-pide-por-anios-en-digsilent/spec.md) | Los años del PIDE en casos y escenarios de DIgSILENT | cumplida | 15 | 15 | — |
 | [031](031-proyeccion-econometrica-de-la-demanda/spec.md) | Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | cumplida | 30 | 30 | — |
@@ -45,7 +45,7 @@ retirada.
 | [036](036-auditoria-raiz-y-arranque-fiable/spec.md) | Auditoría de raíz y correcciones del arranque | cumplida | 3 | 3 | — |
 | [037](037-cargas-nuevas-en-estudios-web/spec.md) | Caso «Cargas nuevas» en los estudios de la web | cumplida | 8 | 8 | — |
 | [038](038-pertenencia-de-sed-y-notas-en-web/spec.md) | Pertenencia de las SED en la fuente y notas de actualización | cumplida | 8 | 8 | — |
-| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | cumplida | 25 | 25 | — |
+| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | cumplida | 26 | 26 | — |
 | [040](040-cargas-del-bloque-sin-duplicados-y-ampliaciones/spec.md) | Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida | 12 | 12 | — |
 | [041](041-reparto-probabilistico-de-las-escaladas/spec.md) | Reparto probabilístico de las SED escaladas | cumplida | 9 | 9 | — |
 | [042](042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md) | «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | 112 | 112 | T70 (DIgSILENT) |
@@ -112,7 +112,7 @@ retirada.
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
-| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 26 | 26 | — |
+| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 27 | 27 | — |
 | [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | cumplida | 43 | 43 | — |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | 26 | 26 | — |

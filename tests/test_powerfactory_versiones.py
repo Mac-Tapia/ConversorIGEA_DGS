@@ -243,7 +243,16 @@ def test_103_rf6_el_entorno_pone_las_librerias_del_interprete_antes_que_el_paque
     rutas = pe.pf_subprocess_env(api, otro)['PYTHONPATH'].split(os.pathsep)
     assert rutas[:3] == [str(api), str(otro.parent / 'Lib' / 'site-packages'), str(pe.carpeta_del_paquete())]
     assert pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)[0] == str(api)
-    assert str(pe.carpeta_del_paquete()) not in pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)
+    # 106:RF-27 (amplía 103:RF-6): con el del programa, instalado, solo la API; en desarrollo, la API y el `src` de la web.
+    import unittest.mock
+    mismo = pe.pf_subprocess_env(api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep)
+    if pe.carpeta_del_paquete().name == 'src':
+        assert mismo[:2] == [str(api), str(pe.carpeta_del_paquete())]
+    else:
+        assert str(pe.carpeta_del_paquete()) not in mismo
+    with unittest.mock.patch.object(pe, 'carpeta_del_paquete', lambda: tmp_path / 'Lib' / 'site-packages'):
+        assert str(tmp_path / 'Lib' / 'site-packages') not in pe.pf_subprocess_env(
+            api, Path(sys.executable))['PYTHONPATH'].split(os.pathsep), 'instalado no se adelanta site-packages'
     # 103:RF-6: el PYTHONHOME del lanzador (el del 3.12) no pasa a otro intérprete.
     import unittest.mock
     with unittest.mock.patch.dict(os.environ, {'PYTHONHOME': 'D:/programa/python'}):

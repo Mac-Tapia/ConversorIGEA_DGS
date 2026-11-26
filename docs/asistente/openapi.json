@@ -2540,7 +2540,7 @@
           "periodo": {
             "anyOf": [
               {
-                "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                "pattern": "^\\d{4}(-(0[1-9]|1[0-2]))?$",
                 "type": "string"
               },
               {
@@ -3056,6 +3056,46 @@
           "errores"
         ],
         "title": "CopiaExistente",
+        "type": "object"
+      },
+      "CorreccionCabeceraIn": {
+        "description": "039:RF-26: la corrección del operador de un medidor de cabecera (factor y valor absoluto de P, Q y S).",
+        "properties": {
+          "absoluto": {
+            "default": false,
+            "title": "Absoluto",
+            "type": "boolean"
+          },
+          "desde": {
+            "default": "",
+            "pattern": "^(\\d{4}-(0[1-9]|1[0-2]))?$",
+            "title": "Desde",
+            "type": "string"
+          },
+          "factor": {
+            "exclusiveMinimum": 0.0,
+            "maximum": 100.0,
+            "title": "Factor",
+            "type": "number"
+          },
+          "medidor": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Medidor",
+            "type": "string"
+          },
+          "motivo": {
+            "default": "",
+            "maxLength": 500,
+            "title": "Motivo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "medidor",
+          "factor"
+        ],
+        "title": "CorreccionCabeceraIn",
         "type": "object"
       },
       "CorreccionMedidorIn": {
@@ -4058,7 +4098,7 @@
           "periodo": {
             "anyOf": [
               {
-                "pattern": "^\\d{4}-(0[1-9]|1[0-2])$",
+                "pattern": "^\\d{4}(-(0[1-9]|1[0-2]))?$",
                 "type": "string"
               },
               {
@@ -17517,6 +17557,96 @@
           }
         },
         "summary": "Demanda Cabecera"
+      }
+    },
+    "/api/workspaces/{wid}/demanda/cabecera/correccion": {
+      "get": {
+        "operationId": "demanda_correcciones_cabecera_api_workspaces__wid__demanda_cabecera_correccion_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Demanda Correcciones Cabecera Api Workspaces  Wid  Demanda Cabecera Correccion Get",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda Correcciones Cabecera"
+      },
+      "put": {
+        "operationId": "demanda_correccion_cabecera_api_workspaces__wid__demanda_cabecera_correccion_put",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CorreccionCabeceraIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "title": "Response Demanda Correccion Cabecera Api Workspaces  Wid  Demanda Cabecera Correccion Put",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Demanda Correccion Cabecera"
       }
     },
     "/api/workspaces/{wid}/demanda/cabecera/indexar": {

@@ -79,3 +79,49 @@ def nodo_de_central(escaneo: Mapping[str, Any] | None, alimentador: str) -> str 
     return None
 
 
+
+
+#: 028:RF-45: qué se compara de cada clase entre el «Caso base» y «Sin proyecto», y bajo qué lista sale.
+CLASES_FRENTE_AL_BASE = {'ElmLne': 'tramo', 'ElmLod': 'carga', 'ElmLodlv': 'carga', 'ElmShnt': 'banco',
+                         'ElmCoup': 'maniobra', 'StaSwitch': 'maniobra', 'ElmTr2': 'sed'}
+#: 028:RF-45 (usuario, 26-11): de un tramo solo cuentan las obras, otro conductor (la sección) o más ternas; la longitud y
+#: los parámetros de su ficha no («solo cuando se haya incrementado nueva terna o cambiado de sección de cable»).
+CAMBIOS_DE_OBRA_EN_TRAMOS = ('tipo', 'ternas')
+
+
+def diferencias_frente_al_base(base: Mapping[tuple[str, str], Mapping[str, Any]],
+                               sin: Mapping[tuple[str, str], Mapping[str, Any]]) -> dict[str, list]:
+    """028:RF-45 — lo que cambió en «Sin proyecto» respecto del «Caso base», donde el operador no tocó nada.
+
+    ``base`` y ``sin`` son la foto de un alimentador en cada caso: ``(clase, nombre) → atributos``. Salen los tramos y
+    bancos nuevos, los tramos quitados y lo cambiado de tramos, cargas, bancos y maniobras con su antes y su después;
+    lo igual no sale. El 26-11 el operador cambió en «Sin proyecto» de PA217 tramos, cargas, bancos y maniobras y el
+    escaneo decía «ninguno»: solo comparaba con el DGS, las variaciones del operador y la última calibración.
+    """
+    out: dict[str, list] = {k: [] for k in ('tramos_nuevos', 'tramos_cambiados', 'tramos_quitados', 'cargas_cambiadas',
+                                            'bancos_nuevos', 'bancos_cambiados', 'maniobras_cambiadas', 'sed_nuevas',
+                                            'sed_cambiadas')}
+    for clave in sorted(set(base) | set(sin)):
+        clase, nombre = clave
+        que = CLASES_FRENTE_AL_BASE.get(clase)
+        if que is None:
+            continue
+        antes, despues = base.get(clave), sin.get(clave)
+        if antes is None:
+            if que in ('tramo', 'banco'):
+                out[f'{que}s_nuevos'].append({que: nombre, **dict(despues or {})})
+            elif que == 'sed':
+                out['sed_nuevas'].append({'sed': nombre, **dict(despues or {})})
+            continue
+        if despues is None:
+            if que == 'tramo':
+                out['tramos_quitados'].append({'tramo': nombre, **dict(antes)})
+            continue
+        cambios = {k: (antes.get(k), despues.get(k)) for k in sorted(set(antes) | set(despues))
+                   if k not in ('desde', 'hasta') and antes.get(k) != despues.get(k)
+                   and (que != 'tramo' or k in CAMBIOS_DE_OBRA_EN_TRAMOS)}
+        if cambios:
+            lista = {'tramo': 'tramos_cambiados', 'carga': 'cargas_cambiadas', 'banco': 'bancos_cambiados',
+                     'maniobra': 'maniobras_cambiadas', 'sed': 'sed_cambiadas'}[que]
+            out[lista].append({que: nombre, 'cambios': cambios})
+    return out

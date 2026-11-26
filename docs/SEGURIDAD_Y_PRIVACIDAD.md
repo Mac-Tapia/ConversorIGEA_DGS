@@ -18,9 +18,11 @@ opinión legal ni una certificación: no ha pasado una auditoría externa.
   la lista de las dos rutas está en el código, por su nombre, y una prueba recorre todas las demás rutas para que ninguna se deje
   enmarcar. Lo que rechaza la puerta (sin sesión, otro `Host` u `Origin`) y la entrada con el enlace del lanzador tampoco.
 - **Las páginas de los mapas van aisladas** (`sandbox`, sin acceso a la API ni a las cookies) y no piden nada de fuera salvo el fondo
-  del mapa, cuando su salida está encendida: imágenes de `https://a.tile.openstreetmap.org`, `https://b.tile.openstreetmap.org` y
-  `https://c.tile.openstreetmap.org` (calles) y de `https://server.arcgisonline.com` (satélite). La política nombra esos servidores,
-  sin comodín; con la salida apagada solo admite imágenes incrustadas. Si una de esas páginas llegara sin `sandbox`, no se deja
+  del mapa, cuando su salida está encendida: las calles, de la propia web (`/teselas/calles/{z}/{x}/{y}.png`), que las pide a
+  `https://tile.openstreetmap.org` con el User-Agent del programa y las guarda 7 días (una página aislada no manda «Referer» y
+  OpenStreetMap la bloqueaba, 111:RF-27); y el satélite, de `https://server.arcgisonline.com`. La política nombra esos orígenes
+  (`'self'` y el de Esri), sin comodín; con la salida apagada solo admite imágenes incrustadas y la ruta de teselas no pide nada.
+  Esa ruta va sin sesión (la página aislada no lleva la cookie) y solo sirve teselas numeradas dentro de rango. Si una de esas páginas llegara sin `sandbox`, no se deja
   enmarcar.
 - **Por qué la vista previa abre más que un mapa.** La vista previa del alimentador se sirve por la ruta de los ficheros del
   espacio de trabajo, así que esa ruta deja enmarcar, por esta misma web, cualquier página HTML del espacio, no solo la vista previa.

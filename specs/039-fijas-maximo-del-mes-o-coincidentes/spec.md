@@ -101,6 +101,12 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
   el alimentador con el resto y el informe dirá `fijas_liberadas` con sus motivos y su diagnóstico. La calibración de una
   SET o de un sistema nunca se detiene por un alimentador; nunca queda «no puede cuadrar» a secas. Una fija solo dudosa
   por el reparto (`FIJAS_DEJAN_SIN_ESCALADAS`) queda con su medida y se avisa.
+- RF-26: (orden del usuario del 26-11) DONDE un medidor de cabecera registre mal (un factor o el signo), EL SISTEMA
+  permitirá al operador registrar en el espacio su corrección (medidor, factor, valor absoluto y, si quiere, el mes
+  desde el que vale, con su motivo); al leer la cabecera multiplicará P, Q y S de sus registros por el factor y, si lo
+  pide, tomará su valor absoluto, antes de buscar la máxima, la curva o la máxima por barra; lo dirá en los avisos del
+  medidor, y el libro no se tocará. (LL203, L-LL123: 31 078 kW de máxima en una cabecera de media tensión; el medidor
+  registraba diez veces de más y con el signo cambiado.)
 
 ## Relación con otras specs
 

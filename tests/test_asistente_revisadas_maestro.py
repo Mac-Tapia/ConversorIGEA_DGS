@@ -302,3 +302,23 @@ def test_la_decision_del_maestro_abre_el_qlora_y_la_campana_la_pasa(tmp_path, mo
     assert json.loads(decision.read_text(encoding='utf-8'))['decision'] == 'necesaria'
     # La opción existe en la línea de órdenes de la campaña.
     assert '--qlora-decision' in (RAIZ / 'tools/reentrenar_modelos.py').read_text(encoding='utf-8')
+
+
+def test_volver_a_registrar_lo_mismo_otro_segundo_no_cambia_el_sello(tmp_path, monkeypatch):
+    """047:RF-62 — el 26-11 la suite completa de 39248744 falló aquí con «KeyError: 'dataset_hash'»: cada orden sellada
+    llevaba la fecha del momento, al segundo, en su huella; el segundo registro, un segundo después con el equipo
+    cargado, daba otro conjunto y se rechazaba. Con un conjunto ya sellado, se reutiliza su fecha de sellado."""
+    import datetime as dt
+
+    a = _almacen(tmp_path)
+    r = _revisar(tmp_path, a, _todas())
+    h = _cargar('asistente_ordenes_reales')
+
+    class Despues(dt.datetime):
+        @classmethod
+        def now(cls, tz=None):
+            return dt.datetime(2030, 1, 1, 12, 0, 1, tzinfo=tz)
+
+    monkeypatch.setattr(h, 'datetime', Despues)
+    otra = h.revisar_maestro(argparse.Namespace(almacen=a, entrada=tmp_path / 'entrada.jsonl'))
+    assert otra['ok'] is True and otra['dataset_hash'] == r['dataset_hash'], otra

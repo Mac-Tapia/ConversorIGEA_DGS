@@ -429,7 +429,7 @@ FONDOS = ('calles', 'satelite')
 def fondo_del_informe(raiz: Path | None, cual: str = 'calles', *,
                       pedir: Callable[[str, float], bytes] | None = None) -> tuple[ProveedorTeselas | None, str]:
     """El proveedor de teselas para la imagen de ubicación, o ``None`` y por qué (lo dice el pie, 017:RF-112)."""
-    from .preview import FONDOS_MAPA
+    from .preview import FONDOS_MAPA, SERVIDOR_TESELAS_OSM, URL_TESELAS
 
     if cual not in FONDOS:
         raise ValueError(f'Fondo de mapa desconocido: {cual!r} (calles o satelite).')
@@ -437,6 +437,8 @@ def fondo_del_informe(raiz: Path | None, cual: str = 'calles', *,
         return None, motivo_apagada('teselas')
     nombre, url, atribucion, aviso, zoom = FONDOS_MAPA[FONDOS.index(cual)]
     del nombre
+    if url == URL_TESELAS:              # 111:RF-27: la página toma las calles de la web; aquí se piden a OpenStreetMap
+        url = f'{SERVIDOR_TESELAS_OSM}/{{z}}/{{x}}/{{y}}.png'
     texto = re.sub(r'<[^>]+>', '', atribucion).replace('&copy;', '©').replace('&mdash;', '—')
     cache = Path(raiz) / CARPETA_TESELAS / cual if raiz is not None else None
     return ProveedorTeselas(aviso, url, texto, int(zoom), cache, pedir=pedir), ''

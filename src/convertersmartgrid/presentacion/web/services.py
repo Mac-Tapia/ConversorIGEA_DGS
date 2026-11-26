@@ -3219,7 +3219,8 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
         libros = _libros_de_cabecera(ws, periodo)
         try:
             curvas = {r.medidor: r.curva for r in maximas(libros, pares, alias=demanda_alias(), periodo=periodo,
-                                                          cancelado=ctx.cancel.is_set)}
+                                                          cancelado=ctx.cancel.is_set,
+                                                          correcciones=ws.correcciones_cabecera)}
         except DemandaError as exc:
             raise UserError(str(exc)) from exc
         de_central = {a: tuple(curvas.get(c.get(k)) or [] for k in ('generacion', 'llegada', 'salida'))
@@ -3240,7 +3241,7 @@ def demanda_cabecera(ws: Workspace, ctx: JobContext, pares: list[tuple[str, str]
             + (f' · registro del {instante}' if instante else f' · máxima de {periodo}' if periodo else ''))
     try:
         res = maximas(libros, pares, alias=alias, periodo=periodo, instante=instante,
-                      cancelado=ctx.cancel.is_set,
+                      cancelado=ctx.cancel.is_set, correcciones=ws.correcciones_cabecera,     # 039:RF-26
                       progreso=lambda i, n, m: ctx.progress(i, n, m))
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
@@ -3500,7 +3501,7 @@ def _demanda_por_barra(ws: Workspace, ctx: JobContext, pares: list[tuple[str, st
         # 027:RF-25: los libros se leen en el proceso del trabajo, no en el de la API.
         res, info, avisos, de_barra, instantes = ctx.en_proceso(
             maximas_por_barra, libros, alias, barras, pares, periodo, avisos, comun_60kv=sistema_60kv,
-            balances=balances)
+            balances=balances, correcciones=list(ws.correcciones_cabecera))                    # 039:RF-26
     except DemandaError as exc:
         raise UserError(str(exc)) from exc
     _tension_en_pu(ws, res)                                                     # 021:RF-74 a RF-76
@@ -3782,6 +3783,36 @@ def registrar_correccion_medidor(ws: Workspace, codigo: str, factor: float, desd
         ws.correcciones_medidor = [*ws.correcciones_medidor, fila]
         ws.save()
         return {'correcciones': list(ws.correcciones_medidor)}
+
+
+def registrar_correccion_cabecera(ws: Workspace, medidor: str, factor: float, absoluto: bool, desde: str = '',
+                                  motivo: str = '') -> dict:
+    """039:RF-26: la corrección del operador de un medidor de cabecera, en el espacio; el libro no se toca.
+
+    Multiplica P, Q y S de sus registros por ``factor`` y, con ``absoluto``, toma su valor absoluto, desde el mes
+    ``desde`` (``AAAA-MM``; vacío, todos). La última registrada de ese medidor manda; factor 1 sin absoluto la anula. El
+    26-11, LL203 (L-LL123) daba 31 078 kW de máxima: el medidor registraba diez veces de más y con el signo cambiado.
+    """
+    medidor = str(medidor or '').strip()
+    if not medidor:
+        raise UserError('Indique el medidor de cabecera que corrige.')
+    desde = str(desde or '').strip()
+    if desde and not re.fullmatch(r'\d{4}-(0[1-9]|1[0-2])', desde):
+        raise UserError('El mes de inicio de la corrección es AAAA-MM, o vacío para todos los registros.')
+    if not (isinstance(factor, (int, float)) and math.isfinite(factor) and 0 < factor <= 100):
+        raise UserError('El factor de la corrección debe ser un número positivo.')
+    fila = {'medidor': medidor, 'factor': float(factor), 'absoluto': bool(absoluto), 'desde': desde,
+            'motivo': str(motivo or '').strip(), 'registrada': datetime.now().isoformat(timespec='seconds')}
+    with ws.lock:
+        ws.correcciones_cabecera = [*ws.correcciones_cabecera, fila]
+        ws.save()
+        return {'correcciones': list(ws.correcciones_cabecera)}
+
+
+def correcciones_cabecera(ws: Workspace) -> dict:
+    """039:RF-26: las correcciones de los medidores de cabecera registradas en el espacio."""
+    with ws.lock:
+        return {'correcciones': list(ws.correcciones_cabecera)}
 
 
 def correcciones_medidor(ws: Workspace) -> dict:
@@ -7530,7 +7561,7 @@ def _curva_del_anio(ws: Workspace, ctx: JobContext, anio: int, medidores: dict[s
     try:
         libros = _libros_de_cabecera(ws, str(anio))
         res = maximas(libros, list(medidores.items()), alias=demanda_alias(), periodo=str(anio),
-                      cancelado=ctx.cancel.is_set)
+                      cancelado=ctx.cancel.is_set, correcciones=ws.correcciones_cabecera)   # 039:RF-26
     except (DemandaError, UserError, OSError) as exc:
         if avisos is None:
             raise UserError(str(exc)) from exc

@@ -180,6 +180,9 @@ el kVAR y `IN191_V20` el kVA (canales del medidor `IN191`), y `IN191_V119` no ex
 - RF-45: SI un medidor no tiene hoja pero es un canal de un medidor que sí la tiene, y otro
   medidor del mismo alimentador ya da ese medidor, ENTONCES EL SISTEMA dará un solo
   resultado, con un aviso que nombre el canal que no está.
+- Aclaración de RF-45 (26-11): también una hoja de una sola magnitud sin kW (el kVAR de «IN111_V18 Y IN111_V19») que
+  otro medidor pedido del mismo alimentador ya toma por RF-44 se junta con él y se dice; antes salía como error «sin
+  columna de kW».
 
 Cambio del 2026-10-12, pedido por el operador al escribir una carga nueva a mano: el
 formulario pedía a la vez kW, kVAR, kVA y FP, y la barra antes que las coordenadas.

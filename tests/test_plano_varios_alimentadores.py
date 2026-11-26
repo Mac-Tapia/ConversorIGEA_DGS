@@ -169,3 +169,42 @@ def test_111_rf27_las_teselas_piden_con_el_origen_como_referer(monkeypatch):
     fuente = inspect.getsource(seguridad)
     assert fuente.count("(b'referrer-policy', b'no-referrer')") == 2, 'la cabecera global de la web cambió'
     assert 'referrerPolicy' not in fuente and REFERER_TESELAS not in fuente
+
+
+def test_111_rf27_las_calles_las_sirve_la_propia_web(monkeypatch, tmp_path):
+    """111:RF-27 (26-11) — el plano va en una página aislada («sandbox allow-scripts»): en un Chromium real su tesela
+    salió sin «Referer» aunque pidiera «strict-origin-when-cross-origin», y OpenStreetMap devolvió su imagen «403 Access
+    blocked». Las calles las pide la propia web, con el User-Agent del programa, y las guarda; la página las toma de ahí
+    («'self'»). Coordenadas fuera de rango, 404; con la salida de teselas apagada no se pide nada."""
+    import pytest
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.adaptadores import preview
+    from convertersmartgrid.presentacion.web.app import create_app
+
+    monkeypatch.setenv('CSG_SALIDA_TESELAS', '1')
+    guion, _aviso = preview.guion_de_fondos()
+    assert '/teselas/calles/{z}/{x}/{y}.png' in guion and 'tile.openstreetmap.org' not in guion
+    assert "'self'" in preview.politica_base()
+    pedidas = []
+
+    def descargar(url, cabeceras):
+        pedidas.append((url, cabeceras))
+        return b'\x89PNG tesela'
+
+    assert hasattr(preview, 'tesela_calles'), 'falta 111:RF-27: la web no sirve las calles'
+    monkeypatch.setattr(preview, 'descargar_tesela', descargar)
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    monkeypatch.setenv('CSG_CACHE_HOME', str(tmp_path / 'cache'))
+    with TestClient(create_app(tmp_path / 'web', host='127.0.0.1')) as c:
+        r = c.get('/teselas/calles/12/1180/2185.png')            # sin cookie: la página aislada no la manda
+        assert r.status_code == 200 and r.content == b'\x89PNG tesela' and r.headers['content-type'] == 'image/png'
+        assert c.get('/teselas/calles/12/1180/2185.png').content == b'\x89PNG tesela'
+        assert len(pedidas) == 1, 'la segunda sale de la caché'
+        url, cabeceras = pedidas[0]
+        assert url == 'https://tile.openstreetmap.org/12/1180/2185.png'
+        assert cabeceras['User-Agent'].startswith('ConverterSmartGrid/')
+        for mala in ('/teselas/calles/20/0/0.png', '/teselas/calles/2/4/0.png', '/teselas/calles/2/-1/0.png'):
+            assert c.get(mala).status_code == 404, mala
+        monkeypatch.setenv('CSG_SALIDA_TESELAS', '0')
+        assert c.get('/teselas/calles/12/1180/2186.png').status_code == 404 and len(pedidas) == 1

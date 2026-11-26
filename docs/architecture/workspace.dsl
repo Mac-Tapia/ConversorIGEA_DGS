@@ -131,7 +131,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 174 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 177 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (41 ficheros)." "Python" {

@@ -209,3 +209,8 @@ Cada fichero nuevo entra en `CODIGO_FUENTE.md` y en `docs/architecture/subsistem
       salida activa, la de `ws.conversions[alimentador]` y la de `<grupo>_geography.json` de la red unida que lo contiene,
       con la misma huella de la fuente que `ws.loaded_source_fingerprint`; `FuenteWeb.alimentadores` los lista. (RF-32)
       Hecho cuando: rojo por aserción y verde con `tests/test_plano_api.py` (111:RF-32) y sus vecinas del plano.
+- [x] T33. Las calles del mapa las sirve la propia web. (RF-27, enmienda del 26-11)
+      Hecho cuando: `tests/test_plano_varios_alimentadores.py` (111:RF-27) en verde con su rojo por aserción, las de
+      seguridad y mapas en verde, y el plano de un alimentador con calles en el navegador.
+      Hecho el 2026-11-26 (código): rojo `D:/csg/PM_IMPL/TESELAS/rojo.log`; verde 189 passed (`verde.log`). La
+      comprobación del Referer en un Chromium real: `referer_sandbox.py` del 26-11 (normal con Referer, aislada sin él).

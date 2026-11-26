@@ -221,7 +221,7 @@ def test_la_pagina_del_mapa_lleva_leaflet_dentro_y_los_fondos_solo_si_se_permite
     assert 'X</script>' not in apagada and 'X\\u003c/script>' in apagada
     monkeypatch.setenv('CSG_SALIDA_TESELAS', '1')
     encendida = mc.pagina_del_mapa(datos)
-    assert 'tile.openstreetmap.org' in encendida and ORIGEN_SATELITE in encendida and 'L.control.layers' in encendida
+    assert '/teselas/calles/' in encendida and ORIGEN_SATELITE in encendida and 'L.control.layers' in encendida
 
 
 def test_la_pagina_del_mapa_es_accesible_dentro_del_marco():
@@ -315,7 +315,7 @@ def test_proveedor_de_teselas_con_cache_y_sin_insistir_sin_red(tmp_path, monkeyp
 
     fondo, motivo = mc.fondo_del_informe(tmp_path, 'calles', pedir=pedir)
     assert motivo == '' and fondo.tesela(15, 100, 200) == b'png' and fondo.tesela(15, 100, 200) == b'png'
-    assert pedidas == ['https://a.tile.openstreetmap.org/15/100/200.png']
+    assert pedidas == ['https://tile.openstreetmap.org/15/100/200.png']             # 111:RF-27
     assert (tmp_path / mc.CARPETA_TESELAS / 'calles' / '15' / '100' / '200.png').read_bytes() == b'png'
     sat, _m = mc.fondo_del_informe(tmp_path, 'satelite', pedir=pedir)
     sat.tesela(3, 1, 2)

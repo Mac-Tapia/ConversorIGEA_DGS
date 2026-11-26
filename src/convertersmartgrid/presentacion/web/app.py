@@ -381,8 +381,9 @@ class DemandaClientesIn(BaseModel):
     """Alimentadores de la máxima buscada: el cruce se queda con sus clientes (RF-43)."""
 
     alimentadores: list[str] = Field(default_factory=list)
-    # Spec 013, RF-12: con una carpeta de libros mensuales, el mes que eligió el operador.
-    periodo: str | None = Field(default=None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    # Spec 013, RF-12: con una carpeta de libros mensuales, el mes que eligió el operador; 091:RF-19: o el año entero,
+    # y cada alimentador se cruza con el libro del mes de su máxima («Todo 2026» daba 422 el 26-11).
+    periodo: str | None = Field(default=None, pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')
     # 035:RF-1: la máxima buscada de cada alimentador (fecha, kw, kvar, fp): sus clientes
     # con el registro de ese instante y lo que el ajuste escribirá.
     maximas: dict[str, dict[str, Any]] = Field(default_factory=dict)
@@ -400,6 +401,16 @@ class ASuMaximaIn(BaseModel):
     codigos: list[str] = Field(default_factory=list, max_length=20000)
 
 
+class CorreccionCabeceraIn(BaseModel):
+    """039:RF-26: la corrección del operador de un medidor de cabecera (factor y valor absoluto de P, Q y S)."""
+
+    medidor: str = Field(min_length=1, max_length=64)
+    factor: float = Field(gt=0, le=100)
+    absoluto: bool = False
+    desde: str = Field(default='', pattern=r'^(\d{4}-(0[1-9]|1[0-2]))?$')
+    motivo: str = Field(default='', max_length=500)
+
+
 class CorreccionMedidorIn(BaseModel):
     """039:RF-23: la corrección fechada del factor del medidor de un cliente (004:RF-111: ``factor_propuesto``)."""
 
@@ -414,7 +425,7 @@ class CompararFijasIn(BaseModel):
 
     project: str = ''
     alimentadores: list[str] = Field(default_factory=list, max_length=2000)
-    periodo: str | None = Field(default=None, pattern=r'^\d{4}-(0[1-9]|1[0-2])$')
+    periodo: str | None = Field(default=None, pattern=r'^\d{4}(-(0[1-9]|1[0-2]))?$')                # 091:RF-19
     maximas: dict[str, dict[str, Any]] = Field(default_factory=dict)
 
 
@@ -2316,6 +2327,16 @@ def create_app(
     def demanda_a_su_maxima(wid: str, body: ASuMaximaIn) -> dict:
         return services.guardar_a_su_maxima(ws_or_404(wid), body.codigos)
 
+    # 039:RF-26: correcciones del operador de los medidores de cabecera, en el espacio; el libro no se toca.
+    @app.get('/api/workspaces/{wid}/demanda/cabecera/correccion')
+    def demanda_correcciones_cabecera(wid: str) -> dict:
+        return services.correcciones_cabecera(ws_or_404(wid))
+
+    @app.put('/api/workspaces/{wid}/demanda/cabecera/correccion')
+    def demanda_correccion_cabecera(wid: str, body: CorreccionCabeceraIn) -> dict:
+        return services.registrar_correccion_cabecera(ws_or_404(wid), body.medidor, body.factor, body.absoluto,
+                                                      body.desde, body.motivo)
+
     # 039:RF-23: correcciones fechadas del factor del medidor de un cliente, en el espacio; el libro no se toca.
     @app.get('/api/workspaces/{wid}/demanda/clientes/correccion-medidor', response_model=CorreccionesMedidorRespuesta)
     def demanda_correcciones_medidor(wid: str) -> dict:
@@ -3389,6 +3410,27 @@ def create_app(
     from .matriz_estudios_api import registrar_rutas_matriz
 
     registrar_rutas_matriz(app, raiz=project_root())
+
+    # ------------------------------------------------------------ teselas de calles (111:RF-27)
+    @app.get('/teselas/calles/{z}/{x}/{y}.png', include_in_schema=False)
+    def tesela_de_calles(z: int, x: int, y: int) -> Any:
+        """111:RF-27: la página aislada del plano no manda «Referer» y OSM la bloqueaba; la web pide la tesela por ella.
+        Va fuera de ``/api/`` porque una página aislada no lleva la cookie de sesión; solo sirve teselas numeradas."""
+        from fastapi.responses import Response
+
+        from ...adaptadores.preview import TeselaError, tesela_calles
+        from ...dominio.salidas_red import salida_permitida
+
+        if not salida_permitida('teselas'):
+            raise HTTPException(404, 'La salida de teselas está apagada.')
+        cache = Path(os.environ.get('CSG_CACHE_HOME') or Path.home() / '.convertersmartgrid' / 'cache') / 'teselas'
+        try:
+            datos = tesela_calles(z, x, y, cache)
+        except ValueError as exc:
+            raise HTTPException(404, str(exc)) from exc
+        except TeselaError as exc:
+            raise HTTPException(502, f'OpenStreetMap no respondió: {exc}') from exc
+        return Response(datos, media_type='image/png', headers={'Cache-Control': 'public, max-age=86400'})
 
     # ------------------------------------------------------------ front compilado
     dist = frontend_dist()

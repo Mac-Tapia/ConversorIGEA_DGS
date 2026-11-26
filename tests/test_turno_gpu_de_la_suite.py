@@ -298,6 +298,22 @@ def test_el_entorno_de_digsilent_no_hereda_otro_paquete(tmp_path, monkeypatch):
         assert str(otro_src) not in rutas and rutas[-1] == str(ajena) and rutas[0] == str(api)
 
 
+def test_el_guion_de_digsilent_importa_el_paquete_de_la_web(tmp_path, monkeypatch):
+    """106:RF-27 — el 26-11, el `.pth` editable del `.venv` apuntaba desde el 23-11 a `D:/converter/wt_integra/src`:
+    `powerfactory_acceptance.py`, en su propio proceso, importaba ese código viejo y la importación de PE106 desde la
+    web cayó con «eliminar_versiones_anteriores() takes 3 positional arguments but 4 were given». Con el mismo
+    intérprete, el entorno lleva la carpeta del paquete de la web, detrás de la API y delante de lo heredado."""
+    from convertersmartgrid.adaptadores import powerfactory_env as pe
+
+    ajena = tmp_path / 'libreria_ajena'
+    ajena.mkdir()
+    monkeypatch.setenv('PYTHONPATH', str(ajena))
+    api = tmp_path / 'PowerFactory 2024' / 'Python' / '3.12'
+    rutas = pe.pf_subprocess_env(api, Path(__import__('sys').executable))['PYTHONPATH'].split(os.pathsep)
+    assert rutas[:2] == [str(api), str(pe.carpeta_del_paquete())], rutas
+    assert rutas[-1] == str(ajena)
+
+
 def test_una_prueba_colgada_vuelca_su_pila():
     """106:RF-5 — ``faulthandler_timeout`` en la configuración de pytest: una prueba de más de 30 min deja su pila."""
     import tomllib

@@ -594,3 +594,7 @@ T8, 2026-11-03, medición tras corregir el encargo y el contrato del dictamen (`
       DIR como `desde` a `entrenar_epoca` y lo anota en el informe. (RF-84)
       Hecho cuando: rojo por aserción y verde con `tests/test_asistente_qlora.py` (047:RF-84).
       Hecho (d8, 23-11): rojo por aserción (N10_SINCODEX/REANUDAR/rojo_083518.log) y verde.
+- [x] T26. Registrar otra vez las mismas órdenes revisadas, en otro segundo, no cambia el sello. (RF-62)
+      Hecho cuando: `tests/test_asistente_revisadas_maestro.py` (047:RF-62) en verde con su rojo por aserción.
+      Hecho el 2026-11-26: la suite completa de 39248744 cayó aquí («KeyError: 'dataset_hash'»); rojo
+      `D:/csg/PM_IMPL/SELLO_REVISADAS/rojo.log` («ya hay un conjunto sellado distinto»), verde 88 passed (`verde.log`).

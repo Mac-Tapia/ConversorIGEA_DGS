@@ -4,7 +4,7 @@ import { api, type DemandaTipo } from '../../api/client';
 import { estadoCatalogoClientes } from './clientesCatalogo';
 import { alimentadoresDeSet, motivoNoEntra, setDeLaCentral, setsPorAnalisis } from './centralesDeSet';
 import { useApp } from '../../shared/context';
-import type { BarraDeSet, CentralDeBarra, CentralTermica, SetDeCentral, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
+import type { BarraDeSet, CentralDeBarra, CentralTermica, SetDeCentral, ComparacionFijas, CriterioFijas, Escaneo, SistemaDelProyecto, ClientesCruce, ClienteImportante, CorreccionCabecera, MaximaCabecera, MedidoresExternos, ValorFija, WorkspaceState } from '../../api/types';
 import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 import { AvisosLibros } from './AvisosLibros';
@@ -915,6 +915,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
             que se carga en DIgSILENT. El pico de 15 min{propiaDeReferencia ? ' y la máxima propia' : ''} son solo
             referencia. * calculado con kW y kVAR.
             {ultimo?.status === 'cancelled' ? ' Cancelado: faltan medidores.' : ''}</small>
+          <CorregirMedidorCabecera wsId={ws.id} medidores={[...new Set(cabecera.map((m) => m.medidor))]}
+            disabled={engineBusy} />
         </div>
       )}
 
@@ -1342,27 +1344,39 @@ function DetectadoEnElEscaneo({ escaneo, centrales }: { escaneo: Escaneo; centra
   );
 }
 
+// 028:RF-45: «cerrado true → false» se lee como «abierto»; lo demás, antes → después.
+function cambiosTexto(cambios: Record<string, [unknown, unknown]>): string {
+  return Object.entries(cambios).map(([k, [a, b]]) => (k === 'cerrado' ? (b ? 'cerrado' : 'abierto')
+    : k === 'en_servicio' ? (b ? 'en servicio' : 'fuera de servicio') : `${k} ${String(a ?? '—')} → ${String(b ?? '—')}`)).join(', ');
+}
+
 /** Spec 028, RF-10: lo que encontró el escaneo, por alimentador. */
 function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
   const deQuien = (o: string) => (o === 'operador' ? 'a mano' : 'del conversor');
   const ajenas = escaneo.variaciones.filter((v) => v.origen === 'operador');
   return (
     <div className="table-wrap table-short">
-      <p className="muted">Escaneo de {escaneo.project}{escaneo.caso ? ` en «${escaneo.caso}»` : ''}: solo lectura.</p>
+      <p className="muted">Escaneo de {escaneo.project}{escaneo.caso ? ` en «${escaneo.caso}»` : ''}
+        {escaneo.comparado_con ? ` frente al «${escaneo.comparado_con}»` : ''}: solo lectura.</p>
       <table className="table">
-        <thead><tr><th>Alimentador</th><th>Generadores (centrales)</th><th>Bancos</th><th>Tramos nuevos</th><th>Tramos cambiados a mano</th><th>Cargas cambiadas</th></tr></thead>
+        <thead><tr><th>Alimentador</th><th>Generadores (centrales)</th><th>Bancos</th><th>Tramos nuevos</th><th>Tramos cambiados a mano</th><th>Cargas cambiadas</th><th>SED nuevas</th><th>Maniobras</th></tr></thead>
         <tbody>{Object.entries(escaneo.alimentadores).map(([f, d]) => (
           <tr key={f}>
             <td className="strong">{f}</td>
-            {d.error ? <td colSpan={5} className="err">{d.error}</td> : <>
+            {d.error ? <td colSpan={7} className="err">{d.error}</td> : <>
               <td>{(d.generadores ?? []).length ? (d.generadores ?? []).map((g) => (
                 <div key={g.generador}>{g.generador} · barra {g.barra ?? '—'} · {fmtNum(g.p_kw ?? 0)} kW
                   {g.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(g.origen)}</small></div>
               )) : <span className="muted">ninguno</span>}</td>
               <td>{(d.bancos ?? []).length ? (d.bancos ?? []).map((b) => (
                 <div key={b.banco}>{b.banco} · {b.barra ?? '—'} · {fmtNum(b.q_nominal_kvar ?? 0)} kvar
-                  {b.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(b.origen)}</small></div>
-              )) : <span className="muted">ninguno</span>}</td>
+                  {b.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(b.origen)}
+                    {b.frente_al_caso_base === 'nuevo' ? ', nuevo frente al Caso base' : ''}</small></div>
+              )) : <span className="muted">ninguno</span>}
+                {(d.frente_al_caso_base?.bancos_nuevos ?? []).map((b) => (
+                  <div key={`n-${b.banco}`}>{b.banco} · nuevo frente al Caso base</div>))}
+                {(d.frente_al_caso_base?.bancos_cambiados ?? []).map((b) => (
+                  <div key={`c-${b.banco}`}>{b.banco} · {cambiosTexto(b.cambios)}</div>))}</td>
               <td>{(d.tramos_nuevos ?? []).length ? (d.tramos_nuevos ?? []).map((x) => (
                 <div key={x.tramo}>{x.tramo} · {x.desde ?? '—'} → {x.hasta ?? '—'}{x.km != null ? ` · ${fmtNum(x.km)} km` : ''}</div>
               )) : <span className="muted">ninguno</span>}</td>
@@ -1371,6 +1385,18 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
                   {x.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{x.variacion}</small></div>
               )) : <span className="muted">ninguno</span>}</td>
               <td>{(d.cargas_cambiadas ?? []).length || <span className="muted">ninguna</span>}</td>
+              <td>{[...(d.frente_al_caso_base?.sed_nuevas ?? []).map((x) => (
+                <div key={`n-${x.sed}`}>{x.sed}{x.tipo ? ` · ${x.tipo}` : ''} · nueva</div>)),
+                ...(d.frente_al_caso_base?.sed_cambiadas ?? []).map((x) => (
+                  <div key={`c-${x.sed}`}>{x.sed} · {cambiosTexto(x.cambios)}</div>))]}
+                {!(d.frente_al_caso_base?.sed_nuevas ?? []).length && !(d.frente_al_caso_base?.sed_cambiadas ?? []).length
+                  && <span className="muted">ninguna</span>}</td>
+              <td>{(d.frente_al_caso_base?.maniobras_cambiadas ?? []).length
+                ? (d.frente_al_caso_base?.maniobras_cambiadas ?? []).map((m) => (
+                  <div key={m.maniobra}>{m.maniobra} · {cambiosTexto(m.cambios)}</div>))
+                : <span className="muted">ninguna</span>}
+                {(d.frente_al_caso_base?.tramos_quitados ?? []).map((t) => (
+                  <div key={`q-${t.tramo}`}>{t.tramo} · tramo quitado</div>))}</td>
             </>}
           </tr>
         ))}</tbody>
@@ -1465,5 +1491,56 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
         Para recalibrar eligiendo antes la máxima del alimentador o de su barra y SET y revisando la tabla cruzada, use
         esos mismos pasos: después de la primera, el botón de 2.4 es «Recalibrar (n.º k)».</small>}
     </div>
+  );
+}
+
+
+// 039:RF-26: el operador corrige un medidor de cabecera que registra mal (LL203, 26-11: diez veces de más y con el
+// signo cambiado): factor y valor absoluto de P, Q y S, desde un mes; el libro no se toca y vale al buscar otra vez.
+function CorregirMedidorCabecera({ wsId, medidores, disabled }: { wsId: string; medidores: string[]; disabled: boolean }) {
+  const { run } = useApp();
+  const toast = useToast();
+  const [medidor, setMedidor] = useState(medidores[0] ?? '');
+  const [factor, setFactor] = useState('0.1');
+  const [absoluto, setAbsoluto] = useState(true);
+  const [desde, setDesde] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [hechas, setHechas] = useState<CorreccionCabecera[]>([]);
+  useEffect(() => {
+    void api.demandaCorreccionesCabecera(wsId).then((r) => setHechas(r.correcciones)).catch(() => undefined);
+  }, [wsId]);
+  useEffect(() => { if (!medidores.includes(medidor)) setMedidor(medidores[0] ?? ''); }, [medidores.join('|')]); // eslint-disable-line react-hooks/exhaustive-deps
+  const valor = Number(factor.replace(',', '.'));
+  const guardar = async () => {
+    const r = await run(() => api.demandaCorreccionCabecera(wsId, { medidor, factor: valor, absoluto, desde, motivo }));
+    if (r) {
+      setHechas(r.correcciones);
+      toast('ok', `${medidor}: corrección guardada`, 'Busque la máxima otra vez para aplicarla.');
+    }
+  };
+  if (!medidores.length) return null;
+  return (
+    <details className="corregir-cabecera">
+      <summary>Corregir un medidor de cabecera</summary>
+      <div className="row wrap">
+        <select aria-label="Medidor" value={medidor} disabled={disabled} onChange={(e) => setMedidor(e.target.value)}>
+          {medidores.map((m) => <option key={m}>{m}</option>)}
+        </select>
+        <label>Factor <input aria-label="Factor" inputMode="decimal" size={6} value={factor} disabled={disabled}
+          onChange={(e) => setFactor(e.target.value)} /></label>
+        <label><input type="checkbox" checked={absoluto} disabled={disabled}
+          onChange={(e) => setAbsoluto(e.target.checked)} /> Valor absoluto</label>
+        <label>Desde <input type="month" aria-label="Desde" value={desde} disabled={disabled}
+          onChange={(e) => setDesde(e.target.value)} /></label>
+        <input aria-label="Motivo" placeholder="Motivo" value={motivo} disabled={disabled}
+          onChange={(e) => setMotivo(e.target.value)} />
+        <button className="btn btn-sm" disabled={disabled || !medidor || !(valor > 0 && valor <= 100)}
+          onClick={() => void guardar()}>Guardar</button>
+      </div>
+      {hechas.length > 0 && (
+        <small className="muted">Guardadas: {hechas.map((c) => `${c.medidor} ×${c.factor}${c.absoluto ? ', |x|' : ''}`
+          + (c.desde ? ` desde ${c.desde}` : '')).join('; ')}. La última de cada medidor manda.</small>
+      )}
+    </details>
   );
 }

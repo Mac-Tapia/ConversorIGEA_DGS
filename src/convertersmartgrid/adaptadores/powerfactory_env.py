@@ -323,6 +323,12 @@ def pf_subprocess_env(pf_dir: Path | None, interprete: Path | None = None) -> di
         # sys.prefix y «site» habría añadido las librerías del 3.12 (QA del rc4, 2026-11-11).
         env.pop('PYTHONHOME', None)
         env['PYTHONNOUSERSITE'] = '1'
+    elif carpeta_del_paquete().name == 'src':
+        # 106:RF-27: en desarrollo, con el mismo intérprete, también el `src` de la web, delante de lo que añada un
+        # `.pth`. El 26-11 el editable del `.venv` apuntaba desde el 23-11 a otro worktree (wt_integra) y la aceptación
+        # de PE106, en su propio proceso, importó ese código viejo: «eliminar_versiones_anteriores() takes 3 positional
+        # arguments». Instalado, el paquete está en `site-packages` y no se adelanta (103:RF-6: solo la API).
+        rutas.append(str(carpeta_del_paquete()))
     # 106:RF-14, 103:RF-6: de dónde sale el paquete lo decide esta función. Una ruta heredada con otro paquete del
     # conversor (la suite pone el src de su árbol, 106:RF-12) metía un segundo paquete en el Python de DIgSILENT;
     # las demás rutas heredadas siguen detrás.

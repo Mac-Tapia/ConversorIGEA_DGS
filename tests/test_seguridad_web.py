@@ -608,7 +608,7 @@ def test_con_teselas_encendidas_abre_y_dice_si_no_llega(tmp_path, monkeypatch):
 
 
 # ------------------------------------------------------------ RF-63 a RF-66, fondo de calles y satélite
-_TESELAS_EN_HTML = re.compile(r'tile\.openstreetmap\.org|arcgisonline\.com|World_Imagery|L\.tileLayer\(')
+_TESELAS_EN_HTML = re.compile(r'tile\.openstreetmap\.org|/teselas/calles/|arcgisonline\.com|World_Imagery|L\.tileLayer\(')
 
 
 def test_086_rf63_calles_y_satelite_con_su_selector(tmp_path, monkeypatch):
@@ -1016,6 +1016,9 @@ def test_086_rf21_las_teselas_por_sus_servidores_exactos(tmp_path, monkeypatch):
     (subdominios,) = re.findall(r'subdomains:"([a-z]+)"', (CARPETA_LEAFLET / 'leaflet.js').read_text(encoding='utf-8'))
     servidores = set()
     for _n, url, *_resto in FONDOS_MAPA:
+        if url.startswith('/'):                       # 111:RF-27: las calles, de la propia web
+            servidores.add("'self'")
+            continue
         origen = re.match(r'https://[^/]+', url).group(0)
         servidores |= {origen.replace('{s}', s) for s in subdominios} if '{s}' in origen else {origen}
     politica = politica_pagina_generada()
@@ -1037,12 +1040,12 @@ def test_086_rf21_las_teselas_por_sus_servidores_exactos(tmp_path, monkeypatch):
 
 def test_086_rf21_la_hoja_de_seguridad_dice_que_se_enmarca_y_que_sale():
     """086:RF-21 — el responsable de sistemas lee en la hoja qué páginas se enmarcan y a qué servidores piden teselas."""
-    from convertersmartgrid.adaptadores.preview import ORIGEN_SATELITE, ORIGEN_TESELAS
+    from convertersmartgrid.adaptadores.preview import ORIGEN_SATELITE, SERVIDOR_TESELAS_OSM, URL_TESELAS
 
     hoja = (RAIZ / 'docs/SEGURIDAD_Y_PRIVACIDAD.md').read_text(encoding='utf-8')
     for texto in ('SAMEORIGIN', "frame-ancestors 'self'", "frame-ancestors 'none'", 'DENY',
-                  'Ubicación de las cargas nuevas', 'vista previa del alimentador', *ORIGEN_TESELAS.split(),
-                  ORIGEN_SATELITE):
+                  'Ubicación de las cargas nuevas', 'vista previa del alimentador', SERVIDOR_TESELAS_OSM,
+                  URL_TESELAS, ORIGEN_SATELITE):
         assert texto in hoja, texto
 
 

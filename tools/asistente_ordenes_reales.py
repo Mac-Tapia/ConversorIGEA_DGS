@@ -350,6 +350,14 @@ def revisar_maestro(args) -> dict:
                 humanas.append(fila)
     que_entrenan = ordenes_maestro.leer(args.almacen)[0]
     fecha = datetime.now().astimezone().isoformat(timespec='seconds')
+    # 047:RF-62: la fecha entra en la huella de cada orden; con un conjunto ya sellado se reutiliza la suya, o registrar
+    # lo mismo un segundo después daba «ya hay un conjunto sellado distinto» (suite completa de 39248744, 26-11).
+    sellado = args.almacen / ordenes_maestro.SUBCARPETA_REVISADAS / 'manifest.json'
+    if sellado.is_file():
+        try:
+            fecha = str(json.loads(sellado.read_text(encoding='utf-8')).get('sellado') or fecha)
+        except (OSError, ValueError):
+            pass                            # un manifiesto ilegible lo rechaza el sellado, que lo dice
     filas, cuenta, errores = ordenes_maestro.revisar(entradas, humanas=humanas, que_entrenan=que_entrenan, fecha=fecha)
     resultado = {'leidas': len(entradas), 'cuenta': dict(sorted(cuenta.items())), 'selladas': len(filas),
                  'tareas': len({r['tarea'] for r in filas}), 'humanas_vistas': len(humanas),

@@ -336,6 +336,21 @@ def test_cruce_con_el_ano_entero():
     assert CATALOGO.index('porAnio: true') > CATALOGO.index('Actualice el índice')
 
 
+def test_la_api_acepta_el_ano_entero_al_cruzar_y_al_comparar():
+    """091:RF-19 — el 26-11, «Todo 2026» en 2.3 daba «String should match pattern '^\\d{4}-(0[1-9]|1[0-2])$'»: la
+    web mandaba el año y la entrada del cruce (y la de comparar los criterios) solo admitía un mes, aunque el servicio
+    ya cruza cada alimentador con el libro del mes de su máxima. Año o mes, sí; un mes imposible, no."""
+    import pydantic
+
+    from convertersmartgrid.presentacion.web import app as web_app
+
+    for modelo, extra in ((web_app.DemandaClientesIn, {}), (web_app.CompararFijasIn, {'project': 'P'})):
+        assert modelo(periodo='2026', **extra).periodo == '2026', modelo.__name__
+        assert modelo(periodo='2026-07', **extra).periodo == '2026-07'
+        with pytest.raises(pydantic.ValidationError):
+            modelo(periodo='2026-13', **extra)
+
+
 # ------------------------------------------------------------------ estudio tras la recalibración
 
 

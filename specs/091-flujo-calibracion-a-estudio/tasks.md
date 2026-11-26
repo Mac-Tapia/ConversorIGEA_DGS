@@ -29,3 +29,8 @@
 - [x] T8. La muerte a mitad de una orden no se informa como licencia. (RF-35)
       Hecho cuando: `causa_sin_conexion` dice «murió a mitad» si el registro de una orden de los últimos 15 minutos lo anota, y la licencia solo sin esa causa.
       Cerrada el 2026-11-24: rojo válido por aserción (1 failed, 1 passed) y verde (46 passed) en `tests/test_flujo_a_estudio.py`.
+- [x] T9. «Todo 2026» cruza los clientes, cada alimentador con el libro del mes de su máxima. (RF-19)
+      Hecho cuando: `tests/test_flujo_a_estudio.py` (091:RF-19) en verde con su rojo por aserción, y el contrato de la
+      API regenerado (`tests/test_contrato_api.py`).
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/ANIO_ENTERO/rojo.log` (el mismo mensaje que vio el operador en 2.3 con
+      dos alimentadores de máximas en meses distintos); verde 43 passed (`verde.log`) y 60 con el contrato.

@@ -1,5 +1,5 @@
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
-  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
+  AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionCabecera, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, ResumenCaso, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
   FeederRow, Health, InformeEstudioForm, ResumenEspacio, InformeFactibilidadForm, InformesContexto, Job, Limites, MaximaCabecera, Obra,
   ObraGuardada, Options, OutputFile, LibrosNuevos, RevisarLibros, PfInventario, PowerFactoryStatus, PreviaCopiaDatos, InstalacionesPowerFactory, ReconstructionReport, SalidasRed, WorkspaceState, EpisodioResumen } from './types';
@@ -353,6 +353,12 @@ export const api = {
   demandaASuMaxima: (id: string, codigos: string[]) =>
     request<{ a_su_maxima: string[] }>(`${ws(id)}/demanda/clientes/a-su-maxima`, json('PUT', { codigos })),
   // 039:RF-23: la corrección fechada del factor del medidor de un cliente, en el espacio (004:RF-111).
+  // 039:RF-26: las correcciones de los medidores de cabecera (factor y valor absoluto), en el espacio.
+  demandaCorreccionesCabecera: (id: string) =>
+    request<{ correcciones: CorreccionCabecera[] }>(`${ws(id)}/demanda/cabecera/correccion`),
+  demandaCorreccionCabecera: (id: string, body: { medidor: string; factor: number; absoluto: boolean; desde: string;
+    motivo?: string }) =>
+    request<{ correcciones: CorreccionCabecera[] }>(`${ws(id)}/demanda/cabecera/correccion`, json('PUT', body)),
   demandaCorreccionMedidor: (id: string, body: { codigo: string; factor: number; desde: string; motivo?: string }) =>
     request<{ correcciones: CorreccionMedidor[] }>(`${ws(id)}/demanda/clientes/correccion-medidor`, json('PUT', body)),
   // 039:RF-5: los dos criterios frente a la cabecera y a la red simulada, como trabajo.

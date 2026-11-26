@@ -392,3 +392,22 @@ def test_039_rf23_la_correccion_del_medidor_se_registra_y_se_ve_en_la_tabla(clie
     assert f11['ea'] == pytest.approx(270.0) and f11['p_kw'] == pytest.approx(12.0 * 4 * 0.3)
     assert f11['valores']['coincidente']['p_kw'] == pytest.approx(12.0 * 4 * 0.3)
     assert f12['ea'] == pytest.approx(500.0)
+
+
+def test_039_rf26_la_correccion_del_medidor_de_cabecera_se_registra_y_se_valida(client):
+    """039:RF-26 — el operador registra en el espacio la corrección de un medidor de cabecera (LL203, 26-11: factor 0,1
+    y valor absoluto de P, Q y S): se guarda, se lee y sobrevive al reinicio; un factor nulo o un mes mal escrito, 422."""
+    from convertersmartgrid.presentacion.web.workspace import Workspace
+
+    wid = client.post('/api/workspaces').json()['id']
+    url = f'/api/workspaces/{wid}/demanda/cabecera/correccion'
+    assert client.get(url).json() == {'correcciones': []}
+    r = client.put(url, json={'medidor': 'L-LL123', 'factor': 0.1, 'absoluto': True, 'desde': '', 'motivo': 'x10'})
+    assert r.status_code == 200, r.text
+    (corr,) = r.json()['correcciones']
+    assert (corr['medidor'], corr['factor'], corr['absoluto'], corr['desde']) == ('L-LL123', 0.1, True, '')
+    assert client.get(url).json()['correcciones'] == [corr]
+    assert Workspace.load(client.app.state.store.get(wid).root).correcciones_cabecera == [corr]
+    for malo in ({'medidor': 'L-LL123', 'factor': 0}, {'medidor': 'L-LL123', 'factor': 0.1, 'desde': '2026-13'},
+                 {'medidor': '', 'factor': 0.1}):
+        assert client.put(url, json=malo).status_code == 422, malo

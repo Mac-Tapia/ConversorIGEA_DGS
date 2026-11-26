@@ -217,3 +217,7 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde y `- [x]`.
       Hecho cuando: «DEM PROY (KW)2» es la demanda y una hoja sin columna de demanda da un solo error con su cabecera.
       Cerrada el 2026-11-25: rojo válido por aserción (2 failed) y verde (113 passed) en `tests/test_cargas_pf.py`;
       el libro real de cargas nuevas pasa de 104 errores a 104 cargas leídas y ninguno.
+- [x] T39. La hoja de kVAR de otro medidor pedido no da fila de error. (RF-45)
+      Hecho cuando: `tests/test_demanda_medida.py` (004:RF-45) en verde con su rojo por aserción.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/CANAL_CON_HOJA/rojo.log` (IN111_V19 «sin columna de kW», como en la
+      web), verde 111 passed (`verde.log`).

@@ -126,6 +126,10 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   (`%LOCALAPPDATA%\Temp` en Windows) y no pasará `CSG_TEMP_HOME` a las tandas; una temporal que no es la de la web se
   respeta. (Suite del 25-11 a las 23:24: la sesión de pytest se creaba dentro del runtime real y fallaron
   `test_el_runtime_de_la_suite_es_de_la_sesion` y tres pruebas de la web que pasan solas.)
+- RF-27: CUANDO la web lanza un guion de DIgSILENT en su propio proceso con el mismo intérprete, EL SISTEMA pondrá en su
+  `PYTHONPATH` la carpeta del paquete de la web, detrás de la API y delante de lo heredado, para que importe el mismo
+  código que la web aunque el `.pth` editable del entorno apunte a otro árbol. (26-11: desde el 23-11 el `.pth` del
+  `.venv` apuntaba a `wt_integra`; la aceptación de PE106 importó código viejo y cayó.)
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

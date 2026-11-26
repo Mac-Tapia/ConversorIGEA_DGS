@@ -95,3 +95,12 @@ cuando el usuario ponga a mano la central de NA295.
       `node --test test/tablaMaxima.test.mjs`; la comprobación con datos reales en DIgSILENT la decide d8.
       Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ11_MAXIMA/rojo_py.log y rojo_front.log sobre d6582a8e; verde D:/csg/PM_IMPL/MEJ11_MAXIMA/verde_npm_test.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
       npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T18. Sin el «Sin proyecto» del año, el escaneo lee el que hay y lo dice. (RF-1)
+      Hecho cuando: `tests/test_escaneo.py` (028:RF-1) en verde con su rojo por aserción.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/ESCANEO_SIN/rojo.log` («Caso base», como en la web con PA217), verde
+      22 passed (`verde.log`).
+- [x] T19. El escaneo compara «Sin proyecto» con el «Caso base» y muestra cada cambio. (RF-45)
+      Hecho cuando: `tests/test_escaneo.py` (028:RF-45) en verde con su rojo por aserción; columna «Maniobras» en la
+      tabla, con `tsc` y `npm run build`.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/ESCANEO_BASE/rojo.log`, verde (`verde.log`). La comprobación real es
+      volver a escanear PA217 desde la web.

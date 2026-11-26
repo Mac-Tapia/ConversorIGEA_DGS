@@ -1449,6 +1449,42 @@ def q_negativa_con_fp(registros: Sequence[Registro]) -> tuple[int, int]:
 LIBROS_ABIERTOS_MAX_BYTES = 128 * 2**20
 
 
+def aplicar_correcciones_cabecera(registros: Sequence[Registro], medidor: str,
+                                  correcciones: Iterable[Mapping[str, Any]] | None) -> str | None:
+    """039:RF-26 — la corrección del operador del medidor de cabecera, en los registros leídos; el libro no se toca.
+
+    Cada corrección es ``{'medidor', 'factor', 'absoluto', 'desde' (AAAA-MM o vacío), 'motivo'}``; de las de ese medidor
+    manda la última registrada. Multiplica P, Q y S por su factor y, con ``absoluto``, toma su valor absoluto, en los
+    registros desde su mes. El 26-11, LL203 (L-LL123) daba 31 078 kW de máxima en una cabecera de media tensión: el
+    medidor registraba diez veces de más y con el signo cambiado. Devuelve el aviso, o ``None`` si no hay corrección.
+    """
+    clave = normalizar(medidor)
+    propias = [c for c in correcciones or () if normalizar(c.get('medidor')) == clave]
+    if not propias:
+        return None
+    c = propias[-1]
+    factor = float(c.get('factor') or 1.0)
+    absoluto = bool(c.get('absoluto'))
+    desde = str(c.get('desde') or '').strip() or None
+    if factor == 1.0 and not absoluto:
+        return None
+    n = 0
+    for r in registros:
+        mes = periodo_de_fecha(r.fecha)
+        if desde and (mes is None or mes < desde):
+            continue
+        for k in ('kw', 'kvar', 'kva'):
+            v = r.valores.get(k)
+            if v is not None:
+                v = v * factor
+                r.valores[k] = abs(v) if absoluto else v
+        n += 1
+    partes = [f'factor {factor:g}'] + (['valor absoluto'] if absoluto else [])
+    return (f'corrección del medidor {medidor} ({" y ".join(partes)} de P, Q y S'
+            + (f' desde {desde}' if desde else '') + f') en {cuenta(n, "registro", "registros")}'
+            + (f': {c["motivo"]}' if c.get('motivo') else '') + '; el libro no se cambia.')
+
+
 class Cabecera:
     """Libros de cabecera de una búsqueda: abrir un .xls de 400 MB cuesta ~1 s.
 
@@ -1456,11 +1492,14 @@ class Cabecera:
     ``LIBROS_ABIERTOS_MAX_BYTES`` con los demás abiertos, y si no, se cierra el usado hace más tiempo (004:RF-108).
     """
 
-    def __init__(self, rutas: Iterable[Path | str], alias=ALIAS) -> None:
+    def __init__(self, rutas: Iterable[Path | str], alias=ALIAS,
+                 correcciones: Iterable[Mapping[str, Any]] | None = None) -> None:
         self.libros = libros_de_cabecera(rutas)
         self.alias = alias
         #: 004:RF-112: la máxima y el valor en un instante, por la hora seguida; el valle (073) pide el registro.
         self.sostenida = True
+        #: 039:RF-26: las correcciones del operador de los medidores de cabecera, del espacio.
+        self.correcciones = list(correcciones or ())
         #: Libros abiertos, del usado hace más tiempo al último.
         self._abiertos: dict[Path, Any] = {}
         self._nombres: dict[Path, list[str]] = {}
@@ -1574,6 +1613,9 @@ class Cabecera:
                instante: datetime | None) -> MaximaCabecera:
         """La máxima y la curva, con la Q negativa desde el FP (088:RF-9). Aquí y no en cada consumidor:
         calibración, valle, crecimiento y pronóstico leen por esta clase."""
+        aviso = aplicar_correcciones_cabecera(registros, res.medidor, self.correcciones)       # 039:RF-26
+        if aviso:
+            res.avisos.append(aviso)
         calculados, conservados = q_negativa_con_fp(registros)
         maxima_de_registros(registros, res, periodo, instante, sostenida=self.sostenida)
         if calculados:
@@ -1683,7 +1725,8 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
             periodo: str | None = None, instante: datetime | None = None,
             cancelado: Callable[[], bool] = lambda: False,
             progreso: Callable[[int, int, str], None] = lambda *_a: None,
-            cabecera: Cabecera | None = None, sostenida: bool = True) -> list[MaximaCabecera]:
+            cabecera: Cabecera | None = None, sostenida: bool = True,
+            correcciones: Iterable[Mapping[str, Any]] | None = None) -> list[MaximaCabecera]:
     """Máxima de cada ``(alimentador, medidor)``, por separado, sin sumar (RF-29, RF-32).
 
     ``sostenida``: la máxima y el valor en un instante son la media de una hora seguida (004:RF-112); con
@@ -1695,7 +1738,9 @@ def maximas(rutas: Iterable[Path | str], medidores: Sequence[tuple[str, str]], *
     memoria (2026-10-27). Los medidores se leen agrupados por libro y sin más libros abiertos
     de los que caben en ``LIBROS_ABIERTOS_MAX_BYTES`` (004:RF-108).
     """
-    cabecera = cabecera or Cabecera(rutas, alias)
+    cabecera = cabecera or Cabecera(rutas, alias, correcciones)
+    if correcciones is not None:                                                         # 039:RF-26
+        cabecera.correcciones = list(correcciones)
     antes, cabecera.sostenida = cabecera.sostenida, sostenida
     try:
         return _maximas_con(cabecera, medidores, periodo, instante, cancelado, progreso)
@@ -1759,10 +1804,20 @@ def _unir_canales(resultados: list[MaximaCabecera]) -> list[MaximaCabecera]:
                              and clave_codigo(s.canal_de) == clave_codigo(r.canal_de)
                              and s.libro == r.libro
                              and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)), None)
-        if otro is None:
-            out.append(r)
-        else:
+        if otro is not None:
             otro.avisos.append(f'{r.medidor}: no tiene hoja; es otro canal de {r.canal_de}, ya incluido aquí')
+            continue
+        # RF-45 (26-11): «IN111_V18 Y IN111_V19» en el libro de medidores; V19 es una hoja de solo kVAR que V18 ya toma
+        # (RF-44). Sin esto salía como fila roja «sin columna de kW».
+        if r.error and 'kw' not in r.columnas and r.hojas:
+            otro = next((s for s in resultados if s is not r and s.error is None and s.libro == r.libro
+                         and clave_codigo(s.alimentador) == clave_codigo(r.alimentador)
+                         and set(r.hojas) <= set(s.hojas)), None)
+            if otro is not None:
+                magnitudes = ', '.join(NOMBRE.get(m, m) for m in r.columnas) or 'otra magnitud'
+                otro.avisos.append(f'{r.medidor}: es la hoja del {magnitudes} de {otro.medidor}, ya incluida aquí')
+                continue
+        out.append(r)
     return out
 
 
@@ -3646,7 +3701,7 @@ def completar_sin_medida(res: Sequence[MaximaCabecera], fecha: datetime, periodo
 
 def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso=lambda *_a: None,
                       log=lambda _t: None, cancelado=lambda: False, comun_60kv: bool = False,
-                      balances: Sequence[BalanceLinea] = ()):
+                      balances: Sequence[BalanceLinea] = (), correcciones: Sequence[Mapping[str, Any]] = ()):
     """La máxima de cada barra de SET y sus alimentadores en ese instante (022:RF-37 a RF-46,
     RF-84 a RF-91), sin nada de la web: corre en el proceso de su trabajo (027:RF-25). Devuelve
     ``(resultados, barras_informe, avisos, maximas_de_barra, instantes)``."""
@@ -3658,7 +3713,7 @@ def maximas_por_barra(libros, alias, barras, pares, periodo, avisos, *, progreso
     avisos = list(avisos)
     # Una sola Cabecera para la barra y todos sus instantes (022:RF-84): los nombres de las hojas se leen una vez y
     # de los .xls queda abierto el último que cabe (004:RF-108).
-    cabecera = Cabecera(libros, alias)
+    cabecera = Cabecera(libros, alias, correcciones)                                 # 039:RF-26
     de_barra = maximas(libros, [(b.clave, m) for b in barras for m in b.medidores + b.centrales]
                        + [(f'LT {x.set_codigo}', m) for x in balances for m in x.llegadas + x.salidas + x.clientes],
                        alias=alias, cancelado=cancelado, cabecera=cabecera)

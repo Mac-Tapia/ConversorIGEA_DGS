@@ -62,3 +62,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-11-26: las tres tandas de las cuatro fallidas pasan solas (`D:/csg/PM_IMPL/ORDEN4/tanda_*.log`);
       rojo con el TEMP de la web, 1 failed (`ORDEN4/rojo_temp_real.log`) y por aserción (`ORDEN4/rojo_unitario.log`);
       verde 30 passed (`ORDEN4/verde_unitario.log`) y la tanda real, 29 passed (`ORDEN4/verde_real_tanda.log`).
+- [x] T10. El guion de DIgSILENT importa el paquete de la web. (RF-27)
+      Hecho cuando: `tests/test_turno_gpu_de_la_suite.py` (106:RF-27) en verde, con su rojo por aserción sobre el
+      `powerfactory_env.py` anterior.
+      Hecho el 2026-11-26: verde `D:/csg/PM_IMPL/PAQUETE_DE_LA_WEB/rojo.log` (la primera corrida esperó la GPU 50 min
+      y ya leyó el arreglo); rojo sobre el anterior en `rojo_anterior.log`. El `.pth` se devolvió al árbol principal
+      (copia del anterior en `D:/csg/PM_IMPL/editable_pth_antes_26-11.txt`).

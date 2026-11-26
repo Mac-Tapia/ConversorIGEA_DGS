@@ -1055,6 +1055,10 @@ export interface FmCambiado {
 
 /** 039:RF-23: una corrección fechada del factor del medidor de un cliente, registrada en el espacio. */
 export type CorreccionMedidor = components['schemas']['CorreccionMedidorRespuesta'];
+// 039:RF-26: la corrección del operador de un medidor de cabecera.
+export interface CorreccionCabecera {
+  medidor: string; factor: number; absoluto: boolean; desde: string; motivo: string; registrada?: string;
+}
 
 /** 039:RF-1: fijas coincidentes con la máxima de cabecera o en su máximo del mes. */
 export type CriterioFijas = 'coincidente' | 'maximo_mes';
@@ -2298,6 +2302,8 @@ export interface EscaneoGenerador {
 export interface EscaneoBanco {
   banco: string; barra: string | null; kv: number | null; q_nominal_kvar: number | null;
   en_servicio: boolean; origen: 'conversor' | 'operador'; por: string | null;
+  /** 028:RF-45: «nuevo» si no estaba en el «Caso base». */
+  frente_al_caso_base?: string;
 }
 export interface EscaneoAlimentador {
   error?: string;
@@ -2311,9 +2317,20 @@ export interface EscaneoAlimentador {
   tramos_nuevos?: { tramo: string; desde: string | null; hasta: string | null; km: number | null; origen: string }[];
   /** 028:RF-26: tramos del DGS aceptado que el operador cambió en una variación suya. */
   tramos_cambiados?: { tramo: string; variacion: string; tipo: string | null; km: number | null; en_servicio: boolean }[];
+  /** 028:RF-45: lo cambiado en «Sin proyecto» frente al «Caso base», con su antes y su después. */
+  frente_al_caso_base?: {
+    tramos_quitados: { tramo: string }[];
+    bancos_nuevos: { banco: string; q_kvar?: number | null }[];
+    bancos_cambiados: { banco: string; cambios: Record<string, [unknown, unknown]> }[];
+    maniobras_cambiadas: { maniobra: string; cambios: Record<string, [unknown, unknown]> }[];
+    sed_nuevas?: { sed: string; tipo?: string | null }[];
+    sed_cambiadas?: { sed: string; cambios: Record<string, [unknown, unknown]> }[];
+  };
 }
 export interface Escaneo {
   project: string; caso: string | null; avisos: string[];
+  /** 028:RF-45: el caso con el que se comparó «Sin proyecto» (el «Caso base»). */
+  comparado_con?: string;
   alimentadores: Record<string, EscaneoAlimentador>;
   variaciones: { variacion: string; activa: boolean; objetos: number; origen: 'conversor' | 'operador' }[];
 }

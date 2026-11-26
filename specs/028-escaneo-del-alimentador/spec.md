@@ -24,6 +24,9 @@ Escaneo
   leerá cada uno en el caso «Sin proyecto» (el de su año, si lo hay) sin escribir nada en el
   proyecto. Única salvedad (083:RF-36): antes de leer enciende las variaciones del conversor que
   una orden cortada dejó apagadas, y lo dice.
+- Aclaración de RF-1 (26-11): si el proyecto no tiene el «Sin proyecto» del año elegido, se escanea el «Sin proyecto»
+  que tenga (primero el sin año, luego el de otro año) y se dice; el «Caso base» solo si no hay ninguno. PA217 se
+  escaneaba en «Caso base» y no veía los tramos, cargas, bancos y maniobras que el operador cambió en «Sin proyecto».
 - RF-2: EL SISTEMA listará los generadores de cada alimentador (`ElmGenstat`, `ElmSym`,
   `ElmPvsys`, `ElmAsm`) con su barra, su tensión, su P y Q y si está en servicio.
 - RF-3: EL SISTEMA dirá de cada generador si lo creó el conversor (en su variación de central)
@@ -178,6 +181,13 @@ qué instante era común. «Son cosas diferentes, no se debe mezclar».
   columnas aparte (004:RF-115). DONDE sea no coincidente, cada alimentador mostrará y cargará su propia máxima sostenida
   con su fecha y hora. El objetivo de la calibración, las fijas coincidentes y la cabecera serán exactamente esas filas
   (006:RF-1); un alimentador sin medida en el instante (RF-38) se señala en su fecha.
+- RF-45: (orden del usuario del 26-11) CUANDO escanee un alimentador con «Sin proyecto» y «Caso base», EL SISTEMA
+  comparará los dos casos y mostrará las obras del operador en «Sin proyecto» (el estado actual; «Con proyecto» no se
+  lee): tramos nuevos o quitados, tramos con otra sección (conductor) o una terna más, bancos nuevos o cambiados, SED
+  nuevas o con otro transformador y maniobras abiertas o cerradas, con su antes y su después. No muestra lo que graban
+  las variaciones del conversor (fichas, `SED_NTP_`, obras de «Con proyecto») ni la actualización de parámetros de los
+  conductores; las cargas cambiadas a mano siguen saliendo frente a la última calibración (014:RF-10). (PA217 y SM218,
+  26-11: el escaneo decía «ninguno», y en su primera versión mostraba cientos de cambios de ficha y bancos repetidos.)
 
 ## Fuera de alcance
 

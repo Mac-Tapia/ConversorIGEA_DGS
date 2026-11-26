@@ -86,6 +86,11 @@ Todo esto sin tocar nunca el caso base ni la geometría de la fuente.
 - RF-27: (orden del usuario del 19-11, «corregir este error»: el fondo de calles salía como «403 Access blocked») EL
   SISTEMA pedirá cada tesela del fondo con el origen de la web como «Referer» (nunca la ruta ni sus parámetros), como
   pide la política de uso de las teselas de OpenStreetMap, aunque el resto de la web siga sin «Referer».
+- Enmienda de RF-27 (26-11): una página aislada («sandbox allow-scripts») no manda «Referer» aunque la tesela lo pida
+  (comprobado en un Chromium real), y OpenStreetMap seguía devolviendo «403 Access blocked» en el plano. Las calles las
+  sirve la propia web en `/teselas/calles/{z}/{x}/{y}.png`: las pide a OpenStreetMap con el User-Agent del programa, las
+  guarda 7 días, solo acepta teselas numeradas en rango, va sin sesión (la página aislada no lleva la cookie) y con la
+  salida de teselas apagada no pide nada; la página las toma de `'self'`.
 - RF-28: (revisión de motores del 19-11, hallazgo 8; amplía RF-17 y 081:RF-17) SI el flujo de una variación no
   converge, con el motor abierto o con DIgSILENT, ENTONCES EL SISTEMA terminará el estudio con el estado «no converge» y
   el motivo que dio el motor, y guardará el resultado igual; la web lo enseña junto al plano.

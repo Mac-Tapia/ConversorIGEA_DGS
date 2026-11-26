@@ -146,6 +146,87 @@ def _tramos_cambiados(alims, feeder: str, de_dgs: set[str], de_objeto: dict) -> 
     return sorted(filas, key=lambda x: x['tramo'])
 
 
+def _num_o(obj, attr: str, factor: float = 1.0, nd: int = 4):
+    v = getattr(obj, attr, None)
+    return round(float(v) * factor, nd) if isinstance(v, (int, float)) else None
+
+
+def _foto(alims, f: str) -> dict:
+    """028:RF-45: lo que hay en el alimentador ``f`` en el caso activo, para compararlo con el otro caso."""
+    from convertersmartgrid.aplicacion.escaneo import CLASES_FRENTE_AL_BASE
+
+    foto = {}
+    for clase in CLASES_FRENTE_AL_BASE:
+        try:
+            objetos = alims.objetos(f, clase)
+        except Exception:  # noqa: BLE001 - una clase que el alimentador no da no impide comparar las demás
+            objetos = []
+        for o in objetos:
+            servicio = not int(getattr(o, 'outserv', 0) or 0)
+            if clase == 'ElmLne':
+                tipo = getattr(o, 'typ_id', None)
+                extremos = []
+                for bus in ('bus1', 'bus2'):
+                    cub = getattr(o, bus, None)
+                    extremos.append(getattr(getattr(cub, 'cterm', None), 'loc_name', None))
+                datos = {'tipo': getattr(tipo, 'loc_name', None), 'km': _num_o(o, 'dline'), 'en_servicio': servicio,
+                         'ternas': _num_o(o, 'nlnum'), 'desde': extremos[0], 'hasta': extremos[1]}
+            elif clase == 'ElmTr2':
+                datos = {'tipo': getattr(getattr(o, 'typ_id', None), 'loc_name', None), 'en_servicio': servicio}
+            elif clase in ('ElmLod', 'ElmLodlv'):
+                datos = {'p_kw': _num_o(o, 'plini', 1000.0, 3), 'q_kvar': _num_o(o, 'qlini', 1000.0, 3),
+                         'en_servicio': servicio}
+            elif clase == 'ElmShnt':
+                datos = {'en_servicio': servicio, 'pasos': _num_o(o, 'ncapa'), 'q_kvar': _num_o(o, 'qtotn', 1000.0, 3)}
+            else:
+                datos = {'cerrado': bool(int(getattr(o, 'on_off', 1) or 0))}
+            foto[(clase, o.loc_name)] = datos
+    return foto
+
+
+def _sumar_frente_al_base(fila: dict, d: dict, de_objeto: dict | None = None) -> None:
+    """028:RF-45: las diferencias con el «Caso base» que son del operador, en las columnas que ya pinta la web.
+
+    Lo que graba una variación del conversor (``Fichas_``, ``SED_NTP_``…: en SM218, 26-11, cientos de «AA05003D →
+    AA05003D_FICHA») no es del operador y no sale. Las cargas tampoco: en «Sin proyecto» las escribe la calibración
+    (306 en SM218), y las que cambió el operador las dice la regla de la última calibración (014:RF-10). Un banco que
+    ya está en la lista lleva la marca, sin repetirse.
+    """
+    de_objeto = de_objeto or {}
+
+    def del_operador(clase: str, nombre: str) -> bool:
+        return origen_de(nombre, de_objeto.get((clase, nombre)))['origen'] == 'operador'
+
+    d = {**d,
+         'tramos_nuevos': [t for t in d['tramos_nuevos'] if del_operador('ElmLne', t['tramo'])],
+         'tramos_cambiados': [t for t in d['tramos_cambiados'] if del_operador('ElmLne', t['tramo'])
+                              and not str((t['cambios'].get('tipo') or ('', ''))[1] or '').endswith('_FICHA')],
+         'tramos_quitados': [t for t in d['tramos_quitados'] if del_operador('ElmLne', t['tramo'])],
+         'cargas_cambiadas': [],
+         'bancos_nuevos': [b for b in d['bancos_nuevos'] if del_operador('ElmShnt', b['banco'])],
+         'bancos_cambiados': [b for b in d['bancos_cambiados'] if del_operador('ElmShnt', b['banco'])],
+         'sed_nuevas': [x for x in d.get('sed_nuevas', []) if del_operador('ElmTr2', x['sed'])],
+         'sed_cambiadas': [x for x in d.get('sed_cambiadas', []) if del_operador('ElmTr2', x['sed'])],
+         'maniobras_cambiadas': [m for m in d['maniobras_cambiadas']
+                                 if del_operador('ElmCoup', m['maniobra']) and del_operador('StaSwitch', m['maniobra'])]}
+    listados = {b.get('banco'): b for b in fila.get('bancos') or []}
+    for b in d['bancos_nuevos']:
+        if b['banco'] in listados:
+            listados[b['banco']]['frente_al_caso_base'] = 'nuevo'
+    d['bancos_nuevos'] = [b for b in d['bancos_nuevos'] if b['banco'] not in listados]
+    ya = {t.get('tramo') for t in fila.get('tramos_nuevos') or []}
+    fila['tramos_nuevos'] = list(fila.get('tramos_nuevos') or []) + [
+        {**t, 'origen': 'frente al Caso base'} for t in d['tramos_nuevos'] if t['tramo'] not in ya]
+    ya = {t.get('tramo') for t in fila.get('tramos_cambiados') or []}
+    fila['tramos_cambiados'] = list(fila.get('tramos_cambiados') or []) + [
+        {'tramo': t['tramo'], 'tipo': (t['cambios'].get('tipo') or (None, None))[1],
+         'km': (t['cambios'].get('km') or (None, None))[1],
+         'en_servicio': (t['cambios'].get('en_servicio') or (None, True))[1],
+         'variacion': 'frente al Caso base: ' + ', '.join(f'{k} {a} → {b}' for k, (a, b) in t['cambios'].items()),
+         'cambios': t['cambios']}
+        for t in d['tramos_cambiados'] if t['tramo'] not in ya]
+    fila['frente_al_caso_base'] = d
+
 def ejecutar(app, plan: dict) -> tuple[dict, int]:
     """El escaneo de los alimentadores del plan. Devuelve (informe, código)."""
     from ajuste_cabecera_pf import (bancos_instalados, cambios_manuales, cargas_dejadas_a_medias, cargas_sed,
@@ -164,12 +245,36 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
     # 083:RF-36: lo que una orden cortada dejó apagado (``Fichas_``, ``SED_NTP_``) se enciende antes de leer, como al
     # empezar la calibración (083:RF-29): con ellas apagadas no se ven la central ni los bancos y el plan sale sin ellos.
     sin = caso_del_sistema(app, 'sin', anio)
+    if sin is None and anio is not None:
+        # 028:RF-1 (26-11): PA217 se escaneó en «Caso base» porque no tenía «Sin proyecto 2026»; los cambios del
+        # operador estaban en su «Sin proyecto» sin año. Sin el del año, el que hay: primero el sin año, luego otro año.
+        from casos_pf import NOMBRES, rol_de
+        carpeta = app.GetProjectFolder('study')
+        otros = [c for c in (carpeta.GetContents('*.IntCase') if carpeta else [])
+                 if str(rol_de(c) or '').split('@')[0] == 'sin' or c.loc_name.startswith(NOMBRES['sin'])]
+        sin = (caso_del_sistema(app, 'sin', None)
+               or max(otros, key=lambda c: c.loc_name, default=None))
+        if sin is not None:
+            informe['avisos'].append(f'no hay «{NOMBRES["sin"]} {anio}»: se lee «{sin.loc_name}», el que tiene el '
+                                     'proyecto.')
     encendidas = variaciones_del_conversor_activas(app, plan['project'], sin, caso_del_sistema(app, 'con', anio))
     if encendidas:
         informe['variaciones_encendidas'] = encendidas
         informe['avisos'].append('Variaciones del conversor que estaban apagadas, activas de nuevo antes de leer: '
                                  + ', '.join(encendidas) + '.')
-    caso = sin or caso_del_sistema(app, 'base')
+    base = caso_del_sistema(app, 'base')
+    fotos_base = {}
+    if sin is not None and base is not None and sin is not base:
+        # 028:RF-45: antes de leer «Sin proyecto», lo mismo en el «Caso base», donde el operador no cambia nada.
+        base.Activate()
+        try:
+            app.GetFromStudyCase('ComLdf').Execute()
+        except Exception as exc:  # noqa: BLE001 - sin flujo se lee lo que haya
+            informe['avisos'].append(f'flujo del «Caso base» antes de comparar: {exc}')
+        alims_base = Alimentadores(app, proyecto, feeders)
+        fotos_base = {f: _foto(alims_base, f) for f in feeders if f in alims_base.elm}
+        informe['comparado_con'] = base.loc_name
+    caso = sin or base
     if caso is None:
         informe['avisos'].append('el proyecto no tiene «Sin proyecto» ni «Caso base»: se lee el caso activo')
     else:
@@ -205,6 +310,10 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                                                                                  de_objeto)}
             if a_medias:
                 informe['alimentadores'][f]['cargas_de_una_orden_cortada'] = a_medias
+            if f in fotos_base:                                                   # 028:RF-45
+                from convertersmartgrid.aplicacion.escaneo import diferencias_frente_al_base
+                _sumar_frente_al_base(informe['alimentadores'][f],
+                                      diferencias_frente_al_base(fotos_base[f], _foto(alims, f)), de_objeto)
         except Exception as exc:  # noqa: BLE001 - un alimentador no tumba el escaneo (RF-8)
             informe['alimentadores'][f] = {'error': f'{type(exc).__name__}: {exc}'}
     _transferencias(app, alims, plan, informe)

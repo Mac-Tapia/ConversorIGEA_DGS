@@ -1567,3 +1567,46 @@ def test_039_rf23_correccion_fechada_del_factor_de_un_medidor():
     assert c.p_registro_kw == pytest.approx(541.95) and c.q_registro_kvar == pytest.approx(289.68)
     assert c.ea == pytest.approx(122569.8) and c.pot == pytest.approx(747.6) and c.sed == ''
     assert aplicar(c, None) is None
+
+
+def test_la_correccion_del_medidor_de_cabecera_divide_y_toma_el_valor_absoluto(tmp_path):
+    """039:RF-26 — el 26-11, LL203 (L-LL123) daba 31 078 kW de máxima en una cabecera de media tensión: el medidor
+    registraba diez veces de más y con signo cambiado. La corrección del operador (factor 0,1 y valor absoluto, desde un
+    mes) se aplica a P, Q y S antes de buscar la máxima, sin tocar el libro, y se dice; otro medidor no cambia."""
+    inicio = datetime(2026, 8, 1)
+    filas = [['Local Time', 'kW tot', 'kVAR tot', 'kVA tot']]
+    for i in range(16):
+        kw = -31078.0 if 4 <= i < 8 else -12000.0
+        filas.append([inicio + timedelta(minutes=15 * i), kw, -8327.0, (kw ** 2 + 8327.0 ** 2) ** 0.5])
+    _libro(tmp_path / 'c.xlsx', {'L-LL123': filas, 'L-OTRO': filas})
+    assert hasattr(dm, 'aplicar_correcciones_cabecera'), 'falta 039:RF-26: la corrección del medidor de cabecera'
+    correccion = {'medidor': 'L-LL123', 'factor': 0.1, 'absoluto': True, 'desde': '2026-08', 'motivo': 'x10'}
+    corregida, otra = dm.maximas([tmp_path / 'c.xlsx'], [('LL203', 'L-LL123'), ('X', 'L-OTRO')],
+                                 correcciones=[correccion])
+    assert corregida.kw == pytest.approx(3107.8) and corregida.kvar == pytest.approx(832.7)
+    assert any('factor 0.1' in a and 'valor absoluto' in a for a in corregida.avisos), corregida.avisos
+    assert otra.kw < 0, 'la corrección es de su medidor'
+    antes = dm.maximas([tmp_path / 'c.xlsx'], [('LL203', 'L-LL123')])[0]
+    assert antes.kw < 0, 'sin corrección, el libro tal cual'
+    tarde = dict(correccion, desde='2026-09')
+    assert dm.maximas([tmp_path / 'c.xlsx'], [('LL203', 'L-LL123')], correcciones=[tarde])[0].kw < 0, 'desde su mes'
+
+
+def test_la_hoja_de_kvar_de_otro_medidor_pedido_no_da_fila_de_error(tmp_path):
+    """004:RF-45 — el 26-11, el libro de medidores da para IN111 «IN111_V18 Y IN111_V19»: V18 trae el kW y V19 solo el
+    kVAR del mismo medidor, que V18 ya toma (RF-44). V19 salía como fila roja «sin columna de kW»; se junta con V18 y se
+    dice. Una hoja sin kW que nadie usa sigue diciendo que le falta el kW."""
+    inicio = datetime(2026, 1, 1)
+    fechas = [inicio + timedelta(minutes=15 * i) for i in range(12)]
+    kw = [6000.0 + (500.0 if 4 <= i < 8 else 0.0) for i in range(12)]
+    _libro(tmp_path / 'c.xlsx', {
+        'IN111_V18': [['Local Time', 'kW tot']] + [[f, k] for f, k in zip(fechas, kw)],
+        'IN111_V19': [['Local Time', 'kVAR tot']] + [[f, 600.0] for f in fechas],
+        'IN111_V20': [['Local Time', 'kVA tot']] + [[f, (k * k + 360000.0) ** 0.5] for f, k in zip(fechas, kw)],
+        'SOLO_Q': [['Local Time', 'kVAR tot']] + [[f, 1.0] for f in fechas]})
+    res = dm.maximas([tmp_path / 'c.xlsx'], [('IN111', 'IN111_V18'), ('IN111', 'IN111_V19')])
+    assert [r.medidor for r in res] == ['IN111_V18'], [(r.medidor, r.error) for r in res]
+    assert res[0].error is None and res[0].kvar == pytest.approx(600.0)
+    assert any('IN111_V19' in a and 'ya incluid' in a for a in res[0].avisos), res[0].avisos
+    (solo,) = dm.maximas([tmp_path / 'c.xlsx'], [('X', 'SOLO_Q')])
+    assert solo.error and 'kW' in solo.error

@@ -65,6 +65,8 @@ La tabla cruzada antes de ajustar
 - Aclaración de RF-19: cambia 025:RF-10. Ese requisito cruzaba con el año entero solo dentro del ajuste (2.4), y el
   paso 2.3 pedía elegir un mes para ver la tabla; con la RF-17 el ajuste escribe lo que la tabla muestra, así que el
   cruce por el mes de cada máxima se hace y se ve en el paso 2.3.
+- Aclaración de RF-19 (26-11): la API del cruce y la de comparar los criterios de las fijas aceptan el año entero
+  (`AAAA`) además del mes (`AAAA-MM`); solo comprobaba el botón, y «Todo 2026» devolvía «String should match pattern».
 
 El estudio, después de la recalibración
 

@@ -30,8 +30,18 @@ HUELLAS_LEAFLET = {'leaflet.js': 'sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvT
 #: 086:RF-21: los servidores exactos que pide la página, sin comodín: los subdominios que ``L.tileLayer`` pone por defecto
 #: en ``{s}`` («a», «b» y «c»).
 SUBDOMINIOS_TESELAS = ('a', 'b', 'c')
-ORIGEN_TESELAS = ' '.join(f'https://{s}.tile.openstreetmap.org' for s in SUBDOMINIOS_TESELAS)
-URL_TESELAS = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png'
+#: 111:RF-27 (26-11): las calles las sirve la propia web. Cada página generada es aislada («sandbox allow-scripts») y en
+#: un Chromium real su tesela salía sin «Referer» aunque pidiera «strict-origin-when-cross-origin»: OpenStreetMap
+#: devolvía su imagen «403 Access blocked». La web la pide con el User-Agent del programa, como pide su política de uso,
+#: y la guarda; la página la toma de su servidor («'self'»), sin cookie, por eso la ruta va fuera de ``/api/``.
+ORIGEN_TESELAS = "'self'"
+URL_TESELAS = '/teselas/calles/{z}/{x}/{y}.png'
+#: El servidor al que pide la web, y con qué se presenta (sin datos del usuario).
+SERVIDOR_TESELAS_OSM = 'https://tile.openstreetmap.org'
+AGENTE_TESELAS = 'ConverterSmartGrid/1.0 (planificacion de redes de distribucion)'
+#: Zoom más alto de las calles y días que una tesela guardada vale (la política de OSM pide guardarlas).
+ZOOM_MAXIMO_CALLES = 19
+DIAS_CACHE_TESELAS = 7
 #: 086:RF-63: el fondo de satélite, el que pidió el usuario junto a las calles («como en Google Maps», 2026-11-12).
 ORIGEN_SATELITE = 'https://server.arcgisonline.com'
 URL_SATELITE = f'{ORIGEN_SATELITE}/ArcGIS/rest/services/World_Imagery/MapServer/tile/{{z}}/{{y}}/{{x}}'
@@ -79,6 +89,42 @@ def politica_pagina_generada() -> str:
     ``connect-src``, un nombre con código dentro corre, pero sin alcance a la API de la web.
     """
     return 'sandbox allow-scripts; ' + politica_base()
+
+
+class TeselaError(RuntimeError):
+    """La tesela no se pudo traer de OpenStreetMap (sin red o rechazada)."""
+
+
+def descargar_tesela(url: str, cabeceras: dict[str, str]) -> bytes:
+    """La tesela de ``url``; se cambia en las pruebas para no salir a la red."""
+    import urllib.request
+
+    pedido = urllib.request.Request(url, headers=cabeceras)
+    with urllib.request.urlopen(pedido, timeout=20) as r:            # noqa: S310 - servidor fijo, ruta numérica
+        return r.read()
+
+
+def tesela_calles(z: int, x: int, y: int, cache: Path) -> bytes:
+    """111:RF-27: la tesela de calles ``z/x/y`` desde la caché o de OpenStreetMap, con el User-Agent del programa.
+
+    Solo números en rango (``ValueError`` si no): la ruta no puede pedir nada más que una tesela.
+    """
+    import time
+
+    if not (0 <= z <= ZOOM_MAXIMO_CALLES and 0 <= x < 2 ** z and 0 <= y < 2 ** z):
+        raise ValueError(f'tesela fuera de rango: {z}/{x}/{y}')
+    fichero = Path(cache) / str(z) / str(x) / f'{y}.png'
+    if fichero.is_file() and time.time() - fichero.stat().st_mtime < DIAS_CACHE_TESELAS * 86400:
+        return fichero.read_bytes()
+    try:
+        datos = descargar_tesela(f'{SERVIDOR_TESELAS_OSM}/{z}/{x}/{y}.png', {'User-Agent': AGENTE_TESELAS})
+    except OSError as exc:
+        raise TeselaError(str(exc)) from exc
+    fichero.parent.mkdir(parents=True, exist_ok=True)
+    temporal = fichero.with_suffix('.tmp')
+    temporal.write_bytes(datos)
+    temporal.replace(fichero)
+    return datos
 
 
 class PreviewError(ValueError):

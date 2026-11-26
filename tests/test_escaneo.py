@@ -577,3 +577,88 @@ def test_083_rf35_el_escaneo_no_toma_por_manuales_las_cargas_de_una_orden_cortad
     assert [c['sed'] for c in f1['cargas_cambiadas']] == [operador], f1['cargas_cambiadas']
     [fila] = f1.get('cargas_de_una_orden_cortada') or [None]
     assert fila is not None and fila['sed'] == cortada and fila['antes']['kw'] == pytest.approx(antes[0])
+
+
+def test_028_rf1_sin_el_caso_del_anio_lee_el_sin_proyecto_que_hay_y_lo_dice(guion):
+    """028:RF-1 — el 26-11, PA217 (20261112-113130_CSG_TXT_PA217) se escaneó en «Caso base»: con el año 2026 se buscaba
+    «Sin proyecto 2026», el proyecto solo tenía «Sin proyecto» y los cambios del operador (tramos, cargas, bancos y
+    maniobras) estaban ahí. Sin el caso del año, se lee el «Sin proyecto» que hay y se dice; nunca el «Caso base»."""
+    rnd = random.Random(SEMILLA)
+    app = fake_pf.proyecto(alimentadores=('F1',), cargas_por_alim=rnd.randint(3, 6), bt=True, flujo=True)
+    _sin_proyecto(app)
+    informe, rc = guion.ejecutar(app, {'project': 'P', 'feeders': ['F1'], 'anio_casos': 2026})
+    assert rc == 0, informe
+    assert informe['caso'] == 'Sin proyecto', informe['caso']
+    assert any('Sin proyecto 2026' in a and '«Sin proyecto»' in a for a in informe['avisos']), informe['avisos']
+
+
+def test_028_rf45_lo_cambiado_en_sin_proyecto_frente_al_caso_base():
+    """028:RF-45 — el 26-11 el operador cambió en «Sin proyecto» de PA217 tramos (nuevos y otro conductor), cargas,
+    bancos y maniobras, y el escaneo decía «ninguno» en todo. Se compara cada alimentador en «Sin proyecto» con el
+    «Caso base», donde no se hizo nada, y sale cada diferencia con su antes y su después; lo igual no sale."""
+    from convertersmartgrid.aplicacion.escaneo import diferencias_frente_al_base
+
+    base = {('ElmLne', 'T1'): {'tipo': 'AA35', 'km': 0.5, 'en_servicio': True, 'desde': 'A', 'hasta': 'B'},
+            ('ElmLne', 'T2'): {'tipo': 'AA35', 'km': 0.2, 'en_servicio': True, 'desde': 'B', 'hasta': 'C'},
+            ('ElmLod', 'SE1'): {'p_kw': 40.0, 'q_kvar': 8.0, 'en_servicio': True},
+            ('ElmShnt', 'BC1'): {'en_servicio': True, 'q_kvar': 300.0},
+            ('ElmCoup', 'S1'): {'cerrado': True}}
+    sin = {**base,
+           ('ElmLne', 'T1'): {**base[('ElmLne', 'T1')], 'tipo': 'AA70'},
+           ('ElmLne', 'T9'): {'tipo': 'AA70', 'km': 1.1, 'en_servicio': True, 'desde': 'C', 'hasta': 'D'},
+           ('ElmLod', 'SE1'): {'p_kw': 55.0, 'q_kvar': 8.0, 'en_servicio': True},
+           ('ElmShnt', 'BC2'): {'en_servicio': True, 'q_kvar': 450.0},
+           ('ElmCoup', 'S1'): {'cerrado': False}}
+    del sin[('ElmLne', 'T2')]
+    d = diferencias_frente_al_base(base, sin)
+    assert [t['tramo'] for t in d['tramos_nuevos']] == ['T9'] and d['tramos_nuevos'][0]['km'] == 1.1
+    assert [(t['tramo'], t['cambios']) for t in d['tramos_cambiados']] == [('T1', {'tipo': ('AA35', 'AA70')})]
+    assert [t['tramo'] for t in d['tramos_quitados']] == ['T2']
+    assert d['cargas_cambiadas'] == [{'carga': 'SE1', 'cambios': {'p_kw': (40.0, 55.0)}}]
+    assert [b['banco'] for b in d['bancos_nuevos']] == ['BC2'] and d['bancos_cambiados'] == []
+    assert d['maniobras_cambiadas'] == [{'maniobra': 'S1', 'cambios': {'cerrado': (True, False)}}]
+    assert diferencias_frente_al_base(base, dict(base)) == {k: [] for k in d}
+
+
+def test_028_rf45_sin_lo_del_conversor_ni_bancos_repetidos(guion):
+    """028:RF-45 — el 26-11, SM218 salió con cientos de «tipo AA05003D → AA05003D_FICHA» (la variación de fichas del
+    conversor, 032), 306 cargas (las que escribe la calibración) y los bancos EBC_1, EBC_2, ECB_3 dos veces. Solo cuenta
+    lo del operador; las cargas a mano las dice la regla de la última calibración (014:RF-10); un banco ya listado lleva
+    la marca, sin repetirse."""
+    fila = {'bancos': [{'banco': 'EBC_1', 'origen': 'operador'}], 'tramos_nuevos': [], 'tramos_cambiados': [],
+            'cargas_cambiadas': []}
+    d = {'tramos_nuevos': [{'tramo': 'T9', 'km': 1.0}], 'tramos_quitados': [],
+         'tramos_cambiados': [{'tramo': 'T1', 'cambios': {'tipo': ('AA05003D', 'AA05003D_FICHA')}},
+                              {'tramo': 'T2', 'cambios': {'tipo': ('AA35', 'AA70')}}],
+         'cargas_cambiadas': [{'carga': 'SE1', 'cambios': {'p_kw': (1.0, 2.0)}}],
+         'bancos_nuevos': [{'banco': 'EBC_1'}, {'banco': 'BC_X'}], 'bancos_cambiados': [], 'maniobras_cambiadas': []}
+    de_objeto = {('ElmLne', 'T1'): 'Fichas_P', ('ElmLne', 'T2'): 'Cambios_PA217', ('ElmLne', 'T9'): 'Cambios_PA217',
+                 ('ElmShnt', 'BC_X'): 'SED_NTP_P'}
+    guion._sumar_frente_al_base(fila, d, de_objeto)
+    assert [t['tramo'] for t in fila['tramos_cambiados']] == ['T2']
+    assert [t['tramo'] for t in fila['tramos_nuevos']] == ['T9']
+    assert fila['cargas_cambiadas'] == []
+    assert fila['bancos'][0].get('frente_al_caso_base') == 'nuevo'
+    assert fila['frente_al_caso_base']['bancos_nuevos'] == []                 # EBC_1 ya listado; BC_X del conversor
+
+
+def test_028_rf45_solo_obras_terna_seccion_bancos_y_sed():
+    """028:RF-45 (usuario, 26-11) — «la actualización de parámetros no es necesario que se muestre; solo cuando se haya
+    incrementado nueva terna, cambiado de sección de cable, implementado nuevos bancos y SED». Un tramo con otro conductor
+    o con más ternas sale; uno que solo cambió de longitud, no; una SED (transformador) nueva o con otro, sí."""
+    from convertersmartgrid.aplicacion.escaneo import diferencias_frente_al_base
+
+    base = {('ElmLne', 'T1'): {'tipo': 'AA35', 'km': 0.5, 'ternas': 1, 'en_servicio': True},
+            ('ElmLne', 'T2'): {'tipo': 'AA35', 'km': 0.5, 'ternas': 1, 'en_servicio': True},
+            ('ElmLne', 'T3'): {'tipo': 'AA35', 'km': 0.5, 'ternas': 1, 'en_servicio': True},
+            ('ElmTr2', 'TR_SE1'): {'tipo': '100 kVA', 'en_servicio': True}}
+    sin = {**base, ('ElmLne', 'T1'): {**base[('ElmLne', 'T1')], 'ternas': 2},
+           ('ElmLne', 'T2'): {**base[('ElmLne', 'T2')], 'km': 0.51},
+           ('ElmLne', 'T3'): {**base[('ElmLne', 'T3')], 'tipo': 'AA70'},
+           ('ElmTr2', 'TR_SE1'): {'tipo': '160 kVA', 'en_servicio': True},
+           ('ElmTr2', 'TR_SE9'): {'tipo': '250 kVA', 'en_servicio': True}}
+    d = diferencias_frente_al_base(base, sin)
+    assert [(t['tramo'], t['cambios']) for t in d['tramos_cambiados']] == [
+        ('T1', {'ternas': (1, 2)}), ('T3', {'tipo': ('AA35', 'AA70')})]
+    assert [s['sed'] for s in d['sed_nuevas']] == ['TR_SE9']
+    assert d['sed_cambiadas'] == [{'sed': 'TR_SE1', 'cambios': {'tipo': ('100 kVA', '160 kVA')}}]
