@@ -56,3 +56,9 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       y verde (`N10_SINCODEX/T22/verde_0455f.log`, 245 passed con las pruebas de la revisión y de la suite). Comprobación real, 04:20, con el
       turno de GPU en manos de un entrenamiento del 089 (pronóstico) y 2,2 de 4 GiB disponibles: la tanda dice quién
       tiene la GPU y espera (`N10_SINCODEX/T106_8/real_0346.log`).
+- [x] T9. La suite nocturna por tandas no hereda la temporal de la web. (RF-26)
+      Hecho cuando: `tests/test_suite_espera_recursos.py` (106:RF-26) en verde con su rojo por aserción, y una tanda
+      real con el entorno de la web pasa `tests/test_turno_gpu_de_la_suite.py` entero.
+      Hecho el 2026-11-26: las tres tandas de las cuatro fallidas pasan solas (`D:/csg/PM_IMPL/ORDEN4/tanda_*.log`);
+      rojo con el TEMP de la web, 1 failed (`ORDEN4/rojo_temp_real.log`) y por aserción (`ORDEN4/rojo_unitario.log`);
+      verde 30 passed (`ORDEN4/verde_unitario.log`) y la tanda real, 29 passed (`ORDEN4/verde_real_tanda.log`).

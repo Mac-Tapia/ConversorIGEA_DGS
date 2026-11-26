@@ -281,7 +281,8 @@ LIMITE_TANDA_S = 3600.0
 #: Sin esto, cada proceso de numpy reserva un hilo por núcleo: medido al correr pruebas por fichero (spec 081).
 ENTORNO_SUITE = {'OPENBLAS_NUM_THREADS': '1'}
 #: 106:RF-16: dónde escribe la web; la suite nocturna no los hereda (cada sesión de pytest crea los suyos).
-VARIABLES_DE_SALIDA_DE_LA_WEB = ('CSG_RUNTIME_HOME', 'CSG_ASISTENTE_DATA', 'CSG_TWIN_DATA', 'CSG_SUITE_DATOS')
+VARIABLES_DE_SALIDA_DE_LA_WEB = ('CSG_RUNTIME_HOME', 'CSG_ASISTENTE_DATA', 'CSG_TWIN_DATA', 'CSG_SUITE_DATOS',
+                                 'CSG_TEMP_HOME')
 EMPEZADA, INTERRUMPIDA = 'empezada', 'interrumpida'
 #: 106:RF-25: memoria disponible (GiB) por debajo de la cual una tanda espera a un entrenamiento con el turno de GPU;
 #: ``CSG_SUITE_MEMORIA_MIN_GIB`` la cambia. Plazo de esa espera, tras el que la tanda corre igual y lo dice.
@@ -292,6 +293,33 @@ ESPERA_RECURSOS_S = 3 * 3600.0
 def _memoria_disponible_gib() -> float:
     import psutil
     return psutil.virtual_memory().available / 2 ** 30
+
+
+def sin_la_temporal_de_la_web(entorno: dict[str, str]) -> dict[str, str]:
+    """106:RF-26 — TEMP, TMP y TMPDIR vuelven a la temporal del sistema si son la de la web (``CSG_TEMP_HOME``).
+
+    ``runtime_paths.configurar_entorno`` los pone en ``<runtime>/tmp`` al arrancar la web; heredados, el ``mkdtemp`` de
+    ``tests/conftest.py`` creaba la sesión de pruebas dentro del runtime real (suite del 25-11 a las 23:24: cuatro
+    pruebas que pasan solas fallaron). Sin la variable no se puede dejar vacía: en Windows ``tempfile`` caería en la
+    carpeta actual, el checkout. Una temporal que no es la de la web se respeta.
+    """
+    web = entorno.get('CSG_TEMP_HOME')
+    if not web:
+        return entorno
+    raiz = os.path.normcase(os.path.normpath(web))
+    sistema = (os.path.join(entorno['LOCALAPPDATA'], 'Temp') if os.name == 'nt' and entorno.get('LOCALAPPDATA')
+               else None)
+    for nombre in ('TEMP', 'TMP', 'TMPDIR'):
+        valor = entorno.get(nombre)
+        if not valor:
+            continue
+        ruta = os.path.normcase(os.path.normpath(valor))
+        if ruta == raiz or ruta.startswith(raiz + os.sep):
+            if sistema:
+                entorno[nombre] = sistema
+            else:
+                entorno.pop(nombre)
+    return entorno
 
 
 def _otro_con_la_gpu() -> str | None:
@@ -371,6 +399,7 @@ def correr_por_tandas(repo: Path, *, tandas: list[list[str]] | None = None,
     # eran los del usuario: la noche del 23 al 24 las carpetas pytest-of-… estaban dentro del runtime real de la web y
     # test_el_runtime_de_la_suite_es_de_la_sesion falló. Son salidas de la web, no entradas de las pruebas: cada sesión
     # de pytest crea las suyas en su carpeta temporal (tests/conftest.py). Los datos de prueba (CSG_RED…) se quedan.
+    sin_la_temporal_de_la_web(entorno)  # antes de quitar CSG_TEMP_HOME, que dice cuál es la de la web
     for variable in VARIABLES_DE_SALIDA_DE_LA_WEB:
         entorno.pop(variable, None)
     tandas = tandas_de_pruebas(repo) if tandas is None else tandas

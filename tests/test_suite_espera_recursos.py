@@ -5,6 +5,9 @@ la guardia de la cola de GPU cortó cinco entrenamientos. Sin suite real ni GPU:
 """
 from __future__ import annotations
 
+import os
+from pathlib import Path
+
 import pytest
 
 from convertersmartgrid.aplicacion.asistente import vigilancia
@@ -102,6 +105,33 @@ def test_106_rf16_la_suite_nocturna_no_hereda_los_almacenes_de_la_web(tmp_path):
     assert not set(salidas) & set(vistos[0]), {k: vistos[0][k] for k in set(salidas) & set(vistos[0])}
     assert vistos[0]['CSG_RED'] == 'D:/datos/red.txt', 'los datos de prueba sí pasan'
 
+
+def test_106_rf26_la_suite_nocturna_no_hereda_la_temporal_de_la_web(tmp_path):
+    """106:RF-26 — la noche del 25-11 (23:24) la web había puesto TEMP, TMP y TMPDIR en <runtime>/tmp (configurar_entorno)
+    y las tandas los heredaban: el mkdtemp de tests/conftest.py creaba la sesión dentro del runtime real y fallaron
+    test_el_runtime_de_la_suite_es_de_la_sesion y tres pruebas de la web que pasan solas. La temporal vuelve a la del
+    sistema; una TEMP que no es la de la web se respeta."""
+    vistos = []
+
+    def ejecutar(_repo, **k):
+        vistos.append(dict(k['env']))
+        return {'codigo': 0, 'resumen': '1 passed', 'segundos': 1, 'fallidas': [], 'omitidas': 0}
+
+    web_tmp = 'D:/runtime_de_la_web/tmp'
+    web = {'CSG_TEMP_HOME': web_tmp, 'TEMP': web_tmp, 'TMP': web_tmp + '/', 'TMPDIR': web_tmp,
+           'LOCALAPPDATA': 'C:/Users/operador/AppData/Local', 'CSG_RED': 'D:/datos/red.txt'}
+    vigilancia.correr_por_tandas(tmp_path, tandas=[['a']], ejecutar=ejecutar, env=web)
+    visto = vistos[0]
+    assert 'CSG_TEMP_HOME' not in visto
+    for nombre in ('TEMP', 'TMP', 'TMPDIR'):
+        assert not Path(visto.get(nombre, '')).as_posix().startswith('D:/runtime_de_la_web'), (nombre, visto.get(nombre))
+    if os.name == 'nt':
+        assert Path(visto['TEMP']).as_posix() == 'C:/Users/operador/AppData/Local/Temp'
+    assert visto['CSG_RED'] == 'D:/datos/red.txt'
+
+    vistos.clear()
+    vigilancia.correr_por_tandas(tmp_path, tandas=[['a']], ejecutar=ejecutar, env={'TEMP': 'E:/mi_temporal'})
+    assert vistos[0]['TEMP'] == 'E:/mi_temporal', 'una temporal que no es la de la web no se toca'
 
 def test_106_rf21_ningun_lanzador_de_tools_toma_el_candado_sin_esperar():
     """106:RF-21 — el 24-11, la 070 T22 cayó en 19 s con «GPU ocupada» porque tools/asistente_entrenar.py tomaba el

@@ -112,7 +112,7 @@ retirada.
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |
 | [105](105-evolucion-de-clientes-fijos-por-alimentador/spec.md) | Evolución de los clientes fijos de cualquier alimentador | cumplida | 40 | 40 | — |
-| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 25 | 25 | — |
+| [106](106-un-turno-de-gpu-para-la-suite-y-los-entrenamientos/spec.md) | Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | 26 | 26 | — |
 | [107](107-plan-de-inversiones-en-transmision/spec.md) | Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | cumplida | 43 | 43 | — |
 | [108](108-estudio-de-costos-del-vad/spec.md) | Estudio de costos del VAD con la empresa modelo eficiente | aprobada | 26 | 26 | T13 |
 | [109](109-fuentes-y-expedientes-en-la-nube-desde-la-web/spec.md) | Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | 26 | 26 | — |

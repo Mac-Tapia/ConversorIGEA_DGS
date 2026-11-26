@@ -1,6 +1,6 @@
 # Spec 106 — Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene
 
-Estado: cumplida (2026-11-24: T8 cerrada con RF-25; todas sus tareas cerradas) · antes cumplida (2026-11-21: T2 cerrada con la suite de la puerta CIE y un entrenamiento que esperó su turno, y T7 con MEJ28; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
+Estado: cumplida (2026-11-26: T9 cerrada con RF-26; todas sus tareas cerradas) · antes cumplida (2026-11-24: T8 cerrada con RF-25) · antes cumplida (2026-11-21: T2 cerrada con la suite de la puerta CIE y un entrenamiento que esperó su turno, y T7 con MEJ28; todas sus tareas cerradas) · antes aprobada · Fecha: 2026-11-12 · Origen: auditoría de la suite de 10a80812 y orden del usuario del
 2026-11-12: «las correcciones deben ser sólidas, estables y robustas», «corregir todos los fallos, de fondo».
 
 ## Contexto y objetivo
@@ -121,6 +121,11 @@ La puerta de calidad (spec 102) y quien corre la suite; los entrenamientos de `t
   diciendo cada 10 min cuánta hay y quién tiene la GPU; al vencer un plazo de 3 h, la tanda correrá igual y lo dirá.
   (La noche del 23 al 24-11, la suite por tandas corrió pytest junto a las redes del 089 T7 con menos de 1,5 GiB
   disponibles en 16 GiB, y la guardia de la cola de GPU cortó por memoria cinco entrenamientos seguidos.)
+- RF-26: CUANDO la suite nocturna por tandas hereda de la web `TEMP`, `TMP` o `TMPDIR` dentro de su temporal
+  (`CSG_TEMP_HOME`, que pone `runtime_paths.configurar_entorno`), EL SISTEMA los devolverá a la temporal del sistema
+  (`%LOCALAPPDATA%\Temp` en Windows) y no pasará `CSG_TEMP_HOME` a las tandas; una temporal que no es la de la web se
+  respeta. (Suite del 25-11 a las 23:24: la sesión de pytest se creaba dentro del runtime real y fallaron
+  `test_el_runtime_de_la_suite_es_de_la_sesion` y tres pruebas de la web que pasan solas.)
 
 ## Requisitos no funcionales
 - Sin GPU (GitHub Actions, 102:RF-17) la sesión no pide turno y nada cambia.

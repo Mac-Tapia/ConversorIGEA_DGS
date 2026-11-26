@@ -132,7 +132,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 103 DIgSILENT de cualquier versión instalada | cumplida |  |
   | 104 Los libros nuevos de demanda se reconocen solos | cumplida |  |
   | 105 Evolución de los clientes fijos de cualquier alimentador | cumplida |  |
-  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | T8 cerrada (24-11, RF-25: la suite espera si un entrenamiento tiene la GPU y falta memoria); todas sus tareas cerradas |
+  | 106 Un turno de GPU para la suite y los entrenamientos, con plazo y diciendo quién lo tiene | cumplida | T9 cerrada (26-11, RF-26: la suite nocturna no hereda la temporal de la web); todas sus tareas cerradas |
   | 107 Plan de Inversiones en Transmisión (PIT) del sistema secundario y complementario | cumplida | T14 cerrada (24-11, en DIgSILENT: 3 barras y 9 ramas fuera de tolerancia, explicadas); todas sus tareas cerradas |
   | 108 Estudio de costos del VAD con la empresa modelo eficiente | aprobada | todas las tareas abiertas (plan y tareas del 2026-11-14) |
   | 109 Fuentes y expedientes en la nube (Google Drive y OneDrive) desde la web | cumplida | — |
