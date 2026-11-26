@@ -152,6 +152,9 @@ Marca fija o escalable
 - RF-37: CUANDO calibra, EL SISTEMA escribirá en cada carga del alimentador la marca fija
   o escalable (006:RF-18), aunque DIgSILENT la guarde en la red que comparten los casos y
   el «Caso base» la vea también.
+- Aclaración de RF-37 (26-11): la marca escrita se comprueba con el escenario activo; la que el escenario de operación
+  tapa con un valor de una calibración anterior se reescribe en él y se guarda, y lo que siga mal se nombra. (SM218:
+  hermanas de SE40812 y SE40852 con i_scale=1 en «Sin proyecto» y 0 en el «Caso base», sin variación que las grabara.)
 
 Convergencia del «Caso base»
 

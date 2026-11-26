@@ -273,3 +273,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-11-26 (código): rojo `D:/csg/PM_IMPL/VNR_SM117/rojo.log`, verde 109 passed (`verde.log`); la
       zona sin servicio se encontró leyendo el DGS (frontera: seccionador 883730 abierto en el tramo 313492). La
       corrida real es la repetición de la 100 T4 con VNR-GIS.
+- [x] T33. La marca tapada por el escenario se reescribe en él. (RF-37)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (015:RF-37) en verde con su rojo por aserción, y SM218 calibrado
+      desde la web sin FALLO_VALIDACION_NATIVA.
+      Hecho el 2026-11-26 (código): sonda de solo lectura de SM218 (variaciones activas sin las hermanas; i_scale 0 en
+      «Caso base» y 1 en «Sin proyecto»); rojo `D:/csg/PM_IMPL/MARCA_ESCENARIO/rojo.log`, verde 209 passed (`verde.log`).

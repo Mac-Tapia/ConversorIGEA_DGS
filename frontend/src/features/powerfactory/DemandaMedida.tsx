@@ -1041,7 +1041,9 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
       {' '}{fmtNum(Object.values(porSed).reduce((a, s) => a + s.q, 0), 1)} kvar.</p>}
     {sinRegistro.length > 0 && <p className="alert alert-warn small">{sinRegistro.join('; ')}.
       {' '}{cuenta(fueraDelInstante.length, 'cliente', 'clientes')} sin hoja de 15 minutos {plural(fueraDelInstante.length, 'va', 'van')} con su EA/ERI del mes con los dos
-      criterios: por eso su «Registro» no coincide.</p>}
+      criterios: por eso su «Registro» no coincide
+      {/* 26-11: el operador preguntó cuál era; el aviso lo nombra (código, nombre y SED). */}
+      {': '}{fueraDelInstante.slice(0, 20).map((c) => `${c.codigo} ${c.nombre ?? ''} (${c.sed ?? '—'})`).join('; ')}.</p>}
     <p>{ali ? <>{cuenta(t.cruzados, 'cliente', 'clientes')} de <strong>{ali}</strong> de {fmtNum(t.clientes)}</> : <>{fmtNum(t.cruzados)} de {fmtNum(t.clientes)} cruzados</>}
       {' '}({fmtNum(t.por_actual)} por «Suministro Act», {fmtNum(t.por_anterior)} por «Suministro»{t.por_hoja ? `, ${fmtNum(t.por_hoja)} por su hoja` : ''}); {fmtNum(t.no_cruzados)} aparte
       {ali ? `, ${fmtNum(t.de_otros)} de otros alimentadores sin mostrar` : ''}.

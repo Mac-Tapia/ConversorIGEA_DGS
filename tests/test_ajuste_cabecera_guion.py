@@ -2500,3 +2500,51 @@ def test_la_escalada_sin_tension_por_una_maniobra_abierta_no_entra_al_reparto(gu
     assert guion.escaladas_sin_servicio(App([viva, muerta, otra]), cargas, fijas={'SE9': object()}) == ['SE42162']
     assert Ldf.ejecutado == 1, 'la topología sale de un cálculo'
     assert guion.escaladas_sin_servicio(App([Barra('A', -1), Barra('B', -1)]), cargas, fijas={}) == []
+
+
+def test_015_rf37_la_marca_que_tapa_el_escenario_se_reescribe_en_el_y_se_guarda(guion):
+    """015:RF-37 (26-11) — SM218 (proyecto del 29-10): las hermanas de SE40812 y SE40852 quedaban con i_scale=1 en
+    «Sin proyecto» y 0 en el «Caso base», sin variación que las grabara: el escenario de operación conservaba el 1 de una
+    calibración vieja y tapaba la marca escrita en la red. Tras escribirla se relee con el escenario activo; la que no
+    quedó se reescribe en él y se guarda; la que aun así no queda se nombra."""
+    assert hasattr(guion, 'asegurar_marcas'), 'falta 015:RF-37: la marca escrita no se comprueba'
+
+    class Escenario:
+        guardado = 0
+        loc_name = 'Sin proyecto'
+
+        def Activate(self):
+            App.activo = self
+
+        def Save(self):
+            Escenario.guardado += 1
+
+    class App:
+        activo = None
+
+        def GetActiveScenario(self):
+            return App.activo
+
+    class Carga:
+        def __init__(self, valor, terca=False):
+            object.__setattr__(self, 'valor', valor)
+            object.__setattr__(self, 'terca', terca)
+
+        @property
+        def i_scale(self):
+            return self.valor
+
+        @i_scale.setter
+        def i_scale(self, v):
+            if not self.terca:
+                object.__setattr__(self, 'valor', v)
+
+    esc = Escenario()
+    cargas = {'SE40812': Carga(0), 'SE40812-2': Carga(1), 'SE1': Carga(1), 'SE2': Carga(0), 'SE9': Carga(1, terca=True)}
+    r = guion.asegurar_marcas(App(), cargas, base={'SE1', 'SE2'}, escenario=esc)
+    assert App.activo is esc, 'se comprueba con el escenario activo'
+    assert (cargas['SE40812-2'].i_scale, cargas['SE2'].i_scale) == (0, 1)
+    assert r['reescritas'] == ['SE2', 'SE40812-2', 'SE9'] and r['sin_corregir'] == ['SE9']
+    assert Escenario.guardado == 1
+    assert guion.asegurar_marcas(App(), {'SE1': Carga(1)}, base={'SE1'}, escenario=esc) == {
+        'reescritas': [], 'sin_corregir': []} and Escenario.guardado == 1, 'sin nada que corregir no se guarda'

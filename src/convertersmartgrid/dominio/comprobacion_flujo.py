@@ -59,6 +59,8 @@ NO_QUEDO_BIEN = ('NO_CONVERGE', 'VIOLACION_FISICA', 'FALLO_VALIDACION_NATIVA', '
 
 #: Los avisos que dicen por qué no quedó calibrado, antes que los informativos.
 _ETIQUETAS_DE_FALLO = ('VALIDACION_FISICA', 'SOBRECARGA', 'NO cumple')
+#: Avisos que nunca son el motivo de un fallo: dicen lo que se hizo, no lo que falló (081:RF-19, 26-11).
+_AVISOS_INFORMATIVOS = ('con los parámetros de su ficha', 'es de su cliente: la fija se reparte')
 
 
 def motivo_de_informe(informe: Mapping[str, Any]) -> str:
@@ -71,8 +73,33 @@ def motivo_de_informe(informe: Mapping[str, Any]) -> str:
     """
     avisos = [str(a) for a in informe.get('avisos') or [] if a]
     de_fallo = next((a for e in _ETIQUETAS_DE_FALLO for a in avisos if a.startswith(e)), None)
-    return str(informe.get('error') or informe.get('motivo') or de_fallo
-               or (avisos[0] if avisos else '') or 'vea su informe')
+    # 26-11: SM218 volvió a enseñar el aviso de las fichas: sin etiqueta de fallo se tomaba el primer aviso. El motivo
+    # sale de los fallos de la validación y, sin ellos, nunca de un aviso informativo.
+    utiles = [a for a in avisos if not any(i in a for i in _AVISOS_INFORMATIVOS)]
+    estado = informe.get('status')
+    return str(informe.get('error') or informe.get('motivo') or de_fallo or _texto_de_fallos(informe)
+               or (utiles[0] if utiles else '') or (f'{estado}: vea su informe' if estado else 'vea su informe'))
+
+
+def _texto_de_fallos(informe: Mapping[str, Any]) -> str:
+    """081:RF-19: los fallos de la validación agrupados por tipo y error, con cuántas cargas y unas SED."""
+    fallos = list(informe.get('fallos') or [])
+    for clave in ('validacion_posterior_nativa', 'validacion_previa_nativa'):
+        if not fallos:
+            fallos = list((informe.get(clave) or {}).get('fallos') or [])
+    grupos: dict[str, list[str]] = {}
+    for f in fallos:
+        d = f.get('detalle') if isinstance(f.get('detalle'), Mapping) else f
+        tipo = str(d.get('tipo') or f.get('error') or 'FALLO')
+        errores = '; '.join(str(e) for e in d.get('errores') or [])
+        clave = f'{tipo}: {errores}' if errores else tipo
+        grupos.setdefault(clave, []).append(str(d.get('sed') or f.get('sed') or ''))
+    partes = []
+    for clave, seds in sorted(grupos.items(), key=lambda kv: -len(kv[1])):
+        con = [s for s in seds if s]
+        partes.append(f"{clave} en {len(seds)} {'carga' if len(seds) == 1 else 'cargas'}"
+                      + (f" ({', '.join(con[:5])}{'…' if len(con) > 5 else ''})" if con else ''))
+    return '; '.join(partes[:3])
 
 
 _motivo = motivo_de_informe

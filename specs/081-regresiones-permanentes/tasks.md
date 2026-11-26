@@ -124,3 +124,6 @@ de la revisión previa. Resultados y corte exacto: `D:/converter/auditorias/diag
 - [x] T33 El motivo de cada alimentador es su fallo, o los que fallaron del proyecto. (RF-19)
       Hecho cuando: con un fallo de validación que no es de consumo, el motivo es su aviso, y los demás del proyecto dicen por quién no vale.
       Cerrada el 2026-11-24: rojo válido por aserción (motivo vacío) y verde (291 passed) en `tests/test_ajuste_proyecto_guion.py`.
+- [x] T34. El motivo de una calibración que no quedó sale de sus fallos. (RF-19)
+      Hecho cuando: `tests/test_comprobacion_flujo.py` (081:RF-19) en verde con su rojo por aserción.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/MOTIVO_FALLO/rojo.log`, verde 283 passed (`verde.log`).

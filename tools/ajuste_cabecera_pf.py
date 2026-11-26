@@ -547,6 +547,45 @@ def cambios_manuales(cargas: dict, ultima: dict | None, escrito: dict | None = N
     return out, nombre
 
 
+def asegurar_marcas(app, cargas: dict, base, escenario) -> dict:
+    """015:RF-37 (26-11): la marca fija o escalable, comprobada donde se valida y reescrita si algo la tapa.
+
+    Se escribe en la red con las variaciones del conversor apagadas; al volver a encenderlas el escenario de operación
+    activo puede reponer un valor viejo. En SM218 (proyecto del 29-10) las hermanas de SE40812 y SE40852 quedaban
+    con i_scale=1 en «Sin proyecto» y 0 en el «Caso base», sin variación que las grabara, y la calibración salía
+    FALLO_VALIDACION_NATIVA. Con el escenario activo, cada marca distinta de la esperada se reescribe (va al escenario) y
+    el escenario se guarda; la que aun así no queda se devuelve para nombrarla.
+    """
+    if escenario is not None and app.GetActiveScenario() is not escenario:
+        escenario.Activate()
+    base = set(base)
+
+    def esperado(sed: str) -> int:
+        return 1 if sed in base else 0
+
+    malas = sorted(s for s, o in cargas.items() if int(getattr(o, 'i_scale', 0) or 0) != esperado(s))
+    for sed in malas:
+        cargas[sed].i_scale = esperado(sed)
+    if malas and escenario is not None:
+        escenario.Save()
+    return {'reescritas': malas,
+            'sin_corregir': [s for s in malas if int(getattr(cargas[s], 'i_scale', 0) or 0) != esperado(s)]}
+
+
+def _decir_marcas(informe: dict, r: dict, feeder: str = '') -> None:
+    """015:RF-37: lo que reescribió :func:`asegurar_marcas`, en el informe y en un aviso."""
+    if not r['reescritas']:
+        return
+    informe.setdefault('marcas_reescritas', []).extend(r['reescritas'])
+    texto = (f"{feeder + ': ' if feeder else ''}{cuenta(len(r['reescritas']), 'carga', 'cargas')} con la marca fija o "
+             f"escalable tapada por el escenario «Sin proyecto» (un valor de una calibración anterior): reescrita en él y "
+             f"guardado: {', '.join(r['reescritas'][:20])}.")
+    if r['sin_corregir']:
+        texto += f" No quedó en {', '.join(r['sin_corregir'][:20])}: revise su marca en DIgSILENT."
+    informe['avisos'].append(texto)
+
+
+
 @contextmanager
 def _centrales_apagadas(app):
     """Las variaciones de central apagadas mientras se escribe dato de red (015:RF-37).
@@ -3349,6 +3388,8 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
         with _centrales_apagadas(app):                                  # 015:RF-37
             for sed in reparto.demandas:
                 cargas[sed].i_scale = 1 if sed in reparto.base else 0
+        _decir_marcas(informe, asegurar_marcas(app, {s: cargas[s] for s in reparto.demandas if s in cargas},
+                                               reparto.base, escenario))
         # RF-26: en el escenario, como la demanda.
         for sed, obj in apagar.items():
             try:
@@ -4452,6 +4493,11 @@ def _ejecutar_proyecto(app, planes: list[dict], *, cancelado, estado: dict,
                 else:
                     for sed in p['reparto'].demandas:
                         p['cargas'][sed].i_scale = 1 if sed in p['reparto'].base else 0
+        for f, p in preps.items():                                                 # 015:RF-37 (26-11)
+            if not p['central']:
+                _decir_marcas(informes[f], asegurar_marcas(
+                    app, {s: p['cargas'][s] for s in p['reparto'].demandas if s in p['cargas']}, p['reparto'].base,
+                    app.GetActiveScenario()), f)
         crono.marca('marcar fijas y escaladas')
         for f, p in preps.items():
             for sed, obj in p['apagar'].items():                                   # 006:RF-26

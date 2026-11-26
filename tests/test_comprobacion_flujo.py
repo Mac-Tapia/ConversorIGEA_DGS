@@ -126,7 +126,8 @@ def test_el_motivo_es_la_causa_y_no_el_primer_aviso():
               'SOBRECARGA: 6 SED fija(s) piden más que su potencia instalada']
     v = veredicto_calibracion([_inf('CA191', 'FALLO_VALIDACION_NATIVA', motivo=None, avisos=avisos)])
     assert v['pendientes'][0]['motivo'].startswith('VALIDACION_FISICA')
-    assert motivo_de_informe({'motivo': None, 'avisos': avisos[:2]}) == avisos[0]
+    # 26-11 (SM218): el de las fichas es informativo y nunca es el motivo; sin fallos, el primer aviso útil.
+    assert motivo_de_informe({'motivo': None, 'avisos': avisos[:2]}) == avisos[1]
     assert motivo_de_informe({'motivo': None, 'avisos': []}) == 'vea su informe'
     assert motivo_de_informe({'motivo': 'isla', 'avisos': avisos}) == 'isla'
 
@@ -260,3 +261,23 @@ def test_almacen_no_hace_falta_para_el_contrato(tmp_path, monkeypatch):
     comprobar_tras_flujo([_barra('BT', .23, 0.)], [_carga('S', 'BT', .01, 0.)])
     comparar_huellas(huella_de_caso(CARGAS, FLUJO), huella_de_caso(CARGAS[:1], FLUJO))
     assert list(tmp_path.iterdir()) == [] and almacen.leer('avisos') == []
+
+
+def test_081_rf19_el_motivo_sale_de_los_fallos_de_la_validacion_y_no_de_un_aviso():
+    """081:RF-19 (26-11) — SM218 quedó en FALLO_VALIDACION_NATIVA y la web enseñó como motivo el aviso de los conductores
+    con ficha (informativo); la causa estaba en los fallos: 306 cargas «i_scale=1, esperado 0». El motivo se arma con los
+    fallos de la validación (tipo, cuántas, el error y unas SED) y nunca con un aviso informativo."""
+    from convertersmartgrid.dominio.comprobacion_flujo import motivo_de_informe
+
+    fichas = 'SM218 FALLO_VALIDACION_NATIVA: 17 conductores con los parámetros de su ficha en «Sin proyecto»'
+    fallos = [{'sed': f'SE40812-{n}', 'error': 'validación nativa: CARGA_INCORRECTA',
+               'detalle': {'tipo': 'CARGA_INCORRECTA', 'sed': f'SE40812-{n}', 'errores': ['i_scale=1, esperado 0']}}
+              for n in range(2, 14)]
+    motivo = motivo_de_informe({'status': 'FALLO_VALIDACION_NATIVA', 'avisos': [fichas], 'fallos': fallos})
+    assert 'ficha' not in motivo, motivo
+    assert '12 cargas' in motivo and 'i_scale=1, esperado 0' in motivo and 'SE40812-2' in motivo, motivo
+    otro = motivo_de_informe({'status': 'FALLO_VALIDACION_NATIVA', 'avisos': [fichas],
+                              'validacion_posterior_nativa': {'fallos': [
+                                  {'tipo': 'CABECERA_FUERA_TOLERANCIA', 'actual_kw': 9283.2, 'objetivo_kw': 10371.5}]}})
+    assert 'CABECERA_FUERA_TOLERANCIA' in otro and 'ficha' not in otro, otro
+    assert 'ficha' not in motivo_de_informe({'status': 'FALLO_VALIDACION_NATIVA', 'avisos': [fichas]})

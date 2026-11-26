@@ -58,6 +58,8 @@ Veracidad del trabajo
 - RF-17: SI alguno de los alimentadores de una calibración no converge o no cumple y otro sí, ENTONCES EL SISTEMA terminará el trabajo en `parcial`.
 - RF-18: SI ninguno de los alimentadores de una calibración queda bien y alguno no converge, ENTONCES EL SISTEMA terminará el trabajo en `no_converge`.
 - RF-19: EL SISTEMA dará en el resultado la lista de esos alimentadores, con su estado y su motivo. El motivo es el fallo de ese alimentador (el aviso de su validación si no es de consumo) y, para los que no valen por otro del proyecto, los alimentadores que fallaron; nunca el primer aviso común del proyecto (2026-11-24: los 17 de un sistema decían el aviso de bancos de otro).
+- Aclaración de RF-19 (26-11): el motivo sale de los fallos de la validación (tipo, cuántas cargas, el error y unas SED)
+  y nunca de un aviso informativo (los conductores con ficha); SM218 enseñaba ese aviso como causa.
 - RF-20: EL SISTEMA conservará en `parcial` y `no_converge` todo lo que guarda un trabajo terminado, sin detener nada de lo que sigue.
 - RF-21: SI la recalibración de un sistema termina con fallos, ENTONCES EL SISTEMA terminará el trabajo en `parcial`, con la lista.
 - RF-22: SI una importación deja proyectos sin aceptar o sin importar, ENTONCES EL SISTEMA terminará el trabajo en `parcial`, o en `no_converge` si ninguno quedó aceptado.
