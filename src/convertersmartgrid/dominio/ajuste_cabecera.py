@@ -505,6 +505,20 @@ VECES_KVA_GRUPO_DUDOSA = 4.0
 KVA_FUENTE_INCOHERENTE = 'KVA_FUENTE_INCOHERENTE'
 #: 039:RF-25: los motivos de una fija físicamente imposible, que se libera en vez de parar el alimentador.
 MOTIVOS_QUE_LIBERAN = frozenset({'SUPERA_LA_CABECERA', 'SUPERA_SU_GRUPO'})
+#: 039:RF-28: la parte de la energía de su cabecera desde la que un cliente que la pasa en pocos registros se queda fijo.
+FRACCION_ENERGIA_QUE_QUEDA = 0.5
+
+
+def se_queda_fija(motivo: Mapping[str, Any]) -> bool:
+    """039:RF-28: un cliente que pasa su cabecera solo en pocos registros (la cabecera no midió toda la carga en ellos)
+    y hace la mayor parte de su energía no se libera: su SED es la carga del alimentador.
+
+    LL203 (27-11): SE80083 (481000151) pasaba su cabecera en 15 registros de 2 976 y era el 68 % de su energía; liberado,
+    sus 2 180 kW se repartieron entre las demás SED y la carga quedó lejos de donde está.
+    """
+    d = motivo.get('diagnostico') or {}
+    return (motivo.get('codigo') == 'SUPERA_LA_CABECERA' and d.get('causa') == CAUSA_HIPOTESIS
+            and bool(d.get('pocos_registros')) and (numero(d.get('fraccion_energia')) or 0.0) >= FRACCION_ENERGIA_QUE_QUEDA)
 
 
 def horas_del_mes(fecha: Any) -> float | None:
@@ -577,7 +591,9 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
         # 039:RF-25 (enmienda 015:RF-73): una fija físicamente imposible (mide más que su cabecera, o pide más de cuatro
         # veces su grupo con la media del mes que sí cabe) se libera: su SED va con las escaladas y el alimentador se
         # calibra con el resto. Solo dudosa por el reparto (FIJAS_DEJAN_SIN_ESCALADAS), queda con su medida y se avisa.
-        x['liberar'] = any(m['codigo'] in MOTIVOS_QUE_LIBERAN for m in x['motivos'])
+        x['liberar'] = any(m['codigo'] in MOTIVOS_QUE_LIBERAN and not se_queda_fija(m) for m in x['motivos'])
+        if not x['liberar'] and any(se_queda_fija(m) for m in x['motivos']):
+            x['queda_fija'] = True                                                     # 039:RF-28
     revisar = [x for x in filas if x['a_revisar']]
     liberadas = [x['sed'] for x in revisar if x['liberar']]
     clave = objetivo.alimentador or objetivo.medidor or 'El alimentador'
@@ -586,7 +602,10 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
         texto = (f'{clave}: ' + ('una fija a revisar' if len(revisar) == 1 else f'{len(revisar)} fijas a revisar')
                  + ': ' + '; '.join(f"{x['sed']} ({', '.join(m['texto'] for m in x['motivos'])})" for x in revisar)
                  + '. ' + (f"{', '.join(liberadas)} se {'reparte' if len(liberadas) == 1 else 'reparten'} con las "
-                           'escaladas por su potencia instalada' if liberadas else 'Queda con su medida')
+                           'escaladas por su potencia instalada' if liberadas else
+                           'Queda con su medida: es la mayor parte de la energía de su cabecera y la pasa solo en '
+                           'pocos registros' if any(x.get('queda_fija') for x in revisar) else
+                           'Queda con su medida')
                  + ' y el alimentador se calibra con el resto.')
     return {'estado': FIJA_A_REVISAR if revisar else None, 'clave': clave, 'fijas': filas,
             'a_revisar': [x['sed'] for x in revisar], 'liberadas': liberadas,
@@ -770,7 +789,7 @@ def diagnostico_fija_imposible(codigo: str, cliente: Iterable[tuple[Any, float, 
         hipotesis = ('la cabecera no midió toda la carga en esos registros (transferencia o corte de su medidor) o el '
                      f'cliente tuvo un pico real: con ×{cabria:.3f} cabría')
     return {**base, 'causa': CAUSA_HIPOTESIS, 'accion': 'liberar_fija', 'factor_que_cabria': cabria,
-            'fraccion_energia': fraccion, 'hipotesis': hipotesis,
+            'fraccion_energia': fraccion, 'hipotesis': hipotesis, 'pocos_registros': len(pasan) <= limite,   # 039:RF-28
             'texto': (f"{codigo}: mide más que su cabecera en {regs}"
                       + (f"; su energía es el {fraccion:.0%} de la de su cabecera" if fraccion is not None else '')
                       + f"; hipótesis más probable: {hipotesis}. Su SED se reparte con las escaladas y el resto del "

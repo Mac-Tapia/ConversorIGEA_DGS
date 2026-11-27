@@ -1,7 +1,8 @@
 import { useCallback, useEffect, useState } from 'react';
-import { cuenta, plural } from '../../shared/formato';
+import { cuenta, fmtNum, plural } from '../../shared/formato';
 import { api } from '../../api/client';
 import { useApp } from '../../shared/context';
+import type { CuadroPerdidas } from '../../api/types';
 import type { DiagnosticoCargas, EstadoDiagnostico, EstudiosCatalogo, EstudiosPlan, EstudiosResultado, EstudiosResumen, ResumenCaso,
   FallaProteccion, Limites, OpcionesEstudios, PropuestaRed, ProteccionesEstado, ProteccionesEvaluacion } from '../../api/types';
 import { DatosEmpresaPF } from './DatosEmpresaPF';
@@ -195,6 +196,7 @@ export function EstudiosPF({ project, feeders, ajusteJobId, faltaRecalibrar = []
       {/* Spec 049: las protecciones, con lo que les falta; nunca se juzgan por el flujo (RF-10). */}
       <DiagnosticoDeCargas project={project} feeders={feeders} />
       <ResumenCasos project={project} />
+      <CuadroDePerdidas project={project} />
       <ProteccionesPF project={project} feeders={feeders} />
 
       {plan && (
@@ -595,6 +597,55 @@ function EvaluacionProtecciones({ rol, e }: { rol: string; e: ProteccionesEvalua
           {v.detalle ? ` (${v.detalle})` : ''}</li>))}</ul>}
       {e.no_evaluados.length > 0 && <details><summary className="small muted">Sin evaluar ({e.no_evaluados.length})</summary>
         <ul className="small">{e.no_evaluados.map((n, i) => <li key={i}>{n.que}: {n.razon}</li>)}</ul></details>}
+    </div>
+  );
+}
+
+/**
+ * 017:RF-156: pérdidas, tramo más cargado y punto de media tensión más bajo por alimentador y caso, con lo último medido
+ * en Estudios (flujo de cada caso). Usuario, 2026-11-27: el cuadro con la cargabilidad del tramo más crítico, la caída de
+ * tensión del punto más crítico en MT y el porcentaje de pérdidas.
+ */
+function CuadroDePerdidas({ project }: { project: string }) {
+  const { ws, run } = useApp();
+  const [cuadro, setCuadro] = useState<CuadroPerdidas | null>(null);
+  const [todos, setTodos] = useState(false);
+  const ver = async () => {
+    const r = await run(() => api.cuadroPerdidas(ws.id, todos ? '' : project));
+    if (r) setCuadro(r);
+  };
+  const pct = (x: number | null | undefined, d = 1) => (x == null ? '—' : `${fmtNum(x, d)} %`);
+  return (
+    <div className="card">
+      <div className="row">
+        <button className="btn" disabled={!project && !todos} onClick={() => void ver()}>Cuadro de pérdidas por caso</button>
+        <label className="check"><input type="checkbox" checked={todos} onChange={(e) => setTodos(e.target.checked)} />
+          {' '}De todos los proyectos del espacio</label>
+      </div>
+      {cuadro && (
+        <div className="table-wrap">
+          <table className="table">
+            <thead><tr><th>Proyecto</th><th>Alimentador</th><th>Caso</th><th className="num">Cabecera (kW)</th>
+              <th className="num">Pérdidas (kW)</th><th className="num">Pérdidas</th><th>Tramo más cargado</th>
+              <th className="num">Cargabilidad</th><th>Punto de MT más bajo</th><th className="num">Tensión (p.u.)</th>
+              <th className="num">Caída en MT</th></tr></thead>
+            <tbody>{cuadro.filas.map((r) => (
+              <tr key={`${r.proyecto}-${r.alimentador}-${r.caso}`} className={r.converge ? '' : 'muted'}>
+                <td className="small">{r.proyecto}</td><td>{r.alimentador}</td><td>{r.caso}</td>
+                <td className="num">{fmtNum(r.cabecera_kw, 0)}</td><td className="num">{fmtNum(r.perdidas_kw, 0)}</td>
+                <td className="num">{pct(r.perdidas_pct)}</td><td className="small">{r.tramo ?? '—'}</td>
+                <td className="num">{pct(r.cargabilidad_pct)}</td><td className="small">{r.barra_mt ?? '—'}</td>
+                <td className="num">{r.u_min_pu == null ? '—' : fmtNum(r.u_min_pu, 3)}</td>
+                <td className="num">{pct(r.caida_pct)}</td>
+              </tr>))}</tbody>
+          </table>
+          {cuadro.faltan.length > 0 && <p className="small muted">Sin estudio de flujo:{' '}
+            {cuadro.faltan.map((x) => `${x.proyecto} «${x.caso}»`).join('; ')}. Córralo arriba (Flujo de carga, con sus casos).</p>}
+          <p className="small muted">Pérdidas: lo que entra por todas las troncales de la cabecera menos lo que consumen
+            sus cargas y bancos: líneas de MT, transformadores de las SED y baja tensión.
+            Caída en MT: en % de la tensión nominal, en la barra de media tensión más baja.
+            Cargabilidad: la del tramo (línea o cable) más cargado; los transformadores no cuentan aquí.</p>
+        </div>)}
     </div>
   );
 }

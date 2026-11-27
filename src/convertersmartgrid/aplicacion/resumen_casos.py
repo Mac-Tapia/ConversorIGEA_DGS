@@ -8,6 +8,7 @@ los escribe ``informe_docx`` y lo guardado lo lee la web. Nada de una distribuid
 
 from __future__ import annotations
 
+import re
 from typing import Any, Mapping, Sequence
 
 #: Los casos que se resumen, con su nombre para el operador.
@@ -92,6 +93,127 @@ def ubicacion_de_obra(obra: Mapping[str, Any], nodos: Mapping[str, Sequence[str]
     return texto + (('; y los tramos ' + ', '.join(sueltos)) if sueltos else '')
 
 
+#: 017:RF-155: las obras de línea, las que llevan ficha en el resumen.
+CLASES_DE_LINEA = ('terna', 'seccion')
+_CONDUCTOR = re.compile(r'^([A-Z]+\d?)(\d{3})(\d{2})D', re.IGNORECASE)
+_TYP = re.compile(r'typ_id ([^\s,]+) → ([^\s,]+)')
+_NL = re.compile(r'nlnum (\d+) → (\d+)')
+
+
+def conductor(nombre: Any) -> str:
+    """El conductor con su sección legible si su nombre la trae (``AA12003D_FICHA`` → «AA 120 mm² (AA12003D_FICHA)»);
+    si no, su nombre tal cual: los tipos son los del catálogo de cada empresa."""
+    texto = str(nombre or '').strip()
+    m = _CONDUCTOR.match(texto)
+    return f'{m.group(1).upper()} {int(m.group(2))} mm² ({texto})' if m else (texto or '—')
+
+
+def _punto(puntos: Sequence[Mapping[str, Any]], i: int) -> dict[str, Any] | None:
+    p = puntos[i] if puntos else None
+    return dict(p) if isinstance(p, Mapping) else None
+
+
+def texto_punto(p: Mapping[str, Any] | None) -> str:
+    """017:RF-155: «nodo: UTM (CRS) E … · N … (lat …, lon …)», con lo que haya."""
+    if not p:
+        return '—'
+    partes = [str(p.get('barra') or '—')]
+    if p.get('este') is not None and p.get('norte') is not None:
+        partes.append(f"UTM {p.get('crs') or ''} E {_num(p['este'], 1)} · N {_num(p['norte'], 1)}".replace('UTM  ', 'UTM '))
+    if p.get('lat') is not None and p.get('lon') is not None:
+        partes.append(f"(lat {float(p['lat']):.6f}, lon {float(p['lon']):.6f})")
+    return partes[0] + (': ' + ' '.join(partes[1:]) if len(partes) > 1 else '')
+
+
+def ficha_obra_de_linea(obra: Mapping[str, Any], elementos: Sequence[Mapping[str, Any]] | None,
+                        ubicacion: Sequence[Mapping[str, Any]] | None,
+                        largos_km: Mapping[str, float] | None = None) -> dict[str, Any] | None:
+    """017:RF-155: lo que el resumen ejecutivo dice de una terna o un cambio de sección aplicados.
+
+    Usuario (2026-11-27), con la terna de SEN0001 en LL202: el resumen ejecutivo indica las coordenadas del punto de inicio
+    y del final, si es nueva terna, refuerzo o cambio de conductor, la sección del cable y la longitud a intervenir, y
+    «así debe ser cada vez que se haga este tipo de análisis». Con lo que dejó la obra en DIgSILENT: el cambio de cada
+    tramo (``elementos``), sus extremos (``ubicacion``) y su largo (el del tramo o, sin él, ``largos_km``).
+    """
+    if obra.get('clase') not in CLASES_DE_LINEA:
+        return None
+    tramos = [str(t) for t in obra.get('tramos') or []]
+    if not tramos:
+        return None
+    por_tramo = {str(e.get('elemento')): e for e in elementos or [] if e.get('clase') == 'ElmLne'}
+    extremos = {str(u.get('elemento')): list(u.get('puntos') or []) for u in ubicacion or [] if isinstance(u, Mapping)}
+    largos = dict(largos_km or {})
+    grupos: dict[tuple[str, str], float] = {}
+    finales: list[str] = []
+    km_cambio = km_terna = total = 0.0
+    sin_largo: list[str] = []
+    cambia = terna = False
+    for t in tramos:
+        e = por_tramo.get(t) or {}
+        cambio = str(e.get('cambio') or '')
+        typ, nl = _TYP.search(cambio), _NL.search(cambio)
+        km = (float(e['largo_m']) / 1000.0) if e.get('largo_m') is not None else largos.get(t)
+        if km is None:
+            sin_largo.append(t)
+            km = 0.0
+        nuevo = typ.group(2) if typ else str((obra.get('tipo') or {}).get('nombre') or '') if isinstance(obra.get('tipo'), Mapping) else ''
+        if nuevo and nuevo not in finales:
+            finales.append(nuevo)
+        if typ and nl:
+            clave = (conductor(typ.group(1)), f'Cambio a {conductor(nuevo)} + nueva terna {conductor(nuevo)}')
+            km_cambio += km
+            km_terna += km
+        elif nl:
+            clave = ('el existente, de igual o más sección', f'Solo nueva terna {conductor(nuevo)}')
+            km_terna += km
+        elif typ:
+            clave = (conductor(typ.group(1)), f'Cambio de conductor a {conductor(nuevo)}')
+            km_cambio += km
+        else:
+            clave = ('—', 'sin cambio registrado')
+        grupos[clave] = grupos.get(clave, 0.0) + km
+        total += km
+        cambia, terna = cambia or bool(typ), terna or bool(nl)
+    # Por lo que cambia en cada tramo, no por sus km: sin el largo leído, la terna seguía siendo terna.
+    if terna and cambia:
+        tipo = 'Nueva terna en paralelo con cambio de conductor'
+    elif terna:
+        tipo = 'Nueva terna en paralelo'
+    else:
+        tipo = 'Cambio de conductor (refuerzo de sección)'
+    return {'alimentador': str(obra.get('alimentador') or ''), 'obra': tipo,
+            'inicio': _punto(extremos.get(tramos[0]) or [], 0), 'fin': _punto(extremos.get(tramos[-1]) or [], -1),
+            'longitud_km': round(total, 3), 'km_cambio': round(km_cambio, 3), 'km_terna': round(km_terna, 3),
+            'tramos': len(tramos), 'primero': tramos[0], 'ultimo': tramos[-1],
+            'conductor_final': ', '.join(conductor(x) for x in finales) or '—',
+            'por_conductor': [(antes, round(km, 3), accion) for (antes, accion), km in grupos.items()],
+            'sin_largo': sin_largo}
+
+
+def filas_de_ficha(ficha: Mapping[str, Any], *, inversion: Any = None, costo_anual: Any = None) -> dict[str, Any]:
+    """017:RF-155: la ficha en dos tablas, «Dato/Valor» y por conductor existente, como la del resumen del 27-11."""
+    datos = [
+        ['Alimentador', ficha.get('alimentador') or '—'],
+        ['Obra', ficha.get('obra') or '—'],
+        ['Punto de inicio', texto_punto(ficha.get('inicio'))],
+        ['Punto final', texto_punto(ficha.get('fin'))],
+        ['Longitud a intervenir', f"{_num(ficha.get('longitud_km'), 2)} km en {ficha.get('tramos')} tramos, de "
+                                  f"{ficha.get('primero')} a {ficha.get('ultimo')}"],
+        ['Conductor final', ficha.get('conductor_final') or '—'],
+    ]
+    if ficha.get('km_cambio') and ficha.get('km_terna'):
+        datos.append(['Alcance', f"cambio de conductor en {_num(ficha['km_cambio'], 2)} km; nueva terna en "
+                                 f"{_num(ficha['km_terna'], 2)} km"])
+    if inversion is not None or costo_anual is not None:
+        datos.append(['Inversión / costo anual', f'{_num(inversion)} / {_num(costo_anual)}'])
+    if ficha.get('sin_largo'):
+        datos.append(['Sin largo leído', ', '.join(ficha['sin_largo'])])
+    conductores = [[a, _num(km, 2), accion] for a, km, accion in ficha.get('por_conductor') or []]
+    conductores.append(['Total', _num(ficha.get('longitud_km'), 2), ''])
+    return {'datos': datos, 'cabecera_conductores': ('Conductor actual', 'Longitud (km)', 'Qué se hace'),
+            'conductores': conductores}
+
+
 def _aplicadas_y_guardadas(propias: Sequence[Mapping[str, Any]],
                            guardadas: Sequence[Mapping[str, Any]]) -> list[tuple[Mapping[str, Any], bool]]:
     """017:RF-151: lo aplicado de ``f`` (sí) y las alternativas guardadas que no son lo aplicado (no), de menor a mayor
@@ -140,7 +262,90 @@ def filas_con_proyecto(alternativas: Mapping[str, Sequence[Mapping[str, Any]]],
     conclusiones = [f'{len(con_obra)} alimentadores con obra; costo anual de las obras que se aplican: {_num(total)}.']
     if sin_obra:
         conclusiones.append(f'{len(sin)} alimentadores sin obra.')
-    return {'caso': CASOS['con_proyecto'], 'cabecera': cabecera, 'filas': filas, 'conclusiones': conclusiones}
+    # 017:RF-155: de cada obra de línea que se aplica, su ficha: extremos con coordenadas, qué se hace y su longitud.
+    fichas = []
+    for f in sorted(por_alim):
+        for a, se_aplica in por_alim[f]:
+            for ficha in (a.get('fichas') or []) if se_aplica else []:
+                fichas.append({**ficha, **filas_de_ficha(ficha, inversion=a.get('inversion'),
+                                                         costo_anual=a.get('costo_anual'))})
+                conclusiones.append(f"{ficha['alimentador']}: {ficha['obra'].lower()} de {_num(ficha['longitud_km'], 2)} km, "
+                                    f"de {(ficha.get('inicio') or {}).get('barra') or ficha['primero']} a "
+                                    f"{(ficha.get('fin') or {}).get('barra') or ficha['ultimo']}, en {ficha['conductor_final']}.")
+    return {'caso': CASOS['con_proyecto'], 'cabecera': cabecera, 'filas': filas, 'conclusiones': conclusiones,
+            'fichas_de_linea': fichas}
+
+
+#: 017:RF-156, 063:RF-43: por debajo, una barra sin fuente (isla), no una caída de tensión.
+UMBRAL_SIN_TENSION = 0.1                                 # el de cargas_pf (008:RF-29)
+#: 017:RF-156: el orden de los casos en el cuadro de pérdidas.
+ORDEN_CASOS = ('Sin proyecto', 'Cargas nuevas', 'Con proyecto')
+#: 017:RF-156: las columnas del cuadro de pérdidas.
+CABECERA_PERDIDAS = ('Proyecto', 'Alimentador', 'Caso', 'Cabecera (kW)', 'Pérdidas (kW)', 'Pérdidas (%)',
+                     'Tramo más cargado', 'Cargabilidad (%)', 'Punto de MT más bajo', 'Tensión (p.u.)',
+                     'Caída de tensión (%)')
+
+
+def fila_de_perdidas(project: str, caso: str, feeder: str, m: Mapping[str, Any]) -> dict[str, Any]:
+    """017:RF-156: de la medida de un alimentador en un estudio de flujo, sus pérdidas (kW y % de la cabecera), el tramo
+    (``ElmLne``) más cargado y el punto de media tensión de menor tensión, con su caída en % de la nominal.
+
+    Usuario (2026-11-27): «en la tabla de pérdidas debes incluir columnas de cargabilidad del tramo más crítico en %, la
+    caída de tensión del punto más crítico en media tensión y su porcentaje de pérdidas». El más cargado del estudio
+    (``mas_cargado``) puede ser un transformador: aquí solo cuentan los tramos; y la tensión mínima, solo la de media.
+    """
+    cab = numero_o_none(m.get('cabecera_kw'))
+    perd = numero_o_none(m.get('perdidas_kw'))
+    tramos = [(float(c), str(n)) for n, clase, c, *_r in m.get('elementos') or []
+              if clase == 'ElmLne' and c is not None]
+    # 063:RF-43: una barra a 0 p.u. es una isla sin fuente, no una caída (SM218 y SL143, 27-11): queda fuera y se cuenta.
+    islas = {str(n) for n in m.get('sin_tension') or []}
+    u = {str(n): float(v) for n, v, *_r in m.get('barras') or []
+         if v is not None and float(v) > UMBRAL_SIN_TENSION and str(n) not in islas}
+    mt = [str(n) for n in m.get('barras_mt') or []]
+    en_mt = [(u[n], n) for n in mt if n in u] or [(v, n) for n, v in u.items()]
+    carg, tramo = max(tramos) if tramos else (None, None)
+    umin, barra = min(en_mt) if en_mt else (None, None)
+    return {'proyecto': project, 'alimentador': feeder, 'caso': caso, 'converge': bool(m.get('converge', True)),
+            'cabecera_kw': cab, 'perdidas_kw': perd,
+            'perdidas_pct': (100.0 * perd / cab) if cab and perd is not None else None,
+            'tramo': tramo, 'cargabilidad_pct': carg, 'barra_mt': barra, 'u_min_pu': umin,
+            'caida_pct': max(0.0, 100.0 * (1.0 - umin)) if umin is not None else None,
+            'solo_media': bool(mt), 'barras_sin_tension': len(islas)}
+
+
+def numero_o_none(x: Any) -> float | None:
+    try:
+        return None if x is None else float(x)
+    except (TypeError, ValueError):
+        return None
+
+
+def cuadro_de_perdidas(estudios: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+    """017:RF-156: el cuadro de pérdidas de los estudios de flujo dados (``{'project', 'caso', 'medidas'}``), una fila por
+    proyecto, alimentador y caso, en el orden de :data:`ORDEN_CASOS`; y qué casos de cada proyecto faltan."""
+    filas = [fila_de_perdidas(str(e.get('project') or ''), str(e.get('caso') or ''), f, m)
+             for e in estudios for f, m in sorted((e.get('medidas') or {}).items()) if isinstance(m, Mapping)]
+    orden = {c: i for i, c in enumerate(ORDEN_CASOS)}
+    filas.sort(key=lambda r: (r['proyecto'], r['alimentador'], orden.get(r['caso'], 9), r['caso']))
+    proyectos = sorted({r['proyecto'] for r in filas})
+    faltan = [{'proyecto': p, 'caso': c} for p in proyectos for c in ORDEN_CASOS
+              if not any(r['proyecto'] == p and r['caso'] == c for r in filas)]
+    return {'filas': filas, 'faltan': faltan}
+
+
+def seccion_de_perdidas(cuadro: Mapping[str, Any]) -> dict[str, Any] | None:
+    """017:RF-156: el cuadro de pérdidas como sección del resumen ejecutivo del sistema (017:RF-149)."""
+    filas = cuadro.get('filas') or []
+    if not filas:
+        return None
+    return {'caso': 'Pérdidas por caso', 'cabecera': CABECERA_PERDIDAS,
+            'filas': [(r['proyecto'], r['alimentador'], r['caso'], _num(r['cabecera_kw']), _num(r['perdidas_kw']),
+                       _num(r['perdidas_pct'], 1), r['tramo'] or '—', _num(r['cargabilidad_pct'], 1), r['barra_mt'] or '—',
+                       _num(r['u_min_pu'], 3), _num(r['caida_pct'], 1)) for r in filas],
+            'conclusiones': [f"{r['alimentador']} · {r['caso']}: pérdidas {_num(r['perdidas_pct'], 1)} %, tramo más cargado "
+                             f"al {_num(r['cargabilidad_pct'], 1)} %, caída en MT {_num(r['caida_pct'], 1)} %."
+                             for r in filas]}
 
 
 def resumen(caso: str, *, informes=None, cargas=None, alternativas=None, sin_obra=(), aplicadas=None) -> dict[str, Any]:
@@ -161,7 +366,7 @@ def resumen(caso: str, *, informes=None, cargas=None, alternativas=None, sin_obr
 
 
 def resumen_del_sistema(*, informes=None, cargas=None, alternativas=None, sin_obra=(),
-                        aplicadas=None) -> dict[str, Any]:
+                        aplicadas=None, perdidas: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """017:RF-149: UN solo resumen del proyecto de sistema, con «Sin proyecto», «Cargas nuevas» y «Con proyecto» en
     secciones, y las conclusiones de las tres al principio. Usuario (2026-11-25): «tiene que ser un solo resumen
     ejecutivo; es un solo proyecto de sistema». Una sección sin datos se dice en las conclusiones, sin negar el resto."""
@@ -176,7 +381,13 @@ def resumen_del_sistema(*, informes=None, cargas=None, alternativas=None, sin_ob
             continue
         secciones.append(s)
         conclusiones += [f"{s['caso']}: {c}" for c in s['conclusiones']]
+    perd = seccion_de_perdidas(perdidas or {})                                       # 017:RF-156
+    if perd is not None:
+        secciones.append(perd)
+        conclusiones += [f"Pérdidas por caso: {c}" for c in perd['conclusiones']]
+    if (perdidas or {}).get('faltan'):
+        conclusiones.append('Pérdidas por caso: sin estudio de flujo en ' + ', '.join(
+            f"«{x['caso']}»" for x in perdidas['faltan']) + ' (córralo en Estudios).')
     if not secciones:
         raise ResumenError('El proyecto no tiene nada guardado que resumir: calibre, aplique cargas o evalúe «Con proyecto».')
     return {'caso': 'Sistema', 'secciones': secciones, 'conclusiones': conclusiones}
-

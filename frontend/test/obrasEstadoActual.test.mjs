@@ -101,3 +101,13 @@ test('042:RF-114 las obras aparte se aplican con su botón y su columna dice «R
     'los dos sitios que pintan «Con proyecto» llevan el botón');
 });
 
+// 017:RF-156: el cuadro de pérdidas por alimentador y caso, en «Estudios», con cargabilidad y caída en MT.
+test('017:RF-156 «Estudios» muestra el cuadro de pérdidas con el tramo más cargado y la caída en MT', async () => {
+  const { readFileSync } = await import('node:fs');
+  const estudios = readFileSync(fileURLToPath(new URL('../src/features/powerfactory/EstudiosPF.tsx', import.meta.url)), 'utf8');
+  assert.match(estudios, /<CuadroDePerdidas project=\{project\} \/>/);
+  assert.match(estudios, /api\.cuadroPerdidas\(ws\.id, todos \? '' : project\)/);
+  for (const col of ['Pérdidas</th>', 'Tramo más cargado', 'Cargabilidad</th>', 'Caída en MT</th>']) {
+    assert.ok(estudios.includes(col), col);
+  }
+});

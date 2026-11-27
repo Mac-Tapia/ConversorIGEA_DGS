@@ -398,6 +398,11 @@
             "default": false,
             "title": "Transformadores Automaticos",
             "type": "boolean"
+          },
+          "transformadores_del_archivo": {
+            "default": false,
+            "title": "Transformadores Del Archivo",
+            "type": "boolean"
           }
         },
         "required": [
@@ -2289,6 +2294,26 @@
         "title": "CasoComparadoRespuesta",
         "type": "object"
       },
+      "CasoSinEstudio": {
+        "additionalProperties": false,
+        "description": "017:RF-156: un caso de un proyecto sin estudio de flujo guardado.",
+        "properties": {
+          "caso": {
+            "title": "Caso",
+            "type": "string"
+          },
+          "proyecto": {
+            "title": "Proyecto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "proyecto",
+          "caso"
+        ],
+        "title": "CasoSinEstudio",
+        "type": "object"
+      },
       "CatalogoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -4175,6 +4200,32 @@
           "label"
         ],
         "title": "CrsRespuesta",
+        "type": "object"
+      },
+      "CuadroPerdidasRespuesta": {
+        "additionalProperties": false,
+        "description": "017:RF-156: el cuadro de pérdidas por alimentador y caso, y los casos que faltan.",
+        "properties": {
+          "faltan": {
+            "items": {
+              "$ref": "#/components/schemas/CasoSinEstudio"
+            },
+            "title": "Faltan",
+            "type": "array"
+          },
+          "filas": {
+            "items": {
+              "$ref": "#/components/schemas/FilaPerdidas"
+            },
+            "title": "Filas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "filas",
+          "faltan"
+        ],
+        "title": "CuadroPerdidasRespuesta",
         "type": "object"
       },
       "CurvaClienteFijoRespuesta": {
@@ -6236,6 +6287,142 @@
           }
         },
         "title": "FeedersIn",
+        "type": "object"
+      },
+      "FilaPerdidas": {
+        "additionalProperties": false,
+        "description": "017:RF-156: un alimentador en un caso: pérdidas, tramo más cargado y punto de MT más bajo.",
+        "properties": {
+          "alimentador": {
+            "title": "Alimentador",
+            "type": "string"
+          },
+          "barra_mt": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Barra Mt"
+          },
+          "barras_sin_tension": {
+            "default": 0,
+            "title": "Barras Sin Tension",
+            "type": "integer"
+          },
+          "cabecera_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cabecera Kw"
+          },
+          "caida_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caida Pct"
+          },
+          "cargabilidad_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cargabilidad Pct"
+          },
+          "caso": {
+            "title": "Caso",
+            "type": "string"
+          },
+          "converge": {
+            "title": "Converge",
+            "type": "boolean"
+          },
+          "perdidas_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perdidas Kw"
+          },
+          "perdidas_pct": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perdidas Pct"
+          },
+          "proyecto": {
+            "title": "Proyecto",
+            "type": "string"
+          },
+          "solo_media": {
+            "title": "Solo Media",
+            "type": "boolean"
+          },
+          "tramo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Tramo"
+          },
+          "u_min_pu": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "U Min Pu"
+          }
+        },
+        "required": [
+          "proyecto",
+          "alimentador",
+          "caso",
+          "converge",
+          "cabecera_kw",
+          "perdidas_kw",
+          "perdidas_pct",
+          "tramo",
+          "cargabilidad_pct",
+          "barra_mt",
+          "u_min_pu",
+          "caida_pct",
+          "solo_media"
+        ],
+        "title": "FilaPerdidas",
         "type": "object"
       },
       "FondoPlanoRespuesta": {
@@ -20016,6 +20203,56 @@
           }
         },
         "summary": "Estructura"
+      }
+    },
+    "/api/workspaces/{wid}/estudios/cuadro-perdidas": {
+      "get": {
+        "description": "017:RF-156: pérdidas, tramo más cargado y caída en MT por alimentador y caso, de los estudios guardados.",
+        "operationId": "cuadro_perdidas_api_workspaces__wid__estudios_cuadro_perdidas_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": false,
+            "schema": {
+              "default": "",
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CuadroPerdidasRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Cuadro Perdidas"
       }
     },
     "/api/workspaces/{wid}/events": {

@@ -877,7 +877,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
                     {r.maxima_periodo ? `${fmtNum(r.maxima_periodo.kw, 2)} kW · ${nombreMes(r.maxima_periodo.mes)}` : '—'}</td>}
                 </>}
                 <td className="small">{r.libro ? `${r.libro} › ${r.hojas.join(', ')}` : ''}
-                  {r.avisos.length > 0 && <div className="muted">{r.avisos.join(' · ')}</div>}</td>
+                  {r.avisos.length > 0 && <div className="muted">{r.avisos.join(' · ')}</div>}
+                  {r.escala_propuesta?.factor && <EscalaPropuesta wsId={ws.id} r={r} disabled={engineBusy} />}</td>
               </tr>
             ))}</tbody>
           </table>
@@ -1493,6 +1494,32 @@ function Recalibrar({ project, criterioFijas, elegirCriterio }: {
 
 // 039:RF-26: el operador corrige un medidor de cabecera que registra mal (LL203, 26-11: diez veces de más y con el
 // signo cambiado): factor y valor absoluto de P, Q y S, desde un mes; el libro no se toca y vale al buscar otra vez.
+/**
+ * 039:RF-27: el alimentador mide más que la barra de su SET: su hoja está en otra unidad. Un botón registra la corrección
+ * propuesta (factor y valor absoluto, desde el mes de su máxima, 039:RF-26); el libro no se toca. LL202, 27-11: 9 296 kW
+ * con la barra de Llipata en 3 139 kW.
+ */
+function EscalaPropuesta({ wsId, r, disabled }: { wsId: string; r: MaximaCabecera; disabled: boolean }) {
+  const { run } = useApp();
+  const toast = useToast();
+  const e = r.escala_propuesta;
+  if (!e?.factor) return null;
+  const corregir = async () => {
+    const hecho = await run(() => api.demandaCorreccionCabecera(wsId, { medidor: r.medidor, factor: e.factor!,
+      absoluto: e.absoluto, desde: e.desde,
+      motivo: `mide más que la barra ${e.barra} (${fmtNum(e.barra_kw, 0)} kW)` }));
+    if (hecho) toast('ok', `${r.medidor}: corrección guardada`, 'Busque la máxima otra vez para aplicarla.');
+  };
+  return (
+    <div className="alert alert-warn small">
+      Mide más que la barra {e.barra} ({fmtNum(e.barra_kw, 0)} kW): con factor {e.factor} serían{' '}
+      {fmtNum(e.kw_corregido, 0)} kW.{' '}
+      <button type="button" className="btn btn-sm btn-primary" disabled={disabled} onClick={() => void corregir()}>
+        Corregir ×{e.factor}{e.absoluto ? ' y valor absoluto' : ''}</button>
+    </div>
+  );
+}
+
 function CorregirMedidorCabecera({ wsId, medidores, disabled }: { wsId: string; medidores: string[]; disabled: boolean }) {
   const { run } = useApp();
   const toast = useToast();

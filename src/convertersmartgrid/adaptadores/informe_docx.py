@@ -1663,6 +1663,8 @@ def escribir_resumen_caso(destino: Path, datos: Mapping[str, Any], *, project: s
     secciones = list(datos.get('secciones') or [{'caso': caso, 'cabecera': datos.get('cabecera'),
                                                   'filas': datos.get('filas')}])
     filas = [list(f) for s in secciones for f in s.get('filas') or []]
+    # 017:RF-155: las fichas de las obras de línea van antes de la tabla: son lo que se construye.
+    fichas = list(datos.get('fichas_de_linea') or [x for s in secciones for x in s.get('fichas_de_linea') or []])
     xlsx = None
     if libro:
         from openpyxl import Workbook
@@ -1675,6 +1677,14 @@ def escribir_resumen_caso(destino: Path, datos: Mapping[str, Any], *, project: s
         hoja.append([])
         for frase in datos.get('conclusiones') or []:
             hoja.append([frase])
+        for ficha in fichas:                                               # 017:RF-155
+            hoja.append([])
+            hoja.append([f"Obra de línea · {ficha.get('alimentador')}"])
+            for fila in ficha.get('datos') or []:
+                hoja.append(list(fila))
+            hoja.append(list(ficha.get('cabecera_conductores') or []))
+            for fila in ficha.get('conductores') or []:
+                hoja.append(list(fila))
         for s in secciones:
             hoja.append([])
             hoja.append([s.get('caso')])
@@ -1685,6 +1695,10 @@ def escribir_resumen_caso(destino: Path, datos: Mapping[str, Any], *, project: s
         ruta_xlsx.parent.mkdir(parents=True, exist_ok=True)
         hoja_libro.save(ruta_xlsx)
         xlsx = ruta_xlsx.name
+    for ficha in fichas:                                                   # 017:RF-155
+        e.titulo(f"Obra de línea · {ficha.get('alimentador')}")
+        e.tabla(('Dato', 'Valor'), [list(f) for f in ficha.get('datos') or []])
+        e.tabla(list(ficha.get('cabecera_conductores') or []), [list(f) for f in ficha.get('conductores') or []])
     mostradas: list = []
     for s in secciones:
         libres = max(0, LINEAS_POR_HOJA - _ocupadas(e.d) - 3)      # su título, la cabecera y el pie

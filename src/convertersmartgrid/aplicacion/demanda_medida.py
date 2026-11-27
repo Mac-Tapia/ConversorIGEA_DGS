@@ -983,6 +983,9 @@ class MaximaCabecera:
     # 021:RF-78: la tensión de cada registro, para la barra en el instante de su máxima. Fuera de
     # ``to_dict`` por lo mismo que la curva; ``TensionesMedidas`` si sale de un libro (004:RF-108).
     tensiones: Mapping[datetime, tuple[float, str]] = field(default_factory=dict, repr=False)
+    #: 039:RF-27: la escala que se propone cuando el alimentador mide más que la barra de su SET (factor, valor
+    #: absoluto, barra y su kW, desde qué mes); ``None`` si cuadra o no hay barra con que comparar.
+    escala_propuesta: dict[str, Any] | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return {f.name: copy.deepcopy(getattr(self, f.name)) for f in fields(self)
@@ -1304,6 +1307,50 @@ def tension_de_su_barra(res: Sequence[MaximaCabecera], barras: Sequence[Any],
         r.tension_columna = f"barra {b.clave} ({', '.join(t['tension_medidores'])}" + (
             f", {t['tension_columna']})" if t['tension_columna'] else ')')
         r.tension_aviso = None
+
+
+#: 039:RF-27: las escalas que se prueban, de la más cercana a la más lejana (décimas, centésimas, milésimas de kW).
+ESCALAS_DE_HOJA = (0.1, 0.01, 0.001)
+#: 039:RF-27: holgura frente a la barra: sus medidores y el del alimentador no promedian exactamente la misma hora.
+HOLGURA_BARRA = 1.05
+
+
+def escala_frente_a_su_barra(res: Sequence[MaximaCabecera], barras: Sequence[Any],
+                             maxima_de: Mapping[tuple[str, str], MaximaCabecera]) -> None:
+    """039:RF-27: un alimentador no puede medir más que la barra de su SET que lo alimenta; si lo hace, su hoja está en
+    otra unidad, y se propone la escala con la que cabe (la mayor de :data:`ESCALAS_DE_HOJA`).
+
+    LL203 (L-LL123, 26-11) y LL202 (L-LL122, 27-11) daban 31 078 y 9 296 kW de máxima con la barra de 22,9 kV de Llipata
+    (B-LL2T1) en 3 139 kW: las hojas de los alimentadores estaban en décimas de kW aunque su columna dice «kW tot». Con
+    LL202 en 9,3 MW la calibración agrandó 81 transformadores, dio 0,70 p.u. en media tensión y propuso una terna de
+    25 km. Se compara con la máxima de la barra en el periodo (la suma de sus medidores, ya con sus correcciones), que
+    nunca es menor que lo que pasa por uno de sus alimentadores. No corrige nada: lo dice y propone; corrige el operador
+    (039:RF-26). ``barras`` y ``maxima_de`` como en :func:`tension_de_su_barra`.
+    """
+    de_feeder = {str(f).upper(): b for b in barras for f in getattr(b, 'alimentadores', ())}
+    for r in res:
+        if r.error or r.kw is None:
+            continue
+        b = de_feeder.get(str(r.alimentador).upper())
+        if b is None or r.medidor in (getattr(b, 'medidores', None) or ()):
+            continue
+        lecturas = [x for m in b.medidores if (x := maxima_de.get((b.clave, m))) is not None
+                    and not x.error and x.kw is not None]
+        barra_kw = sum(abs(x.kw) for x in lecturas)
+        kw = abs(r.kw)
+        if barra_kw <= 0 or kw <= HOLGURA_BARRA * barra_kw:
+            continue
+        factor = next((f for f in ESCALAS_DE_HOJA if kw * f <= HOLGURA_BARRA * barra_kw), None)
+        mes = periodo_de_fecha(r.fecha) if r.fecha else None
+        r.escala_propuesta = {'factor': factor, 'absoluto': True, 'barra': b.clave, 'barra_kw': round(barra_kw, 1),
+                              'medidores_barra': [x.medidor for x in lecturas], 'desde': mes or '',
+                              'kw_corregido': round(kw * factor, 1) if factor else None}
+        r.avisos.append(
+            f'{r.medidor} mide {kw:,.0f} kW, más que la barra {b.clave} que lo alimenta '
+            f'({barra_kw:,.0f} kW: {", ".join(x.medidor for x in lecturas)}): '
+            + (f'su hoja parece estar en otra unidad; con factor {factor:g} serían {kw * factor:,.0f} kW. Corríjalo '
+               '(factor y valor absoluto) y busque la máxima otra vez antes de calibrar.' if factor
+               else 'revise el medidor antes de calibrar.'))
 
 
 def tension_de_barra(maximas_de: Sequence[MaximaCabecera], fecha: datetime | None,

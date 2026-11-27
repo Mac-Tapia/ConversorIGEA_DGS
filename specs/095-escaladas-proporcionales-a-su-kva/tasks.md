@@ -10,3 +10,6 @@ Lee: `specs/095-escaladas-proporcionales-a-su-kva/spec.md` y `plan.md`.
       Hecho el 2026-11-06: recalibración de `20261106-124315_CSG_TXT_AL299` (informe ajuste_cabecera_aplicacion_ee3df7a035a1):
       pendiente 0, dispersión 0,44 de 5 fijas; las 69 escaladas entre 9,6 y 11,6 % de su kVA, mínima 0,50 kW (5 kVA),
       P y Q cuadradas (+0,09 %, +0,38 %), validación nativa VÁLIDA.
+- [x] T3 REPARTO-POR-LA-FUENTE (27-11). El kVA de la fuente para el reparto de las escaladas. (RF-4)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (095:RF-4) en verde con su rojo por aserción.
+      Hecho el 2026-11-27 (evidencia en el commit que lo integra).

@@ -12,12 +12,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 134 |
 | Interfaz | `frontend/src/` | 125 |
-| Pruebas de la interfaz | `frontend/test/` | 67 |
+| Pruebas de la interfaz | `frontend/test/` | 68 |
 | Pruebas | `tests/` | 692 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
-`web/services.py` tiene 15567 líneas y 502 funciones, pendiente de partir (002).
+`web/services.py` tiene 15694 líneas y 508 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4198 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4204 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -53,7 +53,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-182 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+183 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -88,6 +88,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `cargas` | espacio | 1 |
 | `diagnose` | espacio | 1 |
 | `estructura` | espacio | 1 |
+| `estudios` | espacio | 1 |
 | `events` | espacio | 1 |
 | `files` | espacio | 1 |
 | `inputs-auto` | espacio | 1 |
@@ -1242,6 +1243,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/tablaMaxima.test.mjs` | — | 004, 112, 116, 028 | Pruebas de la tabla de la máxima: el instante común y la propia de referencia en el coincidente, la propia en el no coincidente, la tabla de otro… |
 | `test/centralesDeSet.test.mjs` | — | 086, 122 | Pruebas de la SET de cada central térmica en la máxima por barra: primero las SET de los analizados, el tramo de la SET elegida y por qué una central… |
 | `test/maximaNoCoincidente.test.mjs` | — | 086, 126 | Pruebas del instante de la calibración: la máxima de cada alimentador (no coincidente) en los tres análisis, el valor por defecto sin cambiar y el… |
+| `test/escalaPropuesta.test.mjs` | — | 039 | La máxima del alimentador que mide más que la barra de su SET lleva su aviso y el botón que registra la escala propuesta. |
 | `test/etiquetasMaxima.test.mjs` | — | 086, 123 | Pruebas de las etiquetas de las máximas en la gráfica de curvas: 200 repartos sorteados (la semilla en el registro) sin taparse ni salir del gráfico. |
 | `test/tiposDeAnalisis.test.mjs` | — | 072 | Selector explícito, ficha, pasos de cada tipo, aviso del PIDE sin corto plazo y cuerpo de «Planificar» por tipo. |
 | `test/guardadoOrdenado.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

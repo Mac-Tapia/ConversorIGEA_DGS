@@ -55,6 +55,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
 from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
 from .api_contract import CorreccionesMedidorRespuesta                                  # 039:RF-23
 from .api_contract import CapexVigenteRespuesta  # 042:RF-113
+from .api_contract import CuadroPerdidasRespuesta  # 017:RF-156
 from .api_contract import (ColabEstadoRespuesta, ColabPrepararPeticion, ColabPreviaRespuesta,  # 113
                            ColabPaqueteRespuesta, ColabTraerRespuesta)
 from .services import UserError
@@ -474,6 +475,8 @@ class AjusteIn(BaseModel):
     completar_bancos: bool = False
     # 083:RF-31: las fijas sobre su transformador con ficha propuesta se cambian en la misma pasada.
     transformadores_automaticos: bool = False
+    # 101:RF-16: partir de los transformadores del archivo, sin los que cambió una calibración anterior.
+    transformadores_del_archivo: bool = False
     # 039:RF-1: el mismo criterio de las fijas que se eligió en la tabla cruzada.
     criterio_fijas: Literal['coincidente', 'maximo_mes'] = 'coincidente'
     # 039:RF-8: el de cada alimentador marcado en la tabla cruzada.
@@ -2391,6 +2394,7 @@ def create_app(
                                     tensiones_fuente=body.tensiones_fuente,
                                     completar_bancos=body.completar_bancos,
                                     transformadores_automaticos=body.transformadores_automaticos,
+                                    transformadores_del_archivo=body.transformadores_del_archivo,
                                     barras=job.result.get('barras'),
                                     criterio_fijas=body.criterio_fijas,
                                     criterio_por_alimentador=body.criterio_por_alimentador,
@@ -3127,6 +3131,11 @@ def create_app(
         return services.estudios_plan(ws, body.project, body.feeders, body.estudios,
                                       _ajuste_aplicado(wid, body.ajuste_job_id), body.limites,
                                       body.limite_s, body.opciones, body.casos)
+
+    @app.get('/api/workspaces/{wid}/estudios/cuadro-perdidas', response_model=CuadroPerdidasRespuesta)
+    def cuadro_perdidas(wid: str, project: str = '') -> dict:
+        """017:RF-156: pérdidas, tramo más cargado y caída en MT por alimentador y caso, de los estudios guardados."""
+        return services.cuadro_de_perdidas(ws_or_404(wid), project.strip() or None)
 
     @app.post('/api/workspaces/{wid}/resumen/caso')
     def resumen_caso(wid: str, body: ResumenCasoIn) -> dict:

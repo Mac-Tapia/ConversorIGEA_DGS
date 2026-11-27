@@ -49,6 +49,11 @@ por la misma ruta.
   kVA de la fuente del grupo de la SED (015:RF-75): no cambiará los de una SED cuyo grupo ya lleva su carga ni los de
   una fija a revisar, y anotará como reconstrucción el que cambie porque la medida no cabe en esos kVA (020:RF-64). Una
   distribuidora real puso 5 × 630 kVA en una SED de 100 kVA, de un grupo de 1 330 kVA, con una fija inflada por su FM.
+- RF-16: (usuario, 2026-11-27: «hazlo en orden», tras LL202 y LL203) CUANDO el operador calibre con «Partir de los
+  transformadores del archivo», EL SISTEMA quitará antes la variación `SED_NTP_` del conversor de ese proyecto (solo la
+  suya y solo de ese proyecto, desactivándola en sus casos), calibrará con los transformadores del archivo y cambiará
+  después solo los que pida la nueva máxima (RF-1 a RF-6); las rondas de RF-4 no la vuelven a quitar, y el informe
+  dice qué quitó. (LL202 y LL203: transformadores agrandados 2,5 y 25 veces por una máxima diez veces mayor.)
 
 ## Requisitos no funcionales
 

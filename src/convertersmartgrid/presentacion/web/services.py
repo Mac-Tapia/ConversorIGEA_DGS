@@ -3382,16 +3382,18 @@ def _tension_en_pu(ws: Workspace, res: list) -> None:
 
 
 def _tension_de_sus_barras(ws: Workspace, ctx: JobContext, res: list, libros, periodo: str | None) -> None:
-    """021:RF-78 (26-11): las máximas sin tensión en su hoja toman la de la barra de su SET y su nivel, en su registro.
+    """021:RF-78 (26-11): las máximas sin tensión en su hoja toman la de la barra de su SET y su nivel, en su registro; y
+    039:RF-27 (27-11): la que mide más que esa barra lleva la escala que se propone.
 
     LL202 y LL203 salían con V (kV) y V (pu) en «—»; la tensión está en los medidores de barra de 10 o 22,9 kV de su
     SET, que el libro de medidores ya da. Sin estructura de la empresa o sin libro de medidores no se supone nada.
     """
-    from ...aplicacion.demanda_medida import (DemandaError, barras_de_calibracion, leer_medidores_de_barra, maximas,
-                                              tension_de_su_barra)
+    from ...aplicacion.demanda_medida import (DemandaError, barras_de_calibracion, escala_frente_a_su_barra,
+                                              leer_medidores_de_barra, maximas, tension_de_su_barra)
 
+    # 039:RF-27: todas, no solo las que no traen tensión: cada alimentador se compara con la barra que lo alimenta.
     faltan = sorted({str(r.alimentador).upper() for r in res
-                     if not r.error and r.tension_kv is None and not str(r.alimentador).lower().startswith('central ')})
+                     if not r.error and not str(r.alimentador).lower().startswith('central ')})
     if not faltan:
         return
     try:
@@ -3411,10 +3413,14 @@ def _tension_de_sus_barras(ws: Workspace, ctx: JobContext, res: list, libros, pe
     except (DemandaError, UserError, OSError, ValueError) as exc:
         ctx.log(f'  aviso: tensión de las barras de SET no leída: {exc}')
         return
-    tension_de_su_barra(res, barras, {(r.alimentador, r.medidor): r for r in lecturas})
+    de_barra = {(r.alimentador, r.medidor): r for r in lecturas}
+    tension_de_su_barra(res, barras, de_barra)
+    escala_frente_a_su_barra(res, barras, de_barra)                             # 039:RF-27 (27-11)
     for r in res:
         if r.tension_columna and str(r.tension_columna).startswith('barra '):
             ctx.log(f'  {r.alimentador}: tensión de la {r.tension_columna}: {r.tension_kv:,.3f} kV')
+        if r.escala_propuesta:
+            ctx.log(f'  aviso: {r.avisos[-1]}')
 
 
 def _con_tension_de_la_fuente(res: list, barras: list[dict] | None) -> list[dict]:
@@ -4761,6 +4767,7 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
                 tensiones_fuente: dict[str, float | None] | None = None,
                 completar_bancos: bool = False,
                 transformadores_automaticos: bool = False,
+                transformadores_del_archivo: bool = False,
                 barras: list[dict] | None = None,
                 criterio_fijas: str | None = None,
                 criterio_por_alimentador: dict[str, str] | None = None,
@@ -4943,6 +4950,11 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
         if aviso:
             avisos.append(f'{alimentador}: {aviso}')
         kva_entrada, aviso = _kva_de_la_entrada(ws, alimentador)
+        if not kva_entrada:
+            # 095:RF-4: sin la fuente cargada en este espacio, la del DGS con que se convirtió el proyecto.
+            kva_entrada = _kva_del_dgs_del_proyecto(ws, project)
+            if kva_entrada:
+                aviso = ''
         if aviso:
             avisos.append(pre + aviso)
         kva_entrada, implicados = _kva_reconstruido(ws, project, alimentador,
@@ -5059,6 +5071,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'completar_bancos': completar_bancos,
             # 083:RF-31: el guion pone los transformadores de la ficha antes de calibrar, sin repetir.
             'transformadores_automaticos': transformadores_automaticos,
+            # 101:RF-16: antes de calibrar, los transformadores vuelven a los del archivo (solo la primera pasada).
+            'transformadores_del_archivo': transformadores_del_archivo,
             'bancos_kvar_por_tension': {str(k): v for k, v in (por_tension or {}).items()},
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
@@ -5554,6 +5568,8 @@ def ajuste_transformadores_varios(ws: Workspace, ctx: JobContext, token: str,
         except (OSError, ValueError) as exc:
             raise UserError('El plan del ajuste ya no existe: vuelva a prepararlo.') from exc
         datos['transformadores'] = cambios
+        # 101:RF-16: la ronda pone los de su máxima; quitar otra vez la variación borraría los de la ronda anterior.
+        datos['transformadores_del_archivo'] = False
         datos['ultima_calibracion'] = (ws.calibraciones.get(clave_calibracion(
             plan['project'], plan.get('anio_casos'))) or {}).get(feeder)            # 025:RF-20
         copia = ws.plans_dir / f'ajuste_cabecera_{token}{sufijo}_transformadores.json'
@@ -7421,6 +7437,27 @@ def _dgs_aceptados(ws: Workspace, project: str) -> list[Path]:
         if rutas:
             return rutas
     return []
+
+
+def _kva_del_dgs_del_proyecto(ws: Workspace, project: str) -> dict[str, float]:
+    """095:RF-4: el kVA de cada SED en el DGS con que se aceptó el proyecto o, sin huella, en el de su conversión; vacío si
+    no hay ninguno. LL203 (27-11) se calibró en un espacio sin su fuente cargada y el plan iba sin kVA de la fuente."""
+    from ...adaptadores.validate import kva_de_sed_del_dgs
+
+    rutas = _dgs_aceptados(ws, project.strip())
+    if not rutas:
+        try:
+            rutas = [r for c in _salidas_de_la_ejecucion(ws, _vinculo_para_leer(ws, project.strip()))
+                     for r in sorted(c.glob('*.dgs'))][:1]
+        except (AttributeError, OSError, UserError):
+            rutas = []
+    out: dict[str, float] = {}
+    for ruta in rutas:
+        try:
+            out.update(kva_de_sed_del_dgs(ruta))
+        except OSError:
+            continue
+    return out
 
 
 def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
@@ -11052,6 +11089,8 @@ def obras_ejecutar(ws: Workspace, ctx: JobContext, project: str, feeders: list[s
                     hecho = {'enlace': fila['enlace']} if fila.get('enlace') else {}
                     if fila.get('instalaciones'):                                  # 084:RF-17
                         hecho['instalaciones'] = fila['instalaciones']
+                    if fila.get('clase') in ('terna', 'seccion'):                  # 017:RF-155: su ficha
+                        hecho.update({k: fila[k] for k in ('elementos', 'ubicacion') if fila.get(k)})
                     if fila.get('clase') == 'migracion' and fila.get('parte'):     # 017:RF-44, RF-42f
                         hecho.update(transformadores=fila['parte'].get('seds', 0),
                                      ramales=len(fila['parte'].get('ramales') or ()),
@@ -15276,6 +15315,63 @@ def _lecturas_de_variaciones(ws: Workspace, project: str) -> list[tuple[float, s
     return sorted(out, key=lambda x: x[0])
 
 
+def _fila_de_la_aplicacion(ws: Workspace, variacion: str) -> dict:
+    """017:RF-155: lo que dejó en DIgSILENT la obra de la variación (sus elementos y extremos), del informe de su
+    aplicación; para las aplicadas antes de guardarlo en el registro (la terna de LL202, 2026-11-27)."""
+    carpetas = [ws.root / 'salida', *sorted((ws.root / 'runs').glob('*/salida'))] if (ws.root / 'runs').is_dir() \
+        else [ws.root / 'salida']
+    rutas = [r for c in carpetas for r in c.glob('obras_aplicacion_*.json')]
+    for ruta in sorted(rutas, key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            datos = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        for o in datos.get('obras') or []:
+            if isinstance(o, dict) and o.get('variacion') == variacion and not o.get('error'):
+                return o
+    return {}
+
+
+def _largos_de_la_conversion(ws: Workspace, project: str, feeder: str) -> dict[str, float]:
+    """017:RF-155: el largo de cada tramo (km) por su trazado en la geografía de la conversión, si el tramo no lo trae."""
+    import math
+
+    hallada = _geografias_del_proyecto(ws, project, [feeder]).get(feeder)
+    if hallada is None:
+        return {}
+    try:
+        lineas = (json.loads(hallada[0].read_text(encoding='utf-8')).get('lines') or {})
+    except (OSError, ValueError):
+        return {}
+    out = {}
+    for nombre, linea in lineas.items():
+        camino = [(p.get('x'), p.get('y')) for p in (linea or {}).get('path') or [] if isinstance(p, dict)]
+        if len(camino) >= 2 and all(x is not None and y is not None for x, y in camino):
+            out[str(nombre)] = sum(math.dist(a, b) for a, b in zip(camino, camino[1:])) / 1000.0
+    return out
+
+
+def _ficha_de_aplicada(ws: Workspace, project: str, obra: Mapping, variacion: str) -> dict | None:
+    """017:RF-155: la ficha de una terna o cambio de sección aplicados, con lo guardado al aplicarla o, si no, con el
+    informe de su aplicación y la geografía de la conversión."""
+    from ...aplicacion.resumen_casos import CLASES_DE_LINEA, ficha_obra_de_linea
+
+    if obra.get('clase') not in CLASES_DE_LINEA:
+        return None
+    hecha: Mapping = obra
+    largos: dict[str, float] = {}
+    try:
+        if not obra.get('elementos'):
+            hecha = _fila_de_la_aplicacion(ws, variacion)
+        if not all(e.get('largo_m') is not None for e in hecha.get('elementos') or () if e.get('clase') == 'ElmLne'):
+            largos = _largos_de_la_conversion(ws, project, str(obra.get('alimentador') or ''))
+    except (AttributeError, OSError, ValueError, UserError):
+        # Sin el informe de su aplicación o sin la geografía, la ficha sale con lo que haya y nombra los tramos sin largo.
+        pass
+    elementos = list(hecha.get('elementos') or [])
+    return ficha_obra_de_linea(obra, elementos, hecha.get('ubicacion') or [], largos)
+
+
 def _obras_aplicadas_para_resumen(ws: Workspace, project: str, avisos: list[str] | None = None) -> dict[str, list[dict]]:
     """017:RF-151, RF-152: las obras aplicadas del proyecto por alimentador, una por alternativa (las variaciones de una
     misma elección se juntan y su costo cuenta una vez), con dónde va cada una por sus nodos."""
@@ -15306,10 +15402,39 @@ def _obras_aplicadas_para_resumen(ws: Workspace, project: str, avisos: list[str]
             'nombre': nombre, 'costo_anual': eleccion.get('costo_anual'), 'inversion': eleccion.get('inversion'),
             'origen': a.get('origen'), 'variaciones': [], 'ubicacion': []})
         fila['variaciones'].append(str(a.get('variacion') or ''))
+        ficha = _ficha_de_aplicada(ws, project, obra, str(a.get('variacion') or ''))     # 017:RF-155
+        if ficha is not None:
+            fila.setdefault('fichas', []).append(ficha)
         donde = ubicacion_de_obra(obra, nodos.get(f) or {})
         if donde and donde not in fila['ubicacion']:
             fila['ubicacion'].append(donde)
     return {f: list(filas.values()) for f, filas in por_alim.items()}
+
+
+def _estudios_de_flujo(ws: Workspace, project: str | None = None) -> list[dict]:
+    """017:RF-156: el último estudio de flujo guardado de cada proyecto y caso del espacio (``estudio_*_flujo_*.json``)."""
+    carpetas = [ws.root / 'salida', *sorted((ws.root / 'runs').glob('*/salida'))]
+    ultimos: dict[tuple[str, str], tuple[float, dict]] = {}
+    for carpeta in carpetas:
+        for ruta in carpeta.glob('estudio_*_flujo_*.json'):
+            try:
+                datos = json.loads(ruta.read_text(encoding='utf-8'))
+                m = ruta.stat().st_mtime
+            except (OSError, ValueError):
+                continue
+            p, c = str(datos.get('project') or '').strip(), str(datos.get('caso') or datos.get('nombre_caso') or '')
+            if not p or not c or not isinstance(datos.get('medidas'), dict) or (project and p != project.strip()):
+                continue
+            if (p, c) not in ultimos or m > ultimos[(p, c)][0]:
+                ultimos[(p, c)] = (m, {'project': p, 'caso': c, 'medidas': datos['medidas']})
+    return [v for _m, v in ultimos.values()]
+
+
+def cuadro_de_perdidas(ws: Workspace, project: str | None = None) -> dict:
+    """017:RF-156: el cuadro de pérdidas de los casos del espacio (o de un proyecto), con lo último medido en Estudios."""
+    from ...aplicacion.resumen_casos import cuadro_de_perdidas as cuadro
+
+    return cuadro(_estudios_de_flujo(ws, project))
 
 
 def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
@@ -15346,6 +15471,8 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
         ajuste = ajuste_aplicado_en_disco(ws, project) or {}
         calibrados = [str(i.get('feeder')) for i in ajuste.get('informes') or [] if i.get('feeder')]
         datos_caso['sin_obra'] = [f for f in calibrados if f not in datos_caso['aplicadas']]
+    if todos:
+        datos_caso['perdidas'] = cuadro_de_perdidas(ws, project)                    # 017:RF-156
     try:
         datos = rc.resumen_del_sistema(**datos_caso) if todos else rc.resumen(caso, **datos_caso)
     except rc.ResumenError as exc:

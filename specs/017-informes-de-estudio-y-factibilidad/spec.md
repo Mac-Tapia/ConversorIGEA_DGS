@@ -651,6 +651,21 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   en el mapa la red del alimentador con la geografía de su conversión, y la carga sin nodo leído en DIgSILENT con el
   nodo más cercano de esa red, dicho como propuesto, y su línea de enlace con su largo. Sin el DGS aceptado (otra
   huella tras reconvertir), el plan y el mapa usan la conversión de la que salió el proyecto (amplía 004:RF-72).
+- RF-155: (usuario, 2026-11-27, con la terna de SEN0001 aplicada en LL202: «así debe ser el resumen ejecutivo, como lo
+  hiciste, cada vez que se haga este tipo de análisis») EL resumen ejecutivo de «Con proyecto» llevará, de cada obra de
+  línea aplicada (terna o cambio de sección), su ficha: el tipo de obra (nueva terna en paralelo, con cambio de
+  conductor o sin él, o cambio de conductor), el nodo y las coordenadas (UTM con su CRS, y latitud y longitud) del
+  punto de inicio y del final, la longitud a intervenir con sus tramos, el conductor final con su sección, la inversión y
+  el costo anual, y por conductor existente su longitud y qué se hace; en el Word, en el libro y en las conclusiones.
+- RF-156: (usuario, 2026-11-27: «en la tabla de pérdidas debes incluir columnas de cargabilidad del tramo más
+  crítico en %, la caída de tensión del punto más crítico en media tensión y su porcentaje de pérdidas») EL SISTEMA
+  dará en «Estudios» y en el resumen ejecutivo del sistema un cuadro de pérdidas con una fila por proyecto,
+  alimentador y caso («Sin proyecto», «Cargas nuevas», «Con proyecto»), del último estudio de flujo guardado de cada
+  caso: potencia de cabecera (todas sus troncales, 063:RF-39), pérdidas en kW y en % de la cabecera (lo que entra por
+  todas sus troncales menos lo que consumen sus cargas y bancos en el flujo: líneas de MT, transformadores de sus SED y
+  baja tensión; usuario, 27-11), el tramo (línea o cable) más cargado y su
+  cargabilidad, y la barra de media tensión más baja con su tensión y su caída en % de la nominal; y dirá qué casos
+  no tienen estudio.
 
 ## Requisitos no funcionales
 

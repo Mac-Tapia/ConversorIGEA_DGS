@@ -1,4 +1,4 @@
-import type { CapexVigenteRespuesta } from './types';
+import type { CapexVigenteRespuesta, CuadroPerdidas } from './types';
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionCabecera, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, ResumenCaso, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
@@ -368,7 +368,7 @@ export const api = {
   demandaCompararFijas: (id: string, body: { project: string; alimentadores: string[]; periodo?: string;
     maximas: Record<string, { fecha: string | null; kw: number | null; kvar: number | null; fp: number | null }> }) =>
     request<Job>(`${ws(id)}/demanda/clientes/comparar`, json('POST', body)),
-  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; tensiones_fuente?: Record<string, number | null>; completar_bancos?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas>; a_su_maxima?: string[] }) =>
+  ajustePlan: (id: string, body: { project: string; job_id: string; medidor: string; medidores?: string[]; tolerancia: number; desconectados?: string[]; centrales?: Record<string, CentralTermica>; tension_fuente_pu?: number | null; tensiones_fuente?: Record<string, number | null>; completar_bancos?: boolean; transformadores_del_archivo?: boolean; criterio_fijas?: CriterioFijas; criterio_por_alimentador?: Record<string, CriterioFijas>; a_su_maxima?: string[] }) =>
     request<AjustePlan>(`${ws(id)}/demanda/ajuste/plan`, json('POST', body)),
   ajusteSimular: (id: string, token: string) =>
     request<Job>(`${ws(id)}/demanda/ajuste/${enc(token)}/simular`, { method: 'POST' }),
@@ -415,6 +415,9 @@ export const api = {
     /** 011:RF-130: los casos de DIgSILENT por su nombre; vacío, los del conversor. */
     casos?: string[];
   }) => request<EstudiosPlan>(`${ws(id)}/pf/estudios/plan`, json('POST', body)),
+  // 017:RF-156: pérdidas, tramo más cargado y caída en MT por alimentador y caso.
+  cuadroPerdidas: (id: string, project: string) =>
+    request<CuadroPerdidas>(`${ws(id)}/estudios/cuadro-perdidas?project=${enc(project)}`),
   resumenCaso: (id: string, project: string, caso: string) =>
     request<ResumenCaso>(`${ws(id)}/resumen/caso`, json('POST', { project, caso })),
   estudiosResumen: (id: string, token: string) =>

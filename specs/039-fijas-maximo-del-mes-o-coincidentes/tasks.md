@@ -62,3 +62,10 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_demanda_medida.py` y `tests/test_tabla_en_el_instante.py` (039:RF-26) en verde con su
       rojo por aserción; el control «Corregir un medidor de cabecera» en 2.2, con `tsc` y `npm run build`.
       Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/CORRECCION_CABECERA/rojo.log`; verde 185 passed (`verde.log`).
+- [x] T13. El alimentador que mide más que la barra de su SET: aviso y escala propuesta con su botón. (RF-27)
+      Hecho cuando: `tests/test_demanda_medida.py` y `frontend/test/escalaPropuesta.test.mjs` (039:RF-27) en verde con su
+      rojo por aserción, `tsc` y `npm run build`, y con el libro real de Llipata L-LL122 sale con la escala 0,1 propuesta.
+      Hecho el 2026-11-27 (evidencia en el commit que lo integra).
+- [x] T14. La fija que hace la mayor parte de la energía no se libera por pocos registros. (RF-28)
+      Hecho cuando: `tests/test_ajuste_cabecera.py` (039:RF-28) en verde con su rojo por aserción. Hecho el
+      2026-11-27 (evidencia en el commit que lo integra).

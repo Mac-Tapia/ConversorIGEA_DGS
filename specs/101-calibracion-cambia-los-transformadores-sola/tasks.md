@@ -22,3 +22,7 @@
       Hecho cuando: rojo por aserción sobre 2f9de358 y verde con `tests/test_ajuste_cabecera_guion.py -k rf15`; la corrida en DIgSILENT la decide d8.
       Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_101_rf15_la_propuesta_parte_de_los_kva_del_grupo_de_la_fuente); verde ídem; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
       npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T6 TRANSFORMADORES-DEL-ARCHIVO (27-11). Recalibrar sin los transformadores de una calibración anterior. (RF-16)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` y `tests/test_ajuste_cabecera_web.py` (101:RF-16) en verde
+      con su rojo por aserción, y LL202 y LL203 recalibrados desde la web con la casilla. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).

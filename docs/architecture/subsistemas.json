@@ -1033,6 +1033,7 @@
     "test/tablaMaxima.test.mjs",
     "test/centralesDeSet.test.mjs",
     "test/maximaNoCoincidente.test.mjs",
+    "test/escalaPropuesta.test.mjs",
     "test/etiquetasMaxima.test.mjs",
     "test/tiposDeAnalisis.test.mjs",
     "test/guardadoOrdenado.test.mjs",

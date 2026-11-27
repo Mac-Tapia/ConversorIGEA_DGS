@@ -890,3 +890,39 @@ def tramos_del_dgs(ruta: Path | str) -> set[str]:
                 if len(campos) > 2:
                     nombres.add(campos[2])
     return nombres
+
+
+def kva_de_sed_del_dgs(ruta: Path | str) -> dict[str, float]:
+    """095:RF-4: el kVA instalado de cada SED en un DGS del conversor: la suma de sus transformadores (``strn`` de su tipo
+    por ``ntnum``) que tocan la barra de su carga. Es la fuente convertida, sin las variaciones de DIgSILENT.
+
+    LL203 (27-11): calibrada en un espacio sin la fuente cargada, el plan iba sin kVA de la fuente y las escaladas se
+    repartían por los transformadores que una calibración anterior había agrandado 25 veces.
+    """
+    def num(x):
+        try:
+            return float(x)
+        except (TypeError, ValueError):
+            return None
+
+    t = parse_dgs(ruta)
+    filas = {n: [{k: (v or '').strip() for k, v in r.items()} for r in (t.get(n) or {}).get('rows_dict', [])]
+             for n in ('ElmLod', 'ElmTr2', 'TypTr2', 'StaCubic')}
+    barra_de: dict[str, list[str]] = defaultdict(list)
+    for c in filas['StaCubic']:
+        barra_de[c.get('obj_id', '')].append(c.get('fold_id', ''))
+    strn = {r['FID']: num(r.get('strn')) for r in filas['TypTr2']}
+    kva_barra: dict[str, float] = defaultdict(float)
+    for tr in filas['ElmTr2']:
+        s = strn.get(tr.get('typ_id', ''))
+        if not s:
+            continue
+        kva = s * 1000.0 * (num(tr.get('ntnum')) or 1.0)
+        for barra in barra_de.get(tr['FID'], []):
+            kva_barra[barra] += kva
+    out: dict[str, float] = {}
+    for carga in filas['ElmLod']:
+        total = sum(kva_barra.get(b, 0.0) for b in barra_de.get(carga['FID'], []))
+        if total > 0:
+            out[carga.get('loc_name', '')] = total
+    return out

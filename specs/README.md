@@ -23,7 +23,7 @@ retirada.
 | [014](014-calibracion-en-sin-proyecto/spec.md) | Calibración y cambios del operador en «Sin proyecto», cargas nuevas en «Con proyecto» | cumplida | 34 | 34 | — |
 | [015](015-caso-base-verificado/spec.md) | «Caso base» verificado de una vez; «Sin proyecto» solo calibra cargas | cumplida | 76 | 76 | — |
 | [016](016-troncal-y-enlace-entre-alimentadores/spec.md) | Troncal por el camino más largo, enlace entre alimentadores y conexión en un tramo | cumplida | 89 | 89 | — |
-| [017](017-informes-de-estudio-y-factibilidad/spec.md) | Informes de estudio eléctrico y de factibilidad de suministro | cumplida | 159 | 159 | — |
+| [017](017-informes-de-estudio-y-factibilidad/spec.md) | Informes de estudio eléctrico y de factibilidad de suministro | cumplida | 161 | 161 | — |
 | [018](018-vinculo-compartido-entre-espacios/spec.md) | Spec 018 - Vínculo de proyectos de DIgSILENT compartido entre espacios de trabajo | cumplida | 19 | 19 | — |
 | [019](019-arnes-de-powerfactory/spec.md) | Arnés de DIgSILENT: acceso exclusivo, conexión única y obras enchufables | cumplida | 28 | 28 | — |
 | [020](020-sed-sobrecargadas/spec.md) | SED fijas sobrecargadas: aviso y transformadores nuevos desde la web | cumplida | 37 | 37 | — |
@@ -45,7 +45,7 @@ retirada.
 | [036](036-auditoria-raiz-y-arranque-fiable/spec.md) | Auditoría de raíz y correcciones del arranque | cumplida | 3 | 3 | — |
 | [037](037-cargas-nuevas-en-estudios-web/spec.md) | Caso «Cargas nuevas» en los estudios de la web | cumplida | 8 | 8 | — |
 | [038](038-pertenencia-de-sed-y-notas-en-web/spec.md) | Pertenencia de las SED en la fuente y notas de actualización | cumplida | 8 | 8 | — |
-| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | cumplida | 26 | 26 | — |
+| [039](039-fijas-maximo-del-mes-o-coincidentes/spec.md) | Fijas del máximo del mes o coincidentes con la cabecera, elegidas y comparadas en la web | cumplida | 28 | 28 | — |
 | [040](040-cargas-del-bloque-sin-duplicados-y-ampliaciones/spec.md) | Cargas del bloque sin duplicados, y ampliaciones de clientes existentes | cumplida | 12 | 12 | — |
 | [041](041-reparto-probabilistico-de-las-escaladas/spec.md) | Reparto probabilístico de las SED escaladas | cumplida | 9 | 9 | — |
 | [042](042-con-proyecto-escalera-por-cargas-y-set-nueva/spec.md) | «Con proyecto»: escalera de obras carga a carga y SET nueva para las que no caben | implementada | 114 | 114 | T70 (DIgSILENT) |
@@ -101,13 +101,13 @@ retirada.
 | [092](092-caso-base-de-una-red-reconstruida/spec.md) | El «Caso base» de una red reconstruida se verifica con lo que hay en disco | cumplida | 4 | 4 | — |
 | [093](093-siglas-de-carga-como-nombre/spec.md) | La sigla de la carga nombra la carga nueva y su variación | cumplida | 4 | 4 | — |
 | [094](094-perfil-de-tension-y-bancos/spec.md) | Perfil de tensión en la calibración y bancos ubicados según el perfil | cumplida | 18 | 18 | — |
-| [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 3 | 3 | — |
+| [095](095-escaladas-proporcionales-a-su-kva/spec.md) | Escaladas proporcionales a su potencia instalada | cumplida | 4 | 4 | — |
 | [096](096-retomar-tras-suspender-el-equipo/spec.md) | Tras suspender el equipo, la web vuelve sola al último trabajo pendiente | cumplida | 9 | 9 | — |
 | [097](097-vectores-multilingues-del-rag/spec.md) | Vectores multilingües para la búsqueda del asistente | cumplida | 25 | 25 | — |
 | [098](098-transferencia-del-operador-en-calibracion-y-obras/spec.md) | La transferencia de carga del operador, en la calibración y en las obras | cumplida | 52 | 52 | — |
 | [099](099-cargas-del-libro-duplicadas-por-el-nombre-del-cliente/spec.md) | Cargas del libro duplicadas por el nombre del cliente | cumplida | 8 | 8 | — |
 | [100](100-aceptacion-automatica-por-version/spec.md) | Aceptación automática por versión, sin tareas pendientes por proyecto | implementada | 17 | 17 | T4 (DIgSILENT) |
-| [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 15 | 15 | — |
+| [101](101-calibracion-cambia-los-transformadores-sola/spec.md) | La calibración cambia sola los transformadores que impiden converger | cumplida | 16 | 16 | — |
 | [102](102-puerta-de-calidad-ci-cd/spec.md) | Puerta de calidad: ningún commit ni subida con la suite en rojo | aprobada | 35 | 35 | T20 |
 | [103](103-digsilent-de-cualquier-version/spec.md) | DIgSILENT de cualquier versión instalada | cumplida | 7 | 7 | — |
 | [104](104-libros-nuevos-se-reconocen-solos/spec.md) | Los libros nuevos de demanda se reconocen solos | cumplida | 48 | 48 | — |

@@ -201,3 +201,77 @@ def test_017_rf149_un_solo_resumen_del_sistema_con_los_tres_casos(tmp_path):
     assert any('no tiene calibración' in c for c in parcial['conclusiones'])
     with pytest.raises(rc.ResumenError, match='nada guardado'):
         rc.resumen_del_sistema()
+
+
+def _terna_ll202():
+    """La terna de LL202 del 2026-11-27, reducida a tres tramos: uno de 50 mm², uno de 35 y uno que ya era de 120."""
+    obra = {'clase': 'terna', 'alimentador': 'LL202', 'tramos': ['T1', 'T2', 'T3'],
+            'tipo': {'nombre': 'AA12003D_FICHA', 'clase': 'TypLne'}}
+    elementos = [
+        {'elemento': 'T1', 'clase': 'ElmLne', 'cambio': 'typ_id AA05003D_FICHA → AA12003D_FICHA, nlnum 1 → 2',
+         'tipo': 'AA12003D_FICHA', 'largo_m': 1500.0},
+        {'elemento': 'T2', 'clase': 'ElmLne', 'cambio': 'typ_id AA03503D_FICHA → AA12003D_FICHA, nlnum 1 → 2',
+         'tipo': 'AA12003D_FICHA'},
+        {'elemento': 'T3', 'clase': 'ElmLne', 'cambio': 'nlnum 1 → 2', 'largo_m': 500.0}]
+    ubicacion = [
+        {'elemento': 'T1', 'puntos': [{'barra': 'CABECERA', 'lat': -14.5810052, 'lon': -75.2081686, 'crs': 'EPSG:32718',
+                                       'este': 477577.29, 'norte': 8388005.59}, {'barra': 'N1'}]},
+        {'elemento': 'T3', 'puntos': [{'barra': 'N2'}, {'barra': '12703', 'lat': -14.6449388, 'lon': -75.0567225,
+                                                         'crs': 'EPSG:32718', 'este': 493891.96, 'norte': 8380943.98}]}]
+    return obra, elementos, ubicacion
+
+
+def test_017_rf155_la_ficha_de_la_terna_con_sus_extremos_conductor_y_longitud(tmp_path):
+    """017:RF-155 — la ficha de una terna: nueva terna con cambio de conductor, extremos con coordenadas, longitud por
+    conductor existente (el largo que falta, de la conversión) y conductor final con su sección; en el Word y el libro."""
+    from convertersmartgrid.adaptadores.informe_docx import escribir_resumen_caso
+
+    obra, elementos, ubicacion = _terna_ll202()
+    ficha = rc.ficha_obra_de_linea(obra, elementos, ubicacion, {'T2': 0.25})
+    assert ficha['obra'] == 'Nueva terna en paralelo con cambio de conductor'
+    assert ficha['longitud_km'] == 2.25 and ficha['km_cambio'] == 1.75 and ficha['km_terna'] == 2.25
+    assert ficha['conductor_final'] == 'AA 120 mm² (AA12003D_FICHA)'
+    assert ficha['inicio']['barra'] == 'CABECERA' and ficha['fin']['barra'] == '12703'
+    utm = 'E 477 577.3 · N 8 388 005.6'                     # miles con espacio fino, como ``_num``
+    assert rc.texto_punto(ficha['inicio']) == f'CABECERA: UTM EPSG:32718 {utm} (lat -14.581005, lon -75.208169)'
+    assert ('AA 50 mm² (AA05003D_FICHA)', 1.5, 'Cambio a AA 120 mm² (AA12003D_FICHA) + nueva terna AA 120 mm² (AA12003D_FICHA)') \
+        in ficha['por_conductor']
+    assert ('el existente, de igual o más sección', 0.5, 'Solo nueva terna AA 120 mm² (AA12003D_FICHA)') in ficha['por_conductor']
+    assert rc.ficha_obra_de_linea({'clase': 'condensador', 'barra': 'X'}, [], []) is None
+    datos = rc.resumen('con_proyecto', alternativas={}, aplicadas={'LL202': [
+        {'nombre': 'terna hasta T3', 'inversion': 2441107, 'costo_anual': 303048, 'fichas': [ficha]}]})
+    assert [f['alimentador'] for f in datos['fichas_de_linea']] == ['LL202']
+    assert any('nueva terna en paralelo con cambio de conductor de 2.25 km, de CABECERA a 12703' in c
+               for c in datos['conclusiones'])
+    hecho = escribir_resumen_caso(tmp_path / 'r.docx', datos, project='P', libro=True)
+    from docx import Document
+    texto = '\n'.join(c.text for t in Document(tmp_path / 'r.docx').tables for f in t.rows for c in f.cells)
+    assert 'Punto de inicio' in texto and utm in texto and 'Qué se hace' in texto
+    from openpyxl import load_workbook
+    celdas = [c for fila in load_workbook(tmp_path / hecho['xlsx']).active.iter_rows(values_only=True) for c in fila if c]
+    assert 'Punto final' in celdas
+
+
+def test_017_rf156_cuadro_de_perdidas_con_tramo_mas_cargado_y_caida_en_media():
+    """017:RF-156 — una fila por proyecto, alimentador y caso: pérdidas en kW y %, el tramo más cargado (no un
+    transformador) y la barra de MT más baja con su caída en % de la nominal; dice qué casos faltan y entra como sección
+    del resumen del sistema."""
+    assert hasattr(rc, 'cuadro_de_perdidas'), 'falta 017:RF-156'
+    m = {'converge': True, 'cabecera_kw': 9109.5, 'perdidas_kw': 545.2,
+         'elementos': [['TR_SE70050', 'ElmTr2', 120.0], ['SEC_A', 'ElmLne', 88.4], ['SEC_B', 'ElmLne', 61.0]],
+         'barras': [['12703', 0.960], ['SE70022_BT', 0.895], ['12869', 1.02], ['8674', 0.0]],
+         'barras_mt': ['12703', '12869', '8674'], 'sin_tension': ['8674']}
+    sin = {**m, 'cabecera_kw': 9276.1, 'perdidas_kw': 1711.7, 'barras': [['12703', 0.705], ['12869', 1.0]]}
+    cuadro = rc.cuadro_de_perdidas([{'project': 'P', 'caso': 'Con proyecto', 'medidas': {'LL202': m}},
+                                    {'project': 'P', 'caso': 'Sin proyecto', 'medidas': {'LL202': sin}}])
+    assert [r['caso'] for r in cuadro['filas']] == ['Sin proyecto', 'Con proyecto']
+    con = cuadro['filas'][1]
+    assert con['tramo'] == 'SEC_A' and con['cargabilidad_pct'] == pytest.approx(88.4)
+    assert con['barra_mt'] == '12703' and con['u_min_pu'] == pytest.approx(0.96) and con['caida_pct'] == pytest.approx(4.0)
+    assert con['perdidas_pct'] == pytest.approx(100 * 545.2 / 9109.5)
+    assert cuadro['faltan'] == [{'proyecto': 'P', 'caso': 'Cargas nuevas'}]
+    assert con['barras_sin_tension'] == 1, 'la isla a 0 p.u. (063:RF-43) no es la caída: se cuenta aparte'
+    datos = rc.resumen_del_sistema(perdidas=cuadro)
+    seccion = next(s for s in datos['secciones'] if s['caso'] == 'Pérdidas por caso')
+    assert seccion['cabecera'][7] == 'Cargabilidad (%)' and seccion['cabecera'][10] == 'Caída de tensión (%)'
+    assert any('sin estudio de flujo en «Cargas nuevas»' in c for c in datos['conclusiones'])

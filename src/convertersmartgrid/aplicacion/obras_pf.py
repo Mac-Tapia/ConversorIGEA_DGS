@@ -752,6 +752,12 @@ class _Plan:
         fila = {'elemento': nombre, 'clase': clase, 'cambio': cambio}
         if tipo:
             fila['tipo'] = tipo
+        if clase == 'ElmLne':
+            # 017:RF-155: el largo de cada tramo, para la longitud a intervenir del resumen ejecutivo.
+            topo = getattr(self.red, 'topologia', None)
+            largo = next((t.largo_m for t in getattr(topo, 'tramos', None) or () if t.nombre == nombre), None)
+            if largo is not None:
+                fila['largo_m'] = round(float(largo), 1)
         self.elementos.append(fila)
 
     def con_datos(self, base: Tipo, datos: Mapping[str, Any], nombre: str) -> str:

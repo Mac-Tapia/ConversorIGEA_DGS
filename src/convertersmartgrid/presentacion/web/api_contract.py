@@ -1436,3 +1436,32 @@ class CapexVigenteRespuesta(Respuesta):
     """042:RF-113: el libro CAPEX que se usa con la casilla en blanco, o ``None``."""
     vigente: CapexVigenteDato | None
 
+
+class FilaPerdidas(Respuesta):
+    """017:RF-156: un alimentador en un caso: pérdidas, tramo más cargado y punto de MT más bajo."""
+    proyecto: str
+    alimentador: str
+    caso: str
+    converge: bool
+    cabecera_kw: float | None
+    perdidas_kw: float | None
+    perdidas_pct: float | None
+    tramo: str | None
+    cargabilidad_pct: float | None
+    barra_mt: str | None
+    u_min_pu: float | None
+    caida_pct: float | None
+    solo_media: bool
+    barras_sin_tension: int = 0
+
+
+class CasoSinEstudio(Respuesta):
+    """017:RF-156: un caso de un proyecto sin estudio de flujo guardado."""
+    proyecto: str
+    caso: str
+
+
+class CuadroPerdidasRespuesta(Respuesta):
+    """017:RF-156: el cuadro de pérdidas por alimentador y caso, y los casos que faltan."""
+    filas: list[FilaPerdidas]
+    faltan: list[CasoSinEstudio]

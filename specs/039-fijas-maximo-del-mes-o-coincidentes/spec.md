@@ -107,6 +107,15 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
   pide, tomará su valor absoluto, antes de buscar la máxima, la curva o la máxima por barra; lo dirá en los avisos del
   medidor, y el libro no se tocará. (LL203, L-LL123: 31 078 kW de máxima en una cabecera de media tensión; el medidor
   registraba diez veces de más y con el signo cambiado.)
+- RF-27: (usuario, 2026-11-27: «sí, hazlo», tras LL203 el 26-11 y LL202 el 27-11) CUANDO la máxima de un alimentador
+  sea mayor que la de la barra de su SET que lo alimenta (la suma de sus medidores, con sus correcciones), EL SISTEMA
+  lo dirá en los avisos del medidor y propondrá la escala de su hoja (0,1, 0,01 o 0,001, la mayor con la que cabe)
+  con valor absoluto, desde el mes de su máxima, y un botón la registrará como la corrección de RF-26; no corregirá
+  nada por su cuenta. (LL202, L-LL122: 9 296 kW con la barra B-LL2T1 en 3 139 kW; sus 19,3 A a 24 kV son 805 kVA.)
+- RF-28: (usuario, 2026-11-27, LL203) SI un cliente fijo pasa su cabecera solo en pocos registros (la hipótesis es que
+  la cabecera no midió toda la carga en ellos, RF-24 d) y hace al menos la mitad de la energía de su cabecera, ENTONCES
+  EL SISTEMA no lo liberará (enmienda RF-25): quedará fijo con su medida y lo dirá. (SE80083, 481000151: 15 registros
+  de 2 976 y el 68 % de la energía de LL203; liberado, sus 2 180 kW se repartieron entre las demás SED.)
 
 ## Relación con otras specs
 

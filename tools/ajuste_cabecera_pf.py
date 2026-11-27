@@ -205,6 +205,24 @@ def kva_por_sed(cargas: dict, kva_entrada: dict) -> tuple[dict, dict]:
     return kva, origen
 
 
+def kva_para_reparto(kva: dict, kva_origen: dict, kva_entrada: dict) -> dict:
+    """095:RF-4: el kVA con que se reparten las escaladas: el instalado de la fuente (TXT, MDB o VNR-GIS) si se conoce, y
+    si no el de DIgSILENT; una SED sin servicio sigue fuera (015:RF-76). Solo para repartir: la sobrecarga de un
+    transformador se mide con el de DIgSILENT (020).
+
+    LL203 (27-11): 5 614 kVA en la fuente y 138 455 en DIgSILENT, tras una calibración con una máxima diez veces mayor
+    que agrandó sus transformadores (101); las escaladas se repartían por ellos (SE80153 con 6 300 kVA).
+    """
+    from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
+
+    entrada = {clave_codigo(k): v for k, v in (kva_entrada or {}).items()}
+    out = {}
+    for sed, k in kva.items():
+        fuente = entrada.get(clave_codigo(sed))
+        out[sed] = k if kva_origen.get(sed) == 'sin servicio' or not fuente else fuente
+    return out
+
+
 def escaladas_sin_servicio(app, cargas: dict, fijas) -> list[str]:
     """015:RF-76 — las escaladas cuya barra DIgSILENT da sin tensión por la red (``IsEnergized`` a 0).
 
@@ -2536,6 +2554,9 @@ def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, carga
     from convertersmartgrid.aplicacion.demanda_medida import clave_codigo
 
     central = plan['central']
+    # 095:RF-4: el reparto por el kVA de la fuente; las que llegan sin kVA (sin servicio, 015:RF-76) siguen sin él.
+    kva_reparto = kva_para_reparto(kva, {s: 'sin servicio' for s, v in kva.items() if not v},
+                                   plan.get('kva_entrada') or {})
     try:
         objetivo = objetivo_zonas_de(central['maxima'])
     except AjusteError as exc:
@@ -2557,7 +2578,7 @@ def _preparar_central(app, plan: dict, informe: dict, *, elm, feeder: str, carga
              if not any(k in fijas_z[z] for z in zonas)]
     try:
         repartos = {z: reparto_inicial(o, fijas_z[z], {s: potencia(c) for s, c in zonas[z].items()},
-                                       kva, fp=fp_cargas)
+                                       kva_reparto, fp=fp_cargas)
                     for z, o in (('arriba', objetivo.arriba), ('abajo', objetivo.abajo))}
     except AjusteError as exc:
         return {**informe, 'error': f'{feeder} con central: {exc}'}, 2
@@ -3043,7 +3064,8 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
     # 039:RF-25 (enmienda de 015:RF-73 y 006:RF-47, usuario, 21-11-2026): una fija imposible ya no para el alimentador.
     # La web ya buscó la causa (039:RF-24) y corrigió lo que tenía explicación; la que queda se libera (su SED va con
     # las escaladas por su potencia instalada) y el alimentador se calibra con el resto, con la hipótesis en el informe.
-    plaus = plausibilidad_del_plan(plan, objetivo, cargas, kva, fijas, fp_cargas)
+    plaus = plausibilidad_del_plan(plan, objetivo, cargas,                       # 095:RF-4
+                                   kva_para_reparto(kva, kva_origen, plan.get('kva_entrada') or {}), fijas, fp_cargas)
     informe['plausibilidad_fijas'] = plaus
     comun['plausibilidad'] = plaus
     if plaus['estado']:
@@ -3122,8 +3144,9 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
         # SE50293 pedía 1 392 kW en 125 kVA, el flujo no convergía y no se avisaba (020:RF-1).
         return {**comun, 'central': True, 'fijas': fijas, 'sobre': sobre}
     try:
-        reparto = reparto_inicial(objetivo, fijas_libro,
-                                  {s: potencia(o) for s, o in cargas.items()}, kva,
+        reparto = reparto_inicial(objetivo, fijas_libro,                        # 095:RF-4: kVA de la fuente
+                                  {s: potencia(o) for s, o in cargas.items()},
+                                  kva_para_reparto(kva, kva_origen, plan.get('kva_entrada') or {}),
                                   fp=fp_cargas, kwh=plan.get('kwh_entrada'))    # 015:RF-74
     except AjusteError as exc:
         return {**informe, 'error': str(exc), 'ambiguas': ambiguas}, 2
@@ -3144,6 +3167,16 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
                    todo_escala=reparto.todo_escala, solo_kw=reparto.solo_kw,
                    desconectadas=desconectadas)
     informe['avisos'] += avisos_desc + reparto.avisos
+    # 095:RF-4: el informe dice de dónde sale el kVA con que se repartió cada SED (la fuente, si se conoce).
+    fuente = kva_de_la_fuente(cargas, plan.get('kva_entrada') or {})
+    comun['kva_origen'] = {s: 'entrada' if fuente.get(s) and o != 'sin servicio' else o for s, o in kva_origen.items()}
+    agrandadas = sorted(s for s, k in kva.items() if k and fuente.get(s) and k > 1.5 * fuente[s])
+    if agrandadas:
+        informe['avisos'].append(
+            f"{cuenta(len(agrandadas), 'SED tiene', 'SED tienen')} en DIgSILENT más de 1,5 veces el kVA de la fuente "
+            f"({', '.join(agrandadas[:20])}{'…' if len(agrandadas) > 20 else ''}): se reparte por el de la fuente "
+            'y no por el de DIgSILENT; si los agrandó una calibración anterior, recalibre partiendo de los transformadores '
+            'del archivo.')
     return {**comun, 'central': False, 'reparto': reparto, 'fijas': fijas, 'sobre': sobre,
             'antes': antes, 'antes_nativo': antes_nativo, 'antes_apagar': antes_apagar}
 
@@ -3640,6 +3673,38 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
 
 
+def retirar_transformadores_de_la_calibracion(app, plan: dict) -> dict:
+    """101:RF-16: quita la variación ``SED_NTP_`` del conversor de este proyecto: los transformadores vuelven a los del
+    archivo y la calibración cambia después solo los que su máxima pida (RF-1 a RF-6).
+
+    LL202 y LL203 (27-11): calibradas con una máxima diez veces mayor (hojas en décimas de kW), quedaron con sus
+    transformadores agrandados 2,5 y 25 veces; corregida la máxima, recalibrar los conservaba (020:RF-24). Solo la del
+    conversor (su marca o su etapa, :func:`nombre_de_la_propia`), solo de este proyecto (084:RF-24); antes se desactiva en
+    cada caso donde está activa. Devuelve lo hecho para el informe.
+    """
+    from convertersmartgrid.adaptadores.pf_arnes import borrar_en_su_proyecto
+
+    proyecto = app.GetActiveProject()
+    avisos: list[str] = []
+    nombre = nombre_de_la_propia(app, PREFIJO_SED_NTP, plan.get('project') or '', avisos)
+    variacion = variacion_propia(app, nombre)
+    if variacion is None:
+        return {'retirada': None, 'avisos': avisos}
+    inicial = app.GetActiveStudyCase()
+    casos = []
+    try:
+        for caso in app.GetProjectFolder('study').GetContents('*.IntCase', 1) or []:
+            caso.Activate()
+            if any(v.loc_name == variacion.loc_name for v in app.GetActiveNetworkVariations() or []):
+                variacion.Deactivate()
+                casos.append(caso.loc_name)
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    borrar_en_su_proyecto(variacion, proyecto)
+    return {'retirada': nombre, 'casos': casos, 'avisos': avisos}
+
+
 def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
                       cancelado=lambda: False) -> list[tuple[dict, int]]:
     """El ajuste de los alimentadores de un proyecto, todos a la vez (021:RF-54 a RF-60).
@@ -3660,6 +3725,10 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     global _RED_DE_LA_FUENTE
     red = _red_de_la_fuente(app, planes)
     _RED_DE_LA_FUENTE = red
+    retirados = None
+    if any(p.get('transformadores_del_archivo') for p in planes):                    # 101:RF-16
+        activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
+        retirados = retirar_transformadores_de_la_calibracion(app, planes[0])
     try:
         if len(planes) == 1 and not bancos and not barra:
             resultados = [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
@@ -3685,6 +3754,13 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     for i, (inf, _rc) in enumerate(resultados or []):
         if isinstance(inf, dict) and i < len(planes):
             anotar_kva_de_la_fuente(inf, planes[i].get('kva_entrada') or {})   # 015:RF-75
+            if retirados is not None:                                           # 101:RF-16
+                inf['transformadores_retirados'] = retirados
+                inf.setdefault('avisos', []).append(
+                    f"Transformadores del archivo: se quitó {retirados['retirada']} (activa en "
+                    f"{', '.join(retirados.get('casos') or []) or 'ningún caso'}); la calibración cambia solo los que pide "
+                    'su máxima.' if retirados.get('retirada') else
+                    'Transformadores del archivo: el proyecto no tenía transformadores cambiados por la calibración.')
     return resultados
 
 

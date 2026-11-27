@@ -243,3 +243,29 @@ def test_039_rf24_la_web_repara_el_registro_excluido_y_propone_la_reasignacion(m
     ev = services._evidencia_fijas(ws, 'J1', '2026-10', [fila], 'M1')
     assert ev['900001']['diagnostico']['accion'] == 'proponer_reasignacion'
     assert ev['900001']['supera_cabecera']['registros'] > 0 and fila['reasignacion_propuesta']['alimentador'] == 'A2'
+
+
+def test_039_rf28_la_fija_que_hace_la_mayor_parte_no_se_libera_por_pocos_registros():
+    """039:RF-28 — LL203 (27-11): SE80083 pasaba su cabecera en 15 registros de 2 976 y era el 68 % de su energía; no se
+    libera, queda fija y se dice. Con poca energía, o pasándola en muchos registros, se libera como antes (RF-25)."""
+    assert hasattr(ac, 'se_queda_fija'), 'falta 039:RF-28'
+    objetivo = ac.Objetivo(3255.5, 1448.8, 'L-LL123', 'LL203', '2026-01-26 15:30:00')
+    f = ac.Fija('SE80083', 2180.3, 400.0, clientes=['481000151'])
+
+    def evid(fraccion, pocos):
+        return {'481000151': {'supera_cabecera': {'registros': 15, 'exceso_max_kw': 1584.2, 'fecha': '2026-01-15 17:00'},
+                              'diagnostico': {'causa': ac.CAUSA_HIPOTESIS, 'accion': 'liberar_fija',
+                                              'fraccion_energia': fraccion, 'pocos_registros': pocos,
+                                              'hipotesis': 'la cabecera no midió toda la carga'}}}
+
+    queda = ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0, evidencia=evid(0.676, True))
+    assert queda['liberadas'] == [] and queda['fijas'][0].get('queda_fija'), queda
+    assert 'Queda con su medida: es la mayor parte de la energía' in queda['texto']
+    assert ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0,
+                                  evidencia=evid(0.2, True))['liberadas'] == ['SE80083']
+    assert ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0,
+                                  evidencia=evid(0.676, False))['liberadas'] == ['SE80083']
+    cabecera = _curva(31, lambda i: 3000.0)
+    cliente = [(t, (3500.0 if i < 5 else 1500.0), q) for i, (t, _kw, q) in enumerate(cabecera)]
+    d = ac.diagnostico_fija_imposible('481000151', cliente, cabecera)
+    assert d['pocos_registros'] is True, d

@@ -57,6 +57,8 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
   useEffect(() => { setTensionEscrita({}); }, [maxima?.id]);
   // 021:RF-64: los bancos que falten para el kVAR medido.
   const [completarBancos, setCompletarBancos] = useState(false);
+  // 101:RF-16: recalibrar desde los transformadores del archivo, sin los que agrandó una calibración anterior.
+  const [delArchivo, setDelArchivo] = useState(false);
   const [plan, setPlan] = useState<AjustePlan | null>(null);
   const pfBusy = Boolean(active.powerfactory);
 
@@ -132,7 +134,7 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
     const p = await run(() => api.ajustePlan(ws.id, {
       project, job_id: maxima.id, medidor: '', medidores, tolerancia: tol, desconectados: [...desconectados],
       // Spec 021: la central de cada alimentador que la tiene; el guion calibra por zonas.
-      centrales, tensiones_fuente: tensionesFuente, completar_bancos: completarBancos, criterio_fijas: criterioFijas,
+      centrales, tensiones_fuente: tensionesFuente, completar_bancos: completarBancos, transformadores_del_archivo: delArchivo, criterio_fijas: criterioFijas,
       criterio_por_alimentador: criterioPorAlimentador, ...(aSuMaxima ? { a_su_maxima: aSuMaxima } : {}),
     }));
     if (!p) return;
@@ -231,6 +233,10 @@ export function AjusteCabecera({ project, maxima, feeders, desconectados, centra
         <label className="check" title="Tras un primer cuadre, bancos del tamaño del perfil en la troncal para el kVAR medido; después recalibra">
           <input type="checkbox" checked={completarBancos} onChange={(e) => setCompletarBancos(e.target.checked)} />
           {' '}Poner los bancos que falten
+        </label>
+        <label className="check" title="Quita los transformadores que agrandó una calibración anterior (SED_NTP_) y cambia solo los que pida esta máxima">
+          <input type="checkbox" checked={delArchivo} onChange={(e) => setDelArchivo(e.target.checked)} />
+          {' '}Partir de los transformadores del archivo
         </label>
         <button className="btn" disabled={Boolean(falta) || pfBusy} onClick={() => lanzar(true)}
           title="El reparto por SED antes de las pérdidas, sin escribir en el proyecto">Simular</button>

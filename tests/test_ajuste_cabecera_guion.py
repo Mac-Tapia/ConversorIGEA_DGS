@@ -2386,13 +2386,14 @@ def test_101_rf15_la_propuesta_parte_de_los_kva_del_grupo_de_la_fuente(guion):
 
 
 def test_015_rf75_el_informe_dice_el_kva_de_la_fuente_y_del_grupo(guion):
-    """015:RF-75 — en cada SED del informe, además de ``kva`` (de DIgSILENT, con sus variaciones), ``kva_fuente`` y
-    ``kva_grupo``; hoy no existen y el informe ocultaba los kVA de la fuente."""
+    """015:RF-75, 095:RF-4 — en cada SED del informe, además de ``kva`` (el del reparto: el de la fuente si se conoce,
+    095:RF-4), ``kva_fuente`` y ``kva_grupo``; hoy no existen y el informe ocultaba los kVA de la fuente."""
     app = _app()
     informe, rc = guion.ejecutar(app, _plan(kva_entrada={'F1_S1': 40.0, 'F1_S3': 125.0}))
     assert rc == 0, informe
     fila = _sed(informe, 'F1_S1')
-    assert fila['kva'] == pytest.approx(50.0) and fila['kva_de'] == 'pf'
+    assert fila['kva'] == pytest.approx(40.0) and fila['kva_de'] == 'entrada'
+    assert _sed(informe, 'F1_S2')['kva_de'] == 'pf', 'sin dato en la fuente, el de DIgSILENT'
     assert fila.get('kva_fuente') == pytest.approx(40.0) and fila.get('kva_grupo') == pytest.approx(40.0), fila
     assert _sed(informe, 'F1_S2').get('kva_fuente', 'falta') is None
 
@@ -2548,3 +2549,50 @@ def test_015_rf37_la_marca_que_tapa_el_escenario_se_reescribe_en_el_y_se_guarda(
     assert Escenario.guardado == 1
     assert guion.asegurar_marcas(App(), {'SE1': Carga(1)}, base={'SE1'}, escenario=esc) == {
         'reescritas': [], 'sin_corregir': []} and Escenario.guardado == 1, 'sin nada que corregir no se guarda'
+
+
+def test_095_rf4_las_escaladas_se_reparten_por_el_kva_de_la_fuente(guion):
+    """095:RF-4 — con el kVA de la fuente, las escaladas se reparten por él aunque DIgSILENT tenga sus transformadores
+    agrandados (LL203, 27-11: 5 614 kVA en la fuente y 138 455 en DIgSILENT), y se dice; sin dato en la fuente, el de
+    DIgSILENT."""
+    app = _app(n=3)                                   # en DIgSILENT: 50, 100 y 150 kVA
+    informe, rc = guion.ejecutar(app, _plan(kva_entrada={'F1_S1': 30.0, 'F1_S2': 30.0, 'F1_S3': 30.0}))
+    assert rc == 0, informe
+    p = [_sed(informe, f'F1_S{i}')['despues']['kw'] for i in (1, 2, 3)]
+    assert p[0] == pytest.approx(p[1], rel=1e-6) and p[1] == pytest.approx(p[2], rel=1e-6), p
+    assert any('se reparte por el de la fuente' in a and 'F1_S3' in a for a in informe['avisos']), informe['avisos']
+
+
+def test_101_rf16_partir_de_los_transformadores_del_archivo(guion):
+    """101:RF-16 — con «Partir de los transformadores del archivo» se quita antes la variación SED_NTP_ del conversor
+    de ese proyecto (desactivada en sus casos) y el transformador vuelve al del archivo; el informe lo dice."""
+    app = _app(n=3)
+    app.atributos_en_variacion = True
+    _rc = guion.ejecutar(app, _con_propuesta(guion, app, _sobrecargada(app)))[1]
+    assert _rc == 0 and [v.loc_name for v in _variaciones(app, 'SED_NTP_')] == ['SED_NTP_P']
+    _caso(app, 'Caso base').Activate()
+    original = _tr(app, 'TR_F1_S2').typ_id
+    plan = {**_plan(kw=300.0), 'transformadores_del_archivo': True}
+    [(informe, rc)] = guion.ejecutar_proyecto(app, [plan])
+    assert rc == 0, informe
+    assert informe['transformadores_retirados']['retirada'] == 'SED_NTP_P', informe.get('transformadores_retirados')
+    assert not _variaciones(app, 'SED_NTP_')
+    _caso(app, 'Sin proyecto').Activate()
+    assert _tr(app, 'TR_F1_S2').typ_id is original
+    assert any('Transformadores del archivo: se quitó SED_NTP_P' in a for a in informe['avisos'])
+
+
+def test_095_rf4_el_kva_de_cada_sed_sale_del_dgs_de_la_conversion(tmp_path):
+    """095:RF-4 — sin la fuente cargada en el espacio (LL203, 27-11), el kVA de cada SED sale del DGS del conversor: la
+    suma de los transformadores (``strn`` × ``ntnum``) que tocan la barra de su carga; una carga sin transformador, nada."""
+    from convertersmartgrid.adaptadores.validate import kva_de_sed_del_dgs
+
+    dgs = tmp_path / 'A.dgs'
+    dgs.write_text('\n'.join([
+        '$$TypTr2;FID(a:40);OP(a:1);loc_name(a:40);strn(r)', '  1;C;TR_630kVA;0.63', '  2;C;TR_50kVA;0.05',
+        '$$ElmTr2;FID(a:40);OP(a:1);loc_name(a:40);typ_id(p);ntnum(i)', '  10;C;TR_SA;1;1', '  11;C;TR_SB;2;2',
+        '$$ElmLod;FID(a:40);OP(a:1);loc_name(a:40)', '  20;C;SA', '  21;C;SB', '  22;C;SC',
+        '$$StaCubic;FID(a:40);OP(a:1);loc_name(a:40);fold_id(p);obj_bus(i);obj_id(p)',
+        '  30;C;c1;100;0;10', '  31;C;c2;200;1;10', '  32;C;c3;101;0;11', '  33;C;c4;201;1;11',
+        '  34;C;c5;200;0;20', '  35;C;c6;201;0;21', '  36;C;c7;202;0;22', '']), encoding='latin-1')
+    assert kva_de_sed_del_dgs(dgs) == {'SA': 630.0, 'SB': 100.0}

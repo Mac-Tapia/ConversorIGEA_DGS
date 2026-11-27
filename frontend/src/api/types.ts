@@ -886,6 +886,9 @@ export interface MaximaCabecera {
   tension_nominal_kv?: number | null;
   /** 021:RF-73, RF-74, RF-76: por qué no hay tensión o no hay pu. */
   tension_aviso?: string | null;
+  /** 039:RF-27: mide más que la barra de su SET: la escala que se propone. */
+  escala_propuesta?: { factor: number | null; absoluto: boolean; barra: string; barra_kw: number;
+    medidores_barra: string[]; desde: string; kw_corregido: number | null } | null;
   /** 021:RF-79, RF-85: la tensión medida que va a su fuente (la de su barra de SET si la mide). */
   tension_fuente?: TensionFuente | null;
   /** 004:RF-112: el mayor registro del periodo (15 min), solo como referencia. */
@@ -2402,6 +2405,8 @@ export interface FilaCargaDiag { elemento: string; sin: number | null; cargas: n
 export type ColabEstado = components['schemas']['ColabEstadoRespuesta'];
 /** 042:RF-113: el libro CAPEX que se usa con la casilla en blanco. */
 export type CapexVigenteRespuesta = components['schemas']['CapexVigenteRespuesta'];
+/** 017:RF-156: el cuadro de pérdidas por alimentador y caso. */
+export type CuadroPerdidas = components['schemas']['CuadroPerdidasRespuesta'];
 export type ColabPrevia = components['schemas']['ColabPreviaRespuesta'];
 export type ColabPaquete = components['schemas']['ColabPaqueteRespuesta'];
 export type ColabTraer = components['schemas']['ColabTraerRespuesta'];

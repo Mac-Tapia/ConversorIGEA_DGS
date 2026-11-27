@@ -1635,3 +1635,27 @@ def test_021_rf78_sin_tension_en_su_hoja_toma_la_de_la_barra_de_su_set():
     assert 'SET 41 22.9 kV' in sin.tension_columna and 'B-LL1' in sin.tension_columna
     assert (con.tension_kv, con.tension_pu) == (10.1, 1.01), 'la que trae su tensión no cambia'
     assert otro.tension_kv is None and 'SET 9 10 kV' in (otro.tension_aviso or '')
+
+
+def test_039_rf27_el_alimentador_que_mide_mas_que_su_barra_lleva_la_escala_propuesta():
+    """039:RF-27 — LL202 (L-LL122) daba 9 296 kW con la barra de 22,9 kV de Llipata (B-LL2T1) en 3 139 kW: su hoja estaba
+    en décimas de kW. Se avisa y se propone 0,1 con valor absoluto desde el mes de su máxima; el que cabe no cambia, y una
+    barra sin lectura no da nada que comparar."""
+    from types import SimpleNamespace
+
+    assert hasattr(dm, 'escala_frente_a_su_barra'), 'falta 039:RF-27: comparar el alimentador con su barra'
+    barra = SimpleNamespace(clave='B-LL2', kv=22.9, medidores=['B-LL2T1'], alimentadores=['LL202', 'LL204'])
+    de_barra = {('B-LL2', 'B-LL2T1'): dm.MaximaCabecera(medidor='B-LL2T1', alimentador='B-LL2', kw=3139.0,
+                                                        fecha='2026-01-09 20:30:00')}
+    ll202 = dm.MaximaCabecera(medidor='L-LL122', alimentador='LL202', kw=9296.0, fecha='2026-01-09 20:30:00')
+    ll204 = dm.MaximaCabecera(medidor='L-LL124', alimentador='LL204', kw=333.0, fecha='2026-01-09 20:30:00')
+    lejos = dm.MaximaCabecera(medidor='L-X', alimentador='LL204', kw=-250000.0, fecha='2026-02-01 10:00:00')
+    dm.escala_frente_a_su_barra([ll202, ll204, lejos], [barra], de_barra)
+    assert ll202.escala_propuesta == {'factor': 0.1, 'absoluto': True, 'barra': 'B-LL2', 'barra_kw': 3139.0,
+                                      'medidores_barra': ['B-LL2T1'], 'desde': '2026-01', 'kw_corregido': 929.6}
+    assert any('otra unidad' in a and 'factor 0.1' in a for a in ll202.avisos), ll202.avisos
+    assert ll204.escala_propuesta is None and not ll204.avisos
+    assert lejos.escala_propuesta['factor'] == 0.01, 'la mayor escala con la que cabe'
+    sin_lectura = dm.MaximaCabecera(medidor='L-LL122', alimentador='LL202', kw=9296.0, fecha='2026-01-09 20:30:00')
+    dm.escala_frente_a_su_barra([sin_lectura], [barra], {})
+    assert sin_lectura.escala_propuesta is None

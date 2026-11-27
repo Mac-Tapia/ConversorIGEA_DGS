@@ -18,6 +18,9 @@ y la parte de 041:RF-3 que saca la pendiente de las fijas o del perfil (spec cum
   mismo alimentador, medida alrededor de su utilización media; de las fijas ya no tomará pendiente.
 - RF-3: SI el perfil de empresa trae `calibracion.reparto_probabilistico.pendiente`, ENTONCES EL SISTEMA usará solo su
   dispersión y dirá en el informe que la pendiente se ignora por RF-1.
+- RF-4: (usuario, 2026-11-27, LL203 y LL202) EL SISTEMA repartirá las escaladas por el kVA instalado de la fuente
+  (TXT, MDB o VNR-GIS) cuando la fuente lo traiga, y por el de DIgSILENT solo sin él: un transformador agrandado para
+  converger (101) no trae más clientes. (LL203: 5 614 kVA en la fuente y 138 455 en DIgSILENT; SE80153 con 6 300 kVA.)
 
 ## Fuera de alcance
 

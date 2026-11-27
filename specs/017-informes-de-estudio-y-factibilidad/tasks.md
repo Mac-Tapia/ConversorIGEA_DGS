@@ -178,3 +178,11 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_mapa_cargas.py` y `tests/test_cargas_pf_ubicacion.py` (017:RF-154) en verde. Hecho el
       2026-11-27: 31 passed; con la geografía real de LL202, 214 tramos y el nodo 12887 propuesto a 4,84 km, el mismo
       que mide el plan. La pantalla en el navegador se revisa al integrar la rama.
+- [x] T25 FICHA-DE-OBRA-DE-LINEA (27-11, la terna de LL202 sin sus extremos ni su conductor en el resumen). (RF-155)
+      Hecho cuando: `tests/test_resumen_casos.py` (017:RF-155) en verde con su rojo por aserción, y el resumen de
+      «Con proyecto» del proyecto de LL202 lleva la ficha de su terna con sus coordenadas. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).
+- [x] T26 CUADRO-DE-PERDIDAS (27-11). Pérdidas, tramo más cargado y caída en MT por alimentador y caso. (RF-156)
+      Hecho cuando: `tests/test_resumen_casos.py` y `frontend/test/obrasEstadoActual.test.mjs` (017:RF-156) en verde con
+      su rojo por aserción, `tsc` y `npm run build`, y el cuadro sale en «Estudios» con los estudios guardados. Hecho el
+      2026-11-27 (evidencia en el commit que lo integra).
