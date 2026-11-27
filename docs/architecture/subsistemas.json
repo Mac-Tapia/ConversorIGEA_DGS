@@ -847,6 +847,8 @@
     "test/unifilar.test.mjs",
     "test/puntosDeDiseno.test.mjs",
     "src/app/ArchivoInformes.tsx",
+    "src/shared/ejeTiempo.ts",
+    "test/ejeTiempo.test.mjs",
     "src/shared/graficos.ts",
     "src/features/clientesfijos/EvolucionFijas.tsx",
     "src/features/clientesfijos/Tablero.tsx",

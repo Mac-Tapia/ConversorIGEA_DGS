@@ -2569,10 +2569,19 @@ def _geografias_del_proyecto(ws: Workspace, project: str, feeders: Sequence[str]
     La del propio alimentador (``<alimentador>_geography.json``, junto al DGS aceptado) o, en una red unida que no la
     trae, la de la red entera, y se dice. Sin vínculo ni DGS aceptado, ninguna: lo mide el guion (004:RF-75)."""
     rutas = _dgs_aceptados(ws, project.strip())
-    if not rutas:
-        return {}
-    carpeta = rutas[0].parent
     out: dict[str, tuple[Path, str]] = {}
+    if not rutas:
+        # 004:RF-72, 017:RF-154: sin el DGS aceptado (otra huella tras reconvertir, o sin comprobar), la conversión de
+        # la que salió el proyecto: el 2026-11-27 la carga SEN0001 de LL202 quedaba sin nodo ni red en el plan y el mapa.
+        vinculo = ws.pf_project_bindings.get(project.strip()) or {}
+        carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
+        if vinculo.get('source_run_id') and carpeta.is_dir():
+            for f in feeders:
+                propia = carpeta / f'{f}_geography.json'
+                if propia.is_file():
+                    out[f] = (propia, f'red convertida de {f} (la conversión del proyecto)')
+        return out
+    carpeta = rutas[0].parent
     for f in feeders:
         propia = carpeta / f'{f}_geography.json'
         if propia.is_file():
@@ -15138,8 +15147,9 @@ def mapa_cargas_del_proyecto(ws: Workspace, project: str) -> list[dict]:
 
 
 def mapa_datos_para_la_web(ws: Workspace, project: str, alimentadores: list[str]) -> dict:
-    """017:RF-109, RF-124: el mapa con la geografía del último flujo de «Con proyecto» de cada alimentador."""
-    from ...adaptadores.mapa_cargas import datos_del_mapa
+    """017:RF-109, RF-124: el mapa con la geografía del último flujo de «Con proyecto» de cada alimentador; sin él, la
+    de la conversión del proyecto (RF-154), la que se cargó al convertir."""
+    from ...adaptadores.mapa_cargas import datos_del_mapa, geo_de_la_conversion
 
     cargas = mapa_cargas_del_proyecto(ws, project)
     feeders = sorted({*(a for a in alimentadores if a), *(str(c['alimentador']) for c in cargas if c.get('alimentador'))})
@@ -15155,6 +15165,12 @@ def mapa_datos_para_la_web(ws: Workspace, project: str, alimentadores: list[str]
                 epoca[f] = fichero.stat().st_mtime if con.get('_fichero') else 0.0
             except OSError:
                 epoca[f] = 0.0
+    faltan = [f for f in feeders if f not in geos]
+    for f, (ruta, _fuente) in (_geografias_del_proyecto(ws, project, faltan) if faltan else {}).items():
+        try:
+            geos[f] = geo_de_la_conversion(json.loads(ruta.read_text(encoding='utf-8')))
+        except (OSError, ValueError):
+            continue
     return datos_del_mapa(project, cargas, geos, utm=_utm, flujo_epoca=epoca, alimentadores=alimentadores)
 
 

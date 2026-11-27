@@ -646,6 +646,11 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   variaciones activas, ENTONCES el resumen no la dará por aplicada y lo dirá como aviso, con su nombre. Pisco
   (2026-11-25): un expreso y una SET nueva de AL209 se retiraron en DIgSILENT cuando se cortó la web, antes de guardar el
   espacio, y el resumen los seguía dando por aplicados.
+- RF-154: (usuario, 2026-11-27, con la carga SEN0001 de LL202 sola en el mapa: «los planos ya se cargan al hacer la
+  conversión; ese módulo se podría usar para este») SIN un flujo de «Con proyecto» con su geografía, EL SISTEMA dibujará
+  en el mapa la red del alimentador con la geografía de su conversión, y la carga sin nodo leído en DIgSILENT con el
+  nodo más cercano de esa red, dicho como propuesto, y su línea de enlace con su largo. Sin el DGS aceptado (otra
+  huella tras reconvertir), el plan y el mapa usan la conversión de la que salió el proyecto (amplía 004:RF-72).
 
 ## Requisitos no funcionales
 

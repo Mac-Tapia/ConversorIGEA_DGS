@@ -216,7 +216,8 @@ def test_web_rechaza_la_fila_con_su_propuesta(tmp_path, monkeypatch):
 
 
 def test_web_red_unida_usa_la_geografia_de_la_red(tmp_path, monkeypatch):
-    """004:RF-72 — en una red unida sin la geografía propia del alimentador, la de la red entera, y se dice."""
+    """004:RF-72, 017:RF-154 — en una red unida sin la geografía propia del alimentador, la de la red entera, y se dice;
+    sin el DGS aceptado, la de la conversión del proyecto."""
     from convertersmartgrid.presentacion.web import services
 
     _geografia(tmp_path, 'Grupo', [('n', -14.0, -75.7)])
@@ -224,7 +225,17 @@ def test_web_red_unida_usa_la_geografia_de_la_red(tmp_path, monkeypatch):
     (ruta, fuente), = services._geografias_del_proyecto(None, 'P', ['F1']).values()
     assert ruta.name == 'Grupo_geography.json' and 'sin la geografía propia de F1' in fuente
     monkeypatch.setattr(services, '_dgs_aceptados', lambda _ws, _p: [])
-    assert services._geografias_del_proyecto(None, 'P', ['F1']) == {}
+    from types import SimpleNamespace
+
+    sin_vinculo = SimpleNamespace(pf_project_bindings={}, root=tmp_path)
+    assert services._geografias_del_proyecto(sin_vinculo, 'P', ['F1']) == {}
+    # 017:RF-154: sin el DGS aceptado (otra huella tras reconvertir), la conversión de la que salió el proyecto.
+    salida = tmp_path / 'runs' / 'R1' / 'salida'
+    salida.mkdir(parents=True)
+    (salida / 'F1_geography.json').write_text('{}', encoding='utf-8')
+    con_vinculo = SimpleNamespace(pf_project_bindings={'P': {'source_run_id': 'R1'}}, root=tmp_path)
+    (ruta, fuente), = services._geografias_del_proyecto(con_vinculo, 'P', ['F1']).values()
+    assert ruta == salida / 'F1_geography.json' and 'la conversión del proyecto' in fuente
 
 
 # =========================================================================== guion

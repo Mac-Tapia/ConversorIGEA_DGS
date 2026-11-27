@@ -67,7 +67,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             frontend = container "Interfaz web" "Selección, seguimiento, confirmación y descarga; compilada en frontend/dist." "React + TypeScript" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/frontend/src"
                 tags "Web"
-                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (89 ficheros)." "React + TypeScript" {
+                cmpInterfaz = component "Interfaz común" "Compilación, cliente tipado de la API y piezas comunes de las pestañas (91 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/frontend/src"
                     tags "Web"
                     properties {

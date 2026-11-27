@@ -137,6 +137,10 @@ Cuadre con las pérdidas
 - RF-47: (orden del usuario del 20-11; amplía RF-46; enmendado por 039:RF-25 el 21-11: la fija imposible se libera y el
   alimentador se calibra con el resto) SI una fija está a revisar (015:RF-73), ENTONCES EL SISTEMA no
   calibrará ese alimentador ni escribirá sus cargas, y lo dirá con su causa; nunca escala ni rebaja la fija para cuadrar.
+- RF-48: (usuario, 2026-11-27: «en esta gráfica el eje X falta actualizar el mes de octubre; debería actualizarse cada
+  vez que se carguen nuevos datos históricos») EL eje horizontal de la curva rotulará el día 1 de cada mes en tramos
+  de más de dos meses (cada pocos meses en tramos de años, sin pasar de unas diez marcas) y siempre el último día con
+  registros, de modo que cada histórico nuevo mueve el final del eje con él.
 
 Convergencia
 

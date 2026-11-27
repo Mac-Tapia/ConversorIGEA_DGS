@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 474 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 134 |
-| Interfaz | `frontend/src/` | 123 |
-| Pruebas de la interfaz | `frontend/test/` | 66 |
+| Interfaz | `frontend/src/` | 124 |
+| Pruebas de la interfaz | `frontend/test/` | 67 |
 | Pruebas | `tests/` | 691 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
-`web/services.py` tiene 15398 líneas y 494 funciones, pendiente de partir (002).
+`web/services.py` tiene 15414 líneas y 494 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4193 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4195 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -1061,6 +1061,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/unifilar.test.mjs` | — | 111 | Pruebas del unifilar sin navegador: disposición desde la cabecera, mismos códigos que el plano, la misma selección y los mismos resultados, con el… |
 | `test/puntosDeDiseno.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `src/app/ArchivoInformes.tsx` | — | 105 | Tarjeta para ver, poner y quitar la carpeta de archivo de los informes. |
+| `src/shared/ejeTiempo.ts` | — | 006 | Marcas del eje de tiempo de las curvas: por meses en tramos largos y siempre hasta el último día con registros. |
+| `test/ejeTiempo.test.mjs` | — | 006 | El eje de la curva de cabecera llega al último registro: una marca por mes y la del último día, sin rótulos pegados. |
 | `src/shared/graficos.ts` | — | 105, 006 | Marcas de eje, tramos de línea y colores de serie de las gráficas SVG, compartidos sin librería de gráficos. |
 | `src/features/clientesfijos/EvolucionFijas.tsx` | — | 105 | Pestaña «Evolución de clientes fijos»: alimentadores, rango de meses y trabajo. |
 | `src/features/clientesfijos/Tablero.tsx` | — | 105 | Tablero: conciliación, buscador, tarjetas, gráficos, variaciones, cabecera, curva y avisos. |

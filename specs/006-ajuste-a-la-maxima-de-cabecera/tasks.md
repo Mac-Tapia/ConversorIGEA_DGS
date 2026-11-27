@@ -80,3 +80,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho el 2026-11-20 (d8, cierre de la fila gSIG por orden del usuario «nada abierto»): rojo D:/csg/PM_IMPL/MEJ10_FIJAS/rojo.log (test_006_rf47_en_el_proyecto_el_alimentador_a_revisar_no_frena_a_los_demas);
       verde D:/csg/PM_IMPL/MEJ10_FIJAS/verde_py.log; verde integrado del hueco de MEJ567 sobre c4326366 (D:/csg/PM_IMPL/MEJ567/verde_20261120_163024.log, 2423 passed, rc=0;
       npm_test_20261120_163024.log y e2e_20261120_163024.log) y la puerta gSIG que integra esta casilla (0 fallidas, 0 omitidas).
+- [x] T18. EJE-HASTA-EL-ULTIMO (27-11, captura del usuario: medición del 01/01/26 al 27/10/26 con el último rótulo en
+      «09/09/26»). Las marcas del eje salen de `shared/ejeTiempo.ts`. (RF-48)
+      Hecho cuando: `frontend/test/ejeTiempo.test.mjs` (006:RF-48) en rojo por aserción con la curva anterior y en verde
+      con la nueva, `npm test`, `tsc` y `npm run build` en verde. Hecho el 2026-11-27: rojo «la curva no usa las marcas
+      que llegan al último registro»; verde 342 pruebas del frontend, `tsc`, lint y build.

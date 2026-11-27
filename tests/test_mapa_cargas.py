@@ -1,4 +1,4 @@
-"""Spec 017 (RF-109, RF-111, RF-112, RF-124): el mapa de las cargas nuevas y su punto de diseño leído en DIgSILENT.
+"""Spec 017 (RF-109, RF-111, RF-112, RF-124, RF-154): el mapa de las cargas nuevas y su punto de diseño leído en DIgSILENT.
 
 Usuario, 2026-11-13: «en la web se debe ver la ubicación en Google Maps o similar de dónde se conectó y la ubicación
 de la carga nueva o de los bloques, y eso debe ir en el informe»; «debe haber un botón para actualizar la imagen de la
@@ -201,6 +201,37 @@ def test_datos_del_mapa_con_la_geografia_guardada(tmp_path, monkeypatch):
     assert datos['repetir_flujos'] == ['AL1'] and any('repita los flujos de 4.2' in a for a in datos['avisos'])
     sin_geo = mc.datos_del_mapa('PRY', [GUARDADA], {}, utm=lambda _p: None)
     assert any('no hay un flujo' in a for a in sin_geo['avisos'])
+
+
+#: La forma de ``<alimentador>_geography.json`` de la conversión: nodos con su GPS y líneas con su trazo.
+GEO_CONVERSION = {'format': 'convertersmartgrid-geography-v1', 'feeder': 'AL1', 'source_node': 'CAB',
+                  'nodes': {'101': {'lat': -13.49, 'lon': -76.01}, '102': {'lat': -13.52, 'lon': -76.03},
+                            '103': {'lat': -13.53, 'lon': -76.05}},
+                  'lines': {'SEC_1': {'from_node': '101', 'to_node': '102',
+                                      'path': [{'lat': -13.49, 'lon': -76.01}, {'lat': -13.52, 'lon': -76.03}]},
+                            'SEC_2': {'from_node': '102', 'to_node': '103',
+                                      'path': [{'lat': -13.52, 'lon': -76.03}, {'lat': -13.53, 'lon': -76.05}]}}}
+
+
+def test_sin_flujo_el_mapa_usa_la_red_convertida_y_propone_el_nodo(monkeypatch):
+    """017:RF-154 — sin flujo de «Con proyecto», la red sale de la geografía de la conversión y la carga sin nodo leído
+    se dibuja con el nodo más cercano, dicho como propuesto, y su línea de enlace con su largo."""
+    from convertersmartgrid.adaptadores import mapa_cargas as mc
+
+    monkeypatch.setenv('CSG_SALIDA_TESELAS', '0')
+    geo = mc.geo_de_la_conversion(GEO_CONVERSION)
+    assert [b[0] for b in geo['barras']] == ['101', '102', '103'] and len(geo['tramos']) == 2
+    carga = {'sed': 'SEN1', 'alimentador': 'AL1', 'lat': -13.521, 'lon': -76.032, 'kw': 1000.0, 'sola': True}
+    datos = mc.datos_del_mapa('PRY', [carga], {'AL1': geo}, utm=lambda _p: None)
+    assert datos['alimentadores']['AL1']['origen'] == 'conversion' and len(datos['alimentadores']['AL1']['tramos']) == 2
+    assert not any('no hay un flujo' in a for a in datos['avisos'])
+    (c,) = datos['cargas']
+    assert c['nodo']['nombre'] == '102' and c['nodo_propuesto'] is True
+    assert c['enlace']['coords'] == [[-13.52, -76.03], [-13.521, -76.032]] and 0.2 < c['enlace']['km'] < 0.3
+    # Con el nodo ya leído en DIgSILENT, manda ese y no se propone otro.
+    leida = mc.datos_del_mapa('PRY', [{**carga, 'barra': '103'}], {'AL1': geo}, utm=lambda _p: None)
+    assert leida['cargas'][0]['nodo']['nombre'] == '103' and leida['cargas'][0]['nodo_propuesto'] is False
+    assert 'propuesto: el más cercano de la red convertida' in mc.pagina_del_mapa(datos)
 
 
 def test_la_pagina_del_mapa_lleva_leaflet_dentro_y_los_fondos_solo_si_se_permiten(monkeypatch):

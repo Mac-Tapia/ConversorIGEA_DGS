@@ -173,3 +173,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_resumen_casos.py` (017:RF-153) en verde y el resumen de Pisco sin el expreso ni la SET
       nueva de AL209.
       Cerrada el 2026-11-25: rojo válido por aserción y verde.
+- [x] T24. MAPA-CON-LA-CONVERSION (27-11, captura del usuario: SEN0001 de LL202 sin red ni nodo en el mapa). El mapa
+      usa la geografía de la conversión y propone el nodo más cercano. (RF-154)
+      Hecho cuando: `tests/test_mapa_cargas.py` y `tests/test_cargas_pf_ubicacion.py` (017:RF-154) en verde. Hecho el
+      2026-11-27: 31 passed; con la geografía real de LL202, 214 tramos y el nodo 12887 propuesto a 4,84 km, el mismo
+      que mide el plan. La pantalla en el navegador se revisa al integrar la rama.

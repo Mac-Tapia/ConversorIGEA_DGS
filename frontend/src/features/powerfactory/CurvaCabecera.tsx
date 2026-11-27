@@ -1,5 +1,6 @@
 import { fmtNum, cuenta } from '../../shared/formato';
 import { colorSerie, marcas, separarEtiquetas, tramos, useLetraFija } from '../../shared/graficos';
+import { marcasDeDias } from '../../shared/ejeTiempo';
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { PointerEvent as ReactPointerEvent } from 'react';
 import { api } from '../../api/client';
@@ -143,11 +144,8 @@ export function CurvaCabecera({ wsId, jobId, opciones, inicial, series = [] }: {
         ejeX.push({ x: sx(t), texto: diaHora(new Date(t)) });
       }
     } else {
-      const paso = Math.max(1, Math.ceil((t1 - t0) / (24 * HORA) / 6));
-      const d = new Date(t0);
-      d.setHours(0, 0, 0, 0);
-      if (d.getTime() < t0) d.setDate(d.getDate() + 1);
-      for (; d.getTime() <= t1; d.setDate(d.getDate() + paso)) ejeX.push({ x: sx(d.getTime()), texto: dia(d) });
+      // 006:RF-48: por meses en tramos largos y siempre hasta el último día con registros.
+      for (const m of marcasDeDias(t0, t1)) ejeX.push({ x: sx(m.t), texto: m.texto });
     }
     const ejeY = marcas(yMin, yMax).map((v) => ({ y: sy(v), texto: fmtNum(v) }));
     // 086:RF-123: con varias curvas, cada máxima con su etiqueta (alimentador, kW y fecha), sin taparse entre ellas.

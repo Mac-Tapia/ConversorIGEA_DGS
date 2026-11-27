@@ -219,6 +219,38 @@ def comparar(guardadas: list[dict], leidas: list[dict]) -> list[dict]:
 
 
 # --------------------------------------------------------------------------- datos del mapa (017:RF-109, RF-124)
+def geo_de_la_conversion(datos: Mapping[str, Any]) -> dict:
+    """017:RF-154: la geografía de ``<alimentador>_geography.json`` de la conversión, con la forma del flujo de 4.2.
+
+    El 2026-11-27 el operador vio la carga SEN0001 de LL202 sola en el mapa, sin la red ni el nodo donde se conecta,
+    con el aviso «no hay un flujo de «Con proyecto»»: los planos ya se cargaron al convertir, y con ellos basta para
+    ver la red y proponer el nodo. Las barras son los nodos de la red de media con el nombre que tienen en el DGS.
+    """
+    barras = [[str(n), p.get('lat'), p.get('lon')] for n, p in sorted((datos.get('nodes') or {}).items())
+              if isinstance(p, dict) and p.get('lat') is not None and p.get('lon') is not None]
+    tramos = []
+    for nombre, linea in sorted((datos.get('lines') or {}).items()):
+        if not isinstance(linea, Mapping):
+            continue
+        coords = [[float(q['lat']), float(q['lon'])] for q in linea.get('path') or []
+                  if isinstance(q, Mapping) and q.get('lat') is not None and q.get('lon') is not None]
+        tramos.append([str(nombre), coords])
+    return {'barras': barras, 'tramos': tramos, 'cabecera': str(datos.get('source_node') or ''),
+            'origen': 'conversion'}
+
+
+def _nodo_mas_cercano(geo: Mapping[str, Any], punto: list[float]) -> tuple[str, list[float]] | None:
+    """017:RF-154: el nodo de la red más cercano al punto de la carga, el que se propone para conectarla."""
+    mejor = None
+    for b in geo.get('barras') or []:
+        if b[1] is None or b[2] is None:
+            continue
+        d = distancia_m(punto, [float(b[1]), float(b[2])])
+        if d is not None and (mejor is None or d < mejor[0]):
+            mejor = (d, str(b[0]), [float(b[1]), float(b[2])])
+    return (mejor[1], mejor[2]) if mejor else None
+
+
 def _gps_de_barra(geo: Mapping[str, Any], nombre: str) -> list[float] | None:
     for b in geo.get('barras') or []:
         if b[0] == nombre and b[1] is not None and b[2] is not None:
@@ -245,7 +277,8 @@ def datos_del_mapa(project: str, cargas: list[dict], geos: Mapping[str, Mapping[
             avisos.append(f'{f}: no hay un flujo de «Con proyecto» con su geografía; ejecútelo en 4.2 para ver su red.')
             continue
         red[f] = {'tramos': [[t[0], t[1]] for t in geo.get('tramos') or [] if len(t[1] or []) >= 2],
-                  'cabecera': _gps_de_barra(geo, str(geo.get('cabecera') or ''))}
+                  'cabecera': _gps_de_barra(geo, str(geo.get('cabecera') or '')),
+                  'origen': geo.get('origen') or 'flujo'}
     filas = []
     repetir = set()
     for c in cargas:
@@ -256,6 +289,13 @@ def datos_del_mapa(project: str, cargas: list[dict], geos: Mapping[str, Mapping[
         sed = str(c.get('sed') or '')
         punto = [float(c['lat']), float(c['lon'])] if c.get('lat') is not None and c.get('lon') is not None else None
         gps_nodo = _gps_de_barra(geo, str(c.get('barra') or '')) or c.get('nodo_gps')
+        nombre_nodo = c.get('barra')
+        propuesto = False
+        if gps_nodo is None and punto is not None and not c.get('punto_de_diseno'):
+            # 017:RF-154: sin nodo leído ni guardado, el más cercano de la red del alimentador, dicho como propuesto.
+            cerca = _nodo_mas_cercano(geo, punto)
+            if cerca is not None:
+                nombre_nodo, gps_nodo, propuesto = cerca[0], cerca[1], True
         p = c.get('punto_de_diseno') or {}
         enlace = None
         tramo = next((t for t in geo.get('tramos') or [] if t[0] == _nombre_pf(f'LNE_{sed}')), None)
@@ -266,6 +306,8 @@ def datos_del_mapa(project: str, cargas: list[dict], geos: Mapping[str, Mapping[
             enlace = {'nombre': tramo[0], 'km': tramo[6] if len(tramo) > 6 else None, 'coords': tramo[1]}
         elif gps_nodo and punto and distancia_m(gps_nodo, punto) and distancia_m(gps_nodo, punto) > TOLERANCIA_M:
             km = c.get('distancia_m')
+            if km is None and propuesto:
+                km = distancia_m(gps_nodo, punto)
             enlace = {'nombre': None, 'km': None if km is None else float(km) / 1000.0, 'coords': [gps_nodo, punto]}
         if p and (p.get('epoca') or 0) > (flujo_epoca or {}).get(f, 0.0):
             repetir.add(f)
@@ -273,10 +315,10 @@ def datos_del_mapa(project: str, cargas: list[dict], geos: Mapping[str, Mapping[
             'sed': sed, 'alimentador': f, 'kw': c.get('kw'), 'sola': bool(c.get('sola')),
             'variacion': c.get('variacion'),
             'punto': {'lat': punto[0], 'lon': punto[1], 'utm': utm(punto)} if punto else None,
-            'nodo': {'nombre': c.get('barra'), 'lat': gps_nodo[0] if gps_nodo else None,
+            'nodo': {'nombre': nombre_nodo, 'lat': gps_nodo[0] if gps_nodo else None,
                      'lon': gps_nodo[1] if gps_nodo else None, 'utm': utm(gps_nodo) if gps_nodo else None},
             'enlace': enlace, 'corregida': bool(p), 'barra_aplicada': c.get('barra_aplicada'),
-            'confirmado': p.get('confirmado'),
+            'confirmado': p.get('confirmado'), 'nodo_propuesto': propuesto,
         })
         if not gps_nodo and not punto:
             avisos.append(f'{sed}: ni su punto ni su nodo {c.get("barra")} tienen GPS; no sale en el mapa.')
@@ -354,7 +396,8 @@ def pagina_del_mapa(datos: Mapping[str, Any]) -> str:
         {{ color: '#dc2626', weight: 3, dashArray: '6 5' }}).bindPopup('Enlace ' + texto(c.enlace.nombre || '')
         + (c.enlace.km == null ? '' : ' · ' + Number(c.enlace.km).toFixed(3) + ' km')).addTo(map));
       if (nodo) capas.push(L.circleMarker(nodo, {{ radius: 6, color: '#1e3a8a', fillColor: '#3b82f6', fillOpacity: 1 }})
-        .bindPopup('Nodo de conexión ' + texto(c.nodo.nombre) + (c.corregida ? ' (corregido en DIgSILENT)' : ''))
+        .bindPopup('Nodo de conexión ' + texto(c.nodo.nombre) + (c.corregida ? ' (corregido en DIgSILENT)'
+          : c.nodo_propuesto ? ' (propuesto: el más cercano de la red convertida)' : ''))
         .addTo(map));
       const donde = punto || nodo;
       if (donde) {{
