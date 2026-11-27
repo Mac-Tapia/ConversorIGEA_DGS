@@ -1423,3 +1423,16 @@ class ColabPaqueteRespuesta(Respuesta):
 class ColabTraerRespuesta(Respuesta):
     """113:RF-10, RF-11: los candidatos traídos sin activar, y los rechazados con su motivo."""
     candidatos: list[dict[str, JsonValue]]
+
+
+class CapexVigenteDato(Respuesta):
+    """042:RF-113: el libro CAPEX vigente y de dónde sale."""
+    ruta: str
+    nombre: str
+    origen: Literal['perfil', 'referencias']
+
+
+class CapexVigenteRespuesta(Respuesta):
+    """042:RF-113: el libro CAPEX que se usa con la casilla en blanco, o ``None``."""
+    vigente: CapexVigenteDato | None
+

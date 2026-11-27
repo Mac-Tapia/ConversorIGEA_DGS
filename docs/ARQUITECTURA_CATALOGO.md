@@ -11,13 +11,13 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 474 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 134 |
-| Interfaz | `frontend/src/` | 124 |
+| Interfaz | `frontend/src/` | 125 |
 | Pruebas de la interfaz | `frontend/test/` | 67 |
 | Pruebas | `tests/` | 691 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
-`web/services.py` tiene 15414 líneas y 494 funciones, pendiente de partir (002).
+`web/services.py` tiene 15527 líneas y 500 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4195 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4197 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
@@ -53,7 +53,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-180 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+181 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -84,6 +84,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `perfil` | general | 2 |
 | `salidas` | general | 2 |
 | `workspaces` | general | 2 |
+| `capex` | espacio | 1 |
 | `cargas` | espacio | 1 |
 | `diagnose` | espacio | 1 |
 | `estructura` | espacio | 1 |
@@ -1186,6 +1187,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/enviarInformeLogica.ts` | — | 110 | Lo que decide la ventana de envío: cuentas, motivo sin cuenta, petición de la vista previa, anulación al cambiar un campo y textos de estado. |
 | `src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
+| `src/features/powerfactory/capexVigente.ts` | — | 042, 113 | Texto de la casilla «Libro CAPEX» con el libro vigente del perfil o de las referencias. |
 | `src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
 | `src/features/powerfactory/tablaMaxima.ts` | — | 004, 116, 028 | Cómo se lee la tabla de la máxima de 2.2: su ámbito, el instante común, si la máxima propia va de referencia, la fila fuera del instante y el factor… |

@@ -1,3 +1,4 @@
+import type { CapexVigenteRespuesta } from './types';
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionCabecera, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, ResumenCaso, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
@@ -163,6 +164,8 @@ export const api = {
     `${ws(id)}/cargas/plantilla/${tipo}?format=${format}`,
   pfProjects: (id: string) => request<Job>(`${ws(id)}/powerfactory/projects`, { method: 'POST' }),
   // Spec 007, RF-40: el último ajuste aplicado guardado en disco (sobrevive a un reinicio).
+  // 042:RF-113: el libro CAPEX vigente del espacio (perfil o referencias).
+  capexVigente: (id: string) => request<CapexVigenteRespuesta>(`${ws(id)}/capex/vigente`),
   ajusteUltimo: (id: string, project: string) =>
     request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null; avance?: AvanceDisco }>(
       `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),

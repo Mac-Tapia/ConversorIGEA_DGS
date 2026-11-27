@@ -667,3 +667,6 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       verde con la nueva, `npm test`, `tsc` y `npm run build` en verde. Hecho el 2026-11-27: rojo «el instante vuelve a
       ofrecer la no coincidente»; verde 338 pruebas del frontend, `tsc`, lint y build; las dos pruebas de la 086:RF-126
       que pedían la opción repetida, adaptadas. La pantalla en el navegador se revisa al integrar la rama en `main`.
+- [x] T117 OBRAS-AUTOMATICAS-A-LA-VISTA (27-11, captura del usuario en 4.1 sin saber cómo seguir). (RF-141)
+      Hecho cuando: `frontend/test/obrasEstadoActual.test.mjs` (086:RF-141) en verde con su rojo por aserción, `npm test`,
+      `tsc` y `npm run build` en verde. Hecho el 2026-11-27 (evidencia en el commit que lo integra).

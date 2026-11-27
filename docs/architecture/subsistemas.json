@@ -977,6 +977,7 @@
     "src/features/powerfactory/enviarInformeLogica.ts",
     "src/features/powerfactory/formularioOperacionSet.ts",
     "src/features/powerfactory/obrasEstadoActual.ts",
+    "src/features/powerfactory/capexVigente.ts",
     "src/features/powerfactory/solicitudLeida.ts",
     "src/features/powerfactory/tensionFuente.ts",
     "src/features/powerfactory/tablaMaxima.ts",

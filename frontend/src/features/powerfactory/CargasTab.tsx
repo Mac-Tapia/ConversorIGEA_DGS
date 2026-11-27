@@ -31,7 +31,8 @@ import { AvisoBeta, MarcaBeta } from '../../shared/MarcaBeta';
 import { MarcaValidacion } from '../../shared/MarcaValidacion';
 import { betaActiva } from '../../shared/edicion';
 import { Ayuda, FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
-import { RESUMEN_SIN_CARGAS, proyectoDeEstudio, textosObras, type CargaAplicadaEnDisco, ofrecerObrasEstadoActual } from './obrasEstadoActual';
+import { textoCapexVigente, type CapexVigente } from './capexVigente';
+import { RESUMEN_SIN_CARGAS, proyectoDeEstudio, textosObras, type CargaAplicadaEnDisco, ofrecerObrasEstadoActual, porQueSinObrasAutomaticas } from './obrasEstadoActual';
 
 const ANIO = new Date().getFullYear();
 
@@ -282,6 +283,10 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
   // Spec 007, RF-1: la base es el último ajuste aplicado de este proyecto. RF-40: sin ninguno
   // en la sesión (tras reiniciar la web u otro espacio), el último guardado en disco.
   const [ajusteDisco, setAjusteDisco] = useState<Job | null>(null);
+  // 042:RF-113: el libro CAPEX vigente, para la casilla en blanco de las obras.
+  const [capexVigente, setCapexVigente] = useState<CapexVigente | null>(null);
+  useEffect(() => { let vivo = true; api.capexVigente(ws.id).then((r) => { if (vivo) setCapexVigente(r.vigente ?? null); })
+    .catch(() => undefined); return () => { vivo = false; }; }, [ws.id]);
   // 072:RF-33: lo demás que consta en disco (cargas, flujos de «Con proyecto», informes).
   const [avanceDisco, setAvanceDisco] = useState<AvanceDisco | null>(null);
   // Un trabajo terminado en esta sesión cambia lo que hay en disco: se vuelve a leer.
@@ -453,6 +458,11 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
     largo: plazoPide?.plazo === 'largo_plazo',
   };
   const estadoPasos = estadoConDisco(estadoSesion, avanceDisco, order);
+  // 086:RF-141: una simulación no escribe nada ni trae la escalera en su resultado: solo tapa el bloque de obras
+  // automáticas una aplicación real de cargas en este proyecto (2026-11-27, SEN0001 de LL202 simulada).
+  const paraObras = { proyecto: current ? project : null, alimentadores: order, calibrado: estadoPasos.calibrado,
+    proyectoDeCargas: resultado && resultado.informe.modo !== 'simular' ? resultado.informe.project ?? null : null };
+  const sinObrasAutomaticas = porQueSinObrasAutomaticas(paraObras);
   const calibrados = informesBase.filter((i) => !i.error && !i.no_empezado).map((i) => i.feeder);
 
   return (
@@ -753,7 +763,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
         </>}
       </div>}
 
-      {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'}
+      {resultado && <Informe resultado={resultado} cancelado={lastRun?.status === 'cancelled'} capexVigente={capexVigente}
         escalera={escalera} conProyecto={conProyecto} ocupado={pfBusy}
         onEscalera={(feeders, tipoCambio, capex) => startJob(() => api.obrasEscalera(ws.id, {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
@@ -770,9 +780,8 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
       )}
 
       {/* 086:RF-77: sin cargas nuevas integradas, el estado actual calibrado también puede violar límites. */}
-      {verObras && ofrecerObrasEstadoActual({ proyecto: current ? project : null, alimentadores: order,
-        calibrado: estadoPasos.calibrado, proyectoDeCargas: resultado?.informe.project ?? null }) && (
-        <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto}
+      {verObras && ofrecerObrasEstadoActual(paraObras) && (
+        <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto} capexVigente={capexVigente}
           cargas={avanceDisco?.cargas ?? []}
           onCorregir={(tipoCambio, capex, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
             project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
@@ -815,6 +824,12 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
         {(!estudio.proyecto || !estudio.feeders.length) && <AvisosTrabajo paso={['pf-obras', 'pf-estudios', 'pf-transferencia', 'pf-informes']} />}
         {!estudio.proyecto ? <p className="muted">Elija un proyecto aquí o en el paso 1.</p> : !estudio.feeders.length
           ? <p className="muted">Marque al menos un alimentador{estudio.propio ? ' del proyecto' : ' en el paso 2'}.</p> : <>
+            {/* 086:RF-141: dónde está la propuesta automática de obras, o qué falta para tenerla. */}
+            {sinObrasAutomaticas ? <p className="small muted">{sinObrasAutomaticas}</p> : (
+              <p className="small">El conversor propone las obras solo, de menor a mayor costo:{' '}
+                <button type="button" className="btn btn-sm" onClick={() => document.getElementById(pref + DESTINO.obrasAutomaticas)
+                  ?.scrollIntoView({ behavior: 'smooth', block: 'start' })}>Ir a «Proponer obras automáticamente»</button>
+                {' '}4.1 es para añadir una obra a mano.</p>)}
             <h4>4.1 · Obras de mejora</h4>
             <AvisosTrabajo paso="pf-obras" />
             <ObrasPF project={estudio.proyecto} feeders={estudio.feeders} />
@@ -1167,7 +1182,8 @@ function YaEnElProyecto({ fichas, simular }: { fichas: FichaExistente[]; simular
   );
 }
 
-function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto }: {
+function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto, capexVigente = null }: {
+  capexVigente?: CapexVigente | null;
   resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null;
   conProyecto: ConProyectoResultado | null; ocupado: boolean;
   onEscalera: (feeders: string[], tipoCambio: number | null, capex: string) => void;
@@ -1233,10 +1249,10 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
                 onChange={(e) => setTipoCambio(e.target.value)} />
             </label>
             <label className="small">Libro CAPEX{' '}
-              <input type="text" size={34} value={capex} placeholder="ruta del .xlsx en este equipo"
+              <input type="text" size={34} value={capex} placeholder={textoCapexVigente(capexVigente)}
                 aria-label="Ruta del libro CAPEX de la empresa" onChange={(e) => setCapex(e.target.value)} />
             </label>
-            <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
+            <button className="btn btn-sm btn-primary" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
               onClick={() => onEscalera(feedersEscalera, tcValido ? tc : null, capex.trim())}>
               Proponer obras en escalera
             </button>
@@ -1370,7 +1386,8 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
 }
 
 /** 086:RF-77: obras para el estado actual, sin cargas nuevas: solo los alimentadores que violan límites las llevan. */
-function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir }: {
+function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, capexVigente = null }: {
+  capexVigente?: CapexVigente | null;
   feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null; cargas: CargaAplicadaEnDisco[];
   onCorregir: (tipoCambio: number | null, capex: string, rehacer: boolean) => void;
 }) {
@@ -1392,12 +1409,12 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir }
             onChange={(e) => setTipoCambio(e.target.value)} />
         </label>
         <label className="small">Libro CAPEX{' '}
-          <input type="text" size={34} value={capex} placeholder="ruta del .xlsx en este equipo"
+          <input type="text" size={34} value={capex} placeholder={textoCapexVigente(capexVigente)}
             aria-label="Ruta del libro CAPEX de la empresa" onChange={(e) => setCapex(e.target.value)} />
         </label>
         <label className="small" title="Borra las obras de la escalera en estos alimentadores y las evalúa de nuevo">
           <input type="checkbox" checked={rehacer} onChange={(e) => setRehacer(e.target.checked)} /> Rehacer obras</label>
-        <button className="btn btn-sm" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
+        <button className="btn btn-sm btn-primary" disabled={ocupado || (tipoCambio.trim() !== '' && !tcValido)}
           onClick={() => onCorregir(tcValido ? tc : null, capex.trim(), rehacer)}>
           {textos.boton}
         </button>

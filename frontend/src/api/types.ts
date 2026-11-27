@@ -2400,6 +2400,8 @@ export interface FilaTensionDiag { barra: string; sin: number | null; cargas: nu
 export interface FilaCargaDiag { elemento: string; sin: number | null; cargas: number; con: number | null; estado: EstadoDiagnostico }
 // 113: entrenar en Colab Pro como opción del local.
 export type ColabEstado = components['schemas']['ColabEstadoRespuesta'];
+/** 042:RF-113: el libro CAPEX que se usa con la casilla en blanco. */
+export type CapexVigenteRespuesta = components['schemas']['CapexVigenteRespuesta'];
 export type ColabPrevia = components['schemas']['ColabPreviaRespuesta'];
 export type ColabPaquete = components['schemas']['ColabPaqueteRespuesta'];
 export type ColabTraer = components['schemas']['ColabTraerRespuesta'];

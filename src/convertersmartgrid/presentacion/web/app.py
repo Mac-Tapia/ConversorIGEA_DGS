@@ -54,6 +54,7 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     AprendidoRespuesta, AprendidoPreviaRespuesta, PromoverAprendidoPeticion)
 from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
 from .api_contract import CorreccionesMedidorRespuesta                                  # 039:RF-23
+from .api_contract import CapexVigenteRespuesta  # 042:RF-113
 from .api_contract import (ColabEstadoRespuesta, ColabPrepararPeticion, ColabPreviaRespuesta,  # 113
                            ColabPaqueteRespuesta, ColabTraerRespuesta)
 from .services import UserError
@@ -2507,7 +2508,7 @@ def create_app(
         titulo = {'largo_plazo': 'Plan de largo plazo', 'pide': 'PIDE'}.get(body.plazo or '', 'PIDE')
         return submit(ws, 'pide', f'{titulo} · {project}',
                       lambda ctx: services.pide_ejecutar(ws, ctx, project, feeders,
-                          capex=body.capex, implementar=body.implementar,
+                          capex=services.capex_o_vigente(ws, body.capex), implementar=body.implementar,
                           anio_presentacion=body.anio_presentacion, formato_01=body.formato_01,
                           # 025:RF-67 (H4): solo si el operador lo envía; sin él, la llamada es la de siempre (072:RF-18).
                           **({'tipo_cambio': body.tipo_cambio} if body.tipo_cambio is not None else {}),
@@ -2948,6 +2949,11 @@ def create_app(
                       lambda ctx: services.retirar_obras(ws, ctx, body.project, body.feeders, body.variaciones),
                       lane='powerfactory')
 
+    @app.get('/api/workspaces/{wid}/capex/vigente', response_model=CapexVigenteRespuesta)
+    def capex_vigente(wid: str) -> dict:
+        """042:RF-113: el libro CAPEX que se usa con la casilla en blanco (perfil o referencias), o ninguno."""
+        return {'vigente': services.capex_vigente(ws_or_404(wid))}
+
     @app.post('/api/workspaces/{wid}/pf/obras/escalera', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
     def obras_escalera(wid: str, body: ObrasIn) -> dict:
         """025:RF-44: bancos, sección y terna hasta que «Con proyecto» converja."""
@@ -2956,7 +2962,7 @@ def create_app(
                       lambda ctx: services.obras_escalera(ws, ctx, body.project, body.feeders,
                                                           anio_casos=body.anio_casos,
                                                           tipo_cambio=body.tipo_cambio,
-                                                          capex=body.capex),
+                                                          capex=services.capex_o_vigente(ws, body.capex)),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
@@ -2969,7 +2975,7 @@ def create_app(
         return submit(ws, 'obras_con_proyecto', f'Optimizar «Con proyecto» · {body.project.strip()}',
                       lambda ctx: services.con_proyecto_optimizar(
                           ws, ctx, body.project, body.feeders, anio_casos=body.anio_casos,
-                          tipo_cambio=body.tipo_cambio, capex=body.capex,
+                          tipo_cambio=body.tipo_cambio, capex=services.capex_o_vigente(ws, body.capex),
                           alimentadores_nuevos=body.alimentadores_nuevos,
                           set_nueva_nombre=body.set_nueva_nombre,
                           directo_set_nueva=body.directo_set_nueva, cargas=body.cargas or None,

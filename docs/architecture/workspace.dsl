@@ -81,7 +81,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: conversión y perfil de la empresa"
                     }
                 }
-                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (29 ficheros)." "React + TypeScript" {
+                cmpInterfazEstudios = component "Cargas, estudios, obras e informes" "«Cargas en DIgSILENT», demanda, estudios, obras e informes (30 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/frontend/src/features/powerfactory"
                     tags "Web"
                     properties {
@@ -131,7 +131,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 180 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 181 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (41 ficheros)." "Python" {

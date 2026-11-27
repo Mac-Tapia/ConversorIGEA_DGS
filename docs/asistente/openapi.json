@@ -2117,6 +2117,56 @@
         "title": "CapasPlanoRespuesta",
         "type": "object"
       },
+      "CapexVigenteDato": {
+        "additionalProperties": false,
+        "description": "042:RF-113: el libro CAPEX vigente y de dónde sale.",
+        "properties": {
+          "nombre": {
+            "title": "Nombre",
+            "type": "string"
+          },
+          "origen": {
+            "enum": [
+              "perfil",
+              "referencias"
+            ],
+            "title": "Origen",
+            "type": "string"
+          },
+          "ruta": {
+            "title": "Ruta",
+            "type": "string"
+          }
+        },
+        "required": [
+          "ruta",
+          "nombre",
+          "origen"
+        ],
+        "title": "CapexVigenteDato",
+        "type": "object"
+      },
+      "CapexVigenteRespuesta": {
+        "additionalProperties": false,
+        "description": "042:RF-113: el libro CAPEX que se usa con la casilla en blanco, o ``None``.",
+        "properties": {
+          "vigente": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/CapexVigenteDato"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "required": [
+          "vigente"
+        ],
+        "title": "CapexVigenteRespuesta",
+        "type": "object"
+      },
       "CargaElegida": {
         "additionalProperties": false,
         "properties": {
@@ -16778,6 +16828,46 @@
           }
         },
         "summary": "Revision"
+      }
+    },
+    "/api/workspaces/{wid}/capex/vigente": {
+      "get": {
+        "description": "042:RF-113: el libro CAPEX que se usa con la casilla en blanco (perfil o referencias), o ninguno.",
+        "operationId": "capex_vigente_api_workspaces__wid__capex_vigente_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapexVigenteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Capex Vigente"
       }
     },
     "/api/workspaces/{wid}/cargas/plantilla/{tipo}": {

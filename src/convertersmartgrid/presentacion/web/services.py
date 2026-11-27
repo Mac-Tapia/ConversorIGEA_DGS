@@ -2573,12 +2573,10 @@ def _geografias_del_proyecto(ws: Workspace, project: str, feeders: Sequence[str]
     if not rutas:
         # 004:RF-72, 017:RF-154: sin el DGS aceptado (otra huella tras reconvertir, o sin comprobar), la conversión de
         # la que salió el proyecto: el 2026-11-27 la carga SEN0001 de LL202 quedaba sin nodo ni red en el plan y el mapa.
-        vinculo = ws.pf_project_bindings.get(project.strip()) or {}
-        carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
-        if vinculo.get('source_run_id') and carpeta.is_dir():
+        for carpeta in _salidas_de_la_ejecucion(ws, _vinculo_para_leer(ws, project.strip())):
             for f in feeders:
                 propia = carpeta / f'{f}_geography.json'
-                if propia.is_file():
+                if f not in out and propia.is_file():
                     out[f] = (propia, f'red convertida de {f} (la conversión del proyecto)')
         return out
     carpeta = rutas[0].parent
@@ -7372,16 +7370,57 @@ _guion_pf = guion_pf
 
 
 # ------------------------------------------------------------------ escaneo (spec 028)
+def _vinculo_para_leer(ws: Workspace, project: str) -> dict:
+    """El vínculo del proyecto para leer su conversión: el del registro compartido, el del espacio o el de la carpeta de
+    datos anterior (018:RF-1, RF-18). Un registro ilegible no da ninguno: aquí solo se lee, nunca se exige."""
+    from ...adaptadores.powerfactory_binding import vinculo_guardado
+
+    try:
+        return vinculo_guardado(ws, project) or ws.pf_project_bindings.get(project) or {}
+    except Exception:                                  # noqa: BLE001 - leer la geografía nunca bloquea
+        return ws.pf_project_bindings.get(project) or {}
+
+
+def _salidas_de_la_ejecucion(ws: Workspace, vinculo: Mapping[str, Any]) -> list[Path]:
+    """017:RF-154: dónde está la salida de la ejecución con que se convirtió el proyecto, en orden de preferencia.
+
+    Primero el propio espacio; después los demás espacios de la misma carpeta de datos y los de la carpeta del registro
+    heredado (018:RF-18). El 2026-11-27 LL202 se había convertido en un espacio de output/web y el operador lo estudiaba
+    desde otro de la carpeta de ejecución: el plan y el mapa no encontraban su geografía y la ubicación salía «—».
+    """
+    run = str(vinculo.get('source_run_id') or '').strip()
+    if not run or '/' in run or '\\' in run or run in ('.', '..'):
+        return []
+    raices = [ws.root]
+    compartido = getattr(ws, 'vinculos_compartidos', None)
+    for registro in (compartido, vinculo.get('registro_heredado')):
+        if registro:
+            raices += sorted(p for p in Path(registro).parent.glob('*') if p.is_dir() and p != ws.root)
+    vistas: set[str] = set()
+    out = []
+    for raiz in raices:
+        carpeta = raiz / 'runs' / run / 'salida'
+        clave = str(carpeta).lower()
+        if clave not in vistas and carpeta.is_dir():
+            vistas.add(clave)
+            out.append(carpeta)
+    return out
+
+
 def _dgs_aceptados(ws: Workspace, project: str) -> list[Path]:
-    """Los DGS con que se aceptó el proyecto: los de la ejecución fuente cuya huella es la del vínculo (028:RF-17)."""
+    """Los DGS con que se aceptó el proyecto: los de la ejecución fuente cuya huella es la del vínculo (028:RF-17); la
+    ejecución se busca también en los demás espacios (017:RF-154)."""
     import hashlib
 
-    vinculo = ws.pf_project_bindings.get(project) or {}
+    vinculo = _vinculo_para_leer(ws, project)
     huellas = set((vinculo.get('dgs_sha256') or {}).values())
-    carpeta = ws.root / 'runs' / str(vinculo.get('source_run_id') or '') / 'salida'
-    if not huellas or not carpeta.is_dir():
+    if not huellas:
         return []
-    return [ruta for ruta in sorted(carpeta.glob('*.dgs')) if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas]
+    for carpeta in _salidas_de_la_ejecucion(ws, vinculo):
+        rutas = [ruta for ruta in sorted(carpeta.glob('*.dgs')) if hashlib.sha256(ruta.read_bytes()).hexdigest() in huellas]
+        if rutas:
+            return rutas
+    return []
 
 
 def _tramos_del_dgs_aceptado(ws: Workspace, project: str) -> set[str]:
@@ -15412,3 +15451,77 @@ def colab_traer(destino: Path | None = None) -> dict:
     return {'candidatos': er.traer_candidatos(drive / 'candidatos', destino,
                                               revision=_git_web('rev-parse', 'HEAD').strip(),
                                               paquetes=er.paquetes_de(drive / 'paquetes'))}
+
+
+# --------------------------------------------------------------------------- CAPEX de las referencias (042:RF-113)
+_HOJAS_CAPEX: dict[tuple[str, int, int], tuple[str, ...]] = {}
+
+
+def _hojas_de(ruta: Path) -> tuple[str, ...]:
+    """Los nombres de las hojas de un libro, recordados por su ruta, tamaño y fecha: se miran pocos libros y una vez."""
+    from ...aplicacion.demanda_medida import abrir_libro
+
+    try:
+        st = ruta.stat()
+    except OSError:
+        return ()
+    clave = (str(ruta), st.st_size, st.st_mtime_ns)
+    if clave not in _HOJAS_CAPEX:
+        try:
+            _HOJAS_CAPEX[clave] = tuple(abrir_libro(ruta).sheet_names)
+        except Exception:                              # noqa: BLE001 - un libro que no abre no es el CAPEX
+            _HOJAS_CAPEX[clave] = ()
+    return _HOJAS_CAPEX[clave]
+
+
+def _carpetas_de_referencias(ws: Workspace) -> list[Path]:
+    """Las carpetas de referencias del espacio: las de los libros de demanda ya cargados y la que las contiene."""
+    out: list[Path] = []
+    for meta in (ws.demanda or {}).values():
+        ruta = str((meta or {}).get('path') or '').strip() if isinstance(meta, Mapping) else ''
+        if not ruta or ruta.startswith('espacio:'):
+            continue
+        p = Path(ruta)
+        carpeta = p if p.is_dir() else p.parent
+        for c in (carpeta, carpeta.parent):
+            if c.is_dir() and c not in out:
+                out.append(c)
+    return out
+
+
+def capex_vigente(ws: Workspace) -> dict | None:
+    """042:RF-113: el libro CAPEX de la empresa que se usa cuando el operador deja la casilla en blanco.
+
+    El del perfil local (``planificacion.capex.libro``) si lo declara; si no, el de las referencias del espacio: entre
+    los libros de las carpetas de la demanda ya cargada, el más reciente que tiene la hoja CAPEX del perfil (se reconoce
+    por su contenido, no por su nombre: los libros se reemplazan cada periodo). El 2026-11-27 el operador no podía
+    proponer las obras de LL202 sin escribir la ruta del libro CAPEX que ya estaba entre sus referencias.
+    """
+    from ...dominio.perfil_empresa import datos_perfil
+
+    conf = (datos_perfil().get('planificacion') or {}).get('capex') or {}
+    libro = str(conf.get('libro') or '').strip().strip('"')
+    if libro and Path(libro).is_file():
+        return {'ruta': libro, 'nombre': Path(libro).name, 'origen': 'perfil'}
+    hoja = str(conf.get('hoja') or '').strip()
+    if not hoja:
+        return None
+    candidatos = []
+    for carpeta in _carpetas_de_referencias(ws):
+        for ruta in sorted(carpeta.iterdir()) if carpeta.is_dir() else ():
+            if ruta.is_file() and ruta.suffix.lower() in ('.xlsx', '.xlsm', '.xlsb', '.xls') \
+                    and not ruta.name.startswith('~$') and hoja in _hojas_de(ruta):
+                candidatos.append(ruta)
+    if not candidatos:
+        return None
+    elegido = max(candidatos, key=lambda p: (p.stat().st_mtime, p.name))
+    return {'ruta': str(elegido), 'nombre': elegido.name, 'origen': 'referencias'}
+
+
+def capex_o_vigente(ws: Workspace, capex: str | None) -> str | None:
+    """042:RF-113: el libro escrito por el operador manda; en blanco, el vigente de las referencias."""
+    if capex and capex.strip():
+        return capex
+    vigente = capex_vigente(ws)
+    return vigente['ruta'] if vigente else capex
+

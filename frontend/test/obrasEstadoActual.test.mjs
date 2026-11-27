@@ -56,3 +56,35 @@ test('018:RF-19: 4 y 5 trabajan con el proyecto elegido en su desplegable, o con
   assert.deepEqual(proyectoDeEstudio('OTRO', ['B', 'C'], 'P1', ['A']), { proyecto: 'OTRO', feeders: ['B', 'C'], propio: true });
   assert.deepEqual(proyectoDeEstudio('OTRO', [], '', []), { proyecto: 'OTRO', feeders: [], propio: true });
 });
+
+// 086:RF-141: el 2026-11-27, con SEN0001 de LL202 simulada, el operador no encontraba cómo proponer las obras: la
+// simulación tapaba el bloque de obras automáticas y su resultado no trae la escalera.
+test('086:RF-141 una simulación no tapa las obras automáticas y el paso 4 dice dónde están o qué falta', async () => {
+  const { porQueSinObrasAutomaticas } = await cargar();
+  const { readFileSync } = await import('node:fs');
+  const pantalla = readFileSync(fileURLToPath(new URL('../src/features/powerfactory/CargasTab.tsx', import.meta.url)), 'utf8');
+  assert.match(pantalla, /proyectoDeCargas: resultado && resultado\.informe\.modo !== 'simular'/,
+    'una simulación sigue tapando el bloque de obras automáticas');
+  assert.match(pantalla, /Ir a «Proponer obras automáticamente»/);
+  assert.equal(porQueSinObrasAutomaticas(BASE), null);
+  assert.match(porQueSinObrasAutomaticas({ ...BASE, proyecto: null }), /paso 1/);
+  assert.match(porQueSinObrasAutomaticas({ ...BASE, alimentadores: [] }), /paso 2/);
+  assert.match(porQueSinObrasAutomaticas({ ...BASE, calibrado: false }), /calibre/);
+  assert.match(porQueSinObrasAutomaticas({ ...BASE, proyectoDeCargas: 'NJA292' }), /Proponer obras en escalera/);
+});
+
+// 042:RF-113: el botón de las obras automáticas en color, y la casilla del CAPEX nombra el libro vigente.
+test('042:RF-113 la casilla del CAPEX nombra el vigente y el botón de las obras va en color', async () => {
+  const { readFileSync } = await import('node:fs');
+  const pantalla = readFileSync(fileURLToPath(new URL('../src/features/powerfactory/CargasTab.tsx', import.meta.url)), 'utf8');
+  assert.match(pantalla, /placeholder=\{textoCapexVigente\(capexVigente\)\}/);
+  assert.doesNotMatch(pantalla, /placeholder="ruta del \.xlsx en este equipo"/);
+  assert.match(pantalla, /<button className="btn btn-sm btn-primary" disabled=\{ocupado \|\| \(tipoCambio\.trim\(\) !== '' && !tcValido\)\}\r?\n\s+onClick=\{\(\) => onCorregir/);
+  const salida = await build({ entryPoints: [fileURLToPath(new URL('../src/features/powerfactory/capexVigente.ts', import.meta.url))],
+    bundle: true, write: false, format: 'esm', platform: 'node' });
+  const { textoCapexVigente } = await import(`data:text/javascript;base64,${Buffer.from(salida.outputFiles[0].contents).toString('base64')}`);
+  assert.equal(textoCapexVigente({ ruta: 'X/libro.xlsx', nombre: 'libro.xlsx', origen: 'referencias' }),
+    'en blanco: libro.xlsx (de las referencias)');
+  assert.match(textoCapexVigente(null), /no hay uno/);
+});
+

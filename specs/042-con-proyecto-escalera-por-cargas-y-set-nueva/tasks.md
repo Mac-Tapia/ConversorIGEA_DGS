@@ -187,3 +187,7 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
       Hecho cuando: tras aplicar obras en un proyecto real, el informe trae `resaltado` sin avisos, cada `Obra_*` tiene
       el color del estilo, el coloreado del diagrama muestra las obras como en NA203_NA205 y, al retirarlas, sus
       símbolos vuelven a su estilo sin obra.
+- [x] T71 CAPEX-DE-LAS-REFERENCIAS (27-11). El libro CAPEX vigente con la casilla en blanco. (RF-113)
+      Hecho cuando: `tests/test_procedencia_capex_web.py` y `frontend/test/obrasEstadoActual.test.mjs` (042:RF-113) en
+      verde, y con las referencias reales del espacio del operador se encuentra su libro CAPEX. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).

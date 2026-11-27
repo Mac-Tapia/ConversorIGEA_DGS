@@ -200,3 +200,36 @@ def test_obra_nueva_persiste_recibo_y_conserva_historica_sin_atribucion(tmp_path
     assert releido.obras_aplicadas[1]['obra']['q_kvar'] == 300
     assert json.loads((ws.plans_dir / 'plan_propio.json').read_text())['procedencia_capex'] == recibo
     assert json.loads((ws.out_dir / 'guion_doble.json').read_text())['procedencia_capex'] == recibo
+
+
+def test_042_rf113_en_blanco_se_usa_el_capex_de_las_referencias(tmp_path, monkeypatch):
+    """042:RF-113 — con la casilla en blanco, el libro CAPEX vigente: el de las referencias del espacio (el más reciente
+    con la hoja del perfil, por su contenido y no por su nombre); el del perfil local manda; lo escrito manda siempre."""
+    import os
+    from openpyxl import Workbook
+
+    from convertersmartgrid.dominio import perfil_empresa as pe
+
+    refs = tmp_path / 'referencias'
+    (refs / '1.-medidores').mkdir(parents=True)
+    medidores = refs / '1.-medidores' / 'medidores.xlsx'
+    Workbook().save(medidores)
+    viejo = _capex(tmp_path)
+    viejo = viejo.rename(refs / 'libro_a.xlsx')
+    os.utime(viejo, (1_700_000_000, 1_700_000_000))
+    nuevo = _capex(tmp_path).rename(refs / 'libro_b.xlsx')
+    otro = Workbook()
+    otro.active.title = 'Otra'
+    otro.save(refs / 'CAPEX_sin_su_hoja.xlsx')
+    p = perfil()
+    monkeypatch.setattr(pe, 'datos_perfil', lambda: p)
+    ws = SimpleNamespace(demanda={'medidores': {'path': str(medidores)}, 'vacia': {}})
+    vigente = services.capex_vigente(ws)
+    assert vigente == {'ruta': str(nuevo), 'nombre': 'libro_b.xlsx', 'origen': 'referencias'}
+    assert services.capex_o_vigente(ws, '') == str(nuevo)
+    assert services.capex_o_vigente(ws, 'D:/otro.xlsx') == 'D:/otro.xlsx'
+    p['planificacion']['capex'] = {**CONFIG, 'libro': str(viejo)}
+    assert services.capex_vigente(ws)['origen'] == 'perfil'
+    p['planificacion']['capex'] = CONFIG
+    assert services.capex_vigente(SimpleNamespace(demanda={})) is None
+

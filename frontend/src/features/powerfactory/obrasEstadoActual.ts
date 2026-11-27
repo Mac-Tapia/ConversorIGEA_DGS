@@ -18,6 +18,22 @@ export function ofrecerObrasEstadoActual(e: EstadoParaObras): boolean {
   return Boolean(e.proyecto) && e.alimentadores.length > 0 && e.calibrado && e.proyectoDeCargas !== e.proyecto;
 }
 
+/**
+ * 086:RF-141: lo que dice «4 · Obras y estudios» sobre la propuesta automática de obras: dónde está su botón o qué falta.
+ *
+ * El 2026-11-27 el operador, con SEN0001 conectada a LL202, no encontraba cómo seguir: veía 4.1 (obras a mano) y ningún
+ * botón para que el conversor propusiera las obras como en el corto plazo. Devuelve ``null`` si el botón está arriba.
+ */
+export function porQueSinObrasAutomaticas(e: EstadoParaObras): string | null {
+  if (!e.proyecto) return 'Para que el conversor proponga las obras, elija el proyecto en el paso 1.';
+  if (!e.alimentadores.length) return 'Para que el conversor proponga las obras, marque los alimentadores en el paso 2.';
+  if (!e.calibrado) return 'Para que el conversor proponga las obras, calibre antes «Sin proyecto» en el paso 2.';
+  if (e.proyectoDeCargas === e.proyecto) {
+    return 'Las obras automáticas de estas cargas: «Proponer obras en escalera», en el resultado de aplicar las cargas (3).';
+  }
+  return null;
+}
+
 /** El resultado de «Con proyecto» sin cargas nuevas: lo medido es el estado actual. */
 export const RESUMEN_SIN_CARGAS = 'Sin cargas nuevas: obras para el estado actual, solo en los alimentadores que violan límites.';
 

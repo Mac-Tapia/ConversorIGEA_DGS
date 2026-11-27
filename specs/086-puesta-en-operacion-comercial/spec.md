@@ -611,6 +611,10 @@ mientras los demás casos pasaban a 1,0278.
   calibración» ofrecerá la que busca el ámbito, por defecto, o calibrar a todos en la hora de la máxima de una cabecera
   («Todos en la máxima de …»), sin repetir la no coincidente. Volver a la opción por defecto busca otra vez con el ámbito
   elegido.
+- RF-141: (usuario, 2026-11-27, con SEN0001 conectada a LL202: «¿con qué botón hago las propuestas de obras de forma
+  automática?») Solo una aplicación real de cargas en el proyecto ocultará el bloque de obras automáticas (una
+  simulación no escribe nada ni trae la escalera en su resultado), y «4 · Obras y estudios» llevará al botón
+  «Proponer obras automáticamente» o dirá qué falta para tenerlo (proyecto, alimentadores, calibración).
 
 ## Fuera de alcance
 

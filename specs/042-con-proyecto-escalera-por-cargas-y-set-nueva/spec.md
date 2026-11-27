@@ -273,6 +273,11 @@ según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94
   mismos atributos que los demás; lo que distingue a las obras es el color de su variación.
 - RF-112: SI la versión de DIgSILENT no tiene un atributo del estilo o el proyecto no tiene esquema de coloreado,
   ENTONCES EL SISTEMA lo omitirá con un aviso que lo nombre y marcará lo demás, sin perder las obras aplicadas.
+- RF-113: (usuario, 2026-11-27: «no se puede cargar el libro CAPEX; cárgalo desde referencias, el CAPEX existente»)
+  CON la casilla «Libro CAPEX» en blanco, EL SISTEMA costeará las obras con el libro CAPEX vigente: el del perfil
+  local (`planificacion.capex.libro`) o, si no lo declara, el más reciente de las carpetas de referencias del espacio
+  (las de los libros de demanda cargados) que tenga la hoja CAPEX del perfil, reconocido por su contenido. La casilla
+  lo nombra; lo escrito por el operador manda. El botón «Proponer obras automáticamente» va en color.
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a
   carga y, cuando ya no cabe, la SET nueva. Reutiliza sus variantes, sorteos y costos.
 - Usa la tasa de crecimiento de la 029 y las cargas nuevas sin duplicados de la 040.
