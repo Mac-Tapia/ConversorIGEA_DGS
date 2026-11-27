@@ -726,3 +726,24 @@ def test_la_web_recibe_las_alternativas_de_cada_alimentador(monkeypatch):
 
     r = services.escalera_por_alimentador(object(), Ctx(), 'P', ['F1'])
     assert r['por_alimentador']['F1']['alternativas'] == alternativas and 'pruebas' not in r
+
+
+def test_042_rf115_el_camino_de_la_carga_nueva_acaba_en_la_red_existente():
+    """042:RF-115 — LL202 (27-11): el camino de SEN0001 acababa en su línea de enlace LNE_SEN0001, que no existe con la
+    carga apartada; toda sección y terna fallaba. Se corta en la última barra existente; el de una carga existente no."""
+    from convertersmartgrid.presentacion.web import services
+
+    assert hasattr(services, 'hasta_la_red_existente'), 'falta 042:RF-115'
+    camino = [{'nombre': 'SEC_A', 'desde': 'CAB', 'hasta': '12869'},
+              {'nombre': 'SEC_B', 'desde': '12869', 'hasta': '12703'},
+              {'nombre': 'LNE_SEN0001', 'desde': '12703', 'hasta': 'NODE_SEN0001'}]
+    existen = {'CAB', '12869', '12703'}
+    c = services._carga_para_escalera('NODE_SEN0001', existen, {'caminos': {'NODE_SEN0001': camino}})
+    assert [t['nombre'] for t in c['camino']] == ['SEC_A', 'SEC_B']
+    propia = services._carga_para_escalera('12703', existen, {'caminos': {'12703': camino[:2]}})
+    assert [t['nombre'] for t in propia['camino']] == ['SEC_A', 'SEC_B'], 'una carga existente conserva su camino'
+    partido = camino[:1] + [{'nombre': 'SEC_B(1)', 'desde': '12869', 'hasta': 'NODE_SEN0001_T'},
+                            {'nombre': 'LNE_SEN0001', 'desde': 'NODE_SEN0001_T', 'hasta': 'NODE_SEN0001'}]
+    c = services._carga_para_escalera('NODE_SEN0001', existen, {'caminos': {'NODE_SEN0001': partido}})
+    assert [t['nombre'] for t in c['camino']] == ['SEC_A', 'SEC_B(1)'], 'la mitad de un tramo partido se queda (CA191)'
+

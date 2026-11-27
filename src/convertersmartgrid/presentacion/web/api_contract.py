@@ -1453,6 +1453,8 @@ class FilaPerdidas(Respuesta):
     caida_pct: float | None
     solo_media: bool
     barras_sin_tension: int = 0
+    cabecera_calibrada_kw: float | None = None
+    aviso: str | None = None
 
 
 class CasoSinEstudio(Respuesta):

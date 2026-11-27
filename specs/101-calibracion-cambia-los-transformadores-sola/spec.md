@@ -54,6 +54,15 @@ por la misma ruta.
   suya y solo de ese proyecto, desactivándola en sus casos), calibrará con los transformadores del archivo y cambiará
   después solo los que pida la nueva máxima (RF-1 a RF-6); las rondas de RF-4 no la vuelven a quitar, y el informe
   dice qué quitó. (LL202 y LL203: transformadores agrandados 2,5 y 25 veces por una máxima diez veces mayor.)
+- RF-17: (usuario, 2026-11-27: «adelanta el 3 y 4») CUANDO `tools/sistema_web.py` reciba `--proyecto` sin
+  `--con-proyecto`, EL SISTEMA calibrará ese proyecto existente de DIgSILENT (también uno convertido en otro espacio)
+  sin convertirlo ni importarlo nunca, y si su «Caso base» no está verificado lo dirá y parará; con
+  `--transformadores-del-archivo`, el plan llevará RF-16. (LL202 no estaba en el registro del espacio y se habría
+  reimportado.)
+- RF-18: (usuario, 2026-11-27, LL203: «está en Sin proyecto, ya es existente») SI la variación `SED_NTP_` tiene
+  objetos que no son transformadores (lo que el operador grabó con su etapa activa), ENTONCES EL SISTEMA no la
+  borrará con RF-16: deshará solo los transformadores de su etapa, conservará lo demás y lo dirá. (LL203: su
+  regulador existente de 5 MW y su barra quedaron dentro de `SED_NTP_`.)
 
 ## Requisitos no funcionales
 

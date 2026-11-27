@@ -54,7 +54,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 025 Calibración por año de medición | cumplida | T27 cerrada (22-11, en DIgSILENT) y T30; todas sus tareas cerradas |
   | 026 Asistente de órdenes en lenguaje natural que conoce, vigila y mejora el conversor | cumplida | T16 cerrada (21-11, e2e F04 ampliada de MEJ19b); todas sus tareas cerradas |
   | 027 Cierre del agente en producción: datos, entrenamiento robusto, verificación y operación | aprobada | T11 (T26 cerrada el 22-11 sin Codex, por orden del usuario) |
-  | 028 Escaneo del alimentador antes de recalibrar | cumplida | — |
+  | 028 Escaneo del alimentador antes de recalibrar | implementada | falta T20 (DIgSILENT): leer el regulador en el escaneo |
   | 029 Crecimiento de la demanda por alimentador desde la medición de cabecera | cumplida |  |
   | 030 Los años del PIDE en casos y escenarios de DIgSILENT | cumplida |  |
   | 031 Proyección de la demanda para todos los años del PIDE, con el mejor modelo por métricas | cumplida | T5 y T11 cerradas (23-11, corrida en la GPU); todas sus tareas cerradas |

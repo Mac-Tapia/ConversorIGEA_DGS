@@ -278,3 +278,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       desde la web sin FALLO_VALIDACION_NATIVA.
       Hecho el 2026-11-26 (código): sonda de solo lectura de SM218 (variaciones activas sin las hermanas; i_scale 0 en
       «Caso base» y 1 en «Sin proyecto»); rojo `D:/csg/PM_IMPL/MARCA_ESCENARIO/rojo.log`, verde 209 passed (`verde.log`).
+- [x] T34 CARGA-DE-MAS (27-11). La cabecera que lleva de media más del 60 % de sus SED, dicha. (RF-77)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (015:RF-77) en verde con su rojo por aserción. Hecho el
+      2026-11-27 (evidencia en el commit que lo integra).

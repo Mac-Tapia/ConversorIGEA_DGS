@@ -3764,6 +3764,8 @@ def _cruzar_clientes_en_red(ws: Workspace, clientes, suministros, libro=None):
 
 #: 039:RF-1: criterio de todas las fijas de la tabla cruzada; por defecto, coincidente.
 CRITERIO_COINCIDENTE, CRITERIO_MAXIMO_MES = 'coincidente', 'maximo_mes'
+#: 039:RF-32: la máxima del año de cada fija, de la evolución de los clientes fijos (105), en la tabla cruzada.
+VALOR_MAXIMO_ANIO = 'maximo_anio'
 CRITERIOS_FIJAS = (CRITERIO_COINCIDENTE, CRITERIO_MAXIMO_MES)
 
 
@@ -3919,6 +3921,95 @@ def _fm_cambiados(ws: Workspace, libro: Path, mes: str | None, codigos: list[str
     except (DemandaError, UserError, OSError, ValueError):
         return {}
     return {clave_codigo(x['codigo']): x for x in cambios}
+
+
+def _evolucion_del_anio(ws: Workspace, alimentador: str, anio: str) -> dict:
+    """039:RF-31: la evolución de los clientes fijos (105) de un alimentador en los doce meses de un año: la guardada si
+    sus libros no cambiaron; si no, se calcula una vez y se guarda en el espacio (``clientes_fijos/anual_*.json``)."""
+    from ...adaptadores.evolucion_clientes import FuentesEvolucion, calcular_evolucion
+
+    desde, hasta = f'{anio}-01', f'{anio}-12'
+    meta = ws.demanda.get('clientes') or {}
+    firma = sorted((str(x.get('mes')), str(x.get('path') or x.get('relativa') or ''), x.get('mtime_ns'))
+                   for x in meta.get('catalogo') or [] if x.get('activo') and str(x.get('mes') or '').startswith(anio))
+    ruta = ws.root / 'clientes_fijos' / f'anual_{nombre_seguro(alimentador)}_{anio}.json'
+    try:
+        guardada = json.loads(ruta.read_text(encoding='utf-8'))
+        if guardada.get('firma') == json.loads(json.dumps(firma, default=str)):
+            return guardada['datos']
+    except (OSError, ValueError, KeyError):
+        pass
+    # Las mismas fuentes que la evolución de la web (``evolucion_fijas.fuentes``), sin la cabecera; se arman aquí porque
+    # ese módulo depende de este.
+    if not meta or not Path(str(meta.get('path', ''))).exists():
+        raise UserError('Falta el libro o la carpeta de clientes importantes.')
+    f = FuentesEvolucion(
+        clientes=Path(meta['path']), suministros=_demanda_ruta(ws, 'suministros'),
+        patron=perfil_de(ws).patron_libro_clientes, asignaciones=meta.get('asignaciones') or {},
+        seds_red=propietarios_de_sed(ws) if getattr(ws, 'dataset', None) is not None else None)
+    datos = calcular_evolucion(f, [alimentador], desde, hasta).datos
+    ruta.parent.mkdir(parents=True, exist_ok=True)
+    write_json_atomic(ruta, {'firma': firma, 'datos': datos})
+    return datos
+
+
+def maxima_del_anio(ws: Workspace, codigo: str, anio: str, alimentador: str) -> dict | None:
+    """039:RF-31: la máxima de todo el año de un cliente fijo, de la evolución de los clientes fijos (105:RF-5): el mes de
+    mayor P máxima, con su fecha y hora y la Q en ese instante; ``None`` si la evolución no lo trae.
+
+    Usuario (2026-11-27, PA217): «este dato se podría sacar de la evolución de demanda de los clientes fijos; debería ser
+    para cualquier cliente fijo cada vez que se llame el trabajo». SE30940 (700064806) tenía 3,8 MW de máxima en 2026 y
+    la calibración, con la del mes de la máxima de cabecera, la dejaba por debajo.
+    """
+    from ...aplicacion.demanda_medida import DemandaError, clave_codigo
+
+    try:
+        datos = _evolucion_del_anio(ws, alimentador, anio)
+    except (UserError, DemandaError, OSError, ValueError):
+        return None
+    cliente = next((c for c in datos.get('clientes') or [] if clave_codigo(c.get('codigo')) == clave_codigo(codigo)
+                    or clave_codigo(codigo) in {clave_codigo(a) for a in c.get('anteriores') or []}), None)
+    meses = [m for m in (cliente or {}).get('meses') or [] if m.get('p_max') is not None
+             and str(m.get('mes') or '').startswith(anio)]
+    if not meses:
+        return None
+    m = max(meses, key=lambda x: x['p_max'])
+    return {'p_kw': float(m['p_max']), 'q_kvar': m.get('q_en_p_max'), 'fecha': m.get('fecha_p_max'), 'mes': m.get('mes')}
+
+
+def _valor_del_anio(ws: Workspace, codigo: str, mes: str | None, alimentador: str | None) -> dict | None:
+    """039:RF-32: la máxima del año de una fija para su columna de la tabla cruzada (P, Q, fecha y de dónde sale)."""
+    anual = (maxima_del_anio(ws, codigo, mes[:4], alimentador)
+             if mes and mes[:4].isdigit() and alimentador else None)
+    if anual is None:
+        return None
+    try:
+        fecha = datetime.fromisoformat(str(anual['fecha'])).strftime('%d/%m/%Y %H:%M')
+    except (TypeError, ValueError):
+        fecha = str(anual['fecha'] or '')
+    return {'p_kw': anual['p_kw'], 'q_kvar': anual['q_kvar'], 'fecha': fecha, 'metodo': 'evolución de los fijos'}
+
+
+def _a_su_maxima_del_anio(ws: Workspace, c, anio: str | None, alimentador: str | None, reg_max: dict,
+                          avisos: list[str]) -> None:
+    """039:RF-31 (amplía RF-12): el cliente marcado va con su máxima de todo el año, de la evolución de los clientes fijos;
+    sin ella, con la del mes (RF-12), y se dice."""
+    anual = (maxima_del_anio(ws, c.codigo, anio[:4], alimentador)
+             if anio and anio[:4].isdigit() and alimentador else None)
+    if anual is None:
+        _a_su_maxima(c, reg_max, avisos)
+        if anio:
+            avisos.append(f'{c.codigo}: sin su evolución de {anio[:4]}: va con su máxima del mes.')
+        return
+    c.pot = anual['p_kw']
+    # La fecha como la dan los registros de la tabla (``registros_de_maxima``): «01/07/2026 02:15».
+    try:
+        c.fecha_registro = datetime.fromisoformat(str(anual['fecha'])).strftime('%d/%m/%Y %H:%M')
+    except (TypeError, ValueError):
+        c.fecha_registro = str(anual['fecha'] or '')
+    c.q_registro_kvar = anual['q_kvar']
+    c.p_registro_kw = None
+    avisos.append(f"{c.codigo}: a su máxima del año {anio[:4]}: {anual['p_kw']:,.1f} kW el {anual['fecha']}.")
 
 
 def _a_su_maxima(c, reg_max: dict, avisos: list[str]) -> None:
@@ -4155,7 +4246,8 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     for c in cruzados:
         marcado = c.codigo in suyos_marcados
         if marcado:
-            _a_su_maxima(c, reg_max, avisos_max)
+            _a_su_maxima_del_anio(ws, c, (mes or periodo or '')[:4], c.radial or (feeders[0] if feeders else None),
+                                  reg_max, avisos_max)                                   # 039:RF-31
         elif registro.get(c.codigo):
             c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
         correccion = _corregir_cliente(ws, c, mes or periodo)                                 # 039:RF-23
@@ -4294,7 +4386,8 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
         for c in suyos:
             marcado = clave_codigo(c.codigo) in marcados
             if marcado:
-                _a_su_maxima(c, reg_max, avisos_max)                               # 039:RF-12
+                _a_su_maxima_del_anio(ws, c, (mes or '')[:4], c.radial or (feeders[0] if feeders else None),
+                                      reg_max, avisos_max)                              # 039:RF-12, RF-31
             elif registro.get(c.codigo):
                 c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
             correccion = _corregir_cliente(ws, c, mes)                             # 039:RF-23
@@ -4326,7 +4419,8 @@ def _clientes_en_sus_maximas(ws: Workspace, alimentadores: list[str], maximas: d
                 coinc = None if sin_inst else _valor_fija(fila, _registro_corregido(reg_inst.get(c.codigo), correccion),
                                                           True, obj, fp_min)
                 maxi = _valor_fija(fila, _registro_corregido(reg_max.get(c.codigo), correccion), False, obj, fp_min)
-                fila['valores'] = {CRITERIO_COINCIDENTE: coinc, CRITERIO_MAXIMO_MES: maxi}
+                fila['valores'] = {CRITERIO_COINCIDENTE: coinc, CRITERIO_MAXIMO_MES: maxi,
+                                   VALOR_MAXIMO_ANIO: _valor_del_anio(ws, c.codigo, mes, c.radial or f)}   # 039:RF-32
                 # 039:RF-10: cuánto sube su P de la coincidente a su máxima del mes.
                 if coinc is not None and maxi is not None:
                     fila['diferencia_kw'] = maxi['p_kw'] - coinc['p_kw']
@@ -5073,6 +5167,8 @@ def ajuste_plan(ws: Workspace, project: str, maximas: list[dict], medidor: str,
             'transformadores_automaticos': transformadores_automaticos,
             # 101:RF-16: antes de calibrar, los transformadores vuelven a los del archivo (solo la primera pasada).
             'transformadores_del_archivo': transformadores_del_archivo,
+            # 015:RF-77: la media medida del periodo, para ver si la red convertida puede llevarla.
+            'promedio_kw': fila.get('promedio_kw'),
             'bancos_kvar_por_tension': {str(k): v for k, v in (por_tension or {}).items()},
             # 015:RF-54: solo las escaladas; None deja la Q del archivo (RF-55).
             'factor_potencia_cargas': fp_cargas,
@@ -7829,6 +7925,28 @@ def valle_de_la_obra(ws: Workspace, project: str | None, alimentador: str) -> di
     return (json.loads(ruta.read_text(encoding='utf-8')).get(project.strip()) or {}).get(alimentador)
 
 
+def hasta_la_red_existente(camino: list, existen: set) -> list:
+    """042:RF-115: el camino de una carga nueva sin sus tramos propios: hasta la última barra de la red existente.
+
+    La obra se lee y se graba con las cargas nuevas apartadas; el camino se calcula con ellas y acababa en la línea de
+    enlace de la carga (``LNE_<SED>``), que entonces no existe. LL202 (27-11): toda sección y terna «hasta LNE_SEN0001»
+    fallaba con «El tramo 'LNE_SEN0001' no es del alimentador LL202» y la evaluación no midió ninguna. Se corta mientras
+    el último tramo acabe en una barra que no existe sin las cargas nuevas o sea la línea de enlace de una carga nueva.
+    """
+    import re
+
+    # La mitad «(n)» de un tramo partido por la carga es red existente: la obra la trata como el tramo entero (CA191).
+    partida = re.compile(r'\(\d+\)$')
+    out = list(camino)
+    while out:
+        nombre = str(out[-1].get('nombre') or '')
+        if not (nombre.startswith('LNE_') or (str(out[-1].get('hasta') or '') not in existen
+                                              and not partida.search(nombre))):
+            break
+        out.pop()
+    return out
+
+
 def _carga_para_escalera(barra: str, existen: set, datos: dict) -> dict:
     """La carga como la ve la escalera: su barra, si existe sin las cargas nuevas, y su tramo.
 
@@ -7837,6 +7955,8 @@ def _carga_para_escalera(barra: str, existen: set, datos: dict) -> dict:
     """
     indice = (datos.get('indices') or {}).get(barra)
     camino = (datos.get('caminos') or {}).get(barra) or []                # 063:RF-32
+    if barra not in existen:
+        camino = hasta_la_red_existente(camino, existen)                   # 042:RF-115
     if barra in existen:
         return {'barra': barra, 'existe': True, 'indice_troncal': indice, 'camino': camino}
     otra = (datos.get('banco_en') or {}).get(barra)
@@ -15434,7 +15554,14 @@ def cuadro_de_perdidas(ws: Workspace, project: str | None = None) -> dict:
     """017:RF-156: el cuadro de pérdidas de los casos del espacio (o de un proyecto), con lo último medido en Estudios."""
     from ...aplicacion.resumen_casos import cuadro_de_perdidas as cuadro
 
-    return cuadro(_estudios_de_flujo(ws, project))
+    estudios = _estudios_de_flujo(ws, project)
+    calibradas: dict[tuple[str, str], float] = {}                                     # 017:RF-157
+    for p in sorted({e['project'] for e in estudios}):
+        for i in (ajuste_aplicado_en_disco(ws, p) or {}).get('informes') or []:
+            kw = ((i.get('objetivo') or {}).get('kw'))
+            if i.get('feeder') and kw:
+                calibradas[(p, str(i['feeder']))] = float(kw)
+    return cuadro(estudios, calibradas)
 
 
 def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:

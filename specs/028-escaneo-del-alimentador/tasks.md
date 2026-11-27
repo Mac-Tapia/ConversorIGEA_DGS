@@ -104,3 +104,6 @@ cuando el usuario ponga a mano la central de NA295.
       tabla, con `tsc` y `npm run build`.
       Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/ESCANEO_BASE/rojo.log`, verde (`verde.log`). La comprobación real es
       volver a escanear PA217 desde la web.
+- [ ] T20 [DIgSILENT] REGULADORES-EN-EL-ESCANEO (27-11): leer en DIgSILENT los nombres de la tensión y la corriente nominales y de las barras de ElmVoltreg y TypVoltreg, y llevarlos al escaneo. Los reguladores existentes en el escaneo, con su revisión. (RF-46)
+      Hecho cuando: `tests/test_escaneo.py` (028:RF-46) en verde con su rojo por aserción, y el escaneo real de LL203
+      lista su regulador con los atributos leídos en DIgSILENT (nombres de ElmVoltreg y TypVoltreg comprobados).

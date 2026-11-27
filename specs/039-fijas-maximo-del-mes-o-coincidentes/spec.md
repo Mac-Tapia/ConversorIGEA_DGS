@@ -113,9 +113,26 @@ cargarlo y recalibrar desde la web («no debería ser interno: debe tener un bot
   con valor absoluto, desde el mes de su máxima, y un botón la registrará como la corrección de RF-26; no corregirá
   nada por su cuenta. (LL202, L-LL122: 9 296 kW con la barra B-LL2T1 en 3 139 kW; sus 19,3 A a 24 kV son 805 kVA.)
 - RF-28: (usuario, 2026-11-27, LL203) SI un cliente fijo pasa su cabecera solo en pocos registros (la hipótesis es que
-  la cabecera no midió toda la carga en ellos, RF-24 d) y hace al menos la mitad de la energía de su cabecera, ENTONCES
-  EL SISTEMA no lo liberará (enmienda RF-25): quedará fijo con su medida y lo dirá. (SE80083, 481000151: 15 registros
+  la cabecera no midió toda la carga en ellos, RF-24 d), ENTONCES EL SISTEMA no lo liberará, con cualquier parte de la
+  energía (enmienda RF-25; PA217, 27-11: SE30940 con 1 registro y el 38 %): quedará fijo con su medida y lo dirá. (SE80083, 481000151: 15 registros
   de 2 976 y el 68 % de la energía de LL203; liberado, sus 2 180 kW se repartieron entre las demás SED.)
+- RF-29: (usuario, 2026-11-27, PA217) EL SISTEMA no liberará a un cliente que el operador marcó «a su máxima» en la tabla
+  cruzada (RF-12), y su máxima ganará a un cambio a mano de su SED (enmienda 014:RF-10): la marca es su decisión
+  explícita; el informe dirá qué cambio a mano reemplaza. (SE30940, 700064806: escrita a mano en 3,8 MW para corregir
+  la liberación a 1,2 MW.)
+- RF-30: (usuario, 2026-11-27) CUANDO `tools/sistema_web.py` reciba `--corregir-cabecera MEDIDOR FACTOR`, EL SISTEMA
+  registrará esa corrección (RF-26, con valor absoluto, desde enero del año del periodo) por la web antes de buscar la
+  máxima, como el operador en 2.2. (LL202, L-LL122: su hoja en décimas de kW.)
+- RF-31: (usuario, 2026-11-27, PA217: «ya no debería ser a mano sino buscar su máxima de todo el año») EL SISTEMA
+  llevará al cliente marcado «a su máxima» (RF-12) con su máxima de todo el año de la máxima de cabecera, tomada de
+  la evolución de los clientes fijos (105:RF-5): el mes de mayor P máxima, con su fecha y hora y la Q en ese
+  instante, calculada cada vez que se llame el trabajo (o la guardada si sus libros no cambiaron), para cualquier
+  cliente fijo; sin ella, con la del mes (RF-12), y lo dirá en los avisos. (Usuario: «se podría sacar de la
+  evolución de demanda de los clientes fijos».)
+- RF-32: (usuario, 2026-11-27: «debería ser la máxima del año y la máxima del mes donde coincide con la cabecera de su
+  alimentador») EL SISTEMA mostrará en cada fila de fija de la tabla cruzada, junto a la coincidente y a su máxima del
+  mes de la máxima de cabecera (RF-9), su máxima del año (RF-31) con su P, su Q y su fecha; la casilla «a su máxima»
+  dirá que sube a la del año.
 
 ## Relación con otras specs
 

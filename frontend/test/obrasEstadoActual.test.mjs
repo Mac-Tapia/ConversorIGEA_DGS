@@ -111,3 +111,12 @@ test('017:RF-156 «Estudios» muestra el cuadro de pérdidas con el tramo más c
     assert.ok(estudios.includes(col), col);
   }
 });
+
+// 039:RF-32: la tabla cruzada lleva la máxima del año de cada fija y «a su máxima» sube a ella.
+test('039:RF-32 la tabla cruzada muestra su máxima del año y la marca sube a ella', async () => {
+  const { readFileSync } = await import('node:fs');
+  const pantalla = readFileSync(fileURLToPath(new URL('../src/features/powerfactory/DemandaMedida.tsx', import.meta.url)), 'utf8');
+  assert.match(pantalla, /">Su máxima del año<\/th>/);
+  assert.match(pantalla, /c\.valores\?\.maximo_anio \? <>\{kwKvar\(c\.valores\.maximo_anio\)\}/);
+  assert.match(pantalla, /if \(marcada\) return c\.valores\?\.maximo_anio \?\? c\.valores\?\.maximo_mes/);
+});

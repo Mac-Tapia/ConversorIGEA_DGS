@@ -44,6 +44,41 @@ def origen_de(nombre: str, variacion: str | None = None) -> dict[str, Any]:
     return {'origen': 'operador', 'por': None}
 
 
+#: 028:RF-46: veces la corriente de la carga por encima de la cual un regulador está sobredimensionado.
+VECES_CORRIENTE_REGULADOR = 5.0
+#: 028:RF-46: holgura relativa entre tensiones nominales que se consideran iguales.
+HOLGURA_TENSION = 0.05
+
+
+def revisar_regulador(r: Mapping[str, Any], *, kv_red: float | None, carga_kw: float | None = None) -> list[str]:
+    """028:RF-46: lo que no cuadra en un regulador de tensión existente, para decirlo al escanear.
+
+    ``r``: ``regulador``, ``configuracion`` («estrella», «triangulo» u otra), ``ur_unidad_kv`` (tensión nominal de cada
+    unidad monofásica), ``ir_a`` (corriente nominal), ``kv_s`` y ``kv_l`` (tensión nominal de sus barras) y
+    ``control`` (si regula). LL203 (27-11): el operador puso uno con 22,9 kV por unidad en estrella (debía ser 13,2 kV),
+    2 000 A para unos 85 A de carga y el flujo no convergía.
+    """
+    avisos: list[str] = []
+    nombre = str(r.get('regulador') or 'regulador')
+    ur, conf = r.get('ur_unidad_kv'), str(r.get('configuracion') or '').lower()
+    if kv_red and ur and 'estrella' in conf and abs(ur - kv_red) <= HOLGURA_TENSION * kv_red:
+        avisos.append(f'{nombre}: en estrella cada unidad va entre fase y neutro; su tensión nominal debe ser '
+                      f'{kv_red / 3 ** 0.5:.2f} kV ({kv_red:g}/√3), no {ur:g} kV: así el flujo no converge.')
+    for lado in ('kv_s', 'kv_l'):
+        kv = r.get(lado)
+        if kv_red and kv is not None and abs(kv - kv_red) > HOLGURA_TENSION * kv_red:
+            avisos.append(f"{nombre}: su barra del lado {'S' if lado == 'kv_s' else 'L'} es de {kv:g} kV y la red de "
+                          f'{kv_red:g} kV.')
+    ir = r.get('ir_a')
+    if ir and kv_red and carga_kw:
+        i_carga = carga_kw / (3 ** 0.5 * kv_red)
+        if ir > VECES_CORRIENTE_REGULADOR * i_carga:
+            avisos.append(f'{nombre}: {ir:,.0f} A nominales para unos {i_carga:,.0f} A de carga: está sobredimensionado.')
+    if r.get('control') is False:
+        avisos.append(f'{nombre}: tiene el control de tomas desactivado: no regula.')
+    return avisos
+
+
 def resumen(escaneo: Mapping[str, Any]) -> dict[str, dict[str, int]]:
     """Cuántos generadores, bancos y cargas cambiadas tiene cada alimentador, y de quién."""
     out = {}
@@ -57,7 +92,8 @@ def resumen(escaneo: Mapping[str, Any]) -> dict[str, dict[str, int]]:
                   'bancos_de_calibracion': sum(b.get('origen') == 'conversor' for b in bancos),
                   'cargas_cambiadas': len(d.get('cargas_cambiadas') or []),
                   'tramos_nuevos': len(d.get('tramos_nuevos') or []),
-                  'tramos_cambiados': len(d.get('tramos_cambiados') or [])}           # RF-26
+                  'tramos_cambiados': len(d.get('tramos_cambiados') or []),           # RF-26
+                  'reguladores': len(d.get('reguladores') or [])}                       # RF-46
     return out
 
 

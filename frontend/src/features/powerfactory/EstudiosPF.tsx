@@ -631,7 +631,8 @@ function CuadroDePerdidas({ project }: { project: string }) {
               <th className="num">Caída en MT</th></tr></thead>
             <tbody>{cuadro.filas.map((r) => (
               <tr key={`${r.proyecto}-${r.alimentador}-${r.caso}`} className={r.converge ? '' : 'muted'}>
-                <td className="small">{r.proyecto}</td><td>{r.alimentador}</td><td>{r.caso}</td>
+                <td className="small">{r.proyecto}</td><td>{r.alimentador}</td>
+                <td>{r.caso}{r.aviso && <span className="aviso-icono" role="img" aria-label={r.aviso} title={r.aviso}> ⚠</span>}</td>
                 <td className="num">{fmtNum(r.cabecera_kw, 0)}</td><td className="num">{fmtNum(r.perdidas_kw, 0)}</td>
                 <td className="num">{pct(r.perdidas_pct)}</td><td className="small">{r.tramo ?? '—'}</td>
                 <td className="num">{pct(r.cargabilidad_pct)}</td><td className="small">{r.barra_mt ?? '—'}</td>

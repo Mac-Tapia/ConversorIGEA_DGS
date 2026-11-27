@@ -321,13 +321,27 @@ def numero_o_none(x: Any) -> float | None:
         return None
 
 
-def cuadro_de_perdidas(estudios: Sequence[Mapping[str, Any]]) -> dict[str, Any]:
+#: 017:RF-157: lo que puede apartarse la cabecera medida en «Sin proyecto» de la calibrada sin avisar.
+DESVIO_CABECERA = 0.02
+
+
+def cuadro_de_perdidas(estudios: Sequence[Mapping[str, Any]],
+                       calibradas: Mapping[tuple[str, str], float] | None = None) -> dict[str, Any]:
     """017:RF-156: el cuadro de pérdidas de los estudios de flujo dados (``{'project', 'caso', 'medidas'}``), una fila por
     proyecto, alimentador y caso, en el orden de :data:`ORDEN_CASOS`; y qué casos de cada proyecto faltan."""
     filas = [fila_de_perdidas(str(e.get('project') or ''), str(e.get('caso') or ''), f, m)
              for e in estudios for f, m in sorted((e.get('medidas') or {}).items()) if isinstance(m, Mapping)]
     orden = {c: i for i, c in enumerate(ORDEN_CASOS)}
     filas.sort(key=lambda r: (r['proyecto'], r['alimentador'], orden.get(r['caso'], 9), r['caso']))
+    # 017:RF-157: PA217 (27-11) daba 12 411 kW en «Sin proyecto» calibrado a 9 447 kW (una SED cambiada a mano).
+    for r in filas:
+        cal = (calibradas or {}).get((r['proyecto'], r['alimentador']))
+        r['cabecera_calibrada_kw'] = cal if r['caso'] == ORDEN_CASOS[0] else None
+        r['aviso'] = None
+        if r['caso'] == ORDEN_CASOS[0] and cal and r['cabecera_kw'] is not None \
+                and abs(r['cabecera_kw'] - cal) > DESVIO_CABECERA * cal:
+            r['aviso'] = (f"la cabecera da {r['cabecera_kw']:,.0f} kW y se calibró a {cal:,.0f} kW: algo cambió la "
+                          'demanda calibrada (un cambio a mano o una orden posterior)')
     proyectos = sorted({r['proyecto'] for r in filas})
     faltan = [{'proyecto': p, 'caso': c} for p in proyectos for c in ORDEN_CASOS
               if not any(r['proyecto'] == p and r['caso'] == c for r in filas)]

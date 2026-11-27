@@ -26,3 +26,9 @@
       Hecho cuando: `tests/test_ajuste_cabecera_guion.py` y `tests/test_ajuste_cabecera_web.py` (101:RF-16) en verde
       con su rojo por aserción, y LL202 y LL203 recalibrados desde la web con la casilla. Hecho el 2026-11-27
       (evidencia en el commit que lo integra).
+- [x] T7 SISTEMA-WEB-PROYECTO-EXISTENTE (27-11). `--proyecto` y `--transformadores-del-archivo` en `sistema_web.py`. (RF-17)
+      Hecho cuando: `tests/test_sistema_web.py` (101:RF-17) en verde con su rojo por aserción. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).
+- [x] T8 RETIRADA-SELECTIVA (27-11). Lo del operador dentro de SED_NTP_ se conserva. (RF-18)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (101:RF-18) en verde con su rojo por aserción, y LL203
+      recalibrado conservando su regulador. Hecho el 2026-11-27 (evidencia en el commit que lo integra).

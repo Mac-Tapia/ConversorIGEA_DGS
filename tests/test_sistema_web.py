@@ -846,3 +846,45 @@ def test_100_rf15_otro_guion_vivo_sobre_el_mismo_espacio_no_deja_convertir_ni_im
     salida = capsys.readouterr().out
     assert hechos == [] and '4242' in salida and 'espacio E' in salida
     assert herramienta.main(['--espacio', 'F', '--red', 'A1', '--demanda-dir', str(tmp_path)]) == 0 and hechos == ['correr']
+
+
+def test_101_rf17_rf16_039_rf30_proyecto_existente_del_archivo_y_correccion(herramienta):
+    """101:RF-17, 101:RF-16, 039:RF-30 — con ``--proyecto`` se calibra ese proyecto sin convertir ni importar; el plan
+    pide partir de los transformadores del archivo y la corrección del medidor se registra antes de buscar la máxima.
+    LL202 (27-11): no estaba en el registro del espacio y su hoja de cabecera estaba en décimas de kW."""
+    import inspect
+
+    assert {'proyecto_existente', 'del_archivo', 'correcciones'} <= set(inspect.signature(herramienta.correr).parameters),         'faltan 101:RF-17, 101:RF-16 y 039:RF-30 en sistema_web'
+    web = WebFalsa(informes=[VALIDO])
+    puestos, planes = [], []
+    original = web.post
+
+    def post(ruta, **kw):
+        if ruta == '/demanda/ajuste/plan':
+            planes.append(kw['json'])
+        return original(ruta, **kw)
+
+    web.post = post
+    web.put = lambda ruta, **kw: puestos.append((ruta, kw['json'], [r for _m, r in web.llamadas])) or {}
+    rc = herramienta.correr(web, 'Pisco', demanda_dir=Path('libros'), periodo='2026-01', reconvertir=False,
+                            transformadores=False, tension_pu=None, bancos=True, libros=LIBROS,
+                            proyecto_existente='P_EXISTENTE', del_archivo=True, correcciones=[('L-PI192', 0.1)])
+    assert rc == 0
+    rutas = [r for _m, r in web.llamadas]
+    assert '/convert/sistema' not in rutas and '/powerfactory/flow' not in rutas, 'nunca convierte ni importa'
+    (ruta, cuerpo, antes), = puestos
+    assert ruta == '/demanda/cabecera/correccion' and cuerpo['factor'] == 0.1 and cuerpo['absoluto'] is True
+    assert cuerpo['desde'] == '2026-01' and '/demanda/cabecera/buscar' not in antes, 'antes de buscar la máxima'
+    assert planes and planes[0]['project'] == 'P_EXISTENTE' and planes[0]['transformadores_del_archivo'] is True
+    web2 = WebFalsa(informes=[VALIDO])
+    herramienta_ausente = herramienta._caso_base_verificado
+    herramienta._caso_base_verificado = lambda *_a: True            # el proyecto ya no está en DIgSILENT
+    try:
+        rc2 = herramienta.correr(web2, 'Pisco', demanda_dir=Path('libros'), periodo='2026-01', reconvertir=False,
+                              transformadores=False, tension_pu=None, bancos=True, libros=LIBROS,
+                                 proyecto_existente='P_EXISTENTE')
+    finally:
+        herramienta._caso_base_verificado = herramienta_ausente
+    assert rc2 == 2, 'el proyecto que ya no está no se reimporta'
+    assert '/convert/sistema' not in [r for _m, r in web2.llamadas]
+

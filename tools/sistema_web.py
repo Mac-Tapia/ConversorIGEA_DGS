@@ -129,6 +129,9 @@ class Web:
     def post(self, ruta: str, **kw):
         return self._pedir('POST', f'/api/workspaces/{self.espacio}{ruta}', **kw)
 
+    def put(self, ruta: str, **kw):
+        return self._pedir('PUT', f'/api/workspaces/{self.espacio}{ruta}', **kw)
+
     def esperar(self, trabajo: dict, limite_s: float = 6 * 3600) -> dict:
         fin = time.monotonic() + limite_s
         while time.monotonic() < fin:
@@ -376,7 +379,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
            red: list[str] | None = None, grupo: str | None = None,
            criterio_fijas: str = 'coincidente', set_electrica: str | None = None,
            maximo_mes: list[str] | None = None,
-           a_su_maxima: list[str] | None = None) -> int:
+           a_su_maxima: list[str] | None = None, proyecto_existente: str | None = None,
+           del_archivo: bool = False, correcciones: list[tuple[str, float]] | None = None) -> int:
     red = list(dict.fromkeys(a.strip().upper() for a in red or [] if a.strip()))
     if bool(red) == bool(zonal) or (grupo and not red) or (red and reconstruir):
         print('ERROR: elija --zonal o --red; --grupo requiere --red y --reconstruir requiere --zonal.')
@@ -410,7 +414,12 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         if not _terminado(web.esperar(web.post('/load'))):
             return 2
     grupo = nombre_del_grupo(zonal, red=red, grupo=grupo, set_electrica=set_electrica)
-    proyecto = (web.get('').get('pf_projects') or {}).get(grupo)
+    # 101:RF-17: un proyecto que ya está en DIgSILENT (también el convertido en otro espacio, 018:RF-18) se calibra tal
+    # cual: nunca se convierte ni se importa. LL202 (27-11) no estaba en el registro del espacio y se habría reimportado.
+    proyecto = proyecto_existente or (web.get('').get('pf_projects') or {}).get(grupo)
+    if proyecto_existente and reconvertir:
+        print('ERROR: --proyecto calibra un proyecto existente: no admite --reconvertir.')
+        return 2
     if proyecto is None or reconvertir:
         try:
             grupo, proyecto = _convertir_e_importar(web, red=red, zonal=zonal, set_electrica=set_electrica,
@@ -425,6 +434,10 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # y la calibración decía «no está verificado» o dejaba fuera a sus alimentadores. Lo que se va a
     # reconstruir no: se verifica lo nuevo en su vuelta.
     if not reconstruir and _caso_base_verificado(web, proyecto, grupo):
+        if proyecto_existente:                                                 # 101:RF-17: nunca se reimporta
+            print(f'ERROR: el proyecto {proyecto} no está en DIgSILENT: con --proyecto no se convierte ni se importa '
+                  'de nuevo.', flush=True)
+            return 2
         # 018:RF-17: el vínculo nombra un proyecto que ya no está en DIgSILENT. PE10 de prueba (2026-11-10): el DGS
         # de antes es de otra ejecución y la web no lo deja importar (SOURCE_RUN_MISMATCH); se convierte de nuevo
         # desde la fuente cargada, que da el mismo DGS, y se importa. No se borra nada: el anterior ya no existe.
@@ -453,6 +466,15 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
     # 025:RF-28, RF-34: el índice por año de la cabecera, el mismo que ve el operador.
     if not _terminado(web.esperar(web.post('/demanda/cabecera/indexar'))):
         return 2
+    # 039:RF-30: la corrección de un medidor de cabecera (039:RF-26), como en 2.2, antes de buscar la máxima: factor y
+    # valor absoluto desde enero del año del periodo. LL202 (L-LL122, 27-11): su hoja estaba en décimas de kW.
+    for medidor, factor in correcciones or []:
+        desde = f'{periodo[:4]}-01' if periodo and periodo[:4].isdigit() else ''
+        web.put('/demanda/cabecera/correccion', json={
+            'medidor': medidor, 'factor': factor, 'absoluto': True, 'desde': desde,
+            'motivo': 'registrado por sistema_web.py (--corregir-cabecera)'})
+        print(f'  corrección de {medidor}: ×{factor:g} y valor absoluto' + (f' desde {desde}' if desde else ''),
+              flush=True)
     if 'clientes' in libros:
         if not _terminado(web.esperar(web.post('/demanda/clientes/indexar'))):
             return 2
@@ -613,7 +635,8 @@ def correr(web: Web, zonal: str | None, *, demanda_dir: Path, periodo: str | Non
         # 083:RF-31: sin la opción de simular antes, el guion cambia los transformadores en la misma pasada.
         'transformadores_automaticos': not transformadores,
         'centrales': del_perfil, 'criterio_fijas': criterio_fijas,             # 039:RF-1
-        'criterio_por_alimentador': por_alimentador, **con_a_su_maxima},       # 039:RF-8, RF-16
+        'criterio_por_alimentador': por_alimentador, **con_a_su_maxima,        # 039:RF-8, RF-16
+        'transformadores_del_archivo': del_archivo},                            # 101:RF-16
         timeout=PLAZO_SINCRONO_S)                                              # 086:RF-139
     for aviso in plan.get('avisos', []):
         if 'por su banco propio' not in aviso:  # las fijas compensadas por su banco, una por cliente: no se repiten
@@ -819,7 +842,14 @@ def main(argv=None) -> int:
     p.add_argument('--resumen-json', type=Path, help='Dónde dejar la lista de lo que no quedó calibrado (081:RF-21)')
     p.add_argument('--con-proyecto', nargs='+', metavar='COD',
                    help='Tras calibrar (o ya calibrado), «Con proyecto» de estos alimentadores y su estadística (042:RF-31)')
-    p.add_argument('--proyecto', help='Con --con-proyecto, el proyecto de DIgSILENT ya calibrado: no se calibra de nuevo')
+    p.add_argument('--proyecto', help='Con --con-proyecto, el proyecto de DIgSILENT ya calibrado: no se calibra de nuevo; '
+                   'sin él, el proyecto existente que se calibra con --red, sin convertir ni importar (101:RF-17)')
+    p.add_argument('--transformadores-del-archivo', action='store_true',
+                   help='Calibra partiendo de los transformadores del archivo, sin los que agrandó una calibración '
+                        'anterior (101:RF-16)')
+    p.add_argument('--corregir-cabecera', nargs=2, action='append', metavar=('MEDIDOR', 'FACTOR'), default=[],
+                   help='Registra la corrección de un medidor de cabecera (factor y valor absoluto) antes de buscar '
+                        'la máxima (039:RF-30); se puede repetir')
     p.add_argument('--tipo-cambio', type=float, help='Con --con-proyecto, moneda local por dólar')
     p.add_argument('--rehacer-obras', action='store_true',
                    help='Con --con-proyecto, retira las obras de esos alimentadores y las evalúa de nuevo (042:RF-60)')
@@ -869,7 +899,9 @@ def main(argv=None) -> int:
                     reconstruir=args.reconstruir, libros=libros,
                     red=args.red, grupo=args.grupo, criterio_fijas=args.criterio_fijas,
                     maximo_mes=args.maximo_mes, a_su_maxima=args.a_su_maxima,
-                    set_electrica=args.set_electrica)
+                    set_electrica=args.set_electrica, proyecto_existente=args.proyecto,
+                    del_archivo=args.transformadores_del_archivo,
+                    correcciones=[(m, float(f)) for m, f in args.corregir_cabecera])
         if rc or not args.con_proyecto:
             return rc
         # CA191 + CHN192 (098 T6, 2026-11-08): con --con-proyecto y sin --proyecto calibraba y terminaba sin

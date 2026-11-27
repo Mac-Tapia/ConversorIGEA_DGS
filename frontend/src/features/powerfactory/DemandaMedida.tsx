@@ -195,7 +195,7 @@ function AlimentadoresMaximoMes({ alimentadores, marcados, cambiar, disabled }: 
 /** 039:RF-9, RF-12: la P y la Q con que va una fija según la selección «a su máxima» de ahora, que puede haber
  * cambiado desde el cruce: marcada, la de su máxima del mes; desmarcada, la del criterio de su alimentador. */
 const valorQueVa = (c: ClienteImportante, marcada: boolean): ValorFija | null => {
-  if (marcada) return c.valores?.maximo_mes ?? (c.p_kw == null ? null : { p_kw: c.p_kw, q_kvar: c.q_kvar ?? null, fecha: c.fecha_valores, metodo: c.metodo });
+  if (marcada) return c.valores?.maximo_anio ?? c.valores?.maximo_mes ?? (c.p_kw == null ? null : { p_kw: c.p_kw, q_kvar: c.q_kvar ?? null, fecha: c.fecha_valores, metodo: c.metodo });
   if (c.a_su_maxima && c.valores) return c.valores[c.criterio_alimentador ?? 'coincidente'];
   return c.p_kw == null ? null : { p_kw: c.p_kw, q_kvar: c.q_kvar ?? null, fecha: c.fecha_valores, metodo: c.metodo };
 };
@@ -1082,8 +1082,9 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
             <th title="el criterio con que va: el de su alimentador o «a su máxima»">Criterio</th>
             <th title="su P y su Q en el registro de la fecha y hora de la máxima de cabecera">Coincidente</th>
             <th title="su POT máxima del mes y el ERI × 4 de ese mismo registro">Su máxima del mes</th>
+            <th title="su mayor P máxima del año, con la Q en ese instante (evolución de los clientes fijos)">Su máxima del año</th>
             <th className="num" title="P de su máxima del mes menos la coincidente">Diferencia</th>
-            <th title="subir este cliente a su máxima del mes (calidad de producto)">A su máxima</th>
+            <th title="subir este cliente a su máxima del año (calidad de producto)">A su máxima</th>
           </> : <>
             <th title="el registro de 15 minutos de su hoja en que se dio su Pot">Registro de su Pot</th>
             <th className="num" title="ERI de ese registro × 4">kVAR en él</th>
@@ -1114,8 +1115,9 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
                     ? <span className="badge err" title={c.sin_coincidente}>sin el registro de la máxima</span>
                     : ORIGEN_VALORES[(va?.metodo ?? '').split(' ')[0]] ?? va?.metodo ?? '—'}</td>
                   <td className="small">{marcada
-                    ? <strong>A su máxima: {kwKvar(c.valores?.maximo_mes ?? va)}{(c.valores?.maximo_mes ?? va)?.fecha
-                      ? ` (${(c.valores?.maximo_mes ?? va)!.fecha})` : ' (POT y EA/ERI del mes)'}</strong>
+                    ? <strong>A su máxima: {kwKvar(c.valores?.maximo_anio ?? c.valores?.maximo_mes ?? va)}
+                      {(c.valores?.maximo_anio ?? c.valores?.maximo_mes ?? va)?.fecha
+                        ? ` (${(c.valores?.maximo_anio ?? c.valores?.maximo_mes ?? va)!.fecha})` : ' (POT y EA/ERI del mes)'}</strong>
                     : criterioDe(criterio as CriterioFijas | undefined).texto}</td>
                   <td className="small">{c.valores?.coincidente ? <>{kwKvar(c.valores.coincidente)}
                     {c.valores.coincidente.fecha && <span className="muted"> · {c.valores.coincidente.fecha}</span>}</>
@@ -1123,11 +1125,15 @@ function Cruce({ cruce, visibles: todas, filtro, setFiltro, desconectados, conmu
                   <td className="small">{c.valores?.maximo_mes ? <>{kwKvar(c.valores.maximo_mes)}
                     {c.valores.maximo_mes.fecha && <span className="muted"> · {c.valores.maximo_mes.fecha}</span>}</>
                     : '—'}</td>
+                  {/* 039:RF-32: la del año, de la evolución de los clientes fijos; es la que va «a su máxima» (RF-31). */}
+                  <td className="small">{c.valores?.maximo_anio ? <>{kwKvar(c.valores.maximo_anio)}
+                    {c.valores.maximo_anio.fecha && <span className="muted"> · {c.valores.maximo_anio.fecha}</span>}</>
+                    : '—'}</td>
                   <td className="num">{c.diferencia_kw == null ? '—' : <>{fmtNum(c.diferencia_kw, 1)} kW
                     {c.diferencia_pct != null && <span className="muted"> ({fmtNum(c.diferencia_pct, 1)} %)</span>}</>}</td>
                   <td><input type="checkbox" checked={marcada} disabled={bloqueado} onChange={() => conmutarMaxima(c.codigo)}
-                    aria-label={`Subir ${c.codigo} a su máxima del mes`}
-                    title="Marcado: va con la POT máxima de su hoja y el ERI × 4 de ese registro; su subida se descuenta de las escaladas" /></td>
+                    aria-label={`Subir ${c.codigo} a su máxima del año`}
+                    title="Marcado: va con su máxima del año y la Q de ese instante; su subida se descuenta de las escaladas" /></td>
                 </>;
               })()}
             </> : <>

@@ -186,3 +186,6 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Hecho cuando: `tests/test_resumen_casos.py` y `frontend/test/obrasEstadoActual.test.mjs` (017:RF-156) en verde con
       su rojo por aserción, `tsc` y `npm run build`, y el cuadro sale en «Estudios» con los estudios guardados. Hecho el
       2026-11-27 (evidencia en el commit que lo integra).
+- [x] T27 CUADRO-AVISA-DESVIO (27-11). La cabecera que se aparta de la calibrada, dicha en el cuadro. (RF-157)
+      Hecho cuando: `tests/test_resumen_casos.py` (017:RF-157) en verde con su rojo por aserción. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).

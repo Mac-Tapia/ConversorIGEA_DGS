@@ -48,7 +48,7 @@ def test_reglas_barra_de_la_central_y_resumen():
     r = esc.resumen(escaneo)['A']
     assert r == {'generadores': 2, 'generadores_del_operador': 1, 'bancos': 2,
                  'bancos_del_operador': 1, 'bancos_de_calibracion': 1, 'cargas_cambiadas': 0,
-                 'tramos_nuevos': 0, 'tramos_cambiados': 0}
+                 'tramos_nuevos': 0, 'tramos_cambiados': 0, 'reguladores': 0}
 
 
 @pytest.fixture(scope='module')
@@ -662,3 +662,20 @@ def test_028_rf45_solo_obras_terna_seccion_bancos_y_sed():
         ('T1', {'ternas': (1, 2)}), ('T3', {'tipo': ('AA35', 'AA70')})]
     assert [s['sed'] for s in d['sed_nuevas']] == ['TR_SE9']
     assert d['sed_cambiadas'] == [{'sed': 'TR_SE1', 'cambios': {'tipo': ('100 kVA', '160 kVA')}}]
+
+
+def test_028_rf46_revisa_el_regulador_existente():
+    """028:RF-46 — LL203 (27-11): 22,9 kV por unidad en estrella, 2 000 A para unos 85 A de carga y su barra L de otra
+    tensión; cada cosa se dice. Uno bien puesto no da avisos."""
+    from convertersmartgrid.aplicacion import escaneo as esc
+
+    assert hasattr(esc, 'revisar_regulador'), 'falta 028:RF-46'
+    mal = {'regulador': 'Step-Voltage Regulator', 'configuracion': 'estrella', 'ur_unidad_kv': 22.9, 'ir_a': 2000.0,
+           'kv_s': 22.9, 'kv_l': 0.4, 'control': True}
+    avisos = esc.revisar_regulador(mal, kv_red=22.9, carga_kw=3300.0)
+    assert any('13.22 kV' in a for a in avisos) and any('sobredimensionado' in a for a in avisos)
+    assert any('lado L es de 0.4 kV' in a for a in avisos)
+    bien = {**mal, 'ur_unidad_kv': 13.22, 'ir_a': 219.0, 'kv_l': 22.9}
+    assert esc.revisar_regulador(bien, kv_red=22.9, carga_kw=3300.0) == []
+    assert any('no regula' in a for a in esc.revisar_regulador({**bien, 'control': False}, kv_red=22.9))
+

@@ -1,6 +1,6 @@
 # Spec 028 — Escaneo del alimentador antes de recalibrar
 
-Estado: cumplida (reabierta el 2026-11-20 con MEJ11-MAXIMA por orden del usuario: RF-43, RF-44, T17) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
+Estado: implementada (reabierta el 2026-11-27 por RF-46: falta T20, la lectura del regulador en DIgSILENT) · antes cumplida (reabierta el 2026-11-20 con MEJ11-MAXIMA por orden del usuario: RF-43, RF-44, T17) · antes cumplida (2026-11-08: tareas cerradas por orden del usuario, sin corrida propia; su aceptación pasa a la spec 100) (revisión 033 del 2026-10-29) · pedida por el usuario el 2026-10-28 («en el interfaz debe tener un campo donde escanea
 al alimentador para hacer la recalibración donde identifique los cambios y centrales térmicas
 en cualquier alimentador; recuerda que este proyecto es universal, general, nada debe estar
 fijo»), tras decir que las centrales y los bancos de NA295 los pone él a mano en DIgSILENT.
@@ -188,6 +188,12 @@ qué instante era común. «Son cosas diferentes, no se debe mezclar».
   las variaciones del conversor (fichas, `SED_NTP_`, obras de «Con proyecto») ni la actualización de parámetros de los
   conductores; las cargas cambiadas a mano siguen saliendo frente a la última calibración (014:RF-10). (PA217 y SM218,
   26-11: el escaneo decía «ninguno», y en su primera versión mostraba cientos de cambios de ficha y bancos repetidos.)
+- RF-46: (usuario, 2026-11-27: «actualicé con un regulador en LL203… cuando se escanee, este existente debe
+  reconocerlo») EL SISTEMA listará en el escaneo los reguladores de tensión de cada alimentador (sus barras, su
+  configuración, la tensión y la corriente nominales de sus unidades y si regula), con su origen (operador o
+  conversor), y dirá lo que no cuadra: tensión por unidad igual a la de línea en estrella (debe ser la de línea entre
+  √3), una barra de otra tensión, una corriente nominal más de cinco veces la de la carga y el control desactivado.
+  (LL203: 22,9 kV por unidad en estrella y 2 000 A para unos 85 A; el flujo no convergía.)
 
 ## Fuera de alcance
 

@@ -195,3 +195,6 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
       Hecho cuando: `tests/test_obra_aparte_web.py` y `frontend/test/obrasEstadoActual.test.mjs` (042:RF-114) en verde con
       su rojo por aserción, `tsc` y `npm run build` en verde, y la obra aplicada desde la web queda en «Con proyecto» con su
       persistencia comprobada. Hecho el 2026-11-27 (evidencia en el commit que lo integra).
+- [x] T73 CAMINO-HASTA-LA-RED-EXISTENTE (27-11). Sin la línea de enlace de la carga nueva. (RF-115)
+      Hecho cuando: `tests/test_informe_factibilidad_un_paso.py` (042:RF-115) en verde con su rojo por aserción. Hecho el
+      2026-11-27 (evidencia en el commit que lo integra).

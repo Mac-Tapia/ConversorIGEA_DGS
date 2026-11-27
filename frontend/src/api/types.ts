@@ -1039,7 +1039,8 @@ export interface ClienteImportante {
   a_su_maxima?: boolean;
   criterio_alimentador?: CriterioFijas;
   /** 039:RF-9: sus dos valores; ``null``, sin el registro de ese criterio. */
-  valores?: { coincidente: ValorFija | null; maximo_mes: ValorFija | null };
+  /** 039:RF-32: ``maximo_anio``, su máxima del año, de la evolución de los clientes fijos. */
+  valores?: { coincidente: ValorFija | null; maximo_mes: ValorFija | null; maximo_anio?: ValorFija | null };
   /** 039:RF-10: P de su máxima del mes menos la coincidente, en kW y en % de la coincidente. */
   diferencia_kw?: number;
   diferencia_pct?: number | null;

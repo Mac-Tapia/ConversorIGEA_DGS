@@ -60,7 +60,7 @@ def test_la_web_ensena_los_dos_valores_ordena_marca_y_recalibra():
     for pieza in ('>Coincidente</th>', '>Su máxima del mes</th>', '>Diferencia</th>', '>A su máxima</th>', '>Criterio</th>',
                   'Diferencia de su máxima (kW), de mayor a menor', 'Diferencia de su máxima (%), de mayor a menor',
                   'Diferencia mínima (%)', 'Desmarcar todos «a su máxima»', 'Recalibrar con estos criterios',
-                  'aria-label={`Subir ${c.codigo} a su máxima del mes`}', 'ws.fijas_a_su_maxima',
+                  'aria-label={`Subir ${c.codigo} a su máxima del año`}', 'ws.fijas_a_su_maxima',
                   'api.demandaASuMaxima(ws.id, codigos)', 'a_su_maxima: aSuMaxima }', 'aSuMaxima={aSuMaxima}'):
         assert pieza in demanda, pieza
     # 039:RF-11: nada se marca solo; la selección cambia solo con la casilla y con «Desmarcar todos».

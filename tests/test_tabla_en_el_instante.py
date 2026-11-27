@@ -411,3 +411,45 @@ def test_039_rf26_la_correccion_del_medidor_de_cabecera_se_registra_y_se_valida(
     for malo in ({'medidor': 'L-LL123', 'factor': 0}, {'medidor': 'L-LL123', 'factor': 0.1, 'desde': '2026-13'},
                  {'medidor': '', 'factor': 0.1}):
         assert client.put(url, json=malo).status_code == 422, malo
+
+
+def test_039_rf31_a_su_maxima_es_la_del_anio(monkeypatch):
+    """039:RF-31 — PA217 (27-11): el cliente marcado va con su máxima de todo el año, de la evolución de los clientes
+    fijos (105:RF-5): el mes de mayor P máxima, su fecha y la Q en ese instante; sin evolución, con la del mes y se dice."""
+    from types import SimpleNamespace as NS
+
+    from convertersmartgrid.presentacion.web import services as sv
+
+    assert hasattr(sv, 'maxima_del_anio'), 'falta 039:RF-31'
+    evolucion = {'clientes': [{'codigo': '700064806', 'anteriores': [], 'meses': [
+        {'mes': '2026-01', 'p_max': 3100.0, 'fecha_p_max': '2026-01-20T19:30', 'q_en_p_max': 300.0},
+        {'mes': '2026-07', 'p_max': 3800.0, 'fecha_p_max': '2026-07-14T19:45', 'q_en_p_max': 420.0},
+        {'mes': '2026-03', 'p_max': 3310.0, 'fecha_p_max': '2026-03-03T09:30', 'q_en_p_max': 360.0}]}]}
+    pedidas = []
+    monkeypatch.setattr(sv, '_evolucion_del_anio', lambda ws, a, anio: pedidas.append((a, anio)) or evolucion)
+    assert sv.maxima_del_anio(NS(), '700064806', '2026', 'PA217') == {
+        'p_kw': 3800.0, 'q_kvar': 420.0, 'fecha': '2026-07-14T19:45', 'mes': '2026-07'}
+    assert pedidas == [('PA217', '2026')]
+    cliente, avisos = NS(codigo='700064806', pot=3310.0, ea=0.0, eri=0.0), []
+    sv._a_su_maxima_del_anio(NS(), cliente, '2026', 'PA217', {}, avisos)
+    assert (cliente.pot, cliente.fecha_registro, cliente.q_registro_kvar) == (3800.0, '14/07/2026 19:45', 420.0)
+    assert 'del año 2026' in avisos[0]
+    otro, avisos = NS(codigo='999', pot=10.0, ea=0.0, eri=0.0), []
+    sv._a_su_maxima_del_anio(NS(), otro, '2026', 'PA217', {}, avisos)
+    assert otro.pot == 10.0 and any('máxima del mes' in a for a in avisos)
+
+
+def test_039_rf32_la_tabla_lleva_la_maxima_del_anio(monkeypatch):
+    """039:RF-32 — junto a la coincidente y a la del mes, la máxima del año de cada fija, con su fecha en el formato de
+    la tabla y de dónde sale; sin evolución, nada."""
+    from types import SimpleNamespace as NS
+
+    from convertersmartgrid.presentacion.web import services as sv
+
+    assert hasattr(sv, '_valor_del_anio'), 'falta 039:RF-32'
+    monkeypatch.setattr(sv, 'maxima_del_anio', lambda ws, codigo, anio, a: {
+        'p_kw': 3800.0, 'q_kvar': 420.0, 'fecha': '2026-07-14T19:45', 'mes': '2026-07'} if codigo == '700064806' else None)
+    assert sv._valor_del_anio(NS(), '700064806', '2026-03', 'PA217') == {
+        'p_kw': 3800.0, 'q_kvar': 420.0, 'fecha': '14/07/2026 19:45', 'metodo': 'evolución de los fijos'}
+    assert sv._valor_del_anio(NS(), '999', '2026-03', 'PA217') is None
+

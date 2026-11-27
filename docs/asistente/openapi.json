@@ -6297,6 +6297,17 @@
             "title": "Alimentador",
             "type": "string"
           },
+          "aviso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Aviso"
+          },
           "barra_mt": {
             "anyOf": [
               {
@@ -6312,6 +6323,17 @@
             "default": 0,
             "title": "Barras Sin Tension",
             "type": "integer"
+          },
+          "cabecera_calibrada_kw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cabecera Calibrada Kw"
           },
           "cabecera_kw": {
             "anyOf": [

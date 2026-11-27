@@ -260,12 +260,28 @@ def test_039_rf28_la_fija_que_hace_la_mayor_parte_no_se_libera_por_pocos_registr
 
     queda = ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0, evidencia=evid(0.676, True))
     assert queda['liberadas'] == [] and queda['fijas'][0].get('queda_fija'), queda
-    assert 'Queda con su medida: es la mayor parte de la energía' in queda['texto']
+    assert 'Queda con su medida: pasa su cabecera solo en pocos registros' in queda['texto']
     assert ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0,
-                                  evidencia=evid(0.2, True))['liberadas'] == ['SE80083']
+                                  evidencia=evid(0.2, True))['liberadas'] == [], 'con pocos registros, cualquier energía'
     assert ac.plausibilidad_fijas(objetivo, {'SE80083': f}, p_base_escaladas=5000.0,
                                   evidencia=evid(0.676, False))['liberadas'] == ['SE80083']
     cabecera = _curva(31, lambda i: 3000.0)
     cliente = [(t, (3500.0 if i < 5 else 1500.0), q) for i, (t, _kw, q) in enumerate(cabecera)]
     d = ac.diagnostico_fija_imposible('481000151', cliente, cabecera)
     assert d['pocos_registros'] is True, d
+
+
+def test_039_rf29_el_cliente_marcado_a_su_maxima_no_se_libera():
+    """039:RF-29 — PA217 (27-11): el cliente que el operador marcó «a su máxima» no se libera aunque pase su cabecera en
+    muchos registros: es su decisión, y se dice."""
+    objetivo = ac.Objetivo(9447.0, 2668.0, 'L-PA235', 'PA217', '2026-01-15 20:00:00')
+    f = ac.Fija('SE30940', 3309.7, 360.0, clientes=['700064806'])
+    evid = {'700064806': {'supera_cabecera': {'registros': 400, 'exceso_max_kw': 900.0, 'fecha': '2026-03-27 03:15'},
+                          'diagnostico': {'causa': ac.CAUSA_HIPOTESIS, 'accion': 'liberar_fija', 'pocos_registros': False,
+                                          'fraccion_energia': 0.38, 'hipotesis': 'el FM no es el del libro'}}}
+    libre = ac.plausibilidad_fijas(objetivo, {'SE30940': f}, p_base_escaladas=9000.0, evidencia=evid)
+    assert libre['liberadas'] == ['SE30940']
+    marcada = ac.plausibilidad_fijas(objetivo, {'SE30940': f}, p_base_escaladas=9000.0, evidencia=evid,
+                                     del_operador=['700064806'])
+    assert marcada['liberadas'] == [] and marcada['fijas'][0]['marcada_por_el_operador'], marcada
+    assert 'el operador la marcó a su máxima' in marcada['texto']

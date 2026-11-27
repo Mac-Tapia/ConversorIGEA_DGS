@@ -275,3 +275,16 @@ def test_017_rf156_cuadro_de_perdidas_con_tramo_mas_cargado_y_caida_en_media():
     seccion = next(s for s in datos['secciones'] if s['caso'] == 'Pérdidas por caso')
     assert seccion['cabecera'][7] == 'Cargabilidad (%)' and seccion['cabecera'][10] == 'Caída de tensión (%)'
     assert any('sin estudio de flujo en «Cargas nuevas»' in c for c in datos['conclusiones'])
+
+
+def test_017_rf157_el_cuadro_avisa_si_la_cabecera_se_aparta_de_la_calibrada():
+    """017:RF-157 — PA217 (27-11): «Sin proyecto» daba 12 411 kW calibrado a 9 447 kW (una SED cambiada a mano)."""
+    m = {'cabecera_kw': 12411.0, 'perdidas_kw': 793.0, 'elementos': [], 'barras': [], 'barras_mt': []}
+    cuadro = rc.cuadro_de_perdidas([{'project': 'P', 'caso': 'Sin proyecto', 'medidas': {'PA217': m}},
+                                    {'project': 'P', 'caso': 'Con proyecto', 'medidas': {'PA217': m}}],
+                                   {('P', 'PA217'): 9447.0})
+    sin, con = cuadro['filas']
+    assert sin['aviso'] and '9,447' in sin['aviso'] and sin['cabecera_calibrada_kw'] == 9447.0
+    assert con['aviso'] is None, 'solo «Sin proyecto» se calibra'
+    assert rc.cuadro_de_perdidas([{'project': 'P', 'caso': 'Sin proyecto', 'medidas': {'PA217': {**m, 'cabecera_kw': 9500.0}}}],
+                                 {('P', 'PA217'): 9447.0})['filas'][0]['aviso'] is None

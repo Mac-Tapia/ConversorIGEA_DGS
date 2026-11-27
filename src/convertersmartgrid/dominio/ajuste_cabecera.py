@@ -505,20 +505,20 @@ VECES_KVA_GRUPO_DUDOSA = 4.0
 KVA_FUENTE_INCOHERENTE = 'KVA_FUENTE_INCOHERENTE'
 #: 039:RF-25: los motivos de una fija físicamente imposible, que se libera en vez de parar el alimentador.
 MOTIVOS_QUE_LIBERAN = frozenset({'SUPERA_LA_CABECERA', 'SUPERA_SU_GRUPO'})
-#: 039:RF-28: la parte de la energía de su cabecera desde la que un cliente que la pasa en pocos registros se queda fijo.
-FRACCION_ENERGIA_QUE_QUEDA = 0.5
 
 
 def se_queda_fija(motivo: Mapping[str, Any]) -> bool:
     """039:RF-28: un cliente que pasa su cabecera solo en pocos registros (la cabecera no midió toda la carga en ellos)
-    y hace la mayor parte de su energía no se libera: su SED es la carga del alimentador.
+    no se libera, con cualquier parte de la energía: su SED es carga del alimentador.
 
     LL203 (27-11): SE80083 (481000151) pasaba su cabecera en 15 registros de 2 976 y era el 68 % de su energía; liberado,
     sus 2 180 kW se repartieron entre las demás SED y la carga quedó lejos de donde está.
     """
     d = motivo.get('diagnostico') or {}
+    # PA217 (27-11): SE30940 (700064806) pasaba su cabecera en 1 registro con el 38 % de su energía y se liberó a
+    # 1,2 MW cuando medía 3,3 MW: con pocos registros cuenta la hipótesis de la cabecera, no la parte de la energía.
     return (motivo.get('codigo') == 'SUPERA_LA_CABECERA' and d.get('causa') == CAUSA_HIPOTESIS
-            and bool(d.get('pocos_registros')) and (numero(d.get('fraccion_energia')) or 0.0) >= FRACCION_ENERGIA_QUE_QUEDA)
+            and bool(d.get('pocos_registros')))
 
 
 def horas_del_mes(fecha: Any) -> float | None:
@@ -532,7 +532,8 @@ def horas_del_mes(fecha: Any) -> float | None:
 def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base_escaladas: float,
                         kva_grupo: Mapping[str, float | None] | None = None,
                         evidencia: Mapping[str, Mapping[str, Any]] | None = None,
-                        horas_mes: float | None = None, otras_fijas_kw: float = 0.0) -> dict[str, Any]:
+                        horas_mes: float | None = None, otras_fijas_kw: float = 0.0,
+                        del_operador: Iterable[str] = ()) -> dict[str, Any]:
     """Si el dato de cada fija es plausible, antes del primer flujo (015:RF-73, 006:RF-47).
 
     ``fijas``: SED → :class:`Fija`; ``p_base_escaladas``: la P base de las escaladas (kVA × FP), con la que sale el
@@ -545,6 +546,8 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
     ``otras_fijas_kw``: las fijas del operador (cambios manuales, demandas medidas), que cuentan en (c) y no se dudan.
     """
     evid = {clave_codigo(k): v for k, v in (evidencia or {}).items()}
+    # 039:RF-29: los clientes que el operador marcó «a su máxima» en la tabla cruzada son su decisión: no se liberan.
+    marcados = {clave_codigo(c) for c in del_operador}
     filas: list[dict[str, Any]] = []
     for sed, f in sorted(fijas.items()):
         motivos: list[dict[str, Any]] = []
@@ -591,9 +594,12 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
         # 039:RF-25 (enmienda 015:RF-73): una fija físicamente imposible (mide más que su cabecera, o pide más de cuatro
         # veces su grupo con la media del mes que sí cabe) se libera: su SED va con las escaladas y el alimentador se
         # calibra con el resto. Solo dudosa por el reparto (FIJAS_DEJAN_SIN_ESCALADAS), queda con su medida y se avisa.
-        x['liberar'] = any(m['codigo'] in MOTIVOS_QUE_LIBERAN and not se_queda_fija(m) for m in x['motivos'])
-        if not x['liberar'] and any(se_queda_fija(m) for m in x['motivos']):
-            x['queda_fija'] = True                                                     # 039:RF-28
+        del_op = any(clave_codigo(c) in marcados for c in x['clientes'])                    # 039:RF-29
+        x['liberar'] = not del_op and any(m['codigo'] in MOTIVOS_QUE_LIBERAN and not se_queda_fija(m)
+                                          for m in x['motivos'])
+        if not x['liberar'] and (del_op or any(se_queda_fija(m) for m in x['motivos'])):
+            x['queda_fija'] = True                                                     # 039:RF-28, RF-29
+            x['marcada_por_el_operador'] = del_op
     revisar = [x for x in filas if x['a_revisar']]
     liberadas = [x['sed'] for x in revisar if x['liberar']]
     clave = objetivo.alimentador or objetivo.medidor or 'El alimentador'
@@ -603,8 +609,10 @@ def plausibilidad_fijas(objetivo: Objetivo, fijas: Mapping[str, Fija], *, p_base
                  + ': ' + '; '.join(f"{x['sed']} ({', '.join(m['texto'] for m in x['motivos'])})" for x in revisar)
                  + '. ' + (f"{', '.join(liberadas)} se {'reparte' if len(liberadas) == 1 else 'reparten'} con las "
                            'escaladas por su potencia instalada' if liberadas else
-                           'Queda con su medida: es la mayor parte de la energía de su cabecera y la pasa solo en '
-                           'pocos registros' if any(x.get('queda_fija') for x in revisar) else
+                           'Queda con su medida: el operador la marcó a su máxima' if any(
+                               x.get('marcada_por_el_operador') for x in revisar) else
+                           'Queda con su medida: pasa su cabecera solo en pocos registros' if any(
+                               x.get('queda_fija') for x in revisar) else
                            'Queda con su medida')
                  + ' y el alimentador se calibra con el resto.')
     return {'estado': FIJA_A_REVISAR if revisar else None, 'clave': clave, 'fijas': filas,

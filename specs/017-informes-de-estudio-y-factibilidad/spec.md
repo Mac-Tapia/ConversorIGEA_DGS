@@ -666,6 +666,9 @@ estudio, yo debería hacer un informe o resumen ejecutivo»)
   baja tensión; usuario, 27-11), el tramo (línea o cable) más cargado y su
   cargabilidad, y la barra de media tensión más baja con su tensión y su caída en % de la nominal; y dirá qué casos
   no tienen estudio.
+- RF-157: (usuario, 2026-11-27, PA217) CUANDO la cabecera de «Sin proyecto» en el cuadro de pérdidas se aparte más del
+  2 % de la calibrada, EL SISTEMA lo dirá en su fila (un cambio a mano o una orden posterior cambió la demanda).
+  (PA217: 12 411 kW frente a 9 447 kW calibrados.)
 
 ## Requisitos no funcionales
 

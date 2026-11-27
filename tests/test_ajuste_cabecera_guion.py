@@ -2596,3 +2596,80 @@ def test_095_rf4_el_kva_de_cada_sed_sale_del_dgs_de_la_conversion(tmp_path):
         '  30;C;c1;100;0;10', '  31;C;c2;200;1;10', '  32;C;c3;101;0;11', '  33;C;c4;201;1;11',
         '  34;C;c5;200;0;20', '  35;C;c6;201;0;21', '  36;C;c7;202;0;22', '']), encoding='latin-1')
     assert kva_de_sed_del_dgs(dgs) == {'SA': 630.0, 'SB': 100.0}
+
+
+def test_039_rf29_la_maxima_marcada_gana_al_cambio_a_mano(guion, monkeypatch):
+    """039:RF-29 — PA217 (27-11): SE30940 escrita a mano para corregir una liberación; con su cliente marcado «a su
+    máxima» en la tabla cruzada, la SED va con la medida del cliente y no con el cambio a mano, y se dice."""
+    app = _con_escenario_que_manda()
+    sys_casos = __import__('sys').modules['casos_pf']
+    monkeypatch.setattr(sys_casos, 'activar_proyecto', lambda app, ruta, carpeta=None: app.proyecto)
+    primero, rc = guion.ejecutar(app, _plan())
+    assert rc == 0, primero
+    _con_proyecto(app)
+    _caso(app, 'Sin proyecto').Activate()
+    escala = _carga(app, 'F1_S2').scale0
+    _carga(app, 'F1_S2').plini = 0.123 / escala                 # el operador, a mano
+    _caso(app, 'Caso base').Activate()
+    clientes = [{'codigo': 'CI-9', 'sed': 'F1_S2', 'pot': 80.0, 'ea': 1.0, 'eri': 0.2}]
+    plan = {**_plan(kw=360.0, kvar=100.0, clientes=clientes), 'ultima_calibracion': _ultima(primero),
+            'fijas_a_su_maxima': [{'codigo': 'CI-9', 'sed': 'F1_S2', 'p_kw': 80.0, 'q_kvar': 16.0}]}
+    segundo, rc = guion.ejecutar(app, plan)
+    assert rc == 0, segundo
+    assert [m['sed'] for m in segundo.get('manuales_reemplazados') or []] == ['F1_S2'], segundo.get('manuales_reemplazados')
+    assert not segundo.get('cargas_manuales')
+    assert _sed(segundo, 'F1_S2')['despues']['kw'] != pytest.approx(123.0)
+    assert any('se reemplaza por la máxima de su cliente' in a for a in segundo['avisos'])
+
+
+def test_039_rf29_la_fija_que_se_queda_se_dimensiona(guion):
+    """039:RF-29 — PA217 (27-11): SE30940 se quedó fija (a su máxima del año, 3 957 kW) pero, «a revisar» por un registro
+    sobre su cabecera, su transformador de 400 kVA quedaba sin propuesta y la calibración no convergía. La fija que se
+    queda tiene su dato aceptado: se le propone su transformador."""
+    app = _app(n=3)
+    evid = {'CI-9': {'supera_cabecera': {'registros': 1, 'exceso_max_kw': 50.0, 'fecha': '2026-03-27 03:15'},
+                     'diagnostico': {'causa': 'HIPOTESIS', 'accion': 'liberar_fija', 'pocos_registros': True,
+                                     'fraccion_energia': 0.38, 'hipotesis': 'la cabecera no midió toda la carga'}}}
+    plan = {**_plan(kw=600.0, kvar=150.0, clientes=_sobrecargada(app)), 'transformadores_sed': _fichas_plan(),
+            'evidencia_fijas': evid}
+    informe, rc = guion.ejecutar(app, plan)
+    assert rc == 0, informe
+    (x,) = informe['fijas_sobre_su_transformador']
+    assert x['propuesta']['kva'] is not None, x['propuesta']
+
+
+def test_015_rf77_la_cabecera_que_lleva_de_media_mas_de_lo_que_su_red_puede(guion):
+    """015:RF-77 — PN106 (27-11): 2 410 kW de media con 3 725 kVA de SED (65 %); se dice que falta carga en la red
+    convertida o que el medidor incluye otra red. Con una media normal, nada."""
+    app = _app()                                       # F1: 50 + 100 + … + 300 = 1 050 kVA
+    informe, rc = guion.ejecutar(app, {**_plan(), 'promedio_kw': 900.0})
+    assert rc == 0, informe
+    assert informe.get('carga_de_mas', {}).get('utilizacion') == pytest.approx(900.0 / 1050.0), informe.get('carga_de_mas')
+    assert any('falta carga en la red convertida' in a for a in informe['avisos'])
+    normal, rc = guion.ejecutar(_app(), {**_plan(), 'promedio_kw': 300.0})
+    assert rc == 0 and 'carga_de_mas' not in normal
+
+
+def test_101_rf18_lo_del_operador_dentro_de_sed_ntp_se_conserva(guion, monkeypatch):
+    """101:RF-18 — LL203 (27-11): el regulador existente del operador y su barra quedaron grabados en «SED_NTP_»; partir
+    de los transformadores del archivo no borra la variación: deshace solo sus transformadores y lo dice."""
+    from types import SimpleNamespace as NS
+
+    from convertersmartgrid.adaptadores import pf_arnes
+
+    borrados = []
+
+    def obj(nombre, clase):
+        return NS(loc_name=nombre, GetClassName=lambda: clase)
+
+    etapa = NS(GetContents=lambda patron='*', r=0: [obj('TR_SE1', 'ElmTr2'), obj('TR_SE2', 'ElmTr2'),
+                                                     obj('Regulator01', 'ElmVoltreg'), obj('Terminal', 'ElmTerm')])
+    variacion = NS(loc_name='SED_NTP_P', GetContents=lambda patron='*', r=0: [etapa], Deactivate=lambda: 0)
+    app = NS(GetActiveProject=lambda: 'P')
+    monkeypatch.setattr(guion, 'nombre_de_la_propia', lambda app, prefijo, proyecto, avisos=None: 'SED_NTP_P')
+    monkeypatch.setattr(guion, 'variacion_propia', lambda app, nombre: variacion)
+    monkeypatch.setattr(pf_arnes, 'borrar_en_su_proyecto', lambda o, p: borrados.append(o.loc_name))
+    r = guion.retirar_transformadores_de_la_calibracion(app, {'project': 'P'})
+    assert r['retirada'] is None and borrados == ['TR_SE1', 'TR_SE2'], (r, borrados)
+    assert r['conservados'] == ['Regulator01 (ElmVoltreg)', 'Terminal (ElmTerm)']
+    assert any('se conservan' in a for a in r['avisos'])

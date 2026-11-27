@@ -306,6 +306,10 @@ Compensación propia de los clientes fijos (cambio del 2026-10-15)
   no cambian. (26-11, SM116_SM117 desde VNR-GIS: SE42162, de 160 kVA, cuelga del tramo 313492 con su seccionador
   abierto; VNR-GIS le pone 136 kW nominales, no los consumía y la validación física invalidaba la calibración; desde
   TXT y MDB trae 0 kW.)
+- RF-77: (usuario, 2026-11-27: «avanza con lo que no necesita DIgSILENT», PN106) CUANDO la media medida de
+  la cabecera de un alimentador supere el 60 % del kVA instalado de sus SED (el de la fuente si se conoce), EL SISTEMA
+  lo dirá en el informe de la calibración: falta carga en la red convertida o el medidor incluye otra red; no parará.
+  (PN106: 2 410 kW de media con 3 725 kVA, el 65 %; sus vecinos, del 25 al 33 %.)
 
 ## Requisitos que esta spec cambia
 

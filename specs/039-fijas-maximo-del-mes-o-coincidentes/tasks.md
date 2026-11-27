@@ -69,3 +69,16 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
 - [x] T14. La fija que hace la mayor parte de la energía no se libera por pocos registros. (RF-28)
       Hecho cuando: `tests/test_ajuste_cabecera.py` (039:RF-28) en verde con su rojo por aserción. Hecho el
       2026-11-27 (evidencia en el commit que lo integra).
+- [x] T15. La fija marcada «a su máxima» no se libera y gana al cambio a mano. (RF-29)
+      Hecho cuando: `tests/test_fijas_imposibles.py` y `tests/test_ajuste_cabecera_guion.py` (039:RF-29) en verde con su
+      rojo por aserción, y PA217 recalibrado desde la web con SE30940 a su máxima. Hecho el 2026-11-27 (evidencia en el
+      commit que lo integra).
+- [x] T16. `--corregir-cabecera` en `sistema_web.py`. (RF-30)
+      Hecho cuando: `tests/test_sistema_web.py` (039:RF-30) en verde con su rojo por aserción. Hecho el 2026-11-27
+      (evidencia en el commit que lo integra).
+- [x] T17. «A su máxima» con la máxima de todo el año. (RF-31)
+      Hecho cuando: `tests/test_tabla_en_el_instante.py` (039:RF-31) en verde con su rojo por aserción, y PA217
+      recalibrado desde la web con SE30940 a su máxima del año. Hecho el 2026-11-27 (evidencia en el commit que lo integra).
+- [x] T18. La máxima del año en su columna de la tabla cruzada. (RF-32)
+      Hecho cuando: `tests/test_tabla_en_el_instante.py` y `frontend/test/obrasEstadoActual.test.mjs` (039:RF-32) en verde
+      con su rojo por aserción, `tsc` y `npm run build`. Hecho el 2026-11-27 (evidencia en el commit que lo integra).

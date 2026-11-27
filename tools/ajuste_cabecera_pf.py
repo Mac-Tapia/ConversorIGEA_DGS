@@ -205,6 +205,10 @@ def kva_por_sed(cargas: dict, kva_entrada: dict) -> tuple[dict, dict]:
     return kva, origen
 
 
+#: 015:RF-77: la utilización media de las SED de un alimentador por encima de la cual falta carga en su red convertida.
+UTILIZACION_MEDIA_MAX = 0.6
+
+
 def kva_para_reparto(kva: dict, kva_origen: dict, kva_entrada: dict) -> dict:
     """095:RF-4: el kVA con que se reparten las escaladas: el instalado de la fuente (TXT, MDB o VNR-GIS) si se conoce, y
     si no el de DIgSILENT; una SED sin servicio sigue fuera (015:RF-76). Solo para repartir: la sobrecarga de un
@@ -1124,7 +1128,9 @@ def plausibilidad_del_plan(plan: dict, objetivo, cargas: dict, kva: dict, fijas:
     return plausibilidad_fijas(objetivo, con_cliente, p_base_escaladas=p_base,
                                kva_grupo={s: kva_de_grupo(s, fuente, cargas) for s in con_cliente},
                                evidencia=plan.get('evidencia_fijas'), horas_mes=horas_del_mes(objetivo.fecha),
-                               otras_fijas_kw=sum(f.kw for s, f in fijas.items() if s not in con_cliente))
+                               otras_fijas_kw=sum(f.kw for s, f in fijas.items() if s not in con_cliente),
+                               del_operador=[x.get('codigo') for x in plan.get('fijas_a_su_maxima') or []
+                                             if x.get('codigo')])                                   # 039:RF-29
 
 
 def anotar_kva_de_la_fuente(informe: dict, kva_entrada: dict) -> None:
@@ -1225,7 +1231,10 @@ def proponer_transformadores(sobre: list[dict], cargas: dict, fichas: dict | Non
         pl = filas.get(x['sed']) or {}
         kg = pl.get('kva_grupo')
         umbral = float(fichas['umbral_carga_pct']) if fichas else 100.0
-        if pl.get('a_revisar'):
+        # 039:RF-29: la que se queda fija (marcada por el operador o con pocos registros sobre su cabecera) tiene su dato
+        # aceptado: se dimensiona. PA217 (27-11): SE30940 a su máxima del año (3 957 kW) en 400 kVA quedaba sin propuesta
+        # y la calibración no convergía.
+        if pl.get('a_revisar') and not pl.get('queda_fija'):
             x['propuesta'] = {'kva': None, 'motivo': 'fija a revisar: no se dimensiona con un dato dudoso'}
             x['aviso'] = f"{x['sed']}: fija a revisar; sin propuesta de transformador."
             continue
@@ -3042,6 +3051,17 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
         # demás difieren porque la primera escribió su reparto.
         de_la_primera = set(plan['manuales_de_la_primera'])
         manuales = [m for m in manuales if m['sed'] in de_la_primera]
+    # 039:RF-29: la SED cuyo cliente el operador marcó «a su máxima» va con esa máxima: la marca es posterior y explícita, y
+    # gana al cambio a mano (014:RF-10). PA217 (27-11): SE30940 escrita a mano en 3,8 MW para corregir una liberación.
+    marcadas = {clave_codigo(x['sed']) for x in plan.get('fijas_a_su_maxima') or [] if x.get('sed')}
+    reemplazados = [m for m in manuales if clave_codigo(m['sed']) in marcadas]
+    if reemplazados:
+        manuales = [m for m in manuales if m not in reemplazados]
+        informe['manuales_reemplazados'] = reemplazados
+        informe['avisos'].append(
+            f"{', '.join(m['sed'] for m in reemplazados)}: el cambio a mano ("
+            + ', '.join(f"{m['manual']['kw']:,.1f} kW" for m in reemplazados)
+            + ') se reemplaza por la máxima de su cliente marcado «a su máxima» en la tabla cruzada.')
     for m in manuales:
         fijas_libro[clave_codigo(m['sed'])] = Fija(
             m['sed'], m['manual']['kw'], m['manual']['kvar'],
@@ -3177,6 +3197,18 @@ def _preparar_alimentador(app, plan: dict, informe: dict, *, alims, feeder: str,
             f"({', '.join(agrandadas[:20])}{'…' if len(agrandadas) > 20 else ''}): se reparte por el de la fuente "
             'y no por el de DIgSILENT; si los agrandó una calibración anterior, recalibre partiendo de los transformadores '
             'del archivo.')
+    # 015:RF-77: PN106 (27-11) llevaba de media 2 410 kW con 3 725 kVA de SED en la fuente (65 %), y medía 2,5 veces lo
+    # que facturan sus clientes; sus vecinos de la misma SET, del 25 al 33 %. Falta carga en la red convertida o el
+    # medidor incluye otra red (una transferencia cerrada en campo): se dice, sin parar.
+    media = plan.get('promedio_kw')
+    instalado = sum(v for v in kva_para_reparto(kva, kva_origen, plan.get('kva_entrada') or {}).values() if v)
+    if media and instalado and float(media) > UTILIZACION_MEDIA_MAX * instalado:
+        informe['carga_de_mas'] = {'media_kw': float(media), 'kva_instalado': instalado,
+                                   'utilizacion': float(media) / instalado}
+        informe['avisos'].append(
+            f"{feeder}: su cabecera lleva de media {float(media):,.0f} kW, el {100 * float(media) / instalado:,.0f} % de "
+            f"los {instalado:,.0f} kVA de sus SED: falta carga en la red convertida (clientes de media tensión) o el "
+            'medidor incluye otra red (una transferencia cerrada en campo). Las escaladas quedarán sobrecargadas.')
     return {**comun, 'central': False, 'reparto': reparto, 'fijas': fijas, 'sobre': sobre,
             'antes': antes, 'antes_nativo': antes_nativo, 'antes_apagar': antes_apagar}
 
@@ -3673,6 +3705,10 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
     return informe, (0 if informe.get('cuadrado') and not informe.get('fallos') else 2)
 
 
+#: 101:RF-18: lo que la calibración graba en «SED_NTP_»; cualquier otra clase es del operador.
+CLASES_DE_SED_NTP = frozenset({'ElmTr2', 'TypTr2'})
+
+
 def retirar_transformadores_de_la_calibracion(app, plan: dict) -> dict:
     """101:RF-16: quita la variación ``SED_NTP_`` del conversor de este proyecto: los transformadores vuelven a los del
     archivo y la calibración cambia después solo los que su máxima pida (RF-1 a RF-6).
@@ -3690,6 +3726,20 @@ def retirar_transformadores_de_la_calibracion(app, plan: dict) -> dict:
     variacion = variacion_propia(app, nombre)
     if variacion is None:
         return {'retirada': None, 'avisos': avisos}
+    # 101:RF-18: lo que el operador grabó con esta etapa activa es suyo (LL203, 27-11: su regulador existente de 5 MW y su
+    # barra quedaron dentro de «SED_NTP_»): no se borra la variación; solo se deshacen sus transformadores, y se dice.
+    grabado = [o for e in variacion.GetContents('*.IntSstage', 1) or [] for o in e.GetContents('*', 1) or []]
+    ajenos = [o for o in grabado if o.GetClassName() not in CLASES_DE_SED_NTP]
+    if ajenos:
+        deshechos = [o.loc_name for o in grabado if o.GetClassName() == 'ElmTr2']
+        for o in [o for o in grabado if o.GetClassName() == 'ElmTr2']:
+            borrar_en_su_proyecto(o, proyecto)
+        conservados = sorted({f'{o.loc_name} ({o.GetClassName()})' for o in ajenos})
+        avisos.append(f"{nombre} tiene cambios que no son de transformadores ({', '.join(conservados[:10])}): se "
+                      f"conservan; solo se deshacen {len(deshechos)} transformadores. Conviene pasar esos cambios a una "
+                      'variación propia.')
+        return {'retirada': None, 'transformadores_deshechos': deshechos, 'conservados': conservados,
+                'variacion': nombre, 'avisos': avisos}
     inicial = app.GetActiveStudyCase()
     casos = []
     try:
@@ -3760,6 +3810,9 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
                     f"Transformadores del archivo: se quitó {retirados['retirada']} (activa en "
                     f"{', '.join(retirados.get('casos') or []) or 'ningún caso'}); la calibración cambia solo los que pide "
                     'su máxima.' if retirados.get('retirada') else
+                    f"Transformadores del archivo: se deshicieron {len(retirados['transformadores_deshechos'])} "
+                    f"transformadores de {retirados['variacion']}; " + ' '.join(retirados.get('avisos') or [])
+                    if retirados.get('transformadores_deshechos') is not None else
                     'Transformadores del archivo: el proyecto no tenía transformadores cambiados por la calibración.')
     return resultados
 
