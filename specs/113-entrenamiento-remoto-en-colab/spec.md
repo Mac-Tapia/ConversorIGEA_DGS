@@ -58,6 +58,9 @@ modelos (043, 047, 070, 071, 089).
   ofrecerá entrenar «En este equipo» o «En Colab Pro» con el mismo dataset y la misma orden de `tools/`; lo entrenado en
   Colab pasará por las mismas puertas locales que lo entrenado aquí; y sin carpeta de Drive ni cuaderno, el entrenamiento
   y la evaluación locales funcionarán igual, sin error ni aviso que los bloquee.
+- RF-17: (usuario, 2026-11-27: «debe haber un vínculo directo a Colab desde el notebook») EL cuaderno llevará al
+  principio un enlace «Abrir en Colab» al cuaderno de la rama principal en GitHub; la revisión con la que entrena
+  sigue siendo la de su paquete (RF-2).
 
 ## Requisitos no funcionales
 

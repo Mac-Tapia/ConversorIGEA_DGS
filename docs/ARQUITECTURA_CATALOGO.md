@@ -29,7 +29,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4191 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4193 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 

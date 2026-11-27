@@ -38,3 +38,29 @@ export function leerAmbito(valor: string): Ambito {
 export function demasiadosParaLaCoincidente(a: Ambito, alimentadores: number): boolean {
   return a.tipo === 'alimentadores' && !a.noCoincidente && alimentadores > 3;
 }
+
+/** La máxima de la cabecera de un alimentador, con la que se puede calibrar a todos a la vez. */
+export interface InstanteDeCabecera {
+  alimentador: string;
+  fecha: string;
+  kw: number;
+}
+
+/**
+ * 086:RF-140: las opciones de «Instante de la calibración», sin repetir la no coincidente del ámbito.
+ *
+ * El 2026-11-27 el usuario vio dos desplegables casi iguales: el ámbito decía «Alimentadores: la máxima de cada uno (no
+ * coincidente)» y el instante «Máxima de cada alimentador (no coincidente)». La no coincidente se elige en el ámbito; aquí
+ * queda lo que el ámbito busca (por defecto) o calibrar a todos en la hora de la máxima de una cabecera.
+ */
+export function opcionesDelInstante(a: Ambito, instantes: InstanteDeCabecera[], mes: string,
+  fmtKw: (kw: number) => string): { valor: string; rotulo: string }[] {
+  const enMes = mes ? ` en ${mes}` : '';
+  const porDefecto = a.noCoincidente ? 'La del ámbito: cada uno en su máxima'
+    : a.tipo === 'sistema' ? `Máxima coincidente del sistema eléctrico${enMes}`
+    : a.tipo === 'set' ? `Máxima de la barra de su SET${enMes}`
+    : `Máxima coincidente de los seleccionados${enMes}`;
+  return [{ valor: '', rotulo: `${porDefecto} (por defecto)` },
+    ...instantes.map((x) => ({ valor: x.fecha,
+      rotulo: `Todos en la máxima de ${x.alimentador} · ${x.fecha} · ${fmtKw(x.kw)} kW` }))];
+}

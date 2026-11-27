@@ -661,3 +661,9 @@ complemento de 238 ruedas o el programa final con este correctivo CPU.
       VNR-GIS de la 100 T4 llega a calibrar.
       Hecho el 2026-11-26 (código): rojo `D:/csg/PM_IMPL/PLAZO_SINCRONO/rojo.log`, verde 54 passed (`verde.log`). La
       corrida real es la aceptación de la versión que lo lleva.
+- [x] T116 INSTANTE-SIN-REPETIR (27-11, captura del usuario con «Ámbito de la máxima» e «Instante de la calibración»
+      diciendo lo mismo). El instante deja de repetir la no coincidente del ámbito. (RF-140)
+      Hecho cuando: `frontend/test/ambitoMaxima.test.mjs` (086:RF-140) en rojo por aserción con la pantalla anterior y en
+      verde con la nueva, `npm test`, `tsc` y `npm run build` en verde. Hecho el 2026-11-27: rojo «el instante vuelve a
+      ofrecer la no coincidente»; verde 338 pruebas del frontend, `tsc`, lint y build; las dos pruebas de la 086:RF-126
+      que pedían la opción repetida, adaptadas. La pantalla en el navegador se revisa al integrar la rama en `main`.

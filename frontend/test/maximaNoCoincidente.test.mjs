@@ -10,9 +10,13 @@ import { fileURLToPath } from 'node:url';
 const FRONT = fileURLToPath(new URL('../', import.meta.url));
 const FUENTE = readFileSync(join(FRONT, 'src', 'features', 'powerfactory', 'DemandaMedida.tsx'), 'utf8');
 
-test('086:RF-126 el selector ofrece la máxima de cada alimentador y sale también en una SET o en un sistema', () => {
-  assert.match(FUENTE, /<option value="propia">Máxima de cada alimentador \(no coincidente\)<\/option>/,
-    'falta la opción de la máxima de cada alimentador');
+const AMBITO = readFileSync(join(FRONT, 'src', 'features', 'powerfactory', 'ambitoMaxima.ts'), 'utf8');
+
+test('086:RF-126, RF-140 la máxima de cada alimentador se elige en el ámbito, con SET y sistema; el instante no la repite', () => {
+  assert.match(AMBITO, /\{ valor: 'alimentadores:propia', rotulo: 'Alimentadores: la máxima de cada uno \(no coincidente\)' \}/);
+  assert.match(AMBITO, /\{ valor: 'set:propia',/);
+  assert.match(AMBITO, /\{ valor: 'sistema:propia',/);
+  assert.doesNotMatch(FUENTE, /<option value="propia">/, 'el instante repite la no coincidente del ámbito (RF-140)');
   assert.match(FUENTE, /\(instantes\.length > 1 \|\| \(deBarra && alimentadoresBuscados > 1\)\) && \(/,
     'por SET o por sistema el selector no sale');
 });
@@ -22,10 +26,12 @@ test('086:RF-126 la máxima de cada uno pide sin barra, sin sistema y sin coinci
   assert.match(FUENTE, /por_barra: porBarra && comun,/);
   assert.match(FUENTE, /sistema_60kv: tipoAnalisis === 'sistema' && comun,/);
   assert.match(FUENTE, /coincidente: !porBarra && comun && feeders\.length > 1,/);
-  // El por defecto sigue siendo el del análisis: la coincidente, la barra de la SET o el sistema eléctrico.
-  assert.match(FUENTE, /tipoAnalisis === 'sistema' \? 'Máxima coincidente del sistema eléctrico'/);
-  assert.match(FUENTE, /tipoAnalisis === 'set' \? 'Máxima de la barra de su SET'/);
-  assert.match(FUENTE, /: 'Máxima coincidente de los seleccionados'\}/);
+  // El por defecto sigue siendo el del análisis: la coincidente, la barra de la SET o el sistema eléctrico (RF-140: en el
+  // módulo del ámbito, que también da el de la no coincidente).
+  assert.match(AMBITO, /a\.tipo === 'sistema' \? `Máxima coincidente del sistema eléctrico\$\{enMes\}`/);
+  assert.match(AMBITO, /a\.tipo === 'set' \? `Máxima de la barra de su SET\$\{enMes\}`/);
+  assert.match(AMBITO, /: `Máxima coincidente de los seleccionados\$\{enMes\}`;/);
+  assert.match(FUENTE, /maxima\('', ambito\.noCoincidente\)\)\}>/, 'el por defecto del instante no sigue al ámbito');
 });
 
 test('086:RF-126 elegida, la web dice la fecha y hora de cada alimentador y avisa de que no ocurrieron juntas', () => {

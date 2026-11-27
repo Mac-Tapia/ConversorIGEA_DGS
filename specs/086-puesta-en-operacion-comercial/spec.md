@@ -549,7 +549,7 @@ mientras los demás casos pasaban a 1,0278.
   cada alimentador y avisan, sin bloquear, de que esos instantes no ocurrieron juntos.
   Aclaración (usuario, 2026-11-24: no la encontró): la opción se elige en «Ámbito de la máxima», antes de buscar, una por
   ámbito («Alimentadores», «Por SET» y «Sistema eléctrico»: la máxima de cada alimentador, no coincidente); «Instante
-  de la calibración» la sigue ofreciendo tras buscar. Con la no coincidente no rige el tope de 3 alimentadores de la
+  de la calibración» ya no la repite (RF-140). Con la no coincidente no rige el tope de 3 alimentadores de la
   coincidente.
 - RF-127: (Plan Maestro PM-14 y PM-25, soporte en producción) EL SISTEMA dará a cada petición de la API una referencia
   de soporte: la que trae el cliente en `X-CSG-Traza` si son de 8 a 64 letras, cifras, guiones o guiones bajos, y si no
@@ -606,6 +606,11 @@ mientras los demás casos pasaban a 1,0278.
   cruce de clientes y el plan del ajuste), EL SISTEMA esperará la respuesta hasta `PLAZO_SINCRONO_S` (1 h) en vez de
   cortar a los 300 s y repetirla; las demás peticiones siguen con 300 s. (26-11, Pisco desde VNR-GIS, 21 alimentadores:
   cada «ReadTimeout» repetía el plan, la web volvía a empezar y la aceptación dio vueltas dos horas sin avanzar.)
+- RF-140: (usuario, 2026-11-27, con la captura de la calibración de dos alimentadores: «existen dos desplegables, parecen
+  similares») La máxima de cada alimentador (no coincidente) se elegirá solo en «Ámbito de la máxima»; «Instante de la
+  calibración» ofrecerá la que busca el ámbito, por defecto, o calibrar a todos en la hora de la máxima de una cabecera
+  («Todos en la máxima de …»), sin repetir la no coincidente. Volver a la opción por defecto busca otra vez con el ámbito
+  elegido.
 
 ## Fuera de alcance
 

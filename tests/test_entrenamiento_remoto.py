@@ -1,6 +1,6 @@
 """Entrenamiento en Colab como opción del local: paquete, vuelta del candidato y aviso de datos nuevos.
 
-Spec 113: 113:RF-4, 113:RF-5, 113:RF-6, 113:RF-9, 113:RF-10, 113:RF-11, 113:RF-13, 113:RF-16.
+Spec 113: 113:RF-4, 113:RF-17, 113:RF-5, 113:RF-6, 113:RF-9, 113:RF-10, 113:RF-11, 113:RF-13, 113:RF-16.
 Con nombres sintéticos: ningún dato de la distribuidora entra en el repositorio.
 """
 from __future__ import annotations
@@ -234,6 +234,14 @@ def test_el_cuaderno_no_lleva_salidas_datos_ni_credenciales():
     texto = CUADERNO.read_text(encoding='utf-8')
     for prohibido in ('ghp_', 'github_pat_', 'AIza', 'ya29.', 'BEGIN PRIVATE KEY', 'password', 'D:/', 'D:\\'):
         assert prohibido not in texto, prohibido
+
+
+def test_el_cuaderno_tiene_su_enlace_directo_a_colab():
+    """113:RF-17: la primera celda abre el cuaderno en Colab con un clic, desde GitHub."""
+    primera = ''.join(json.loads(CUADERNO.read_text(encoding='utf-8'))['cells'][0]['source'])
+    assert 'href="https://colab.research.google.com/github/' in primera
+    assert '/blob/main/notebooks/ConverterSmartGrid.ipynb"' in primera
+    assert 'colab-badge.svg' in primera
 
 
 def test_el_cuaderno_clona_la_revision_del_paquete_y_usa_las_ordenes_locales():

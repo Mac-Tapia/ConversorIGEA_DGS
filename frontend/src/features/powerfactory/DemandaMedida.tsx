@@ -9,7 +9,7 @@ import { AjusteCabecera } from './AjusteCabecera';
 import { FileDrop, useToast } from '../../shared/ui';
 import { AvisosLibros } from './AvisosLibros';
 import { conPropiaDeReferencia, fmtFactor, fueraDelInstante, horaDeLaVentana, modoDeLaTabla, type ResultadoMaxima } from './tablaMaxima';
-import { demasiadosParaLaCoincidente, leerAmbito, OPCIONES_AMBITO, valorDelAmbito, type TipoAnalisis } from './ambitoMaxima';
+import { demasiadosParaLaCoincidente, leerAmbito, OPCIONES_AMBITO, opcionesDelInstante, valorDelAmbito, type TipoAnalisis } from './ambitoMaxima';
 
 const LIBROS: { tipo: DemandaTipo; titulo: string; ayuda: string }[] = [
   { tipo: 'medidores', titulo: 'Medidor por alimentador', ayuda: 'Columnas «codigo alimentador» y «Medidor».' },
@@ -489,7 +489,8 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
   // 086:RF-126: la máxima de cada uno es la búsqueda sin barra, sin instante común y sin coincidente.
   const deBarra = Boolean(ultimo?.result?.por_barra);
   const propias = !deBarra && !ultimo?.result?.coincidente && !instanteActual && instantes.length > 1;
-  const instanteElegido = propias ? 'propia' : (ultimo?.result?.coincidente || deBarra) ? '' : instanteActual;
+  // 086:RF-140: la no coincidente es la del ámbito: en el instante, su opción por defecto.
+  const instanteElegido = propias || ultimo?.result?.coincidente || deBarra ? '' : instanteActual;
   const alimentadoresBuscados = new Set(cabecera.map((r) => r.alimentador).filter(Boolean)).size;
   // 004:RF-116, 028:RF-43, RF-44: cada dato en su columna; en el coincidente, el instante común y la propia aparte.
   const modo = modoDeLaTabla(ultimo?.result as ResultadoMaxima | undefined, tipoAnalisis);
@@ -883,18 +884,11 @@ export function DemandaMedida({ project, feeders }: { project: string; feeders: 
           {(instantes.length > 1 || (deBarra && alimentadoresBuscados > 1)) && (
             <label className="row">
               <span>Instante de la calibración</span>
+              {/* 086:RF-140: la no coincidente se elige en «Ámbito de la máxima»; aquí, lo del ámbito o la de una cabecera. */}
               <select value={instanteElegido} disabled={engineBusy}
-                onChange={(e) => { setNoCoincidente(e.target.value === 'propia'); return e.target.value === 'propia' ? maxima('', true)
-                  : maxima(e.target.value ? e.target.value.replace(' ', 'T') : ''); }}>
-                <option value="">{tipoAnalisis === 'sistema' ? 'Máxima coincidente del sistema eléctrico'
-                  : tipoAnalisis === 'set' ? 'Máxima de la barra de su SET'
-                  : 'Máxima coincidente de los seleccionados'}{periodoBuscado ? ` en ${nombreMes(periodoBuscado)}` : ''} (por defecto)</option>
-                <option value="propia">Máxima de cada alimentador (no coincidente)</option>
-                {instantes.map((x) => (
-                  <option key={x.alimentador} value={x.fecha}>
-                    Máxima de la cabecera de {x.alimentador} · {x.fecha} · {fmtNum(x.kw)} kW
-                  </option>
-                ))}
+                onChange={(e) => (e.target.value ? maxima(e.target.value.replace(' ', 'T')) : maxima('', ambito.noCoincidente))}>
+                {opcionesDelInstante(ambito, instantes, periodoBuscado ? nombreMes(periodoBuscado) : '',
+                  (kw) => fmtNum(kw)).map((o) => <option key={o.valor || 'ambito'} value={o.valor}>{o.rotulo}</option>)}
                 {instanteElegido && !instantes.some((x) => x.fecha === instanteElegido) && (
                   <option value={instanteElegido}>Instante común: {instanteElegido}</option>
                 )}

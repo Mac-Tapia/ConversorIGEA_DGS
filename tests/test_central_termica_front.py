@@ -147,11 +147,13 @@ def test_instante_coincidente_de_la_maxima_de_un_alimentador():
     una cabecera: se vuelve a buscar con ese instante y se avisa de que es coincidente; por defecto,
     la coincidente de los seleccionados."""
     assert 'Instante de la calibración' in DEMANDA
-    assert 'Máxima de la cabecera de {x.alimentador} · {x.fecha}' in DEMANDA
+    # 086:RF-140: las opciones del instante las da ``opcionesDelInstante`` del módulo del ámbito, sin repetir la no
+    # coincidente; la de una cabecera calibra a todos en su hora y la del ámbito es la opción por defecto.
+    assert 'opcionesDelInstante(ambito, instantes' in DEMANDA
+    assert 'Todos en la máxima de ${x.alimentador} · ${x.fecha}' in DEMANDA
     assert 'Máxima coincidente de los seleccionados' in DEMANDA and '(por defecto)' in DEMANDA
-    assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción'
-    # 086:RF-126: «propia» pide la máxima de cada alimentador; el resto, el instante elegido como antes.
-    assert "maxima(e.target.value ? e.target.value.replace(' ', 'T') : '')" in DEMANDA
+    assert 'La máxima de cada alimentador' not in DEMANDA, 'mezclaba instantes: no es una opción del instante'
+    assert "e.target.value ? maxima(e.target.value.replace(' ', 'T')) : maxima('', ambito.noCoincidente)" in DEMANDA
     assert 'se calibra a la vez, no en la máxima de cada uno' in DEMANDA
 
 

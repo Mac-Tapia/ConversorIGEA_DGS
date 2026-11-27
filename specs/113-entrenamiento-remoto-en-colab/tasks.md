@@ -27,3 +27,6 @@ nunca limita lo local (RF-16) y debe aprovechar Colab Pro («si no, de nada serv
 - [ ] T8. Las demás familias (intérprete, PINN y gemelo, pronóstico, MADRL/MASAC), cada una con su orden comprobada
       con un ensayo corto antes de entrar en `FAMILIAS`, y los paquetes VNR-GIS públicos (RF-15). Hecho cuando: cada
       familia tiene su prueba y su ensayo corto.
+- [x] T9. Enlace directo a Colab en el cuaderno. (RF-17) Hecho cuando: el cuaderno lleva el enlace «Abrir en Colab» y
+      `test_el_cuaderno_tiene_su_enlace_directo_a_colab` lo comprueba; evidencia: esa prueba en verde el 2026-11-27. El
+      enlace abre el cuaderno de `main`: funciona en cuanto la rama esté integrada.

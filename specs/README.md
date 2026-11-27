@@ -92,7 +92,7 @@ retirada.
 | [083](083-oraculo-antes-de-calibrar/spec.md) | El oráculo antes de calibrar y recalibrar | cumplida | 36 | 36 | — |
 | [084](084-seis-reglas-con-requisito/spec.md) | Seis reglas del operador pasan de notas a requisitos con prueba | cumplida | 30 | 30 | — |
 | [085](085-ordenes-del-maestro-con-grupos-apartados/spec.md) | Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida | 33 | 33 | — |
-| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 138 | 135 | T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T79, T32 (DIgSILENT), T34, T105 (DIgSILENT), T113 |
+| [086](086-puesta-en-operacion-comercial/spec.md) | Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | 139 | 136 | T9 (DIgSILENT), T36 (DIgSILENT), T40 (DIgSILENT), T41, T79, T32 (DIgSILENT), T34, T105 (DIgSILENT), T113 |
 | [087](087-seleccion-de-obras-con-metodos-y-medicion/spec.md) | Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida | 61 | 61 | — |
 | [088](088-q-de-cabecera-desde-el-factor-de-potencia/spec.md) | Q negativa desde el factor de potencia | cumplida | 14 | 14 | — |
 | [089](089-pronostico-de-demanda-en-un-modulo/spec.md) | Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | 108 | 107 | T7, T18, T19 |
@@ -119,5 +119,5 @@ retirada.
 | [110](110-envio-de-informes-por-correo-desde-la-web/spec.md) | Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | 14 | 14 | — |
 | [111](111-editor-electrico-sobre-el-plano-gis/spec.md) | Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | cumplida | 32 | 32 | — |
 | [112](112-datasets-de-referencia-anonimizados-y-benchmarks/spec.md) | Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | 23 | 23 | T16 |
-| [113](113-entrenamiento-remoto-en-colab/spec.md) | Entrenamiento remoto en Colab con evaluación local | aprobada | 16 | 11 | T7, T8 |
+| [113](113-entrenamiento-remoto-en-colab/spec.md) | Entrenamiento remoto en Colab con evaluación local | aprobada | 17 | 12 | T7, T8 |
 | [114](114-agente-masac-del-conversor/spec.md) | Agente MASAC que aprende a operar el conversor | borrador | 13 | 0 | T1, T2, T3, T4, T5, T6, T7, T8 |

@@ -50,3 +50,26 @@ test('086:RF-126 cada ámbito con su coincidente por defecto y su no coincidente
   assert.equal(demasiadosParaLaCoincidente(leerAmbito('alimentadores:propia'), 4), false);
   assert.equal(demasiadosParaLaCoincidente(leerAmbito('set'), 40), false);
 });
+
+// 086:RF-140: el 2026-11-27 el usuario vio dos desplegables casi iguales: «Ámbito de la máxima» con «Alimentadores: la
+// máxima de cada uno (no coincidente)» e «Instante de la calibración» con «Máxima de cada alimentador (no coincidente)».
+// La no coincidente se elige solo en el ámbito; el instante ofrece lo del ámbito o calibrar todos en la de una cabecera.
+test('086:RF-140 «Instante de la calibración» no repite la no coincidente del ámbito', async () => {
+  const fuente = readFileSync(PANTALLA, 'utf-8');
+  const desde = fuente.indexOf('Instante de la calibración');
+  const desplegable = fuente.slice(desde, fuente.indexOf('</select>', desde));
+  assert.doesNotMatch(desplegable, /value="propia"/, 'el instante vuelve a ofrecer la no coincidente');
+  assert.match(desplegable, /opcionesDelInstante\(/);
+  const { opcionesDelInstante, leerAmbito } = await ambito();
+  const instantes = [{ alimentador: 'A1', fecha: '2026-02-26 21:00:00', kw: 4348.56 },
+    { alimentador: 'A2', fecha: '2026-01-09 13:00:00', kw: 9375.33 }];
+  const kw = (n) => n.toFixed(0);
+  const propia = opcionesDelInstante(leerAmbito('alimentadores:propia'), instantes, '', kw);
+  assert.deepEqual(propia.map((o) => o.valor), ['', '2026-02-26 21:00:00', '2026-01-09 13:00:00']);
+  assert.match(propia[0].rotulo, /^La del ámbito/);
+  assert.ok(propia.every((o) => !/no coincidente/.test(o.rotulo)), 'repite la no coincidente del ámbito');
+  assert.match(propia[1].rotulo, /^Todos en la máxima de A1 · 2026-02-26 21:00:00/);
+  const coincidente = opcionesDelInstante(leerAmbito('alimentadores'), instantes, 'enero de 2026', kw);
+  assert.equal(coincidente[0].rotulo, 'Máxima coincidente de los seleccionados en enero de 2026 (por defecto)');
+  assert.equal(opcionesDelInstante(leerAmbito('set'), [], '', kw)[0].rotulo, 'Máxima de la barra de su SET (por defecto)');
+});
