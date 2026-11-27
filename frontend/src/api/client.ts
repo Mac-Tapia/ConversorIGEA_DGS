@@ -394,6 +394,9 @@ export const api = {
   obrasEscalera: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
     tipo_cambio: number | null; capex: string }) =>
     request<Job>(`${ws(id)}/pf/obras/escalera`, json('POST', body)),
+  // 042:RF-114: aplica en «Con proyecto» la obra de «Obra aparte» que elige el operador.
+  obrasAparte: (id: string, body: { project: string; feeder: string; nombre: string }) =>
+    request<Job>(`${ws(id)}/pf/obras/aparte`, json('POST', body)),
   // Spec 042, RF-13: escalera carga a carga y SET nueva para las que no caben.
   obrasConProyecto: (id: string, body: { project: string; feeders: string[]; anio_casos: number | null;
     tipo_cambio: number | null; capex: string; alimentadores_nuevos?: number;   // 086:RF-77: sin cargas, el de la API

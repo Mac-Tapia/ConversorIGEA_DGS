@@ -191,3 +191,7 @@ Nota U02, 2026-11-08: aclaración universal RF-39/RF-50 y regresión permanente 
       Hecho cuando: `tests/test_procedencia_capex_web.py` y `frontend/test/obrasEstadoActual.test.mjs` (042:RF-113) en
       verde, y con las referencias reales del espacio del operador se encuentra su libro CAPEX. Hecho el 2026-11-27
       (evidencia en el commit que lo integra).
+- [x] T72 OBRA-APARTE-APLICABLE (27-11, LL202: los bancos del déficit previo medidos y sin forma de aplicarlos). (RF-114)
+      Hecho cuando: `tests/test_obra_aparte_web.py` y `frontend/test/obrasEstadoActual.test.mjs` (042:RF-114) en verde con
+      su rojo por aserción, `tsc` y `npm run build` en verde, y la obra aplicada desde la web queda en «Con proyecto» con su
+      persistencia comprobada. Hecho el 2026-11-27 (evidencia en el commit que lo integra).

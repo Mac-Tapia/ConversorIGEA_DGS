@@ -278,6 +278,12 @@ según lo que recomiendas». Todo lo que sigue pasa por la misma escalera (RF-94
   local (`planificacion.capex.libro`) o, si no lo declara, el más reciente de las carpetas de referencias del espacio
   (las de los libros de demanda cargados) que tenga la hoja CAPEX del perfil, reconocido por su contenido. La casilla
   lo nombra; lo escrito por el operador manda. El botón «Proponer obras automáticamente» va en color.
+- RF-114: (usuario, 2026-11-27, con la terna de SEN0001 aplicada en LL202 y 40 barras bajo el límite que la carga no
+  causa: «sí, aplica» los bancos de «Obra aparte») CUANDO el operador pulse «Aplicar en «Con proyecto»» en una fila de
+  «Obra aparte» (déficit previo o sin comparación), EL SISTEMA aplicará en «Con proyecto» exactamente las obras de esa
+  variante tal como la midió la escalera (cada banco con su barra y sus kvar, del plan de su evaluación), como obra del
+  operador, con la misma creación y comprobación de persistencia que cualquier obra; si esas obras ya no están en una
+  evaluación del proyecto, lo dirá. En esas tablas la columna se llamará «Recomendada», no «Se aplica».
 - Amplía la escalera de la 025 (RF-44 a RF-77): allí una obra para todas las cargas; aquí carga a
   carga y, cuando ya no cabe, la SET nueva. Reutiliza sus variantes, sorteos y costos.
 - Usa la tasa de crecimiento de la 029 y las cargas nuevas sin duplicados de la 040.

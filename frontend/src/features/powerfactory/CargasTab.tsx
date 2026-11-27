@@ -772,7 +772,9 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
           project: resultado.informe.project, feeders, anio_casos: resultado.informe.anio_casos ?? null,
           tipo_cambio: tipoCambio, capex, alimentadores_nuevos: nuevos,
           set_nueva_nombre: setNombre, directo_set_nueva: directo,
-          escalera_primero: porAlimentador, rehacer_obras: rehacer }))} />}
+          escalera_primero: porAlimentador, rehacer_obras: rehacer }))}
+        onAplicarAparte={(feeder, nombre) => startJob(() => api.obrasAparte(ws.id, {
+          project: resultado.informe.project, feeder, nombre }))} />}
 
       {/* 017:RF-109, RF-124: dónde están las cargas nuevas y dónde se conectaron, sobre calles o satélite. */}
       {resultado && lastRun?.kind === 'cargas_aplicar' && resultado.informe.project && (
@@ -785,7 +787,8 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
           cargas={avanceDisco?.cargas ?? []}
           onCorregir={(tipoCambio, capex, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
             project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
-            escalera_primero: true, rehacer_obras: rehacer }))} />)}
+            escalera_primero: true, rehacer_obras: rehacer }))}
+          onAplicarAparte={(feeder, nombre) => startJob(() => api.obrasAparte(ws.id, { project, feeder, nombre }))} />)}
 
       {verObras && current && order.length > 0 && betaActiva(health, 'set_nueva') && <>
         <AvisoBeta clave="set_nueva" />
@@ -1182,7 +1185,9 @@ function YaEnElProyecto({ fichas, simular }: { fichas: FichaExistente[]; simular
   );
 }
 
-function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto, capexVigente = null }: {
+function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscalera, onConProyecto, capexVigente = null,
+  onAplicarAparte }: {
+  onAplicarAparte?: AplicarAparte;
   capexVigente?: CapexVigente | null;
   resultado: CargasResultado; cancelado: boolean; escalera: EscaleraResultado | null;
   conProyecto: ConProyectoResultado | null; ocupado: boolean;
@@ -1300,7 +1305,7 @@ function Informe({ resultado, cancelado, escalera, conProyecto, ocupado, onEscal
       )}
       {inf.cargas_nuevas && <CargasNuevasCaso c={inf.cargas_nuevas} />}
       {escalera && <Escalera r={escalera} />}
-      {conProyecto && <ConProyecto r={conProyecto} />}
+      {conProyecto && <ConProyecto r={conProyecto} onAplicarAparte={onAplicarAparte} ocupado={ocupado} />}
       {(inf.cargas ?? []).length > 0 && <PorCarga cargas={inf.cargas!} sin={inf.sin_proyecto} />}
       {(inf.calibradas_cambiadas ?? []).length > 0 && <Calibradas xs={inf.calibradas_cambiadas!} />}
       {inf.tecnico_economico && (
@@ -1386,7 +1391,8 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
 }
 
 /** 086:RF-77: obras para el estado actual, sin cargas nuevas: solo los alimentadores que violan límites las llevan. */
-function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, capexVigente = null }: {
+function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, capexVigente = null, onAplicarAparte }: {
+  onAplicarAparte?: AplicarAparte;
   capexVigente?: CapexVigente | null;
   feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null; cargas: CargaAplicadaEnDisco[];
   onCorregir: (tipoCambio: number | null, capex: string, rehacer: boolean) => void;
@@ -1419,13 +1425,17 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, 
           {textos.boton}
         </button>
       </div>
-      {conProyecto && <ConProyecto r={conProyecto} />}
+      {conProyecto && <ConProyecto r={conProyecto} onAplicarAparte={onAplicarAparte} ocupado={ocupado} />}
     </div>
   );
 }
 
+/** 042:RF-114: aplicar en «Con proyecto» una obra de «Obra aparte»: alimentador y nombre de su variante. */
+type AplicarAparte = (feeder: string, nombre: string) => void;
+
 /** Spec 042, RF-12: qué carga va a la red existente y cuál a la SET nueva, y su diseño. */
-function ConProyecto({ r }: { r: ConProyectoResultado }) {
+function ConProyecto({ r, onAplicarAparte, ocupado = false }: { r: ConProyectoResultado; onAplicarAparte?: AplicarAparte;
+  ocupado?: boolean }) {
   const e = r.escalera_por_cargas;
   const s = r.set_nueva;
   return (
@@ -1440,7 +1450,8 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
         <p className="small">A la SET nueva: {lista(e.a_set_nueva.map((c) => `${c.sed} (${c.alimentador})`))}</p>
       )}
       {Object.entries(e.por_alimentador ?? {}).map(([f, a]) => (
-        <AlternativasDe key={f} f={f} a={a} moneda={e.escalera?.moneda ?? ''} />))}
+        <AlternativasDe key={f} f={f} a={a} moneda={e.escalera?.moneda ?? ''} ocupado={ocupado}
+          onAplicar={onAplicarAparte ? (nombre) => onAplicarAparte(f, nombre) : undefined} />))}
       {e.escalera && <Escalera r={e.escalera} />}
       {s.avisos.map((x) => <p key={x} className="muted small">{x}</p>)}
       {s.zonas
@@ -1456,14 +1467,17 @@ function ConProyecto({ r }: { r: ConProyectoResultado }) {
 }
 
 /** 042:RF-58, RF-77: una tabla de alternativas, de menor a mayor costo anual. */
-function TablaAlternativas({ lista, moneda }: { lista: Alternativa[]; moneda: string }) {
+function TablaAlternativas({ lista, moneda, onAplicar, ocupado = false }: { lista: Alternativa[]; moneda: string;
+  onAplicar?: (nombre: string) => void; ocupado?: boolean }) {
   const dinero = (x: number | null) => (x == null ? '—' : `${fmtNum(x, 0)} ${moneda}`);
   return (
     <div className="table-wrap table-short">
       <table className="table">
         <thead><tr><th className="num">N.º</th><th>Obras</th><th className="num">Inversión</th>
           <th className="num">Costo anual</th><th>Sorteos</th><th>En valle</th><th className="num">Mínima de media p.u.</th>
-          <th>Alcance</th><th>Plazo</th><th>Se aplica</th></tr></thead>
+          <th>Alcance</th><th>Plazo</th>
+          {/* 042:RF-114: una obra aparte no está aplicada: se recomienda, y se aplica con su botón. */}
+          {onAplicar ? <><th>Recomendada</th><th /></> : <th>Se aplica</th>}</tr></thead>
         <tbody>{porCosto(lista).map((x) => (
           <tr key={x.nombre} className={x.elegida ? 'strong' : ''}>
             <td className="num">{x.numero}</td>
@@ -1471,6 +1485,8 @@ function TablaAlternativas({ lista, moneda }: { lista: Alternativa[]; moneda: st
             <td className="num">{dinero(x.inversion)}</td><td className="num">{dinero(x.costo_anual)}</td>
             <td>{sorteosDe(x)}</td><td>{valleDe(x)}</td><td className="num">{tensionDe(x)}</td><td>{alcanceDe(x)}</td>
             <td>{plazoDe(x)}</td><td>{x.elegida ? 'Sí' : 'No'}</td>
+            {onAplicar && <td><button type="button" className={`btn btn-sm${x.elegida ? ' btn-primary' : ''}`}
+              disabled={ocupado} onClick={() => onAplicar(x.nombre)}>Aplicar en «Con proyecto»</button></td>}
           </tr>))}</tbody>
       </table>
     </div>
@@ -1478,7 +1494,8 @@ function TablaAlternativas({ lista, moneda }: { lista: Alternativa[]; moneda: st
 }
 
 /** 042:RF-77: lo que paga la carga y, aparte, lo que no: esto último no está en «Con proyecto». */
-function AlternativasDe({ f, a, moneda }: { f: string; a: ConProyectoAlimentador; moneda: string }) {
+function AlternativasDe({ f, a, moneda, onAplicar, ocupado = false }: { f: string; a: ConProyectoAlimentador; moneda: string;
+  onAplicar?: (nombre: string) => void; ocupado?: boolean }) {
   const aparte = [['déficit previo', a.deficit_previo], ['sin comparación', a.sin_comparacion]] as const;
   return (
     <div>
@@ -1490,7 +1507,7 @@ function AlternativasDe({ f, a, moneda }: { f: string; a: ConProyectoAlimentador
         <div key={rotulo}>
           <p className="small"><strong>Obra aparte, {rotulo}</strong>: {cuenta(d.barras.length, 'barra', 'barras')} bajo el límite que
             la carga no causa. No está en «Con proyecto» ni en sus flujos; se midió con la máxima, sin sorteos.</p>
-          <TablaAlternativas lista={d.alternativas} moneda={moneda} />
+          <TablaAlternativas lista={d.alternativas} moneda={moneda} onAplicar={onAplicar} ocupado={ocupado} />
         </div>))}
     </div>
   );

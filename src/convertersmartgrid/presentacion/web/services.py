@@ -15525,3 +15525,43 @@ def capex_o_vigente(ws: Workspace, capex: str | None) -> str | None:
     vigente = capex_vigente(ws)
     return vigente['ruta'] if vigente else capex
 
+
+# --------------------------------------------------------------------------- obra aparte (042:RF-114)
+def obras_de_la_variante(ws: Workspace, project: str, feeder: str, nombre: str) -> list[dict]:
+    """042:RF-114: las obras exactas de una variante medida por la escalera, por su nombre, de la evaluación más reciente.
+
+    La tabla de «Obra aparte» guarda el nombre y la medida; las obras (cada banco con su barra y sus kvar) están en el
+    plan de la evaluación que la midió. Se aplican esas, no otras deducidas del nombre.
+    """
+    from ...aplicacion.demanda_medida import clave_codigo
+
+    buscado = clave_codigo(feeder)
+    for ruta in sorted(ws.plans_dir.glob('escalera_evaluar_*.json'), key=lambda p: p.stat().st_mtime, reverse=True):
+        try:
+            plan = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if str(plan.get('project') or '').strip() != project.strip():
+            continue
+        for v in plan.get('variantes') or []:
+            obras = [o for o in v.get('obras') or [] if isinstance(o, dict)]
+            if v.get('nombre') == nombre and obras and all(clave_codigo(o.get('alimentador')) == buscado for o in obras):
+                return [{k: x for k, x in o.items() if k != 'id'} for o in obras]
+    raise UserError(f'No se encontraron las obras de «{nombre[:120]}» de {feeder} en las evaluaciones de {project}: '
+                    'vuelva a proponer las obras automáticamente.')
+
+
+def aplicar_obra_aparte(ws: Workspace, ctx: JobContext, project: str, feeder: str, nombre: str) -> dict:
+    """042:RF-114: aplica en «Con proyecto» la obra de «Obra aparte» (déficit previo o sin comparación) que el operador elige.
+
+    El 2026-11-27, con la terna de SEN0001 en LL202, quedaban 40 barras entre 0,92 y 0,95 p.u. que la carga no causa; su
+    obra (12 bancos de 450 kvar) estaba medida pero la web no tenía cómo aplicarla. Va como obra del operador: la
+    escalera nunca la retira (098:RF-36), y ``obras_ejecutar`` la crea y comprueba su persistencia como cualquier otra.
+    """
+    from ...aplicacion.escalera_optima import BIBLIOTECA_TIPOS
+
+    obras = obras_de_la_variante(ws, project, feeder, nombre)
+    ids = [obra_anadir(ws, o)['id'] for o in obras]
+    ctx.log(f'{feeder}: {_cuenta(len(ids), "obra", "obras")} de «{nombre[:120]}» a «Con proyecto» (042:RF-114).')
+    return obras_ejecutar(ws, ctx, project, [feeder], ids, BIBLIOTECA_TIPOS, simular=False)
+

@@ -88,3 +88,16 @@ test('042:RF-113 la casilla del CAPEX nombra el vigente y el botón de las obras
   assert.match(textoCapexVigente(null), /no hay uno/);
 });
 
+// 042:RF-114: el 2026-11-27 los bancos del déficit previo de LL202 estaban medidos y no había cómo aplicarlos.
+test('042:RF-114 las obras aparte se aplican con su botón y su columna dice «Recomendada»', async () => {
+  const { readFileSync } = await import('node:fs');
+  const pantalla = readFileSync(fileURLToPath(new URL('../src/features/powerfactory/CargasTab.tsx', import.meta.url)), 'utf8');
+  const cliente = readFileSync(fileURLToPath(new URL('../src/api/client.ts', import.meta.url)), 'utf8');
+  assert.match(cliente, /obrasAparte: .*\r?\n.*\/pf\/obras\/aparte/);
+  assert.match(pantalla, /<TablaAlternativas lista=\{d\.alternativas\} moneda=\{moneda\} onAplicar=\{onAplicar\}/);
+  assert.match(pantalla, /onAplicar \? <><th>Recomendada<\/th>/);
+  assert.match(pantalla, /Aplicar en «Con proyecto»/);
+  assert.equal((pantalla.match(/onAplicarAparte=\{\(feeder, nombre\) => startJob\(\(\) => api\.obrasAparte/g) ?? []).length, 2,
+    'los dos sitios que pintan «Con proyecto» llevan el botón');
+});
+

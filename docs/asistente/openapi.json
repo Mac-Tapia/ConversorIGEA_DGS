@@ -9133,6 +9133,35 @@
         "title": "NubeVinculosRespuesta",
         "type": "object"
       },
+      "ObraAparteIn": {
+        "description": "042:RF-114: la obra de «Obra aparte» que se aplica, por su alimentador y el nombre de su variante.",
+        "properties": {
+          "feeder": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Feeder",
+            "type": "string"
+          },
+          "nombre": {
+            "maxLength": 4000,
+            "minLength": 1,
+            "title": "Nombre",
+            "type": "string"
+          },
+          "project": {
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project",
+          "feeder",
+          "nombre"
+        ],
+        "title": "ObraAparteIn",
+        "type": "object"
+      },
       "ObraAplicadaRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -23516,6 +23545,56 @@
           }
         },
         "summary": "Guion Ejecutar"
+      }
+    },
+    "/api/workspaces/{wid}/pf/obras/aparte": {
+      "post": {
+        "description": "042:RF-114: aplica en «Con proyecto» la obra aparte elegida por el operador.",
+        "operationId": "obras_aparte_api_workspaces__wid__pf_obras_aparte_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ObraAparteIn"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Obras Aparte"
       }
     },
     "/api/workspaces/{wid}/pf/obras/aplicar": {

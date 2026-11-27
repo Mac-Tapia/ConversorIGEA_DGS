@@ -533,6 +533,14 @@ class ObrasIn(BaseModel):
     alimentadores_nuevos: int = Field(4, ge=1, le=20)
 
 
+class ObraAparteIn(BaseModel):
+    """042:RF-114: la obra de «Obra aparte» que se aplica, por su alimentador y el nombre de su variante."""
+
+    project: str = Field(min_length=1)
+    feeder: str = Field(min_length=1, max_length=200)
+    nombre: str = Field(min_length=1, max_length=4000)
+
+
 class RetirarObrasIn(BaseModel):
     """042:RF-61: las variaciones de obra que el operador retira de «Con proyecto», por su nombre exacto."""
 
@@ -2963,6 +2971,14 @@ def create_app(
                                                           anio_casos=body.anio_casos,
                                                           tipo_cambio=body.tipo_cambio,
                                                           capex=services.capex_o_vigente(ws, body.capex)),
+                      lane='powerfactory')
+
+    @app.post('/api/workspaces/{wid}/pf/obras/aparte', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
+    def obras_aparte(wid: str, body: ObraAparteIn) -> dict:
+        """042:RF-114: aplica en «Con proyecto» la obra aparte elegida por el operador."""
+        ws = ws_or_404(wid)
+        return submit(ws, 'obras_aplicar', f'Aplicar obra aparte · {body.project.strip()} · {body.feeder.strip()}',
+                      lambda ctx: services.aplicar_obra_aparte(ws, ctx, body.project, body.feeder, body.nombre),
                       lane='powerfactory')
 
     @app.post('/api/workspaces/{wid}/pf/obras/con-proyecto', status_code=202, response_model=JobRespuesta, response_model_exclude_unset=True)
