@@ -507,6 +507,14 @@ export const api = {
       json('POST', { decision, comentario })),
   asistenteModelos: () => request<import('./types').EstadoModelos>('/api/asistente/modelos'),
   asistenteAprendizaje: () => request<import('./types').EstadoAprendizaje>('/api/asistente/aprendizaje'),
+  // 113: entrenar en Colab Pro es una opción del local; los datos salen solo con la confirmación de la previa.
+  colabEstado: () => request<import('./types').ColabEstado>('/api/entrenamiento/colab'),
+  colabPrevia: (familia: string, dataset: string) =>
+    request<import('./types').ColabPrevia>('/api/entrenamiento/colab/preparar', json('POST', { familia, dataset })),
+  colabPreparar: (familia: string, dataset: string, confirmacion: string) =>
+    request<import('./types').ColabPaquete>('/api/entrenamiento/colab/preparar',
+      json('POST', { familia, dataset, confirmacion })),
+  colabTraer: () => request<import('./types').ColabTraer>('/api/entrenamiento/colab/traer', { method: 'POST' }),
   // 026:RF-49: lo aprendido del operador; se promueve con su previa y una confirmación de un solo uso.
   asistenteAprendido: () => request<import('./types').AprendidoEstado>('/api/asistente/aprendido'),
   asistenteAprendidoPrevia: () =>

@@ -1,8 +1,9 @@
 # Tareas 114 — Agente MASAC que aprende a operar el conversor
 
-- [ ] T1. Entorno PettingZoo de obras (Dec-POMDP: agentes por alimentador y SET, observación parcial, acciones de banco,
-      tap, transferencia y escalera, recompensa CNE + costo + pérdidas), con el oráculo y el motor abierto. (RF-1, RF-4, RF-10)
-      Hecho cuando: pruebas 114:RF-1, RF-4, RF-10 en verde con redes sintéticas sorteadas.
+- [ ] T1. Entorno PettingZoo de obras (Dec-POMDP: un agente en cada alimentador, en cada SET y en el sistema eléctrico (RF-13),
+      observación parcial, acciones de banco,
+      tap, transferencia y escalera, recompensa CNE + costo + pérdidas), con el oráculo y el motor abierto. (RF-1, RF-4, RF-10, RF-13)
+      Hecho cuando: pruebas 114:RF-1, RF-4, RF-10, RF-13 en verde con redes sintéticas sorteadas.
 - [ ] T2. Escenarios desde VNR-GIS públicos con demanda generada desde las curvas propias. (RF-5)
       Hecho cuando: prueba 114:RF-5 en verde con un paquete sintético; ensayo con dos distribuidoras reales.
 - [ ] T3. MASAC con BenchMARL y CTDE; inferencia local sin GPU. (RF-2, RF-3)

@@ -1,6 +1,6 @@
 # Spec 113 — Entrenamiento remoto en Colab con evaluación local
 
-Estado: borrador · Fecha: 2026-11-26 · Origen: orden del usuario del 2026-11-26 («crear un notebook […] clonar este
+Estado: aprobada · Fecha: 2026-11-26 · Origen: orden del usuario del 2026-11-26 («crear un notebook […] clonar este
 proyecto […] con el mismo nombre del proyecto […] entrenar desde VS Code con la extensión de Colab […] con todos los
 datasets reales […] y regresar el modelo para que se integre en su operación»).
 
@@ -22,8 +22,8 @@ modelos (043, 047, 070, 071, 089).
 
 - RF-1: EL SISTEMA tendrá el cuaderno `notebooks/ConverterSmartGrid.ipynb` en el repositorio, sin celdas ejecutadas, sin
   datos y sin credenciales; una prueba impedirá integrarlo con salidas.
-- RF-2: CUANDO el cuaderno arranque, su primera celda clonará este proyecto en la revisión que lleva escrita y
-  comprobará que es esa; con el repositorio privado, el token se leerá de los secretos de Colab, nunca del cuaderno.
+- RF-2: CUANDO el cuaderno arranque, clonará el repositorio y la revisión que lleva escritos el manifiesto de su
+  paquete (el repositorio, del remoto `origin` del clon que lo preparó) y comprobará que es esa; con el repositorio privado, el token se leerá de los secretos de Colab, nunca del cuaderno.
 - RF-3: EL SISTEMA instalará en Colab las versiones fijadas del proyecto (con su huella) y lo dirá si alguna falta.
 - RF-4: CUANDO el operador pulse «Entrenar en Colab» en la web, EL SISTEMA comprobará que el árbol no tiene cambios sin
   commit (si los tiene, avisará: Colab no los vería), preparará los datasets elegidos con su manifiesto (huellas, origen,
@@ -52,6 +52,12 @@ modelos (043, 047, 070, 071, 089).
   abierto desde la web.
 - RF-15: EL SISTEMA podrá preparar como datasets los paquetes VNR-GIS públicos de las distribuidoras (080), cada red en
   su entorno, sin mezclar fuentes ni empresas.
+
+- RF-16: Colab será siempre una opción y nunca una condición, como ordenó el usuario el 2026-11-26 («todo lo que se
+  está haciendo para Google Colab debe ser una opción, que no limite ni impida el entrenamiento local»): EL SISTEMA
+  ofrecerá entrenar «En este equipo» o «En Colab Pro» con el mismo dataset y la misma orden de `tools/`; lo entrenado en
+  Colab pasará por las mismas puertas locales que lo entrenado aquí; y sin carpeta de Drive ni cuaderno, el entrenamiento
+  y la evaluación locales funcionarán igual, sin error ni aviso que los bloquee.
 
 ## Requisitos no funcionales
 

@@ -15315,3 +15315,84 @@ def resumen_caso(ws: Workspace, project: str, caso: str) -> dict:
     hecho['huecos'] = [*hecho['huecos'], *avisos_obras]
     return {'project': project.strip(), 'caso': caso, 'docx': destino.name, 'xlsx': hecho['xlsx'],
             'huecos': hecho['huecos'], 'conclusiones': hecho['conclusiones'], 'filas': hecho['filas']}
+
+
+# ---- 113: entrenar en Colab Pro como opción del local (RF-4, RF-10, RF-16) ----
+
+def _raiz_del_programa() -> Path:
+    """La carpeta del repositorio que sirve la web: su revisión es la que clonará Colab."""
+    return Path(__file__).resolve().parents[4]
+
+
+def _git_web(*args: str) -> str:
+    import subprocess
+    try:
+        return subprocess.run(['git', '-C', str(_raiz_del_programa()), *args], capture_output=True, text=True,
+                              timeout=60, check=False).stdout
+    except (OSError, subprocess.SubprocessError):
+        return ''
+
+
+def colab_estado() -> dict:
+    """113:RF-16: las opciones de entrenamiento; sin Drive solo «En este equipo», sin ningún error."""
+    from ...aplicacion import entrenamiento_remoto as er
+    drive = er.carpeta_drive()
+    paquetes = er.paquetes_de(drive / 'paquetes') if drive is not None else {}
+    return {'opciones': er.opciones_de_entrenamiento(drive), 'drive': str(drive) if drive else None,
+            'familias': sorted(er.FAMILIAS), 'reentrenar': er.avisos_de_reentreno(_registro_colab()),
+            'paquetes': [{'huella': h, 'familia': m['familia'], 'revision': m['revision'][:8], 'creado': m['creado'],
+                          'ficheros': len(m['ficheros'])} for h, m in sorted(paquetes.items(),
+                                                                             key=lambda x: x[1]['creado'])]}
+
+
+def _registro_colab() -> Path:
+    """113:RF-13: el registro local de lo preparado para Colab, en el almacén del asistente."""
+    from ...aplicacion import entrenamiento_remoto as er
+    from ...aplicacion.asistente import almacen
+    return almacen.raiz() / 'colab' / er.REGISTRO_PREPARADOS
+
+
+def colab_previa(familia: str, dataset: str) -> dict:
+    """113:RF-4: qué sube, a dónde y desde qué revisión; si hay cambios sin commit o la revisión no está en GitHub."""
+    from ...aplicacion import entrenamiento_remoto as er
+    drive = er.carpeta_drive()
+    if drive is None:
+        raise UserError('Sin carpeta de Google Drive para Colab: entrena en este equipo, o instala Drive para '
+                        'escritorio.')
+    try:
+        previa = er.previa_paquete(dataset, familia=familia)
+    except ValueError as exc:
+        raise UserError(str(exc)) from exc
+    revision = _git_web('rev-parse', 'HEAD').strip()
+    return {**previa, 'revision': revision, 'en_github': bool(_git_web('branch', '-r', '--contains', revision).strip()),
+            'cambios_sin_commit': er.cambios_sin_commit(_git_web('status', '--porcelain')),
+            'destino': str(drive / 'paquetes')}
+
+
+def colab_preparar(familia: str, dataset: str) -> dict:
+    """113:RF-4, RF-5, RF-6: el paquete en Drive y el enlace del cuaderno en la revisión exacta."""
+    from ...aplicacion import entrenamiento_remoto as er
+    previa = colab_previa(familia, dataset)
+    try:
+        repositorio = er.repositorio_de(_git_web('remote', 'get-url', 'origin'))
+        m = er.preparar_paquete(dataset, familia=familia, revision=previa['revision'],
+                                destino=Path(previa['destino']), repositorio=repositorio)
+    except (er.PaqueteProhibido, ValueError, OSError) as exc:
+        raise UserError(f'No se preparó el paquete: {exc}') from exc
+    er.registrar_preparado(_registro_colab(), familia=familia, origen=dataset, ejemplos=er.ejemplos_de(dataset),
+                           huella=m['huella'])
+    return {'paquete': f'{familia}_{m["revision"][:8]}_{m["huella"][:8]}', 'huella': m['huella'],
+            'ficheros': len(m['ficheros']), 'colab': er.url_colab(m['revision'], repositorio=repositorio)}
+
+
+def colab_traer(destino: Path | None = None) -> dict:
+    """113:RF-10, RF-11: trae los candidatos que cuadran, sin activar nada; los demás con su motivo."""
+    from ...aplicacion import entrenamiento_remoto as er
+    drive = er.carpeta_drive()
+    if drive is None:
+        raise UserError('Sin carpeta de Google Drive para Colab: no hay candidatos que traer.')
+    from ...aplicacion.asistente import almacen
+    destino = destino or almacen.raiz() / 'colab' / 'traidos'
+    return {'candidatos': er.traer_candidatos(drive / 'candidatos', destino,
+                                              revision=_git_web('rev-parse', 'HEAD').strip(),
+                                              paquetes=er.paquetes_de(drive / 'paquetes'))}

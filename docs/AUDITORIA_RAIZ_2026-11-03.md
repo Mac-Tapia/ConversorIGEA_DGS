@@ -40,6 +40,7 @@ no lo continúa, lo rehace.
 | `frontend/` | sí | 63 MB con `node_modules` y `dist` | Interfaz web | `web/app.py` sirve `dist`; `run_gui.bat` la compila |
 | `instalador/` | sí | 4 kB | Guion de Inno Setup de la versión de producto (086:RF-36) | `tools/construir_candidato.py` |
 | `input/` | sí, solo `README.md` | 43 kB | Catálogo de parámetros local | `catalog.py`, `reglas.py`, `cli.py` |
+| `notebooks/` | sí | 9 kB | Cuaderno de Colab Pro del proyecto, sin salidas ni datos (spec 113) | Colab y VS Code; `tests/test_entrenamiento_remoto.py` |
 | `output/` | ignorada | 98,2 GiB lógicos, 36,3 GiB reales | Espacios web, modelos, corpus, informes y evidencia | Web, gemelo, asistente, informes; no es carpeta de temporales |
 | `specs/` | sí | 1,4 MB | Especificaciones | `tools/estado_specs.py`, pruebas |
 | `src/` | sí | 7 MB | Motor, API web, asistente, ETL de VNR-GIS | Todo el proyecto |

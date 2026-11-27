@@ -14,10 +14,17 @@ asistente (LLM, 070) sigue siendo la interfaz; el agente propone y, solo donde l
 
 ## Requisitos funcionales (EARS)
 
-- RF-1: EL SISTEMA formulará cada tarea como un Dec-POMDP: agentes (director, uno por módulo y uno por alimentador o
-  SET), observación parcial de cada uno, acciones continuas y discretas y una recompensa conjunta.
-- RF-2: EL SISTEMA entrenará con CTDE: un crítico central por nivel que ve el estado global al entrenar y actores locales
-  que deciden solo con su observación.
+- RF-1: EL SISTEMA formulará cada tarea como un Dec-POMDP con agentes en tres niveles de la red, como pidió el usuario
+  el 2026-11-26 (el usuario pidió agentes de alimentador, de SET y de sistema eléctrico): uno por alimentador, uno por
+  SET que coordina sus alimentadores y uno por sistema eléctrico que coordina sus SET, sus líneas de 60 kV y sus
+  centrales; por encima, el director y uno por módulo. Cada agente tendrá su observación parcial, acciones continuas y
+  discretas, y la recompensa será conjunta.
+- RF-2: EL SISTEMA entrenará con CTDE: un crítico central por nivel (alimentador, SET, sistema) que ve el estado global al
+  entrenar y actores locales que deciden solo con su observación; el agente de un nivel recibe del superior su consigna
+  (límites de transferencia, tensión en barra) y le devuelve su estado.
+- RF-13: EL SISTEMA formará los agentes desde la estructura de la propia fuente (055): un sistema con N SET y M
+  alimentadores tendrá un agente de sistema, N de SET y M de alimentador, sin tamaños fijos (la red tiene 10, 50 o 200
+  alimentadores).
 - RF-3: EL SISTEMA usará MASAC (Soft Actor-Critic multiagente) como algoritmo principal, con BenchMARL sobre TorchRL; y
   podrá comparar en los mismos entornos con MAPPO y MADDPG de MARLlib en un entorno aparte (Python 3.9), sin que MARLlib
   entre en el `.venv` del conversor (Python 3.12).

@@ -2438,6 +2438,221 @@
         "title": "ClienteEvolucionRespuesta",
         "type": "object"
       },
+      "ColabEstadoRespuesta": {
+        "additionalProperties": false,
+        "description": "113:RF-4, RF-16: las opciones, la carpeta de Drive, las familias y los paquetes ya preparados.",
+        "properties": {
+          "drive": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Drive"
+          },
+          "familias": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Familias",
+            "type": "array"
+          },
+          "opciones": {
+            "items": {
+              "$ref": "#/components/schemas/OpcionEntrenamientoRespuesta"
+            },
+            "title": "Opciones",
+            "type": "array"
+          },
+          "paquetes": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Paquetes",
+            "type": "array"
+          },
+          "reentrenar": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Reentrenar",
+            "type": "array"
+          }
+        },
+        "required": [
+          "opciones",
+          "drive",
+          "familias",
+          "paquetes",
+          "reentrenar"
+        ],
+        "title": "ColabEstadoRespuesta",
+        "type": "object"
+      },
+      "ColabPaqueteRespuesta": {
+        "additionalProperties": false,
+        "description": "113:RF-4: el paquete en Drive y el enlace de Colab al cuaderno en la revisión exacta.",
+        "properties": {
+          "colab": {
+            "title": "Colab",
+            "type": "string"
+          },
+          "ficheros": {
+            "title": "Ficheros",
+            "type": "integer"
+          },
+          "huella": {
+            "title": "Huella",
+            "type": "string"
+          },
+          "paquete": {
+            "title": "Paquete",
+            "type": "string"
+          }
+        },
+        "required": [
+          "paquete",
+          "huella",
+          "ficheros",
+          "colab"
+        ],
+        "title": "ColabPaqueteRespuesta",
+        "type": "object"
+      },
+      "ColabPrepararPeticion": {
+        "additionalProperties": false,
+        "description": "113:RF-4: el dataset que sale; sin confirmación es la previa, con ella se prepara el paquete.",
+        "properties": {
+          "confirmacion": {
+            "anyOf": [
+              {
+                "maxLength": 256,
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmacion"
+          },
+          "dataset": {
+            "maxLength": 1024,
+            "minLength": 1,
+            "title": "Dataset",
+            "type": "string"
+          },
+          "familia": {
+            "maxLength": 64,
+            "minLength": 1,
+            "title": "Familia",
+            "type": "string"
+          }
+        },
+        "required": [
+          "familia",
+          "dataset"
+        ],
+        "title": "ColabPrepararPeticion",
+        "type": "object"
+      },
+      "ColabPreviaRespuesta": {
+        "additionalProperties": false,
+        "description": "113:RF-4: lo que subiría y a dónde, con la confirmación de un solo uso para ese dataset.",
+        "properties": {
+          "anonimizacion": {
+            "title": "Anonimizacion",
+            "type": "string"
+          },
+          "bytes": {
+            "title": "Bytes",
+            "type": "integer"
+          },
+          "cambios_sin_commit": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Cambios Sin Commit",
+            "type": "array"
+          },
+          "confirmacion": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmacion"
+          },
+          "destino": {
+            "title": "Destino",
+            "type": "string"
+          },
+          "en_github": {
+            "title": "En Github",
+            "type": "boolean"
+          },
+          "ficheros": {
+            "title": "Ficheros",
+            "type": "integer"
+          },
+          "prohibidos": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Prohibidos",
+            "type": "array"
+          },
+          "revision": {
+            "title": "Revision",
+            "type": "string"
+          }
+        },
+        "required": [
+          "revision",
+          "en_github",
+          "cambios_sin_commit",
+          "ficheros",
+          "bytes",
+          "prohibidos",
+          "anonimizacion",
+          "destino",
+          "confirmacion"
+        ],
+        "title": "ColabPreviaRespuesta",
+        "type": "object"
+      },
+      "ColabTraerRespuesta": {
+        "additionalProperties": false,
+        "description": "113:RF-10, RF-11: los candidatos traídos sin activar, y los rechazados con su motivo.",
+        "properties": {
+          "candidatos": {
+            "items": {
+              "additionalProperties": {
+                "$ref": "#/components/schemas/JsonValue"
+              },
+              "type": "object"
+            },
+            "title": "Candidatos",
+            "type": "array"
+          }
+        },
+        "required": [
+          "candidatos"
+        ],
+        "title": "ColabTraerRespuesta",
+        "type": "object"
+      },
       "ColisionPlanoRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -9357,6 +9572,46 @@
         "title": "ObservacionVad",
         "type": "object"
       },
+      "OpcionEntrenamientoRespuesta": {
+        "additionalProperties": false,
+        "description": "113:RF-16: dónde se puede entrenar; este equipo siempre.",
+        "properties": {
+          "disponible": {
+            "title": "Disponible",
+            "type": "boolean"
+          },
+          "donde": {
+            "enum": [
+              "local",
+              "colab"
+            ],
+            "title": "Donde",
+            "type": "string"
+          },
+          "motivo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Motivo"
+          },
+          "texto": {
+            "title": "Texto",
+            "type": "string"
+          }
+        },
+        "required": [
+          "donde",
+          "disponible",
+          "texto"
+        ],
+        "title": "OpcionEntrenamientoRespuesta",
+        "type": "object"
+      },
       "OpcionesRespuesta": {
         "additionalProperties": false,
         "properties": {
@@ -14023,6 +14278,91 @@
           }
         },
         "summary": "Copia Previa"
+      }
+    },
+    "/api/entrenamiento/colab": {
+      "get": {
+        "description": "113:RF-16: dónde se puede entrenar; sin Drive, solo en este equipo.",
+        "operationId": "colab_estado_api_entrenamiento_colab_get",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColabEstadoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Colab Estado"
+      }
+    },
+    "/api/entrenamiento/colab/preparar": {
+      "post": {
+        "description": "113:RF-4: sin confirmación, la previa con su confirmación; con ella, el paquete en Drive y el enlace.",
+        "operationId": "colab_preparar_api_entrenamiento_colab_preparar_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ColabPrepararPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "anyOf": [
+                    {
+                      "$ref": "#/components/schemas/ColabPreviaRespuesta"
+                    },
+                    {
+                      "$ref": "#/components/schemas/ColabPaqueteRespuesta"
+                    }
+                  ],
+                  "title": "Response Colab Preparar Api Entrenamiento Colab Preparar Post"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Colab Preparar"
+      }
+    },
+    "/api/entrenamiento/colab/traer": {
+      "post": {
+        "description": "113:RF-10, RF-11: trae los candidatos que cuadran sin activarlos; su puerta es la local.",
+        "operationId": "colab_traer_api_entrenamiento_colab_traer_post",
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ColabTraerRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          }
+        },
+        "summary": "Colab Traer"
       }
     },
     "/api/estudios/matriz": {

@@ -8,40 +8,40 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 473 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 474 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 133 |
-| Interfaz | `frontend/src/` | 122 |
+| Herramientas y guiones | `tools/` | 134 |
+| Interfaz | `frontend/src/` | 123 |
 | Pruebas de la interfaz | `frontend/test/` | 66 |
-| Pruebas | `tests/` | 690 |
+| Pruebas | `tests/` | 691 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
-`web/services.py` tiene 15317 líneas y 487 funciones, pendiente de partir (002).
+`web/services.py` tiene 15398 líneas y 494 funciones, pendiente de partir (002).
 
 ### Specs
 
 | Estado | Specs |
 | --- | --- |
 | cumplida | 95 |
-| aprobada | 14 |
-| borrador | 2 |
+| aprobada | 15 |
 | implementada | 2 |
+| borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4189 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4191 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 197 |
-| aplicacion | Apl | 135 |
+| aplicacion | Apl | 136 |
 | dominio | Dom | 73 |
 | presentacion | Pre | 51 |
 | puertos | Pue | 5 |
 
-461 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+462 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -53,7 +53,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 ### Rutas de la API
 
-177 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
+180 en `web/app.py`, y 13 bajo `/api/vnr` en `adaptadores/entrada/vnr/web/app.py`.
 
 | Familia | Ámbito | Rutas |
 | --- | --- | --- |
@@ -70,6 +70,7 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | `inputs` | espacio | 3 |
 | `obras` | espacio | 3 |
 | `pide` | espacio | 3 |
+| `entrenamiento` | general | 3 |
 | `powerfactory` | general | 3 |
 | `sistema` | general | 3 |
 | `(raíz)` | espacio | 2 |
@@ -585,6 +586,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `dominio/evaluacion_harness/estadistica.py` | Dom | 044, 069, 047 | Estadística común de la evaluación: Wilson, Holm, McNemar exacto, HAC, Diebold-Mariano con HLN, Wilcoxon con biserial, TOST, Bland-Altman, kappa,… |
 | `aplicacion/evaluacion_harness/informe_final.py` | Apl | 044 | Informe único `docs/EVALUACION_FINAL_1.0.json`: rev, árbol limpio, huellas, IC, prueba, Holm y negativos. |
 | `aplicacion/conjuntos_aprendizaje.py` | Apl | 050, 002 | Lectura verificada del conjunto activo para inferencia, separada de la preparación. |
+| `aplicacion/entrenamiento_remoto.py` | Apl | 113 | Paquete de un dataset para Colab (huellas, anonimización por familia, sin crudos ni sellados), perfil de Colab Pro por GPU, verificación y vuelta del… |
 | `dominio/contratos_aprendizaje.py` | Dom | 050, 002 | Identidad, procedencia y tipos puros de muestras y familias. |
 | `adaptadores/productores_aprendizaje.py` | Ada | 050, 002 | Composición real y diferida por familia, con lectores/validadores existentes. |
 | `puertos/puertos_muestras.py` | Pue | 050, 002 | Puerto de productores inyectado en la preparación del ciclo. |
@@ -939,6 +941,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `vad_estudio.py` | — | 108 | Guion del estudio VAD sin DIgSILENT ni web: comprueba el estudio con el registro y arma la empresa modelo de un caso (`--caso` o `CSG_VAD_CASO`, con… |
 | `vnr_publico_empresa.py` | — | 112, 080 | Baja bajo demanda el paquete VNR-GIS vigente de una empresa de lo publicado por Osinergmin (`--plan` sin bajar nada), a una carpeta fuera del… |
 | `benchmark_anonimo.py` | — | 112 | Genera en local el benchmark anonimizado de una red (y de las series del 089) con su manifiesto. |
+| `entrenamiento_remoto.py` | — | 113 | Entrenar en Colab Pro como opción del local: `opciones`, `preparar` (paquete con manifiesto en Google Drive de escritorio y enlace de Colab en la… |
 | `interempresa_loco.py` | — | 112 | Deja una empresa fuera cada vez (`preparar-vnr` saca la red de la copia de SQL Server de un paquete público sin exportar a CYMDIST, con las fichas… |
 | `benchmark_escala_web.py` | — | 112 | Mide la escala de la web y su API con redes sintéticas de 10, 50 y 200 alimentadores (carga de la red, p50 y p95 de las peticiones de la pantalla,… |
 | `normativa/biblioteca.py` | — | 107 | La biblioteca normativa general desde la consola: listar, añadir una norma a la capa del usuario y exportar el dataset de normas y reglas. |
@@ -1113,6 +1116,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `src/features/asistente/Aprendizaje.tsx` | — | 050 | Consulta de las siete fases del ciclo común, versiones y bloqueos. |
 | `src/features/asistente/Asistente.tsx` | — | 026, 043, 061 | Pestaña «Asistente»: consola de órdenes, plan con datos, pasos, lo que falta, dudas y razonamiento, confirmar y ejecutar, corregir la tarea,… |
+| `src/features/asistente/EntrenarEnColab.tsx` | — | 113 | Panel «Entrenar en Colab Pro»: previa de lo que sube, subida a Drive con confirmación, enlace de Colab y traída de candidatos. |
 | `src/features/asistente/EquipoAsistente.tsx` | — | 065 | Roles, permisos y revisión de propuestas en la consola del asistente. |
 | `src/features/asistente/MejorasPendientes.tsx` | — | 026 | Las mejoras que propone el asistente, sin decisión: su motivo, el resultado de su suite en palabras y las tres decisiones del operador, con… |
 | `src/features/asistente/MonitorAgente.tsx` | — | 061, 062 | Monitor del asistente conectado al contexto WebSocket, etapas, operaciones, evidencia real y retención diaria. |

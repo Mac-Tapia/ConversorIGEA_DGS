@@ -54,6 +54,8 @@ from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, Vers
     AprendidoRespuesta, AprendidoPreviaRespuesta, PromoverAprendidoPeticion)
 from .api_contract import FormatoPeticion, LibrosNuevosRespuesta, RevisarLibrosRespuesta    # specs 089 y 104
 from .api_contract import CorreccionesMedidorRespuesta                                  # 039:RF-23
+from .api_contract import (ColabEstadoRespuesta, ColabPrepararPeticion, ColabPreviaRespuesta,  # 113
+                           ColabPaqueteRespuesta, ColabTraerRespuesta)
 from .services import UserError
 from .workspace import (
     BOOL_OPTIONS, DEFAULT_OPTIONS, MAX_WORKERS, SLOTS, EspacioNoUtilizable, Workspace, WorkspaceStore, safe_filename,
@@ -2791,6 +2793,47 @@ def create_app(
             raise HTTPException(409, str(exc).replace('el envío', 'lo aprendido')) from exc
         try:
             return services.asistente_promover_aprendido(body.huella, 'operador (sesión del navegador)')
+        except UserError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    # 113: entrenar en Colab Pro es una opción del local (RF-16); los datos salen solo con la confirmación del operador,
+    # de un solo uso y desde el navegador, como lo aprendido (RF-4).
+    confirmaciones_colab = _Confirmaciones()
+
+    def _solo_operador_colab(request: Request) -> None:
+        if (request.headers.get(sesion_web.CABECERA_TOKEN)
+                or request.headers.get('authorization', '').lower().startswith('bearer')):
+            raise HTTPException(403, 'Los datos salen a Colab solo desde la web, con la confirmación del operador.')
+
+    @app.get('/api/entrenamiento/colab', response_model=ColabEstadoRespuesta)
+    def colab_estado() -> dict:
+        """113:RF-16: dónde se puede entrenar; sin Drive, solo en este equipo."""
+        return services.colab_estado()
+
+    @app.post('/api/entrenamiento/colab/preparar',
+              response_model=ColabPreviaRespuesta | ColabPaqueteRespuesta)
+    def colab_preparar(body: ColabPrepararPeticion, request: Request) -> dict:
+        """113:RF-4: sin confirmación, la previa con su confirmación; con ella, el paquete en Drive y el enlace."""
+        _solo_operador_colab(request)
+        clave = f'{body.familia}|{body.dataset}'
+        try:
+            if body.confirmacion is None:
+                previa = services.colab_previa(body.familia, body.dataset)
+                return {**previa, 'confirmacion': None if previa['prohibidos'] else
+                        confirmaciones_colab.emitir('_colab', 'preparar', clave)}
+            confirmaciones_colab.consumir(body.confirmacion, '_colab', 'preparar', clave)
+            return services.colab_preparar(body.familia, body.dataset)
+        except _Rechazo as exc:
+            raise HTTPException(409, str(exc).replace('el envío', 'el paquete')) from exc
+        except UserError as exc:
+            raise HTTPException(409, str(exc)) from exc
+
+    @app.post('/api/entrenamiento/colab/traer', response_model=ColabTraerRespuesta)
+    def colab_traer(request: Request) -> dict:
+        """113:RF-10, RF-11: trae los candidatos que cuadran sin activarlos; su puerta es la local."""
+        _solo_operador_colab(request)
+        try:
+            return services.colab_traer()
         except UserError as exc:
             raise HTTPException(409, str(exc)) from exc
 

@@ -2398,3 +2398,8 @@ export interface DiagnosticoCargas {
 }
 export interface FilaTensionDiag { barra: string; sin: number | null; cargas: number; con: number | null; estado: EstadoDiagnostico }
 export interface FilaCargaDiag { elemento: string; sin: number | null; cargas: number; con: number | null; estado: EstadoDiagnostico }
+// 113: entrenar en Colab Pro como opción del local.
+export type ColabEstado = components['schemas']['ColabEstadoRespuesta'];
+export type ColabPrevia = components['schemas']['ColabPreviaRespuesta'];
+export type ColabPaquete = components['schemas']['ColabPaqueteRespuesta'];
+export type ColabTraer = components['schemas']['ColabTraerRespuesta'];

@@ -9,6 +9,7 @@ import { AvisoBeta } from '../../shared/MarcaBeta';
 import { MonitorAgente } from './MonitorAgente';
 import { EquipoAsistente } from './EquipoAsistente';
 import { Aprendizaje } from './Aprendizaje';
+import { EntrenarEnColab } from './EntrenarEnColab';
 import { TarjetaOperador } from './TarjetaOperador';
 import { tarjetaDe } from './tarjetaOperadorLogica';
 import { cuenta } from '../../shared/formato';
@@ -406,6 +407,7 @@ export function Asistente() {
       <Registro />
       <Memoria key={ws.id} />
       <LoAprendido />
+      <EntrenarEnColab />
       <ProyectoDesdeCero />
       {[...historial].reverse().map((x, rev) => {
         const i = historial.length - 1 - rev;

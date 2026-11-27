@@ -358,6 +358,7 @@
     "dominio/evaluacion_harness/estadistica.py",
     "aplicacion/evaluacion_harness/informe_final.py",
     "aplicacion/conjuntos_aprendizaje.py",
+    "aplicacion/entrenamiento_remoto.py",
     "dominio/contratos_aprendizaje.py",
     "adaptadores/productores_aprendizaje.py",
     "puertos/puertos_muestras.py",
@@ -723,6 +724,7 @@
     "vad_estudio.py",
     "vnr_publico_empresa.py",
     "benchmark_anonimo.py",
+    "entrenamiento_remoto.py",
     "interempresa_loco.py",
     "benchmark_escala_web.py",
     "normativa/biblioteca.py",
@@ -901,6 +903,7 @@
    "ficheros": [
     "src/features/asistente/Aprendizaje.tsx",
     "src/features/asistente/Asistente.tsx",
+    "src/features/asistente/EntrenarEnColab.tsx",
     "src/features/asistente/EquipoAsistente.tsx",
     "src/features/asistente/MejorasPendientes.tsx",
     "src/features/asistente/MonitorAgente.tsx",

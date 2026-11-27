@@ -16,6 +16,12 @@
 - El cuaderno se abre desde GitHub en la revisión exacta (`colab.research.google.com/github/…/blob/<commit>/…`) y no
   subiendo el fichero local: garantiza que el código de Colab es el instalado. Descartado: subir el `.ipynb` a mano.
 - Los datos van por el Drive privado del operador y nunca por GitHub. Descartado: un almacén propio en la nube.
+- El paquete se escribe en la carpeta de Google Drive de escritorio (`G:/Mi unidad/ConverterSmartGrid/colab`, o la de
+  `CSG_DRIVE_COLAB`), que Drive sincroniza solo y Colab monta en `/content/drive/MyDrive/ConverterSmartGrid/colab`.
+  Descartado por ahora: subir por la API de Drive de la 109, que pide el OAuth real que quedó parado (no bloquea: la API
+  puede añadirse después como otro destino).
+- El cuaderno no trae un entrenamiento propio: ejecuta las mismas órdenes de `tools/` que el equipo (RF-16), así que el
+  resultado de Colab y el local se comparan y se examinan igual.
 - La evaluación es siempre local, frente a conjuntos sellados que no salen. Descartado: evaluar en Colab.
 
 ## Pruebas

@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 461 módulos de Python en 39 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 462 módulos de Python en 39 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -102,7 +102,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                         "Subsistemas" "Interfaz: nube y correo"
                     }
                 }
-                cmpInterfazAsistente = component "Asistente en la web" "Órdenes, equipo, monitor, tarjeta del operador y aprendizaje (8 ficheros)." "React + TypeScript" {
+                cmpInterfazAsistente = component "Asistente en la web" "Órdenes, equipo, monitor, tarjeta del operador y aprendizaje (9 ficheros)." "React + TypeScript" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/frontend/src/features/asistente"
                     tags "Web"
                     properties {
@@ -131,7 +131,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                 tags "API"
             }
 
-            api = container "API web" "REST y WebSocket: 177 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
+            api = container "API web" "REST y WebSocket: 180 rutas y 13 del VNR-GIS. Valida pedidos y coordina trabajos; no calcula." "FastAPI / Python 3.12" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/presentacion/web/app.py"
                 tags "API"
                 cmpWeb = component "Web" "Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo (41 ficheros)." "Python" {
@@ -488,7 +488,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             modelGovernance = container "Gobierno de modelos" "Registro de candidatos, puertas, puntero en uso, un turno de GPU para toda la máquina y ciclo de aprendizaje." "Python + JSON + SHA-256" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/aplicacion/model_registry.py"
                 tags "AI"
-                cmpGobierno = component "Gobierno de modelos" "Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación (26 ficheros)." "Python" {
+                cmpGobierno = component "Gobierno de modelos" "Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación (27 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/aplicacion/model_registry.py"
                     tags "AI"
                     properties {
@@ -505,7 +505,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
             tooling = container "Herramientas de órdenes" "Operación, aceptación, entrenamientos y calidad desde la línea de órdenes." "Python" {
                 url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/tools"
                 tags "Engine"
-                cmpHerrOperacion = component "Operación, datos y aceptación" "Flujo completo por la web, informes de casos guardados y aceptación nativa (35 ficheros)." "Python" {
+                cmpHerrOperacion = component "Operación, datos y aceptación" "Flujo completo por la web, informes de casos guardados y aceptación nativa (36 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/blob/fc2ac64db270bb6680e3d81f69c07436a1d81344/tools/sistema_web.py"
                     tags "Engine"
                     properties {

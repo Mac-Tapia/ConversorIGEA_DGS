@@ -1371,3 +1371,55 @@ class MatrizEstudiosRespuesta(Respuesta):
     origen: Literal['specs', 'recurso', 'ninguno']
     motores: list[MotorMatrizRespuesta]
     estudios: list[EstudioMatrizRespuesta]
+
+
+class OpcionEntrenamientoRespuesta(Respuesta):
+    """113:RF-16: dónde se puede entrenar; este equipo siempre."""
+    donde: Literal['local', 'colab']
+    disponible: bool
+    texto: str
+    motivo: str | None = None
+
+
+class ColabEstadoRespuesta(Respuesta):
+    """113:RF-4, RF-16: las opciones, la carpeta de Drive, las familias y los paquetes ya preparados."""
+    opciones: list[OpcionEntrenamientoRespuesta]
+    drive: str | None
+    familias: list[str]
+    paquetes: list[dict[str, JsonValue]]
+    #: 113:RF-13: las familias cuyo dataset creció desde que se preparó, para proponer reentrenarlas.
+    reentrenar: list[dict[str, JsonValue]]
+
+
+class ColabPrepararPeticion(BaseModel):
+    """113:RF-4: el dataset que sale; sin confirmación es la previa, con ella se prepara el paquete."""
+    model_config = ConfigDict(extra='forbid')
+    familia: str = Field(min_length=1, max_length=64)
+    dataset: str = Field(min_length=1, max_length=1024)
+    confirmacion: str | None = Field(default=None, max_length=256)
+
+
+class ColabPreviaRespuesta(Respuesta):
+    """113:RF-4: lo que subiría y a dónde, con la confirmación de un solo uso para ese dataset."""
+    revision: str
+    en_github: bool
+    cambios_sin_commit: list[str]
+    ficheros: int
+    bytes: int
+    prohibidos: list[str]
+    anonimizacion: str
+    destino: str
+    confirmacion: str | None
+
+
+class ColabPaqueteRespuesta(Respuesta):
+    """113:RF-4: el paquete en Drive y el enlace de Colab al cuaderno en la revisión exacta."""
+    paquete: str
+    huella: str
+    ficheros: int
+    colab: str
+
+
+class ColabTraerRespuesta(Respuesta):
+    """113:RF-10, RF-11: los candidatos traídos sin activar, y los rechazados con su motivo."""
+    candidatos: list[dict[str, JsonValue]]

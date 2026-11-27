@@ -180,7 +180,7 @@
 
   <h2 class="c4-heading">Arquitectura C4 - ConverterSmartGrid</h2>
   <p class="c4-subtitle">Reproduce el flujo, selecciona una flecha o abre una caja para ver su acceso directo. Debajo, el pseudocódigo del flujo de cada vista.</p>
-  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 461 módulos de Python en 39 subsistemas, según el catálogo generado.</p>
+  <p class="c4-legend"><span></span>en uso <span class="is-plan"></span>en implementación (specs 108, 112). 462 módulos de Python en 39 subsistemas, según el catálogo generado.</p>
 
   <div class="c4-toolbar">
     <div class="nav nav-pills c4-view-tabs" role="tablist" aria-label="Vista de arquitectura">
@@ -475,7 +475,7 @@ pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
         // Contenedores
         frontend: { label: 'Interfaz web', tech: 'React + TypeScript', path: 'frontend/src', kind: 'web', detail: 'Selección, seguimiento, confirmación y descarga; compilada en frontend/dist.' },
         security: { label: 'Puerta de seguridad', tech: 'Middleware ASGI', path: 'src/convertersmartgrid/presentacion/web/seguridad.py', kind: 'engine', detail: 'Host, Origin, token de sesión, política de contenido, edición y salidas a la red.' },
-        api: { label: 'API web', tech: 'FastAPI, 177 + 13 rutas', path: 'src/convertersmartgrid/presentacion/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
+        api: { label: 'API web', tech: 'FastAPI, 180 + 13 rutas', path: 'src/convertersmartgrid/presentacion/web/app.py', kind: 'engine', detail: 'REST y WebSocket; valida pedidos y coordina trabajos. La web no calcula: llama al motor o lanza un guion.' },
         jobs: { label: 'Colas de trabajo', tech: 'Un hilo por carril', path: 'src/convertersmartgrid/presentacion/web/jobs.py', kind: 'store', detail: 'Carriles engine, powerfactory, asistente, control, correo y red; un hilo por carril; el de PowerFactory va en serie y el de control solo cancela.' },
         custody: { label: 'Custodia de fuentes', tech: 'Copias fijas + SHA-256', path: 'src/convertersmartgrid/presentacion/web/source_runs.py', kind: 'store', detail: 'Fija una ejecución fuente inmutable con su alcance y sus huellas, sin mezclar fuentes.' },
         workspace: { label: 'Espacios de trabajo', tech: 'Ficheros por espacio', path: 'output/web', kind: 'store', detail: 'Entradas, opciones, ejecuciones, DGS, planes, informes y descargas de cada espacio.' },
@@ -526,7 +526,7 @@ pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
         cInterfazEstudios: { label: 'Cargas, estudios, obras e informes', tech: '29 ficheros', path: 'frontend/src/features/powerfactory', kind: 'web', detail: '«Cargas en DIgSILENT», demanda, estudios, obras e informes.' },
         cInterfazRegulatorio: { label: 'Módulos regulatorios', tech: '4 ficheros', path: 'frontend/src/features/pit', kind: 'web', detail: 'Pestañas del PIT, del VAD, del VNR y de la biblioteca normativa.' },
         cInterfazNube: { label: 'Nube y correo', tech: '5 ficheros', path: 'frontend/src/features/nube', kind: 'web', detail: 'Elegir fuentes de la nube, publicar expedientes y ver versiones nuevas.' },
-        cInterfazAsistente: { label: 'Asistente en la web', tech: '8 ficheros', path: 'frontend/src/features/asistente', kind: 'web', detail: 'Órdenes, equipo, monitor, tarjeta del operador y aprendizaje.' },
+        cInterfazAsistente: { label: 'Asistente en la web', tech: '9 ficheros', path: 'frontend/src/features/asistente', kind: 'web', detail: 'Órdenes, equipo, monitor, tarjeta del operador y aprendizaje.' },
         cInterfazPruebas: { label: 'Pruebas de la interfaz', tech: '51 ficheros', path: 'frontend/test', kind: 'web', detail: 'Pruebas sin navegador de las pestañas y de la lógica.' },
         cWeb: { label: 'Web', tech: '41 ficheros', path: 'src/convertersmartgrid/presentacion/web', kind: 'web', detail: 'Rutas, servicios, colas, seguridad, custodia, doctor, soporte y las API del PIT, VAD, VNR, normativa, nube y correo.' },
         cNube: { label: 'Nube', tech: '11 ficheros', path: 'src/convertersmartgrid/adaptadores/nube', kind: 'web', detail: 'Proveedores Google Drive y OneDrive, OAuth, cuentas, cofre y salida a la nube.' },
@@ -556,8 +556,8 @@ pandapower (preflight y VAD sobre el FeederModel; PIT sobre la red del área):
         cAsisModelos: { label: 'Modelos de órdenes y documentos', tech: '9 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py', kind: 'ai', detail: 'Transformer, codificador y clasificador de informes.' },
         cAsisDatos: { label: 'Datos y entrenamiento', tech: '25 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/ordenes_maestro.py', kind: 'ai', detail: 'Órdenes sintéticas, fijas y del maestro; currículos y destilación.' },
         cAsisRag: { label: 'Conocimiento y RAG', tech: '12 ficheros', path: 'src/convertersmartgrid/aplicacion/asistente/indice.py', kind: 'ai', detail: 'Índice con el corpus normativo, vectores, reordenación y evaluación de la recuperación.' },
-        cGobierno: { label: 'Gobierno de modelos', tech: '26 ficheros', path: 'src/convertersmartgrid/aplicacion/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación.' },
-        cHerrOper: { label: 'Operación, datos y aceptación', tech: '35 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
+        cGobierno: { label: 'Gobierno de modelos', tech: '27 ficheros', path: 'src/convertersmartgrid/aplicacion/model_registry.py', kind: 'ai', detail: 'Registro, coordinador de entrenamiento, GPU, contratos de aprendizaje y arnés de evaluación.' },
+        cHerrOper: { label: 'Operación, datos y aceptación', tech: '36 ficheros', path: 'tools/sistema_web.py', kind: 'engine', detail: 'Flujo completo por la web, informes de casos guardados y aceptación nativa.' },
         cHerrModelos: { label: 'Modelos, asistente y MADRL', tech: '39 ficheros', path: 'tools/digital_twin_entrenar.py', kind: 'ai', detail: 'Entrenamientos y auditorías del gemelo, del asistente, del pronóstico y del piloto MADRL.' },
         cHerrCalidad: { label: 'Calidad y entrega', tech: '20 ficheros', path: 'tools/arquitectura.py', kind: 'engine', detail: 'Capas, arquitectura generada, contrato de la API, estado de specs, suite por tandas y candidato.' },
         // Despliegue
