@@ -311,6 +311,9 @@ tensión se suba a la fuente en pu en DIgSILENT»)
   que mide es la demanda de esas SED; sin SED aguas abajo, la conservará como carga de MT, como hasta ahora. Se decide
   por la red, no por el nombre (P13). (26-11, VNR-GIS: 1 304 de las 1 306 «M…» traían 10 kW de relleno de
   `MaxDemTotal`, 15 en SM115 y unos 13 MW en el paquete, que no existen.)
+- Aclaración de RF-86 (26-11): la auditoría de completitud (RF-9) descuenta esas cargas en número, kW y kvar y lo dice
+  («+ trafomix con su SED debajo N»); sin ello la aceptación de SM115 desde VNR-GIS paraba en «cargas: entrada 89 ≠ ElmLod
+  74» y «kW: 3 665 ≠ 3 515».
 
 ## Requisitos no funcionales
 

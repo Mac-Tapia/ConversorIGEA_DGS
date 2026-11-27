@@ -139,6 +139,8 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 110 Envío de informes por correo (Gmail y Outlook) desde la web | cumplida | |
   | 111 Editor eléctrico sobre el plano GIS, con los resultados en el mismo trazo | cumplida |  |
   | 112 Datasets de referencia anonimizados y benchmarks reproducibles | aprobada | falta T16 (corrida con los paquetes públicos); T18 y T19 cerradas (21-11, MEJ32) |
+  | 113 Entrenamiento remoto en Colab con evaluación local | borrador | todas las tareas abiertas |
+  | 114 Agente MASAC que aprende a operar el conversor | borrador | todas las tareas abiertas |
 
   Las convenciones de cada empresa (CRS de origen, patrón de SED de medición, escala,
   carpeta de DIgSILENT) van en `config/perfil_empresa.json`, local y fuera de git, que

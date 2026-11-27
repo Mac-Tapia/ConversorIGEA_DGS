@@ -299,3 +299,8 @@ Añadido el 2026-10-17 (calibrar NA293 y NA295 con su central en julio y a la ve
       con datos reales.
       Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/TENSION_BARRA/rojo.log`; verde 104 passed; real: LL202 23,673 kV
       (1,034 pu) y LL203 23,773 kV (1,038 pu) de B-LL2T1, barra SET 52 22,9 kV.
+- [x] T28. La completitud descuenta la carga del trafomix con su SED debajo. (RF-86, RF-9)
+      Hecho cuando: `tests/test_puentes.py` (021:RF-86) en verde con su rojo por aserción, y los casos VNR-GIS de la 100 T4
+      convierten.
+      Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/COMPLETITUD_RF86/rojo.log` (el mensaje de la aceptación), verde 113 passed
+      (`verde.log`); la repetición VNR-GIS en `D:/csg/PM_IMPL/T100/aceptacion_6058b3b7_vnr`.

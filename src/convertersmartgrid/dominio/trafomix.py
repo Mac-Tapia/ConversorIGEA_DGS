@@ -51,6 +51,9 @@ class InformeTrafomix:
     cargas_conservadas_mt: list[str] = field(default_factory=list)
     maniobras_quitadas: list[str] = field(default_factory=list)
     cargas_medidas_aguas_abajo: list[str] = field(default_factory=list)
+    #: 021:RF-86, RF-9: lo que suman las quitadas, para que la auditoría de completitud no lo tome por pérdida.
+    kw_medidas_aguas_abajo: float = 0.0
+    kvar_medidas_aguas_abajo: float = 0.0
 
     def texto(self) -> str:
         t = (f'Trafomix (medición MT, patrón {self.patron}): {self.excluidos} excluidos como SED; '
@@ -94,6 +97,8 @@ def excluir_trafomix(model: FeederModel, patron: str | None) -> InformeTrafomix:
             informe.cargas_nulas_quitadas += 1
         elif carga.node_id in con_sed_debajo:              # 021:RF-86: lo que mide está en sus SED
             informe.cargas_medidas_aguas_abajo.append(carga.sed_code or carga.device_number)
+            informe.kw_medidas_aguas_abajo += carga.p_mw * 1000.0
+            informe.kvar_medidas_aguas_abajo += carga.q_mvar * 1000.0
         else:
             cargas.append(carga)
             informe.cargas_conservadas_mt.append(carga.sed_code or carga.device_number)

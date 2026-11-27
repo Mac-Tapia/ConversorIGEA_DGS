@@ -584,3 +584,25 @@ def test_solo_los_codigos_m_con_cifras_son_trafomix(codigo):
     assert not es_trafomix(codigo, patron)
     assert es_trafomix('M41608', patron) and es_trafomix('m50174', patron)
     assert es_trafomix('M20730-2', patron)
+
+
+def test_021_rf86_la_completitud_descuenta_la_carga_del_trafomix_con_sed_debajo():
+    """021:RF-86, 021:RF-9 — el 26-11 la aceptación de SM115 desde VNR-GIS paró tras convertir: la auditoría veía
+    «cargas: entrada 89 ≠ ElmLod 74 + trafomix de 0 kW 0; kW: entrada 3 665 ≠ DGS 3 515»: las 15 «M…» quitadas por estar
+    medidas en su SED (150 kW de relleno) contaban como pérdida. Se descuentan en número, kW y kvar, y se dice."""
+    from types import SimpleNamespace
+
+    from convertersmartgrid.aplicacion.reglas import auditar_completitud
+
+    fila = {'ValueType': '2', 'Value1': '10', 'Value2': '100'}
+    ds = SimpleNamespace(feeders={'N': set()}, customer_loads_by_feeder={'N': [('M1', fila), ('SE1', {
+        'ValueType': '2', 'Value1': '40', 'Value2': '100'})]}, load_placements={'M1': 1, 'SE1': 1},
+        switching_by_feeder={'N': []})
+    m = SimpleNamespace(lines=[], devices=[], combined=None)
+    tablas = {'ElmLod': {'rows_dict': [{'plini': '0.04', 'qlini': '0'}]}}
+    informe = {'trafomix': {'cargas_nulas_quitadas': 0, 'maniobras_quitadas': 0, 'medidas_aguas_abajo': ['M1'],
+                            'kw_medidas_aguas_abajo': 10.0, 'kvar_medidas_aguas_abajo': 0.0}}
+    r = auditar_completitud(ds, ['N'], m, tablas, [informe])
+    assert r['fallos'] == [], r['fallos']
+    sin = auditar_completitud(ds, ['N'], m, tablas, [{'trafomix': {'cargas_nulas_quitadas': 0}}])
+    assert any('cargas' in f for f in sin['fallos']), 'sin el informe sigue siendo una pérdida'

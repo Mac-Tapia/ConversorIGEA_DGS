@@ -238,6 +238,8 @@ def aplicar_reglas(model, reglas: Reglas = REGLAS_PROYECTO, *,
                                'cargas_nulas_quitadas': t.cargas_nulas_quitadas,
                                'con_carga_en_mt': t.cargas_conservadas_mt,
                                'medidas_aguas_abajo': t.cargas_medidas_aguas_abajo,     # 021:RF-86
+                               'kw_medidas_aguas_abajo': round(t.kw_medidas_aguas_abajo, 6),
+                               'kvar_medidas_aguas_abajo': round(t.kvar_medidas_aguas_abajo, 6),
                                'maniobras_quitadas': len(t.maniobras_quitadas)}
     if reglas.redimensionar_sed:
         from ..dominio.sed_potencia import redimensionar_sobrecargadas
@@ -323,6 +325,11 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
     puentes = sum((i.get('puentes') or {}).get('tramos', 0) for i in informes)
     nulas = sum((i.get('trafomix') or {}).get('cargas_nulas_quitadas', 0) for i in informes)
     quitadas = sum((i.get('trafomix') or {}).get('maniobras_quitadas', 0) for i in informes)
+    # 021:RF-86 (26-11): la carga de relleno de una SED de medición con su SED debajo se quita a propósito; sin esto la
+    # aceptación de SM115 desde VNR-GIS paraba en «cargas: entrada 89 ≠ ElmLod 74» y «kW: 3 665 ≠ 3 515».
+    medidas = sum(len((i.get('trafomix') or {}).get('medidas_aguas_abajo') or ()) for i in informes)
+    kw -= sum(float((i.get('trafomix') or {}).get('kw_medidas_aguas_abajo') or 0.0) for i in informes)
+    kvar -= sum(float((i.get('trafomix') or {}).get('kvar_medidas_aguas_abajo') or 0.0) for i in informes)
 
     def n(cls: str) -> int:
         return len(tablas.get(cls, {}).get('rows_dict', []))
@@ -355,8 +362,9 @@ def auditar_completitud(dataset, networks: Iterable[str], model, tablas: dict,
         fallos.append(f'tramos: entrada {len(secciones)} ≠ ElmLne {n("ElmLne")} + puentes {puentes}'
                       + (f' + reguladores {reguladores}' if reguladores else '')
                       + (f' − reconstruidos {reconstruidos}' if reconstruidos else ''))
-    if n('ElmLod') + nulas != len(cargas):
-        fallos.append(f'cargas: entrada {len(cargas)} ≠ ElmLod {n("ElmLod")} + trafomix de 0 kW {nulas}')
+    if n('ElmLod') + nulas + medidas != len(cargas):
+        fallos.append(f'cargas: entrada {len(cargas)} ≠ ElmLod {n("ElmLod")} + trafomix de 0 kW {nulas}'
+                      + (f' + trafomix con su SED debajo {medidas}' if medidas else ''))
     if abs(kw_dgs - kw) > max(0.5, 1e-4 * abs(kw)):
         fallos.append(f'kW: entrada {kw:,.1f} ≠ DGS {kw_dgs:,.1f}')
     if abs(kvar_dgs - kvar) > max(0.5, 1e-4 * abs(kvar)):
