@@ -32,6 +32,7 @@ import { MarcaValidacion } from '../../shared/MarcaValidacion';
 import { betaActiva } from '../../shared/edicion';
 import { Ayuda, FileDrop, Modal, Toggle, useToast } from '../../shared/ui';
 import { textoCapexVigente, type CapexVigente } from './capexVigente';
+import { PropuestaAgente } from './PropuestaAgente';
 import { RESUMEN_SIN_CARGAS, proyectoDeEstudio, textosObras, type CargaAplicadaEnDisco, ofrecerObrasEstadoActual, porQueSinObrasAutomaticas } from './obrasEstadoActual';
 
 const ANIO = new Date().getFullYear();
@@ -783,7 +784,7 @@ function CargasTabCuerpo({ modulo }: { modulo?: ClaveTipoAnalisis }) {
 
       {/* 086:RF-77: sin cargas nuevas integradas, el estado actual calibrado también puede violar límites. */}
       {verObras && ofrecerObrasEstadoActual(paraObras) && (
-        <ObrasEstadoActual feeders={order} ocupado={pfBusy} conProyecto={conProyecto} capexVigente={capexVigente}
+        <ObrasEstadoActual project={project} feeders={order} ocupado={pfBusy} conProyecto={conProyecto} capexVigente={capexVigente}
           cargas={avanceDisco?.cargas ?? []}
           onCorregir={(tipoCambio, capex, rehacer) => startJob(() => api.obrasConProyecto(ws.id, {
             project, feeders: order, anio_casos: null, tipo_cambio: tipoCambio, capex,
@@ -1391,7 +1392,9 @@ function SetNuevaVista({ s }: { s: ConProyectoResultado['set_nueva'] }) {
 }
 
 /** 086:RF-77: obras para el estado actual, sin cargas nuevas: solo los alimentadores que violan límites las llevan. */
-function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, capexVigente = null, onAplicarAparte }: {
+function ObrasEstadoActual({ project = '', feeders, ocupado, conProyecto, cargas, onCorregir, capexVigente = null, onAplicarAparte }: {
+  /** 114:RF-7: el proyecto de las obras, para la propuesta del agente en sombra. */
+  project?: string;
   onAplicarAparte?: AplicarAparte;
   capexVigente?: CapexVigente | null;
   feeders: string[]; ocupado: boolean; conProyecto: ConProyectoResultado | null; cargas: CargaAplicadaEnDisco[];
@@ -1426,6 +1429,8 @@ function ObrasEstadoActual({ feeders, ocupado, conProyecto, cargas, onCorregir, 
         </button>
       </div>
       {conProyecto && <ConProyecto r={conProyecto} onAplicarAparte={onAplicarAparte} ocupado={ocupado} />}
+      {/* 114:RF-7: el agente propone junto a la regla actual, sin aplicar; las obras se aplican con los botones de arriba. */}
+      {project && <PropuestaAgente project={project} feeders={feeders} />}
     </div>
   );
 }

@@ -3543,6 +3543,10 @@ def create_app(
 
     registrar_rutas_vad(app, ws_or_404=ws_or_404, submit=submit, raiz_config=project_root() / 'config',
                         guardar_subida=_save_upload)
+    # 114:RF-7, RF-9, RF-11: el agente MASAC en sombra (propone sin aplicar; el operador confirma o deshace), en su módulo.
+    from .agente_sombra_api import registrar_rutas_agente
+
+    registrar_rutas_agente(app, ws_or_404=ws_or_404, submit=submit)
     # 100:RF-8 a RF-10: con qué motor está validado cada estudio, desde el estado de las specs.
     from .matriz_estudios_api import registrar_rutas_matriz
 

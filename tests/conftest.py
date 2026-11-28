@@ -34,7 +34,9 @@ if not os.environ.get('CSG_RUNTIME_HOME'):
 
     RUNTIME_REAL = _rutas_runtime().runtime
     os.environ['CSG_RUNTIME_HOME'] = str(_SESION_DE_DATOS / 'runtime')
-for _variable, _carpeta in (('CSG_ASISTENTE_DATA', '_asistente'), ('CSG_TWIN_DATA', '_digital_twin')):
+# 114:RF-11: el registro y la política del agente MASAC, también de la sesión: nunca los del operador.
+for _variable, _carpeta in (('CSG_ASISTENTE_DATA', '_asistente'), ('CSG_TWIN_DATA', '_digital_twin'),
+                            ('CSG_AGENTE_DATA', '_agente_masac')):
     if not os.environ.get(_variable):
         os.environ[_variable] = str(_SESION_DE_DATOS / _carpeta)
 # 102:RF-5 (MEJ15-T20): un trabajador de xdist hereda del controlador el runtime y los dos almacenes de la sesión, y dos
@@ -45,7 +47,7 @@ for _variable, _carpeta in (('CSG_ASISTENTE_DATA', '_asistente'), ('CSG_TWIN_DAT
 TRABAJADOR_XDIST = os.environ.get('PYTEST_XDIST_WORKER', '')
 if TRABAJADOR_XDIST:
     for _variable, _carpeta in (('CSG_RUNTIME_HOME', 'runtime'), ('CSG_ASISTENTE_DATA', '_asistente'),
-                                ('CSG_TWIN_DATA', '_digital_twin')):
+                                ('CSG_TWIN_DATA', '_digital_twin'), ('CSG_AGENTE_DATA', '_agente_masac')):
         if os.environ.get(_variable) == str(_SESION_DE_DATOS / _carpeta):
             os.environ[_variable] = str(_SESION_DE_DATOS / TRABAJADOR_XDIST / _carpeta)
 _TAMANOS_DE_REGISTROS: dict[Path, int] = {}

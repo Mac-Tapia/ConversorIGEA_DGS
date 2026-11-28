@@ -56,8 +56,9 @@ SALIDAS: dict[str, Salida] = {
                     'el maestro de destilación del asistente',
                     ('src/convertersmartgrid/aplicacion/asistente/destilacion.py',)),
     'hugging_face': Salida('CSG_SALIDA_HUGGING_FACE', 'Hugging Face',
-                           'descargar los modelos del catálogo',
-                           ('tools/preparar_modelos_ia.py',)),
+                           'descargar los modelos del catálogo y, en Colab, el codificador del intérprete en su revisión '
+                           'fija (113:RF-19)',
+                           ('tools/preparar_modelos_ia.py', 'src/convertersmartgrid/aplicacion/asistente/codificador_ordenes.py')),
     'vnr_oficial': Salida('CSG_SALIDA_VNR_OFICIAL', 'el portal de Osinergmin',
                           'buscar y descargar los paquetes VNR-GIS',
                           ('src/convertersmartgrid/adaptadores/entrada/vnr/discovery/official.py', 'src/convertersmartgrid/adaptadores/entrada/vnr/discovery/download.py')),

@@ -1,4 +1,4 @@
-import type { CapexVigenteRespuesta, CuadroPerdidas } from './types';
+import type { AgenteSombraEstado, CapexVigenteRespuesta, CuadroPerdidas, DecisionAgenteRespuesta } from './types';
 import type { AvanceDisco, DiagnosticoCargas, Diagnostico, Escaneo, AsistenteRespuesta, CentralDeBarra, SetDeCentral, SistemaDelProyecto, EstructuraResumen,
   AjustePlan, AjusteResultado, CargasPlan, CentralTermica, ClientesCruce, CorreccionCabecera, CorreccionMedidor, CriterioFijas, CurvaCabecera, DemandaMedidores,
   MaximaConCentral, MedidoresExternos, Economia, EstudiosCatalogo, EstudiosPlan, EstudiosResumen, ResumenCaso, DatosEmpresa, OpcionesEstudios, ProteccionesEstado, FallaProteccion,
@@ -166,6 +166,14 @@ export const api = {
   // Spec 007, RF-40: el último ajuste aplicado guardado en disco (sobrevive a un reinicio).
   // 042:RF-113: el libro CAPEX vigente del espacio (perfil o referencias).
   capexVigente: (id: string) => request<CapexVigenteRespuesta>(`${ws(id)}/capex/vigente`),
+  // 114:RF-7: el agente propone en sombra con el motor abierto, sin DIgSILENT y sin aplicar nada.
+  agenteSombraPedir: (id: string, body: { project: string; feeders: string[]; caso?: 'sin_proyecto' | 'con_proyecto' }) =>
+    request<Job>(`${ws(id)}/agente/sombra`, json('POST', body)),
+  agenteSombra: (id: string, project: string) =>
+    request<AgenteSombraEstado>(`${ws(id)}/agente/sombra?project=${enc(project)}`),
+  // 114:RF-9, RF-11: confirmar o deshacer queda en el registro de experiencia; no aplica nada.
+  agenteSombraDecidir: (id: string, decision: string, accion: 'confirmar' | 'deshacer') =>
+    request<DecisionAgenteRespuesta>(`${ws(id)}/agente/sombra/decisiones/${enc(decision)}`, json('POST', { accion })),
   ajusteUltimo: (id: string, project: string) =>
     request<{ ajuste: (AjusteResultado & { id: string; finished_at: number }) | null; avance?: AvanceDisco }>(
       `${ws(id)}/demanda/ajuste/ultimo?project=${encodeURIComponent(project)}`),

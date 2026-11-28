@@ -9,3 +9,6 @@ sb3-contrib==2.9.2
 stable-baselines3==2.9.2
 gymnasium==1.4.0
 farama-notifications==0.0.6
+# Spec 114 (2026-11-27): el entorno ParallelEnv del agente MASAC; pide numpy, gymnasium>=1.0 (el de arriba) y
+# typing-extensions, que ya trae el .venv. BenchMARL no entra: fija torchrl<0.12 y no importa con la 0.14.1 (114:RF-14).
+pettingzoo==1.27.0

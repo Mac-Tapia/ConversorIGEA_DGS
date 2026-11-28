@@ -105,7 +105,16 @@ def evaluar_zonas(grafo: Mapping[str, Any], p: ParametrosObras,
     """
     m = muestra(grafo)
     r = ModeloRadial().predecir(grafo)
-    v, th = np.asarray(r['v']), np.asarray(r['theta'])
+    return evaluar_flujo(m, np.asarray(r['v']), np.asarray(r['theta']), p, zonas)
+
+
+def evaluar_flujo(m, v: np.ndarray, th: np.ndarray, p: ParametrosObras,
+                  zonas: Mapping[str, set[str]] | None = None) -> tuple[Evaluacion, dict[str, Evaluacion]]:
+    """Lo mismo que ``evaluar_zonas`` con un flujo ya resuelto, venga de quien venga.
+
+    El agente de la 114 evalúa sus pasos con el oráculo PINN o con el motor abierto, no solo con el barrido radial:
+    la medida de las violaciones tiene que ser la misma con cualquiera de ellos (114:RF-4).
+    """
     kv = 10 ** m.x[:, 0]
     # Una barra sin fuente sale con 0 p.u.: no es una subtensión, es una isla (spec 024).
     medible = (kv >= 1) & (v > 0) & ~m.fuente

@@ -250,6 +250,91 @@
         "title": "AgenteProyectoListaIn",
         "type": "object"
       },
+      "AgenteSombraEstadoRespuesta": {
+        "additionalProperties": false,
+        "description": "114:RF-7: las propuestas del proyecto y el marcador frente a la regla actual; nada aplicado.",
+        "properties": {
+          "aciertos": {
+            "$ref": "#/components/schemas/MarcadorAgenteSombra"
+          },
+          "hay_politica": {
+            "title": "Hay Politica",
+            "type": "boolean"
+          },
+          "modo": {
+            "const": "sombra",
+            "title": "Modo",
+            "type": "string"
+          },
+          "project": {
+            "title": "Project",
+            "type": "string"
+          },
+          "propuestas": {
+            "items": {
+              "$ref": "#/components/schemas/PropuestaAgenteSombra"
+            },
+            "title": "Propuestas",
+            "type": "array"
+          }
+        },
+        "required": [
+          "project",
+          "modo",
+          "aciertos",
+          "propuestas",
+          "hay_politica"
+        ],
+        "title": "AgenteSombraEstadoRespuesta",
+        "type": "object"
+      },
+      "AgenteSombraPeticion": {
+        "additionalProperties": false,
+        "description": "114:RF-7: el proyecto, sus alimentadores (vacío, todos los de la red capturada) y el caso de su red.",
+        "properties": {
+          "banco_kvar": {
+            "anyOf": [
+              {
+                "exclusiveMinimum": 0.0,
+                "maximum": 10000.0,
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Banco Kvar"
+          },
+          "caso": {
+            "default": "sin_proyecto",
+            "enum": [
+              "sin_proyecto",
+              "con_proyecto"
+            ],
+            "title": "Caso",
+            "type": "string"
+          },
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "maxItems": 500,
+            "title": "Feeders",
+            "type": "array"
+          },
+          "project": {
+            "maxLength": 200,
+            "minLength": 1,
+            "title": "Project",
+            "type": "string"
+          }
+        },
+        "required": [
+          "project"
+        ],
+        "title": "AgenteSombraPeticion",
+        "type": "object"
+      },
       "AgregadaRespuesta": {
         "properties": {
           "actos": {
@@ -4305,6 +4390,125 @@
         "title": "DatosEmpresaAplicarIn",
         "type": "object"
       },
+      "DecisionAgentePeticion": {
+        "additionalProperties": false,
+        "description": "114:RF-11: confirmar o deshacer una decisión del agente.",
+        "properties": {
+          "accion": {
+            "enum": [
+              "confirmar",
+              "deshacer"
+            ],
+            "title": "Accion",
+            "type": "string"
+          }
+        },
+        "required": [
+          "accion"
+        ],
+        "title": "DecisionAgentePeticion",
+        "type": "object"
+      },
+      "DecisionAgenteRespuesta": {
+        "additionalProperties": false,
+        "description": "114:RF-9: la decisión queda en el registro; no se aplica nada en DIgSILENT.",
+        "properties": {
+          "aplicada": {
+            "const": false,
+            "title": "Aplicada",
+            "type": "boolean"
+          },
+          "confirmo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmo"
+          },
+          "estado": {
+            "enum": [
+              "propuesta",
+              "confirmada",
+              "deshecha"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "estado",
+          "confirmo",
+          "aplicada"
+        ],
+        "title": "DecisionAgenteRespuesta",
+        "type": "object"
+      },
+      "DecisionAgenteSombra": {
+        "additionalProperties": false,
+        "description": "114:RF-11: una decisión del agente con su explicación y lo que hizo con ella el operador.",
+        "properties": {
+          "agente": {
+            "title": "Agente",
+            "type": "string"
+          },
+          "confirmo": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Confirmo"
+          },
+          "elemento": {
+            "title": "Elemento",
+            "type": "string"
+          },
+          "estado": {
+            "enum": [
+              "propuesta",
+              "confirmada",
+              "deshecha"
+            ],
+            "title": "Estado",
+            "type": "string"
+          },
+          "explicacion": {
+            "title": "Explicacion",
+            "type": "string"
+          },
+          "id": {
+            "title": "Id",
+            "type": "string"
+          },
+          "tipo": {
+            "title": "Tipo",
+            "type": "string"
+          }
+        },
+        "required": [
+          "id",
+          "agente",
+          "tipo",
+          "elemento",
+          "explicacion",
+          "estado",
+          "confirmo"
+        ],
+        "title": "DecisionAgenteSombra",
+        "type": "object"
+      },
       "DeducidoPlanoRespuesta": {
         "additionalProperties": false,
         "description": "111:RF-3: lo que se dedujo de un elemento, con su regla y su motivo.",
@@ -8144,6 +8348,30 @@
         "title": "ManiobraTransferenciaRespuesta",
         "type": "object"
       },
+      "MarcadorAgenteSombra": {
+        "additionalProperties": false,
+        "properties": {
+          "agente": {
+            "title": "Agente",
+            "type": "integer"
+          },
+          "empate": {
+            "title": "Empate",
+            "type": "integer"
+          },
+          "regla": {
+            "title": "Regla",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "agente",
+          "regla",
+          "empate"
+        ],
+        "title": "MarcadorAgenteSombra",
+        "type": "object"
+      },
       "MatrizEstudiosRespuesta": {
         "additionalProperties": false,
         "description": "100:RF-8, RF-10, RF-13: la matriz estudio × motor que sirve ``GET /api/estudios/matriz`` y de dónde salen sus estados.",
@@ -11138,6 +11366,78 @@
         "title": "PromoverAprendidoPeticion",
         "type": "object"
       },
+      "PropuestaAgenteSombra": {
+        "additionalProperties": false,
+        "properties": {
+          "acierta": {
+            "enum": [
+              "agente",
+              "regla",
+              "empate"
+            ],
+            "title": "Acierta",
+            "type": "string"
+          },
+          "agente": {
+            "$ref": "#/components/schemas/ResultadoAgenteSombra"
+          },
+          "caso": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Caso"
+          },
+          "decisiones": {
+            "items": {
+              "$ref": "#/components/schemas/DecisionAgenteSombra"
+            },
+            "title": "Decisiones",
+            "type": "array"
+          },
+          "fecha": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Fecha"
+          },
+          "feeders": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Feeders",
+            "type": "array"
+          },
+          "propuesta": {
+            "title": "Propuesta",
+            "type": "string"
+          },
+          "regla": {
+            "$ref": "#/components/schemas/ResultadoAgenteSombra"
+          }
+        },
+        "required": [
+          "propuesta",
+          "fecha",
+          "caso",
+          "feeders",
+          "acierta",
+          "agente",
+          "regla",
+          "decisiones"
+        ],
+        "title": "PropuestaAgenteSombra",
+        "type": "object"
+      },
       "PropuestaAjusteRespuesta": {
         "additionalProperties": false,
         "description": "111:RF-7: el nodo cercano como propuesta, con la distancia; no cambia nada.",
@@ -11958,6 +12258,84 @@
           "sustento"
         ],
         "title": "RespuestaVad",
+        "type": "object"
+      },
+      "ResultadoAgenteSombra": {
+        "additionalProperties": false,
+        "description": "114:RF-19: cómo queda la red con lo que propone uno y otro, medido igual.",
+        "properties": {
+          "costo": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo"
+          },
+          "costo_maniobras": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Costo Maniobras"
+          },
+          "en_norma": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "En Norma"
+          },
+          "obras": {
+            "items": {
+              "type": "string"
+            },
+            "title": "Obras",
+            "type": "array"
+          },
+          "perdidas_mw": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Perdidas Mw"
+          },
+          "vm_min": {
+            "anyOf": [
+              {
+                "type": "number"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Vm Min"
+          }
+        },
+        "required": [
+          "en_norma",
+          "costo",
+          "costo_maniobras",
+          "vm_min",
+          "perdidas_mw",
+          "obras"
+        ],
+        "title": "ResultadoAgenteSombra",
         "type": "object"
       },
       "ResumenCasoIn": {
@@ -16488,6 +16866,165 @@
           }
         },
         "summary": "Agente Proyecto Lista"
+      }
+    },
+    "/api/workspaces/{wid}/agente/sombra": {
+      "get": {
+        "description": "114:RF-7: las propuestas del proyecto y quién acierta frente a la regla actual.",
+        "operationId": "agente_sombra_leer_api_workspaces__wid__agente_sombra_get",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "query",
+            "name": "project",
+            "required": true,
+            "schema": {
+              "maxLength": 200,
+              "minLength": 1,
+              "title": "Project",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AgenteSombraEstadoRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agente Sombra Leer"
+      },
+      "post": {
+        "description": "114:RF-7: un trabajo en CPU con el motor abierto, sin DIgSILENT: propone y no aplica.",
+        "operationId": "agente_sombra_pedir_api_workspaces__wid__agente_sombra_post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AgenteSombraPeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/JobRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agente Sombra Pedir"
+      }
+    },
+    "/api/workspaces/{wid}/agente/sombra/decisiones/{ident}": {
+      "post": {
+        "description": "114:RF-9, RF-11: el operador confirma o deshace; queda en el registro y no se aplica nada.",
+        "operationId": "agente_sombra_decidir_api_workspaces__wid__agente_sombra_decisiones__ident__post",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "wid",
+            "required": true,
+            "schema": {
+              "title": "Wid",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "ident",
+            "required": true,
+            "schema": {
+              "pattern": "^[0-9a-f]{32}$",
+              "title": "Ident",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/DecisionAgentePeticion"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DecisionAgenteRespuesta"
+                }
+              }
+            },
+            "description": "Successful Response"
+          },
+          "422": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            },
+            "description": "Validation Error"
+          }
+        },
+        "summary": "Agente Sombra Decidir"
       }
     },
     "/api/workspaces/{wid}/asistente/entrenar": {

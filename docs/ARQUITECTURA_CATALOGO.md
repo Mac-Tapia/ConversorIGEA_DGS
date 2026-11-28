@@ -8,12 +8,12 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 474 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 479 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
-| Herramientas y guiones | `tools/` | 134 |
-| Interfaz | `frontend/src/` | 125 |
-| Pruebas de la interfaz | `frontend/test/` | 68 |
-| Pruebas | `tests/` | 693 |
+| Herramientas y guiones | `tools/` | 135 |
+| Interfaz | `frontend/src/` | 127 |
+| Pruebas de la interfaz | `frontend/test/` | 69 |
+| Pruebas | `tests/` | 695 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
@@ -24,24 +24,23 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | Estado | Specs |
 | --- | --- |
 | cumplida | 95 |
-| aprobada | 15 |
+| aprobada | 16 |
 | implementada | 2 |
-| borrador | 1 |
 | retirada | 1 |
 
-114 specs con 4230 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4240 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
-| adaptadores | Ada | 197 |
+| adaptadores | Ada | 200 |
 | aplicacion | Apl | 136 |
 | dominio | Dom | 73 |
-| presentacion | Pre | 51 |
+| presentacion | Pre | 53 |
 | puertos | Pue | 5 |
 
-462 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+467 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -425,6 +424,9 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/madrl_obras.py` | Ada | 074 | Entorno multiagente de obras, sus controles, su fidelidad contra DIgSILENT y la puerta del aprendizaje. |
 | `adaptadores/madrl_politica.py` | Ada | 074 | Política GATv2 compartida entre agentes, con crítico central y PPO, del piloto MADRL. |
 | `adaptadores/madrl_puerta.py` | Ada | 074 | Puerta del aprendizaje en alimentadores no vistos: separación sellada con huella, decisión «pasa» o «archivar» y la orden de confirmación en un… |
+| `adaptadores/masac_entorno.py` | Ada | 114 | Entorno `ParallelEnv` de obras del agente MASAC: agentes en tres niveles (alimentador, SET y sistema eléctrico), observación parcial, acciones de… |
+| `adaptadores/masac_politica.py` | Ada | 114 | MASAC con CTDE en PyTorch: actor compartido y crítico central por nivel, entrenamiento en CPU, inferencia sin GPU y modelo guardado con su manifiesto. |
+| `adaptadores/masac_sombra.py` | Ada | 114 | Registro de experiencia del agente y modo sombra: propone junto a la escalera sin aplicar, explica cada decisión, mide quién acierta y guarda dónde… |
 | `dominio/medicion_obras.py` | Dom | 087 | Cuánto mejora una versión: fila por corrida de «Con proyecto» con tiempo, recursos, obras y normas, y comparación de dos métodos o versiones. |
 | `dominio/modelo_obras.py` | Dom | 087 | Clasificador de árboles que decide en qué tanda se mide cada variante, con su puerta de validación por sistema. |
 | `aplicacion/obras_integrales.py` | Apl | 087, 098 | Después de la escalera: transferencia y traslado a un vecino con margen (enlace y migración), solo desde barras con maniobra, y el área del… |
@@ -782,6 +784,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `cierre.py` | Pre | 081 | Registro de cada arranque y cierre de la web, con su motivo. |
 | `evolucion_fijas.py` | Pre | 105 | Servicio de la evolución de los clientes fijos: libros del espacio, trabajo con avance, último resultado y curvas, libro en la salida y su archivo. |
 | `evolucion_fijas_api.py` | Pre | 105 | Rutas `…/clientes-fijos/evolucion`, su curva y `/api/archivo`, montadas en la API única. |
+| `agente_sombra.py` | Pre | 114 | Servicio del agente MASAC en sombra: la red del gemelo del proyecto, la primera política en CPU si no hay, la propuesta junto a la escalera, su… |
+| `agente_sombra_api.py` | Pre | 114 | Rutas `…/agente/sombra` (pedir y leer) y `…/agente/sombra/decisiones/{id}` (confirmar o deshacer), montadas en la API única. |
 | `nube_api.py` | Pre | 109 | Rutas de la nube (`/api/nube/…`, `…/nube/…` y `/nube/retorno`), con su modelo de respuesta: conectar, importar por la vía de una subida, versiones,… |
 | `nube.py` | Pre | 109 | Vínculos con la nube (`nube/vinculos.json`): aviso de revisión nueva, comparación con la copia vigente y aceptación solo confirmada. |
 | `nube_selector.py` | Pre | 109 | Página del selector de Google Picker y del File Picker v8 de OneDrive, con su propia CSP. |
@@ -984,6 +988,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `madrl_entrenar.py` | — | 074 | Entrena el control MaskablePPO del piloto y lo compara con sus referencias. |
 | `madrl_obras.py` | — | 074 | Mide la escalera y NSGA-II y la fidelidad del entorno sobre una red del búfer de episodios. |
 | `madrl_puerta.py` | — | 074 | Aplica la puerta del aprendizaje en redes no vistas con la separación sellada, escribe la medida y la decisión, y confirma lo que pasa por la web en… |
+| `masac_agente.py` | — | 114 | Caso de juguete de MASAC frente al azar, la escalera, NSGA-II y la PPO de la 074. |
 | `mcp_conversor.py` | — | 077 | Servidor MCP local, solo stdio y solo lectura, con las lecturas del asistente. |
 | `evaluacion_final.py` | — | 044 | Consolida la evaluación final de la 1.0 en `docs/EVALUACION_FINAL_1.0.json` y, con `--comprobar`, la relee. |
 | `asistente_informes_reales.py` | — | 026 | Anota informes reales etiquetados (Word, PDF con OCR o texto del maestro) para el clasificador, por grupo y sin repetir. |
@@ -1189,6 +1194,8 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `src/features/powerfactory/formularioOperacionSet.ts` | — | 063 | Valida el formulario de la operación de una SET y arma el cuerpo de la orden. |
 | `src/features/powerfactory/obrasEstadoActual.ts` | — | 086 | Cuándo la web ofrece obras para el estado actual sin cargas nuevas, y cómo resume su resultado. |
 | `src/features/powerfactory/capexVigente.ts` | — | 042, 113 | Texto de la casilla «Libro CAPEX» con el libro vigente del perfil o de las referencias. |
+| `src/features/powerfactory/textosAgente.ts` | — | 114 | Textos del bloque del agente en sombra: título, marcador frente a la regla actual, resultado de cada propuesta y estado de cada decisión. |
+| `src/features/powerfactory/PropuestaAgente.tsx` | — | 114 | Bloque «Propuesta del agente (en sombra, no se aplica)» junto a las obras automáticas, con su marcador y los botones confirmar y deshacer. |
 | `src/features/powerfactory/solicitudLeida.ts` | — | 063 | Acumula por documento lo leído de los PDF del solicitante y detecta un alimentador distinto del de la carga. |
 | `src/features/powerfactory/tensionFuente.ts` | — | 021 | El campo «Tensión en la fuente» de 2.4: relleno con la tensión medida en pu, su nota de dónde sale y lo que tocó el operador. |
 | `src/features/powerfactory/tablaMaxima.ts` | — | 004, 116, 028 | Cómo se lee la tabla de la máxima de 2.2: su ámbito, el instante común, si la máxima propia va de referencia, la fila fuera del instante y el factor… |
@@ -1232,6 +1239,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `test/normativaPanel.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/nube.test.mjs` | — | 109 | Pruebas de la tarjeta de cuentas en la nube, del selector, de la importación, de las versiones y de compartir, pintadas con React. |
 | `test/obrasEstadoActual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
+| `test/agenteSombra.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/pideAnual.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |
 | `test/pitPanel.test.mjs` | — | 107 | Pruebas de la pestaña del PIT sin navegador: matriz de cobertura de las rutas /api/pit (llamada, control y prueba del servidor), los cuatro libros,… |
 | `test/relecturaServidor.test.mjs` | — | — | Sin descripción en `CODIGO_FUENTE.md`. |

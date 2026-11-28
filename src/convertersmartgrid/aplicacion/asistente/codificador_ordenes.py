@@ -56,6 +56,11 @@ def descargar(nombre: str, revision: str) -> str:
     try:
         return snapshot_download(nombre, revision=revision, local_files_only=True)
     except Exception:  # noqa: BLE001 - cualquier ausencia en la caché se resuelve bajándola
+        from ...dominio.salidas_red import motivo_apagada, salida_permitida
+
+        # 086:RF-22: bajar es una salida a la red; si el operador la apagó, no se baja y se dice por qué.
+        if not salida_permitida('hugging_face'):
+            raise RuntimeError(motivo_apagada('hugging_face')) from None
         return snapshot_download(nombre, revision=revision)
 
 

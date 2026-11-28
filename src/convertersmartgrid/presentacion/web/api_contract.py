@@ -1467,3 +1467,75 @@ class CuadroPerdidasRespuesta(Respuesta):
     """017:RF-156: el cuadro de pérdidas por alimentador y caso, y los casos que faltan."""
     filas: list[FilaPerdidas]
     faltan: list[CasoSinEstudio]
+
+
+# --------------------------------------------------------------------------- 114: el agente MASAC en sombra
+class AgenteSombraPeticion(BaseModel):
+    """114:RF-7: el proyecto, sus alimentadores (vacío, todos los de la red capturada) y el caso de su red."""
+    model_config = ConfigDict(extra='forbid')
+    project: str = Field(min_length=1, max_length=200)
+    feeders: list[str] = Field(default_factory=list, max_length=500)
+    caso: Literal['sin_proyecto', 'con_proyecto'] = 'sin_proyecto'
+    #: Sin él, el del perfil de empresa para la tensión de la red.
+    banco_kvar: float | None = Field(default=None, gt=0, le=10000)
+
+
+class ResultadoAgenteSombra(Respuesta):
+    """114:RF-19: cómo queda la red con lo que propone uno y otro, medido igual."""
+    en_norma: bool | None
+    costo: float | None
+    costo_maniobras: float | None
+    vm_min: float | None
+    perdidas_mw: float | None
+    obras: list[str]
+
+
+class DecisionAgenteSombra(Respuesta):
+    """114:RF-11: una decisión del agente con su explicación y lo que hizo con ella el operador."""
+    id: str
+    agente: str
+    tipo: str
+    elemento: str
+    explicacion: str
+    estado: Literal['propuesta', 'confirmada', 'deshecha']
+    confirmo: str | None
+
+
+class PropuestaAgenteSombra(Respuesta):
+    propuesta: str
+    fecha: str | None
+    caso: str | None
+    feeders: list[str]
+    acierta: Literal['agente', 'regla', 'empate']
+    agente: ResultadoAgenteSombra
+    regla: ResultadoAgenteSombra
+    decisiones: list[DecisionAgenteSombra]
+
+
+class MarcadorAgenteSombra(Respuesta):
+    agente: int
+    regla: int
+    empate: int
+
+
+class AgenteSombraEstadoRespuesta(Respuesta):
+    """114:RF-7: las propuestas del proyecto y el marcador frente a la regla actual; nada aplicado."""
+    project: str
+    modo: Literal['sombra']
+    aciertos: MarcadorAgenteSombra
+    propuestas: list[PropuestaAgenteSombra]
+    hay_politica: bool
+
+
+class DecisionAgentePeticion(BaseModel):
+    """114:RF-11: confirmar o deshacer una decisión del agente."""
+    model_config = ConfigDict(extra='forbid')
+    accion: Literal['confirmar', 'deshacer']
+
+
+class DecisionAgenteRespuesta(Respuesta):
+    """114:RF-9: la decisión queda en el registro; no se aplica nada en DIgSILENT."""
+    id: str
+    estado: Literal['propuesta', 'confirmada', 'deshecha']
+    confirmo: str | None
+    aplicada: Literal[False]

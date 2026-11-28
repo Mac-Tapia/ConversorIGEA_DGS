@@ -2414,3 +2414,8 @@ export type CuadroPerdidas = components['schemas']['CuadroPerdidasRespuesta'];
 export type ColabPrevia = components['schemas']['ColabPreviaRespuesta'];
 export type ColabPaquete = components['schemas']['ColabPaqueteRespuesta'];
 export type ColabTraer = components['schemas']['ColabTraerRespuesta'];
+/** 114:RF-7, RF-11: el agente MASAC en sombra: propuestas, marcador frente a la regla actual y decisiones. */
+export type AgenteSombraEstado = components['schemas']['AgenteSombraEstadoRespuesta'];
+export type PropuestaAgente = components['schemas']['PropuestaAgenteSombra'];
+export type DecisionAgente = components['schemas']['DecisionAgenteSombra'];
+export type DecisionAgenteRespuesta = components['schemas']['DecisionAgenteRespuesta'];

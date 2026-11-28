@@ -61,6 +61,8 @@ export const PASO_DE_TRABAJO: Record<string, PasoId | null> = {
   ajuste_transformadores: 'pf-calibracion',
   pf_verificar: 'pf-nuevas', cargas_simular: 'pf-nuevas', cargas_aplicar: 'pf-nuevas', cargas_deshacer: 'pf-nuevas',
   obras_escalera: 'pf-nuevas', obras_con_proyecto: 'pf-nuevas', obras_retirar: 'pf-nuevas', set_nueva_operacion: 'pf-nuevas',
+  // 114:RF-7: la propuesta del agente en sombra vive junto a las obras automáticas.
+  agente_sombra: 'pf-nuevas',
   obras_bibliotecas: 'pf-obras', obras_simular: 'pf-obras', obras_aplicar: 'pf-obras',
   estudios: 'pf-estudios', estudio: 'pf-estudios', sesion: 'pf-estudios', guiones_listar: 'pf-estudios',
   guion_ejecutar: 'pf-estudios', protecciones_capacidades: 'pf-estudios', protecciones_fallas: 'pf-estudios',
