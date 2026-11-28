@@ -6,6 +6,7 @@ Con nombres sintéticos: ningún dato de la distribuidora entra en el repositori
 from __future__ import annotations
 
 import json
+import re
 from datetime import datetime
 from pathlib import Path
 
@@ -204,8 +205,16 @@ _FAMILIAS_T8 = {
     'asistente_redaccion': 'en_origen',
     'pronostico_demanda': 'tal_cual',
     'madrl_obras': 'tal_cual',
+    'interprete_ordenes': 'en_origen',
+    'interprete_ordenes_cruzada': 'en_origen',
 }
 _RAIZ = Path(__file__).resolve().parents[1]
+
+
+def test_entran_en_colab_las_familias_ensayadas():
+    """113:RF-16 / 113:RF-18 / 113:RF-21: Colab ofrece cada familia ensayada, el intérprete de órdenes con y sin
+    validación cruzada incluido (113 T8)."""
+    assert sorted(set(_FAMILIAS_T8) - set(er.FAMILIAS)) == []
 
 
 @pytest.mark.parametrize('familia', sorted(_FAMILIAS_T8))
@@ -225,7 +234,8 @@ def test_la_orden_de_cada_familia_lleva_sus_datos_su_salida_y_su_semilla(familia
     semilla es la del candidato y lo que escribe queda en su carpeta de salida (lo que el cuaderno sella como candidato)."""
     orden = er.orden_de_entrenamiento(familia, datos='/d/paq/datos', salida='/d/cand/s13', semilla=13, epocas=2)
     assert '{' not in orden and '}' not in orden
-    assert '/d/paq/datos' in orden and '/d/cand/s13' in orden and '--semilla 13' in orden
+    assert '/d/paq/datos' in orden and '/d/cand/s13' in orden
+    assert re.search(r'--semillas? 13(\s|$)', orden), orden      # el intérprete la llama --semillas
 
 
 def test_las_ordenes_son_las_ensayadas():
@@ -239,6 +249,16 @@ def test_las_ordenes_son_las_ensayadas():
         '--salida S/resultado.json --modelo-salida S/modelo')
     assert er.FAMILIAS['pronostico_demanda']['puerta'] == 'tools/pronostico_demanda.py --dataset'
     assert er.FAMILIAS['madrl_obras']['puerta'] == 'tools/madrl_puerta.py aplicar'
+    # 113:RF-18 a RF-20: el intérprete entrena en Colab con la parte del corpus que sale, y su puerta es la local.
+    assert er.orden_de_entrenamiento('interprete_ordenes', datos='D', salida='S', semilla=13, epocas=3) == (
+        'tools/asistente_entrenar.py --solo-entrenar D --afinar --semillas 13 --descargar-codificador '
+        '--output-json S/resumen.json')
+    assert er.FAMILIAS['interprete_ordenes']['puerta'] == 'tools/asistente_entrenar.py --examinar-colab'
+    # 113:RF-21: la validación cruzada de la 070 en Colab, con la misma orden y la misma puerta local.
+    assert er.orden_de_entrenamiento('interprete_ordenes_cruzada', datos='D', salida='S', semilla=13) == (
+        'tools/asistente_entrenar.py --solo-entrenar D --afinar --validacion-cruzada --semillas 13 '
+        '--descargar-codificador --output-json S/resumen.json')
+    assert er.FAMILIAS['interprete_ordenes_cruzada']['puerta'] == er.FAMILIAS['interprete_ordenes']['puerta']
 
 
 def test_solo_el_qlora_pide_su_experimento_autorizado():

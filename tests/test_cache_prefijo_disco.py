@@ -73,6 +73,7 @@ def test_070_rf94_soltar_la_caché_borra_sus_ficheros(tmp_path):
 def test_070_rf94_la_destilación_la_pide_en_su_corrida():
     """La corrida crea la caché en su carpeta ``cache_prefijo`` y la suelta antes de reabrir el candidato."""
     import inspect
-    fuente = inspect.getsource(di.entrenar_destilacion)
+    # 113 T8 (27-11): el entrenamiento y la elección se separaron en ``_entrenar_y_elegir`` (también los usa Colab).
+    fuente = inspect.getsource(di.entrenar_destilacion) + inspect.getsource(di._entrenar_y_elegir)
     assert 'carpeta=Path(destino) / CARPETA_CACHE_PREFIJO' in fuente and 'cache.filas.clear()' in fuente
     assert di.CARPETA_CACHE_PREFIJO == 'cache_prefijo'

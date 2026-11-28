@@ -61,6 +61,26 @@ modelos (043, 047, 070, 071, 089).
 - RF-17: (usuario, 2026-11-27: «debe haber un vínculo directo a Colab desde el notebook») EL cuaderno llevará al
   principio un enlace «Abrir en Colab» al cuaderno de la rama principal en GitHub; la revisión con la que entrena
   sigue siendo la de su paquete (RF-2).
+- RF-18: (orden del usuario del 2026-11-27: las corridas largas del intérprete, 069 T7 y 070 T28, deben poder ir a
+  Colab) CUANDO el operador prepare el intérprete de órdenes para Colab, EL SISTEMA construirá en el equipo el mismo
+  corpus de la vía integral y sacará de él solo las particiones de entrenamiento y selección, con los proyectos, SED,
+  SET, casos, estudios y rutas cambiados por un seudónimo estable de la misma forma (con una sal que no sale del
+  equipo), el texto libre por `sin_nombres` (072:RF-49), los datos de cada frase en su sitio y la huella del corpus
+  completo en su manifiesto; la calibración, la prueba (selladas y órdenes humanas) y los mensajes reservados se
+  quedarán en el equipo.
+- RF-19: CUANDO Colab entrene el intérprete, EL SISTEMA entrenará y elegirá el candidato por la selección con el mismo
+  código que en el equipo, sin calibrar, medir pruebas, registrar ni poner nada en uso, bajará el codificador con su
+  revisión fija si falta en la caché, y rechazará antes de entrenar un corpus que traiga otra partición.
+- RF-20: CUANDO se examine en el equipo un candidato del intérprete traído de Colab, EL SISTEMA lo calibrará, lo medirá
+  y lo registrará con el corpus completo del que salió su paquete y con las mismas puertas que uno entrenado aquí, y solo
+  lo pondrá en uso si las pasa; SI el corpus dado no es aquel, ENTONCES lo rechazará con su motivo.
+- RF-21: (excepción a RF-6; usuario, 2026-11-27: «sí, autorizo que salgan anonimizadas a Colab», sobre la validación
+  cruzada de la 070 T28) DONDE el operador pida la validación cruzada del intérprete (075:RF-35) en Colab, EL SISTEMA
+  sacará en el paquete, además de lo de RF-18, solo las órdenes humanas confirmadas que usa esa validación, con los
+  mismos seudónimos estables de RF-18 (la sal no sale) y con lo que entrena de cada una ya decidido en el equipo frente
+  a lo que mide (075:RF-28), de modo que ningún texto de las pruebas selladas, de la calibración ni de los mensajes
+  reservados salga; Colab hará las vueltas y el modelo final con la misma orden que en el equipo, y la puerta final
+  seguirá en el equipo con lo sellado, leyendo la medida fuera de grupo de Colab con los valores reales.
 
 ## Requisitos no funcionales
 

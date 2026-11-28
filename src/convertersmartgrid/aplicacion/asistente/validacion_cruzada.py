@@ -252,20 +252,37 @@ def _clave_de_fila(r: dict) -> str:
     return clave_de_familia(r['texto'], r.get('datos') or ())
 
 
-def ejecutar(humanas: Sequence[dict], entrenamiento: Sequence[dict], vedadas: Iterable[str], *, cfg: co.Configuracion,
-             cache: co.CacheCodificada, dispositivo, k: int = VUELTAS, semilla: int = SEMILLA,
-             liberar: Callable[[], None] = lambda: None, log: Callable[[str], None] = lambda _m: None) -> Validacion:
-    """Las vueltas y el modelo final; de ``entrenamiento`` y de las confirmadas solo se entrena lo que no toca lo examinado."""
+def preparar_confirmadas(humanas: Sequence[dict], vedadas: Iterable[str]) -> dict[str, Any]:
+    """Qué confirmadas entrenan y con qué variantes, apartando lo que toca a lo que mide (075:RF-13, RF-28).
+
+    Va aparte de :func:`ejecutar` para que en Colab (113:RF-21) se entrene con lo decidido aquí: lo vedado son textos
+    de las pruebas selladas, que no salen del equipo, así que el filtro se aplica en el equipo y sale ya hecho.
+    """
     vedado = Claves(vedadas)
     entrenables, apartadas = filas_entrenables(humanas, vedado)
-    familias = agrupar_familias(humanas)
-    por_tarea = estado_por_tarea(familias, entrenables)
     con_variantes = {r['record_id']: ejemplos_de_confirmadas([r]) for r in entrenables}
     variantes_vedadas = 0
     for rid, ejemplos in con_variantes.items():
         fuera = [e for e in ejemplos if not vedado.toca(clave_de_familia(e.texto, e.datos))]
         variantes_vedadas += len(ejemplos) - len(fuera)
         con_variantes[rid] = fuera
+    return {'entrenables': entrenables, 'apartadas': apartadas, 'con_variantes': con_variantes,
+            'variantes_vedadas': variantes_vedadas}
+
+
+def ejecutar(humanas: Sequence[dict], entrenamiento: Sequence[dict], vedadas: Iterable[str], *, cfg: co.Configuracion,
+             cache: co.CacheCodificada, dispositivo, k: int = VUELTAS, semilla: int = SEMILLA,
+             liberar: Callable[[], None] = lambda: None, log: Callable[[str], None] = lambda _m: None,
+             preparadas: dict[str, Any] | None = None) -> Validacion:
+    """Las vueltas y el modelo final; de ``entrenamiento`` y de las confirmadas solo se entrena lo que no toca lo examinado.
+
+    ``preparadas`` es lo que dio :func:`preparar_confirmadas` en el equipo, cuando se entrena en Colab (113:RF-21).
+    """
+    p = preparadas if preparadas is not None else preparar_confirmadas(humanas, vedadas)
+    entrenables, apartadas = p['entrenables'], p['apartadas']
+    con_variantes, variantes_vedadas = p['con_variantes'], p['variantes_vedadas']
+    familias = agrupar_familias(humanas)
+    por_tarea = estado_por_tarea(familias, entrenables)
     informe = {'vueltas_pedidas': k, 'semilla': semilla, 'textos': len(humanas), 'familias': len(familias),
                'confirmadas_que_entrenan': len(entrenables), 'confirmadas_que_no_entrenan': len(apartadas),
                'variantes_apartadas_por_lo_que_mide': variantes_vedadas, 'por_tarea': por_tarea,

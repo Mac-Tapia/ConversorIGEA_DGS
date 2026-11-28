@@ -635,3 +635,177 @@ def test_integral_interpretacion_sigue_igual_para_el_plan():
     m.umbral = .5
     i = interpretar('convierte AB101', transformer=m)
     assert isinstance(i, Interpretacion) and i.tarea == 'convertir' and i.modelo == 'transformer'
+
+
+# ------------------------------------------------------------------ Colab (spec 113)
+
+_VOCAB_COLAB = {'alimentadores': ['AB101', 'CD202'], 'proyecto': ['Granja Solar Zafiro'], 'sistema': ['Sistema Prueba']}
+
+
+def _corpus_completo(carpeta: Path) -> Path:
+    reservados = [f'secreto reservado {i}' for i in range(120)]
+    humanas = [{'texto': 'carga la fuente de Zafiro', 'tarea': 'cargar_fuente', 'datos': [], 'origen': 'confirmado'}]
+    filas, meta = di.preparar_corpus(_VOCAB_COLAB, humanas, por_familia=1,
+                                     ninguna=['charla uno de mas', 'charla dos de mas'], ninguna_reservada=reservados)
+    di.guardar_corpus(carpeta, filas, meta, reservados)
+    return carpeta
+
+
+def test_el_seudonimo_guarda_la_forma_y_no_el_nombre():
+    """113:RF-18 — mismo nombre, mismo seudónimo; letras, cifras y separadores en su sitio; otra sal, otro seudónimo."""
+    sal = b'x' * 32
+    nombre = 'SED M-0123 de D:/Datos/Zafiro.txt'
+    s = di.seudonimo(nombre, sal)
+    assert s == di.seudonimo(nombre, sal) != di.seudonimo(nombre, b'y' * 32)
+    assert len(s) == len(nombre) and s[3] == ' ' and s[5] == '-' and s[16] == '/' and s[6:10].isdigit()
+    assert 'Zafiro' not in s and s[:3].isupper()
+
+
+def test_la_fila_sin_nombres_conserva_sus_datos():
+    """113:RF-18 — el proyecto se oculta, el alimentador queda; cada dato sigue apuntando a su valor."""
+    r = {'texto': 'aplica en Granja Solar Zafiro el alimentador AB101', 'tarea': 'convertir',
+         'datos': [[10, 29, 'proyecto'], [45, 50, 'alimentadores']], 'particion': 'entrenamiento', 'record_id': 'x'}
+    n = di.fila_sin_nombres(r, b's' * 32)
+    (a, b, _t), (c, d, _u) = n['datos']
+    assert 'Zafiro' not in n['texto'] and n['texto'][c:d] == 'AB101' and b - a == 19
+    assert n['record_id'] == di.huella({k: v for k, v in n.items() if k != 'record_id'})
+
+
+def test_la_razon_social_sin_puntos_no_sale():
+    """113:RF-21 — «Inventado SA», como lo escribe el operador, se oculta en el texto libre; el sistema queda."""
+    r = {'texto': 'carga la fuente de la empresa Inventado SA para el Sistema Prueba', 'tarea': 'cargar_fuente',
+         'datos': [[51, 65, 'sistema']], 'particion': 'entrenamiento'}
+    n = di.fila_sin_nombres(r, b's' * 32)
+    (a, b, _t), = n['datos']
+    assert 'Inventado' not in n['texto'] and n['texto'][a:b] == 'Sistema Prueba'
+
+
+def test_el_interprete_entrena_en_colab_y_se_examina_aqui(falso, monkeypatch):
+    """113:RF-6 / 113:RF-18 / 113:RF-19 / 113:RF-20 — el ensayo de Colab con el codificador falso, desde la carpeta ``datos`` del
+    paquete: lo que sale no trae prueba, calibración, reservados ni nombres; Colab entrena y elige sin registrar; la
+    puerta local calibra, mide y registra con el corpus entero, y rechaza otro corpus."""
+    assert callable(getattr(di, 'exportar_para_colab', None)), 'el intérprete no tiene su vía de Colab'
+    import convertersmartgrid.aplicacion.model_registry as mr
+    from convertersmartgrid.aplicacion import entrenamiento_remoto as er
+    monkeypatch.setattr(mr, 'reabrir_en_subproceso', lambda *_a, **_k: {'ok': True})
+    corpus = _corpus_completo(falso / 'completo')
+    filas, meta = di.leer_corpus(corpus)
+    m = di.exportar_para_colab(corpus, falso / 'para_colab', sal=b'k' * 32)
+    texto = (falso / 'para_colab' / 'corpus.json').read_text(encoding='utf-8')
+    salen = json.loads(texto)
+    assert {r['particion'] for r in salen} == {'entrenamiento', 'seleccion'}
+    assert m['corpus_completo'] == meta['dataset_hash']
+    assert 'secreto' not in texto and 'zafiro' not in texto.casefold() and 'AB101' in texto
+    assert any(t == 'proyecto' for r in salen for _a, _b, t in r['datos']), 'el ensayo no tiene proyectos que ocultar'
+    assert sorted(p.name for p in (falso / 'para_colab').iterdir()) == ['corpus.json', 'dataset_manifest.json']
+    assert len(salen) == sum(r['particion'] in di.PARTES_COLAB for r in filas)
+    rev = 'c' * 40
+    paq = er.preparar_paquete(falso / 'para_colab', familia='interprete_ordenes', revision=rev, repositorio='d/p',
+                              destino=falso / 'drive')
+    datos = falso / 'drive' / f'interprete_ordenes_{rev[:8]}_{paq["huella"][:8]}' / 'datos'
+    cfg = co.Configuracion(epocas=3, lote_tarea=64, lote_etiquetas=64, oculta_tarea=16, oculta_etiquetas=8)
+    r = di.entrenar_para_colab(datos, falso / 'candidato', cfg=cfg, semillas=(11,), log=lambda *_a, **_k: None)
+    assert r['status'] == 'PENDIENTE_PUERTA_LOCAL' and not r['promovido'] and '/' not in r['elegido']['path']
+    assert not (falso / 'candidato' / 'alumno').exists() and not list((falso / 'candidato').rglob('model_registry'))
+    er.verificar_paquete(datos.parent)                       # entrenar no tocó el paquete
+    otro = _corpus_completo(falso / 'otro')
+    ajeno = [x for x in filas if x['tarea'] != 'cargar_fuente' or x['quality'] != 'gold_human']
+    (otro / 'corpus.json').write_text(json.dumps(ajeno, ensure_ascii=False, sort_keys=True), encoding='utf-8')
+    meta_otro = {**meta, 'dataset_hash': di.huella(ajeno)}
+    (otro / 'dataset_manifest.json').write_text(json.dumps(meta_otro, ensure_ascii=False), encoding='utf-8')
+    with pytest.raises(ValueError, match='otro corpus'):
+        di.examinar_de_colab(falso / 'candidato', otro, falso / 'puerta_mala')
+    e = di.examinar_de_colab(falso / 'candidato', corpus, falso / 'puerta', registro=falso / 'reg')
+    assert e['training_completed'] and e['candidato']['status'] in {'RECHAZADO', 'PROMOVIDO'}
+    assert e['rechazo']['ejemplos'] == 120 and 'umbral' in e['calibracion'] and e['humanas']['ejemplos'] >= 1
+    assert (falso / 'puerta' / 'alumno' / 'modelo.json').is_file()
+    proto = json.loads((falso / 'puerta' / 'protocolo.json').read_text(encoding='utf-8'))
+    assert proto['entrenado_en'] == 'colab' and proto['dataset']['dataset_hash'] == meta['dataset_hash']
+
+
+def test_colab_no_entrena_con_la_prueba(falso):
+    """113:RF-6 / 113:RF-19 — un corpus para Colab que trajera la prueba se rechaza antes de entrenar."""
+    corpus = _corpus_completo(falso / 'completo')
+    di.exportar_para_colab(corpus, falso / 'para_colab', sal=b'k' * 32)
+    filas, _meta = di.leer_corpus(corpus)
+    meta_c = json.loads((falso / 'para_colab' / 'dataset_manifest.json').read_text(encoding='utf-8'))
+    con_prueba = json.loads((falso / 'para_colab' / 'corpus.json').read_text(encoding='utf-8')) + [
+        r for r in filas if r['particion'] == 'prueba'][:1]
+    (falso / 'para_colab' / 'corpus.json').write_text(json.dumps(con_prueba, ensure_ascii=False), encoding='utf-8')
+    meta_c['dataset_hash'] = di.huella(con_prueba)
+    (falso / 'para_colab' / 'dataset_manifest.json').write_text(json.dumps(meta_c), encoding='utf-8')
+    with pytest.raises(ValueError, match='prueba'):
+        di.entrenar_para_colab(falso / 'para_colab', falso / 'cand', semillas=(11,))
+
+
+_HUMANAS_VC = [
+    {'texto': 'carga la fuente de Zafiro', 'tarea': 'cargar_fuente', 'datos': []},
+    {'texto': 'convierte el proyecto Granja Solar Zafiro', 'tarea': 'convertir', 'datos': [[22, 41, 'proyecto']]},
+    {'texto': 'calcula el flujo del AB101', 'tarea': 'flujo', 'datos': [[21, 26, 'alimentadores']]},
+    {'texto': 'que tal va todo hoy', 'tarea': 'estado', 'datos': []},
+    {'texto': 'convierte CD202 ahora mismo', 'tarea': 'convertir', 'datos': [[10, 15, 'alimentadores']]},
+    {'texto': 'flujo de potencia para CD202', 'tarea': 'flujo', 'datos': [[23, 28, 'alimentadores']]},
+]
+
+
+def _corpus_con_confirmadas(carpeta: Path) -> Path:
+    reservados = [f'secreto reservado {i}' for i in range(120)]
+    humanas = [{**h, 'origen': 'confirmado'} for h in _HUMANAS_VC]
+    filas, meta = di.preparar_corpus(_VOCAB_COLAB, humanas, por_familia=1,
+                                     ninguna=['charla uno de mas', 'charla dos de mas'], ninguna_reservada=reservados)
+    di.guardar_corpus(carpeta, filas, meta, reservados)
+    return carpeta
+
+
+def test_la_validacion_cruzada_va_a_colab_solo_con_las_confirmadas_sin_nombres(falso, monkeypatch):
+    """113:RF-21 — salen solo las confirmadas, sin nombres y con lo que entrena ya decidido aquí; ningún texto sellado,
+    de calibración ni reservado; Colab hace las vueltas y la puerta de aquí lee su medida fuera de grupo con los
+    valores reales, y sin la sal no la lee."""
+    import inspect
+
+    assert 'con_confirmadas' in inspect.signature(di.exportar_para_colab).parameters, 'sin vía de Colab para la cruzada'
+    import convertersmartgrid.aplicacion.model_registry as mr
+    monkeypatch.setattr(mr, 'reabrir_en_subproceso', lambda *_a, **_k: {'ok': True})
+    corpus = _corpus_con_confirmadas(falso / 'completo')
+    filas, meta = di.leer_corpus(corpus)
+    sal = b'k' * 32
+    m = di.exportar_para_colab(corpus, falso / 'para_colab', sal=sal, con_confirmadas=[])
+    texto = (falso / 'para_colab' / di.ARCHIVO_CONFIRMADAS).read_text(encoding='utf-8')
+    confirmadas = json.loads(texto)
+    assert len(confirmadas) == len(_HUMANAS_VC) == m['confirmadas']['ordenes']
+    assert {c['fila']['quality'] for c in confirmadas} == {'gold_human'} and 'autorizo' in m['confirmadas']['autorizacion']
+    assert 'zafiro' not in texto.casefold() and 'secreto' not in texto and 'CD202' in texto
+    medidas = [r for r in filas if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human']
+    salen = {c['fila']['texto'] for c in confirmadas} | {v['texto'] for c in confirmadas for v in c['variantes']}
+    salen |= {r['texto'] for r in json.loads((falso / 'para_colab' / 'corpus.json').read_text(encoding='utf-8'))}
+    assert not [r for r in medidas if r['particion'] != 'seleccion' and r['texto'] in salen], 'salió algo que mide'
+    assert all(r['particion'] in di.PARTES_COLAB for r in json.loads((falso / 'para_colab' / 'corpus.json').read_text(encoding='utf-8')))
+    cfg = co.Configuracion(epocas=3, lote_tarea=64, lote_etiquetas=64, oculta_tarea=16, oculta_etiquetas=8)
+    r = di.entrenar_para_colab(falso / 'para_colab', falso / 'candidato', cfg=cfg, semillas=(11,),
+                               log=lambda *_a, **_k: None, validacion_cruzada=True)
+    vc_colab = json.loads((falso / 'candidato' / di.ARCHIVO_VALIDACION_COLAB).read_text(encoding='utf-8'))
+    assert r['elegido']['path'] == 'con-confirmadas' and (falso / 'candidato' / 'con-confirmadas').is_dir()
+    assert vc_colab['informe']['medida'] is True and set(vc_colab['predicciones']) == {c['fila']['texto'] for c in confirmadas}
+    with pytest.raises(ValueError, match='sal'):
+        di.examinar_de_colab(falso / 'candidato', corpus, falso / 'sin_sal')
+    e = di.examinar_de_colab(falso / 'candidato', corpus, falso / 'puerta', registro=falso / 'reg', sal=sal)
+    assert e['validacion_cruzada'] is not None and e['humanas']['ejemplos'] == len(_HUMANAS_VC)
+    assert e['candidato']['status'] in {'RECHAZADO', 'PROMOVIDO'} and e['humanas_por_orden']['origen'] == 'fuera_de_grupo'
+    # Lo que Colab dijo con el seudónimo vuelve con el valor real: la medida de aquí compara lo mismo que la local.
+    real = next(x for x in filas if x['texto'] == 'convierte el proyecto Granja Solar Zafiro')
+    anon = di.fila_sin_nombres(real, sal)
+    (a, b, _t), = anon['datos']
+    fingida = {anon['texto']: {'tarea': 'convertir', 'confianza': .99, 'datos': {'proyecto': [{'valor': anon['texto'][a:b]}]}}}
+    p = di.FueraDeGrupoColab(fingida, [real], sal).predecir(real['texto'])
+    assert p['datos']['proyecto'][0]['valor'] == 'Granja Solar Zafiro' != anon['texto'][a:b]
+    with pytest.raises(ValueError, match='confirmadas'):
+        di.FueraDeGrupoColab(vc_colab['predicciones'], [x for x in filas if x['quality'] == 'gold_human'], b'otra' * 8)
+
+
+def test_sin_pedirla_ninguna_orden_humana_sale(falso):
+    """113:RF-6 / 113:RF-21 — el paquete del intérprete sin validación cruzada no lleva confirmadas, y Colab no la hace."""
+    corpus = _corpus_con_confirmadas(falso / 'completo')
+    di.exportar_para_colab(corpus, falso / 'para_colab', sal=b'k' * 32)
+    assert not (falso / 'para_colab' / di.ARCHIVO_CONFIRMADAS).exists()
+    with pytest.raises(ValueError, match='--validacion-cruzada'):
+        di.entrenar_para_colab(falso / 'para_colab', falso / 'cand', semillas=(11,), validacion_cruzada=True)

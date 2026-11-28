@@ -28,7 +28,7 @@ EXCEPCIONES: dict[str, tuple[int, str]] = {
     'aplicacion/asistente/clasificador.py::guardar_candidato': (2, _VERSION_NUEVA),
     'aplicacion/asistente/clasificador_vectores.py::guardar': (2, _VERSION_NUEVA),
     'aplicacion/asistente/destilacion_integral.py::_guardar_alumno': (1, _VERSION_NUEVA + ' (mkdir exist_ok=False)'),
-    'aplicacion/asistente/destilacion_integral.py::entrenar_destilacion':
+    'aplicacion/asistente/destilacion_integral.py::_examinar':
         (1, 'readback.json dentro de la carpeta del alumno candidato, antes de su decisión'),
     'aplicacion/asistente/evidencias_web.py::custodiar_trabajo':
         (1, 'temporal de staging_publicacion que registrar_evidencia copia de forma exclusiva (open "xb")'),

@@ -4,10 +4,12 @@ from __future__ import annotations
 from collections import Counter, defaultdict
 from collections.abc import Sequence
 from dataclasses import asdict, replace
+import hashlib
 import json
 import math
 from pathlib import Path
 import random
+import re
 import sys
 import time
 import platform
@@ -1033,18 +1035,16 @@ def evaluar_agente(modelo, registros: list[dict], *, ollama=None, por_tarea: int
             'otra_prueba_independiente': False}
 
 
-def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11, 23, 37),
-                         registro: Path | None = None, log=print, validacion_cruzada: bool = False,
-                         vedadas_extra: Sequence[str] = ()) -> dict:
+def _entrenar_y_elegir(filas: list[dict], meta: dict, politica, particiones: dict, destino: Path, *, cfg, semillas,
+                       log, validacion_cruzada: bool) -> dict:
+    """Los candidatos por semilla y método, y el elegido por la selección, sin mirar calibración ni prueba.
+
+    Es la parte que puede ir a Colab (113:RF-19): solo lee el entrenamiento y la selección del corpus.
+    """
     from . import afinado_ordenes as af
     from . import codificador_ordenes as co
     from . import transformer as tr
     from . import validacion_cruzada as vc
-    from ..model_registry import RegistroModelo, reabrir_en_subproceso
-    filas, meta = leer_corpus(dataset)
-    reservados = leer_reservados(dataset, meta)
-    politica = PoliticaEvaluacion(modo='agente', semillas=tuple(semillas))
-    particiones = particionar_registros(filas, politica)
     destino = Path(destino)
     if destino.exists() and any(destino.iterdir()):
         raise ValueError('se conserva una ejecución existente; use otro destino')
@@ -1067,7 +1067,7 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     if not base or not maestro:
         raise ValueError('comparación requiere supervisados y respuestas del maestro')
     protocolo = {'policy': asdict(politica), 'policy_hash': politica.hash,
-                 'particiones': asdict(particiones), 'dataset': meta, 'cfg': asdict(cfg),
+                 'particiones': particiones, 'dataset': meta, 'cfg': asdict(cfg),
                  'semillas': list(semillas), 'metodos': ['supervisado', 'destilado'],
                  'codificador': {'nombre': nombre_cod, 'revision': revision_cod},
                  'afinado': af.protocolo(cfg) if cfg.afinar_capas else None,                     # 079:RF-63
@@ -1112,24 +1112,71 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
     elegido = elegir_candidato(candidatos)
     # El ganador queda registrado antes de leer calibración o prueba.
     publicar_duradero(destino / 'ganador_seleccion.json', json.dumps(elegido, ensure_ascii=False, indent=2))
+    return {'destino': destino, 'cfg': cfg, 'disp': disp, 'cache': cache, 'por_parte': por_parte, 'base': base,
+            'maestro': maestro, 'protocolo': protocolo, 'candidatos': candidatos, 'elegido': elegido,
+            'inicio': inicio}
+
+
+def _vedadas_de(filas: list[dict], reservados, extra: Sequence[str] = ()) -> list[str]:
+    """075:RF-28: lo que mide y no puede entrenar: selección, calibración y pruebas no humanas, reservados y fijas."""
+    from . import validacion_cruzada as vc
+    vedadas = [vc.clave_de_familia(r['texto'], r['datos']) for r in filas
+               if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human']
+    return vedadas + [vc.clave_de_familia(t) for t in (*(reservados or ()), *extra)]
+
+
+def _con_confirmadas(fase: dict, humanas: list[dict], politica, meta: dict, log, *, vedadas=(), preparadas=None):
+    """075:RF-16: la validación cruzada sobre el método y la semilla ya elegidos sin mirar a las confirmadas.
+
+    En el equipo filtra con ``vedadas``; en Colab (113:RF-21) recibe ``preparadas``, el filtro ya hecho aquí.
+    """
+    from . import transformer as tr
+    from . import validacion_cruzada as vc
+    elegido, destino = fase['elegido'], fase['destino']
+    validacion = vc.ejecutar(humanas, fase['base'] if elegido['metodo'] == 'supervisado' else [*fase['base'], *fase['maestro']],
+                             vedadas, cfg=replace(fase['cfg'], semilla=elegido['semilla']), cache=fase['cache'],
+                             dispositivo=fase['disp'], liberar=tr.modulo_torch().cuda.empty_cache,
+                             log=lambda m: log(m, flush=True), preparadas=preparadas)
+    carpeta = destino / 'con-confirmadas'
+    _guardar_alumno(validacion.modelo_final, carpeta, {'version': carpeta.name, 'metodo': elegido['metodo'],
+                    'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
+    elegido = {**elegido, 'path': str(carpeta.resolve()), 'con_confirmadas': validacion.informe['confirmadas_que_entrenan']}
+    validacion.modelo_final = None
+    tr.modulo_torch().cuda.empty_cache()
+    return validacion, elegido
+
+
+def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11, 23, 37),
+                         registro: Path | None = None, log=print, validacion_cruzada: bool = False,
+                         vedadas_extra: Sequence[str] = ()) -> dict:
+    filas, meta = leer_corpus(dataset)
+    reservados = leer_reservados(dataset, meta)
+    politica = PoliticaEvaluacion(modo='agente', semillas=tuple(semillas))
+    particiones = particionar_registros(filas, politica)
+    fase = _entrenar_y_elegir(filas, meta, politica, asdict(particiones), destino, cfg=cfg, semillas=semillas, log=log,
+                              validacion_cruzada=validacion_cruzada)
+    destino, cfg, cache = fase['destino'], fase['cfg'], fase['cache']
+    por_parte, elegido = fase['por_parte'], fase['elegido']
     filas_humanas = [r for r in por_parte['prueba'] if r['quality'] == 'gold_human']
     validacion = None
     if validacion_cruzada:
-        # 075:RF-16: el método y la semilla ya elegidos sin mirar a las confirmadas. RF-28: lo que mide no se toca.
-        vedadas = [vc.clave_de_familia(r['texto'], r['datos']) for r in filas
-                   if r['particion'] != 'entrenamiento' and r['quality'] != 'gold_human']
-        vedadas += [vc.clave_de_familia(t) for t in (*(reservados or ()), *vedadas_extra)]
-        validacion = vc.ejecutar(filas_humanas, base if elegido['metodo'] == 'supervisado' else [*base, *maestro], vedadas,
-                                 cfg=replace(cfg, semilla=elegido['semilla']), cache=cache, dispositivo=disp,
-                                 liberar=tr.modulo_torch().cuda.empty_cache, log=lambda m: log(m, flush=True))
-        carpeta = destino / 'con-confirmadas'
-        _guardar_alumno(validacion.modelo_final, carpeta, {'version': carpeta.name, 'metodo': elegido['metodo'],
-                        'policy_hash': politica.hash, 'dataset_hash': meta['dataset_hash']})
-        elegido = {**elegido, 'path': str(carpeta.resolve()), 'con_confirmadas': validacion.informe['confirmadas_que_entrenan']}
-        validacion.modelo_final = None
-        tr.modulo_torch().cuda.empty_cache()
+        validacion, elegido = _con_confirmadas(fase, filas_humanas, politica, meta, log,
+                                               vedadas=_vedadas_de(filas, reservados, vedadas_extra))
     # La reapertura abre otro codificador en otro proceso: la caché ya no hace falta y al equipo le falta memoria.
     cache.filas.clear()
+    return _examinar(elegido, fase['candidatos'], por_parte, meta, reservados, destino, cfg=cfg, politica=politica,
+                     protocolo=fase['protocolo'], semillas=semillas, registro=registro, validacion=validacion,
+                     inicio=fase['inicio'])
+
+
+def _examinar(elegido: dict, candidatos: list[dict], por_parte: dict, meta: dict, reservados, destino: Path, *, cfg,
+              politica, protocolo: dict, semillas, registro, validacion, inicio: float) -> dict:
+    """Calibración, pruebas, puertas y registro del elegido; siempre en el equipo (113:RF-20)."""
+    from . import afinado_ordenes as af
+    from . import transformer as tr
+    from . import validacion_cruzada as vc
+    from ..model_registry import RegistroModelo, reabrir_en_subproceso
+    filas_humanas = [r for r in por_parte['prueba'] if r['quality'] == 'gold_human']
     modelo = cargar_alumno(Path(elegido['path']))
     calibracion = calibrar_temperatura(modelo, por_parte['calibracion'])
     calibracion = {**calibracion, **calibrar_umbral(modelo, por_parte['calibracion'])}
@@ -1254,6 +1301,328 @@ def entrenar_destilacion(dataset: Path, destino: Path, *, cfg=None, semillas=(11
         'confusiones': confundidas, 'calibracion': calibracion, 'duracion_s': time.monotonic() - inicio}
     publicar_duradero(destino / 'decision.json', json.dumps(reporte, ensure_ascii=False, indent=2, allow_nan=False))
     return reporte
+
+
+#: 113:RF-18: lo que viaja a Colab del corpus del intérprete. Solo lo que entrena y lo que elige el candidato; la
+#: calibración, la prueba (las selladas y las órdenes humanas) y los mensajes reservados del rechazo se quedan aquí, y
+#: con ellos se examina al volver (RF-6, RF-20).
+SCHEMA_COLAB = 'csg-corpus-interprete-colab-v1'
+PARTES_COLAB = ('entrenamiento', 'seleccion')
+#: 113:RF-18: los datos que nombran algo del operador o de sus clientes (proyectos, SED, SET, casos, estudios y rutas
+#: de su disco). Los códigos de la red (alimentadores y sistema) van tal cual, como en el grafo de la MADRL, y las
+#: cifras, periodos y años también: es lo que el intérprete aprende a extraer.
+TIPOS_SEUDONIMO = frozenset({'proyecto', 'sed', 'set', 'caso', 'estudio', 'ruta'})
+
+
+def seudonimo(texto: str, sal: bytes) -> str:
+    """El mismo nombre da siempre el mismo seudónimo, con la misma forma y longitud (113:RF-18).
+
+    La forma importa: el codificador ve en «AB101» o «D:/datos» lo que delata un código o una ruta
+    (``rasgos_de_forma``), así que una letra sigue siendo letra, una cifra cifra y los separadores no cambian. La
+    misma longitud deja intactos los demás datos de la frase. Sin la sal, que no sale del equipo, no se puede volver
+    del seudónimo al nombre probando nombres.
+    """
+    bloque = hashlib.sha256(sal + texto.encode('utf-8')).digest()
+    flujo = bloque
+    while len(flujo) < len(texto):
+        bloque = hashlib.sha256(bloque).digest()
+        flujo += bloque
+    salida = []
+    for c, b in zip(texto, flujo):
+        if c.isdigit():
+            salida.append(str(b % 10))
+        elif c.isalpha():
+            letra = chr(ord('a') + b % 26)
+            salida.append(letra.upper() if c.isupper() else letra)
+        else:
+            salida.append(c)
+    return ''.join(salida)
+
+
+#: 113:RF-21: la razón social escrita sin puntos («Inventado SA»), que ``sin_nombres`` solo reconoce con ellos
+#: («S.A.»). En el ensayo del 2026-11-27 una orden confirmada inventada, «carga la fuente de la empresa Inventado SA»,
+#: la sacaba entera; las órdenes del operador se escriben así. Solo para lo que sale a Colab: el corpus de redacción
+#: (072) conserva su anonimización y sus huellas.
+_RAZON_SOCIAL_SIN_PUNTOS = re.compile(r'(?<!\w)(?:[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚÑáéíóúñ&-]*\s+){1,5}'
+                                      r'(?:SA|SAA|SAC|SRL|EIRL|S\.?A\.?C|S\.?R\.?L)(?!\w)')
+
+
+def fila_sin_nombres(r: dict, sal: bytes, catalogo=None) -> dict:
+    """113:RF-18: la fila con los nombres ocultos y sus datos en su sitio; su identidad, la de la fila nueva.
+
+    El texto fuera de los datos pasa por ``sin_nombres`` (072:RF-49), que cambia su longitud; por eso la frase se
+    rehace trozo a trozo y cada dato se desplaza con lo que cambió antes de él. Un dato de tipo «texto» también pasa
+    por ``sin_nombres``; los que nombran algo se seudonimizan; los demás quedan como están.
+    """
+    from .corpus_redaccion import sin_nombres as _sin_nombres
+
+    def sin_nombres(trozo: str, cat) -> str:
+        return _RAZON_SOCIAL_SIN_PUNTOS.sub('‹empresa›', _sin_nombres(trozo, cat))
+
+    texto = r['texto']
+    grupos: list[list] = []                 # datos que se pisan se tratan juntos: un trozo, varios datos
+    for a, b, tipo in sorted(tuple(d) for d in r.get('datos') or ()):
+        if grupos and a < grupos[-1][1]:
+            grupos[-1][1] = max(grupos[-1][1], b)
+            grupos[-1][2].append((a, b, tipo))
+        else:
+            grupos.append([a, b, [(a, b, tipo)]])
+    piezas, datos, largo, pos = [], [], 0, 0
+    for ini, fin, dentro in grupos:
+        fuera = sin_nombres(texto[pos:ini], catalogo)
+        piezas.append(fuera)
+        largo += len(fuera)
+        trozo = texto[ini:fin]
+        if len(dentro) == 1 and dentro[0][2] == 'texto':
+            trozo = sin_nombres(trozo, catalogo)
+            datos.append([largo, largo + len(trozo), 'texto'])
+        else:
+            if any(tipo in TIPOS_SEUDONIMO for _a, _b, tipo in dentro):
+                trozo = seudonimo(trozo, sal)
+            datos += [[largo + a - ini, largo + b - ini, tipo] for a, b, tipo in dentro]
+        piezas.append(trozo)
+        largo += len(trozo)
+        pos = fin
+    piezas.append(sin_nombres(texto[pos:], catalogo))
+    nueva = {k: v for k, v in r.items() if k != 'record_id'}
+    nueva.update(texto=''.join(piezas), datos=datos)
+    nueva['record_id'] = huella(nueva)
+    return nueva
+
+
+#: 113:RF-21: las órdenes humanas de la validación cruzada de la 070, cuando el operador la pide en Colab.
+ARCHIVO_CONFIRMADAS = 'confirmadas.json'
+
+
+#: 113:RF-21: el catálogo de nombres con que se ocultó el paquete; se queda junto al corpus completo, en el equipo.
+ARCHIVO_CATALOGO = 'catalogo_colab.json'
+
+
+def catalogo_colab(filas: Sequence[dict], nombres: Sequence[str] = ()) -> list[str]:
+    """113:RF-21: los nombres que ``sin_nombres`` debe ocultar también fuera de los datos de una frase.
+
+    En el ensayo del 2026-11-27 «carga la fuente de Zafiro», una orden confirmada, sacaba el nombre del proyecto
+    «Granja Solar Zafiro» en el texto libre: no era un dato de esa frase y ``sin_nombres`` sin catálogo no lo conoce.
+    Por eso entran los nombres del espacio (``nombres``, del vocabulario), los de los datos de las órdenes humanas y
+    cada palabra con mayúscula de cuatro letras o más de ellos. Los nombres que inventa el generador no son de nadie y
+    no entran: con ellos el catálogo tendría miles de nombres y nada que proteger.
+    """
+    base = {str(n).strip() for n in nombres if str(n).strip()}
+    base |= {r['texto'][a:b].strip() for r in filas if r.get('quality') == 'gold_human'
+             for a, b, tipo in r.get('datos') or () if tipo in TIPOS_SEUDONIMO}
+    palabras = {w for n in base for w in re.findall(r'\w+', n) if len(w) >= 4 and w[0].isupper()}
+    return sorted(base | palabras)
+
+
+def leer_catalogo_colab(corpus: Path) -> list[str] | None:
+    ruta = Path(corpus) / ARCHIVO_CATALOGO
+    return json.loads(ruta.read_text(encoding='utf-8')) if ruta.is_file() else None
+
+
+def _sin_record_id(fila: dict) -> dict:
+    return {k: v for k, v in fila.items() if k != 'record_id'}
+
+
+def exportar_para_colab(corpus: Path, destino: Path, *, sal: bytes, nombres: Sequence[str] = (),
+                        con_confirmadas: Sequence[str] | None = None) -> dict:
+    """113:RF-18: del corpus integral, el que se empaqueta para Colab: entrenamiento y selección, sin nombres.
+
+    El corpus completo se valida antes de partirlo, con la misma política con que se entrena aquí, y su huella va en
+    el manifiesto: al volver, la puerta local solo examina con ese mismo corpus (RF-20).
+
+    Con ``con_confirmadas`` (las fijas de prueba que la vía local también veda, 075:RF-28), salen además las órdenes
+    humanas de la validación cruzada, que el usuario autorizó el 2026-11-27 (113:RF-21): sin nombres, con los mismos
+    seudónimos, y con lo que entrena de cada una ya decidido aquí, porque el filtro compara con los textos de las
+    pruebas selladas y esos no salen.
+    """
+    from . import validacion_cruzada as vc
+    filas, meta = leer_corpus(corpus)
+    particionar_registros(filas, PoliticaEvaluacion(modo='agente'))
+    catalogo = catalogo_colab(filas, nombres)
+    from ...dominio.util import write_json_atomic
+    write_json_atomic(Path(corpus) / ARCHIVO_CATALOGO, catalogo)          # 001:RF-5
+    viajan = [fila_sin_nombres(r, sal, catalogo) for r in filas if r['particion'] in PARTES_COLAB]
+    if len({r['record_id'] for r in viajan}) != len(viajan):
+        raise ValueError('dos filas quedaron iguales al ocultar sus nombres: revise la sal o el catálogo')
+    manifiesto = {
+        'schema_version': 1, 'schema': SCHEMA_COLAB, 'dataset_hash': huella(viajan),
+        'corpus_completo': meta['dataset_hash'], 'partes': list(PARTES_COLAB),
+        'filas': {p: sum(r['particion'] == p for r in viajan) for p in PARTES_COLAB},
+        'particiones': {p: sorted(r['record_id'] for r in viajan if r['particion'] == p) for p in PARTES_COLAB},
+        'anonimizacion': {'seudonimos': sorted(TIPOS_SEUDONIMO), 'texto_libre': 'sin_nombres (072:RF-49)',
+                          'tal_cual': 'alimentadores, sistema, cifras, periodos y años'},
+        'quedan_en_el_equipo': ['calibracion', 'prueba', 'mensajes reservados del rechazo']}
+    confirmadas = None
+    if con_confirmadas is not None:
+        humanas = [r for r in filas if r['particion'] == 'prueba' and r['quality'] == 'gold_human']
+        if not humanas:
+            raise ValueError('el corpus no tiene órdenes humanas confirmadas para la validación cruzada')
+        prep = vc.preparar_confirmadas(humanas, _vedadas_de(filas, leer_reservados(corpus, meta), con_confirmadas))
+        entrenan = {r['record_id'] for r in prep['entrenables']}
+        confirmadas = []
+        for r in humanas:
+            variantes = [_sin_record_id(fila_sin_nombres({'texto': e.texto, 'tarea': e.tarea,
+                                                          'datos': [list(d) for d in e.datos]}, sal, catalogo))
+                         for e in prep['con_variantes'].get(r['record_id'], ())]
+            confirmadas.append({'fila': fila_sin_nombres(r, sal, catalogo), 'entrena': r['record_id'] in entrenan,
+                                'variantes': variantes})
+        manifiesto['confirmadas'] = {'huella': huella(confirmadas), 'ordenes': len(confirmadas),
+                                     'entrenan': len(entrenan), 'variantes_apartadas': prep['variantes_vedadas'],
+                                     'autorizacion': 'usuario, 2026-11-27: «sí, autorizo que salgan anonimizadas a Colab»'}
+        manifiesto['quedan_en_el_equipo'] = ['calibracion', 'pruebas selladas', 'mensajes reservados del rechazo']
+    destino = Path(destino)
+    if destino.exists() and any(destino.iterdir()):
+        raise ValueError(f'{destino}: ya tiene ficheros; use otra carpeta para otro corpus')
+    destino.mkdir(parents=True, exist_ok=True)
+    for nombre, datos in (('corpus.json', viajan), ('dataset_manifest.json', manifiesto),
+                          *(((ARCHIVO_CONFIRMADAS, confirmadas),) if confirmadas is not None else ())):
+        # 001:RF-5: cada fichero se publica entero o no se publica (Drive sincroniza lo que ve).
+        publicar_duradero(destino / nombre,
+                          json.dumps(datos, ensure_ascii=False, sort_keys=True, indent=2, allow_nan=False))
+    return manifiesto
+
+
+def _nombre_de_carpeta(ruta: str) -> str:
+    """El último tramo de una ruta de Colab (``/content/...``) o de este equipo (``D:\\...``)."""
+    return [p for p in ruta.replace('\\', '/').split('/') if p][-1]
+
+
+def _confirmadas_de_colab(dataset: Path, meta: dict) -> tuple[list[dict], dict]:
+    """113:RF-21: las confirmadas del paquete, con su huella, y lo que entrena de cada una tal como se decidió aquí."""
+    ruta = Path(dataset) / ARCHIVO_CONFIRMADAS
+    if 'confirmadas' not in meta or not ruta.is_file():
+        raise ValueError('la validación cruzada en Colab pide un paquete preparado con --validacion-cruzada')
+    confirmadas = json.loads(ruta.read_text(encoding='utf-8'))
+    if huella(confirmadas) != meta['confirmadas']['huella']:
+        raise ValueError(f'{ARCHIVO_CONFIRMADAS} no coincide con su huella')
+    humanas = [c['fila'] for c in confirmadas]
+    prep = {'entrenables': [c['fila'] for c in confirmadas if c['entrena']],
+            'apartadas': [c['fila'] for c in confirmadas if not c['entrena']],
+            'con_variantes': {c['fila']['record_id']: [Ejemplo(v['texto'], v['tarea'], [tuple(d) for d in v['datos']])
+                                                       for v in c['variantes']] for c in confirmadas if c['entrena']},
+            'variantes_vedadas': meta['confirmadas']['variantes_apartadas']}
+    return humanas, prep
+
+
+ARCHIVO_VALIDACION_COLAB = 'validacion_colab.json'
+
+
+def entrenar_para_colab(dataset: Path, destino: Path, *, cfg=None, semillas=(11,), log=print,
+                        validacion_cruzada: bool = False) -> dict:
+    """113:RF-19: en Colab, los candidatos y el elegido por la selección, igual que en el equipo, y nada más.
+
+    No calibra, no mide pruebas ni registra: eso lo hace la puerta local con lo que no salió (RF-20). Un corpus que
+    trajera otra partición se rechaza antes de abrir la GPU. Con ``validacion_cruzada`` (113:RF-21) hace además las
+    vueltas de la 075 con las confirmadas del paquete y deja lo que dijo cada vuelta de las órdenes que no vio.
+    """
+    filas, meta = leer_corpus(dataset)
+    if meta.get('schema') != SCHEMA_COLAB:
+        raise ValueError(f'{dataset}: no es un corpus del intérprete preparado para Colab')
+    otras = sorted({r['particion'] for r in filas} - set(PARTES_COLAB))
+    if otras:
+        raise ValueError(f'el corpus para Colab trae {", ".join(otras)}, que no salen del equipo')
+    humanas, prep = _confirmadas_de_colab(dataset, meta) if validacion_cruzada else (None, None)
+    politica = PoliticaEvaluacion(modo='agente', semillas=tuple(semillas))
+    fase = _entrenar_y_elegir(filas, meta, politica, meta['particiones'], destino, cfg=cfg, semillas=semillas,
+                              log=log, validacion_cruzada=validacion_cruzada)
+    elegido = fase['elegido']
+    if validacion_cruzada:
+        validacion, elegido = _con_confirmadas(fase, humanas, politica, meta, log, preparadas=prep)
+        publicar_duradero(Path(destino) / ARCHIVO_VALIDACION_COLAB, json.dumps({
+            'elegido': {**elegido, 'path': _nombre_de_carpeta(elegido['path'])}, 'informe': validacion.informe,
+            'por_tarea': validacion.por_tarea, 'entrenables': [r['record_id'] for r in validacion.entrenables],
+            'predicciones': validacion.medida.predicciones if validacion.medida is not None else None},
+            ensure_ascii=False, indent=2, default=float))
+    fase['cache'].filas.clear()
+    resumen = {'schema_version': 1, 'training_completed': True, 'entrenado': True, 'promovido': False,
+               'status': 'PENDIENTE_PUERTA_LOCAL', 'elegido': {**elegido, 'path': _nombre_de_carpeta(elegido['path'])},
+               'corpus_completo': meta['corpus_completo'], 'validacion_cruzada': validacion_cruzada,
+               'seleccion': [{**c, 'path': _nombre_de_carpeta(c['path'])} for c in fase['candidatos']],
+               'duracion_s': time.monotonic() - fase['inicio']}
+    publicar_duradero(Path(destino) / 'resumen_colab.json', json.dumps(resumen, ensure_ascii=False, indent=2))
+    return resumen
+
+
+class FueraDeGrupoColab:
+    """113:RF-21: lo que dijo en Colab de cada confirmada el modelo que no la vio, leído aquí con el texto real.
+
+    En Colab cada orden se vio con sus seudónimos; aquí se busca por el texto real y cada dato que coincide con el
+    seudónimo de un dato de esa orden se devuelve con su valor real, así que se mide con el mismo código que la vía
+    local y frente a las mismas confirmadas.
+    """
+
+    def __init__(self, predicciones: dict, humanas: Sequence[dict], sal: bytes, catalogo=None):
+        self._por_texto = {}
+        for r in humanas:
+            a = fila_sin_nombres(r, sal, catalogo)
+            valores = {normalizar(a['texto'][x:y]).strip(): r['texto'][c:d]
+                       for (c, d, _t), (x, y, _u) in zip(r['datos'], a['datos'], strict=True)}
+            self._por_texto[r['texto']] = (a['texto'], valores)
+        faltan = [t for t, (anonimo, _v) in self._por_texto.items() if anonimo not in predicciones]
+        if faltan:
+            raise ValueError(f'{len(faltan)} confirmadas de este corpus no las midió Colab: el paquete es de otras')
+        self._predicciones = predicciones
+
+    def predecir(self, texto: str) -> dict:
+        anonimo, valores = self._por_texto[texto]
+        p = dict(self._predicciones[anonimo])
+        p['datos'] = {t: [{**d, 'valor': valores.get(normalizar(d['valor']).strip(), d['valor'])} for d in ds]
+                      for t, ds in (p.get('datos') or {}).items()}
+        return p
+
+
+def examinar_de_colab(candidato: Path, corpus: Path, destino: Path, *, registro: Path | None = None,
+                      sal: bytes | None = None) -> dict:
+    """113:RF-20: el candidato de Colab, examinado y registrado aquí como uno entrenado aquí.
+
+    ``candidato`` es la carpeta que dejó :func:`entrenar_para_colab`; ``corpus`` el completo de este equipo, del que
+    salió el paquete. Lo que no se pudo medir en Colab (calibración, selladas, humanas, rechazo, no regresión y
+    reapertura) se mide con :func:`_examinar`, la misma de la vía local. Con validación cruzada (113:RF-21), la medida
+    fuera de grupo de las confirmadas es la de Colab, leída con la ``sal`` de este equipo.
+    """
+    from . import codificador_ordenes as co
+    from . import validacion_cruzada as vc
+    candidato = Path(candidato)
+    protocolo = json.loads((candidato / 'protocolo.json').read_text(encoding='utf-8'))
+    filas, meta = leer_corpus(corpus)
+    if (protocolo.get('dataset') or {}).get('corpus_completo') != meta['dataset_hash']:
+        raise ValueError('el candidato se entrenó con el paquete de otro corpus: examínelo con el corpus del que '
+                         'salió su paquete')
+    semillas = tuple(protocolo['semillas'])
+    politica = PoliticaEvaluacion(modo='agente', semillas=semillas)
+    if politica.hash != protocolo.get('policy_hash'):
+        raise ValueError('el candidato se eligió con otra política de evaluación')
+    particiones = particionar_registros(filas, politica)
+    por_parte = {p: [r for r in filas if r['particion'] == p] for p in PARTES}
+    elegido = json.loads((candidato / 'ganador_seleccion.json').read_text(encoding='utf-8'))
+    validacion = None
+    ruta_vc = candidato / ARCHIVO_VALIDACION_COLAB
+    if ruta_vc.is_file():
+        if sal is None:
+            raise ValueError('el candidato trae validación cruzada: hace falta la sal de este equipo para leerla')
+        datos = json.loads(ruta_vc.read_text(encoding='utf-8'))
+        humanas = [r for r in por_parte['prueba'] if r['quality'] == 'gold_human']
+        catalogo = leer_catalogo_colab(corpus)
+        medida = (FueraDeGrupoColab(datos['predicciones'], humanas, sal, catalogo)
+                  if datos['predicciones'] is not None else None)
+        por_id = {fila_sin_nombres(r, sal, catalogo)['record_id']: r for r in humanas}
+        if not set(datos['entrenables']) <= set(por_id):
+            raise ValueError('las confirmadas con que entrenó Colab no son las de este corpus')
+        validacion = vc.Validacion(medida, None, datos['informe'], datos['por_tarea'],
+                                   [por_id[i] for i in datos['entrenables']])
+        elegido = datos['elegido']
+    destino = Path(destino)
+    if destino.exists() and any(destino.iterdir()):
+        raise ValueError('se conserva una ejecución existente; use otro destino')
+    destino.mkdir(parents=True, exist_ok=True)
+    elegido = {**elegido, 'path': str((candidato / _nombre_de_carpeta(elegido['path'])).resolve())}
+    candidatos = json.loads((candidato / 'seleccion.json').read_text(encoding='utf-8'))
+    proto = {**protocolo, 'dataset': meta, 'dataset_colab': protocolo.get('dataset'),
+             'particiones': asdict(particiones), 'entrenado_en': 'colab'}
+    publicar_duradero(destino / 'protocolo.json', json.dumps(proto, ensure_ascii=False, indent=2))
+    return _examinar(elegido, candidatos, por_parte, meta, leer_reservados(corpus, meta), destino,
+                     cfg=co.Configuracion(**protocolo['cfg']), politica=politica, protocolo=proto, semillas=semillas,
+                     registro=registro, validacion=validacion, inicio=time.monotonic())
 
 
 def verificar_reapertura(carpeta: Path) -> dict:

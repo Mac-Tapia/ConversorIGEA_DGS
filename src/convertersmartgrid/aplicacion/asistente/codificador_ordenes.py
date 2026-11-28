@@ -45,6 +45,20 @@ def orden_preparar(nombre: str) -> str:
     return ORDEN_PREPARAR.replace(NOMBRE_CODIFICADOR, nombre)
 
 
+def descargar(nombre: str, revision: str) -> str:
+    """113:RF-19: el codificador en la caché, con su revisión fija; en Colab la caché llega vacía.
+
+    Aquí se lee siempre de la caché (``local_files_only``), y así sigue: solo esta función baja, y solo si falta, la
+    misma revisión que fija 069:RF-33, de modo que lo que entrena Colab es lo que reabre el equipo.
+    """
+    from huggingface_hub import snapshot_download
+
+    try:
+        return snapshot_download(nombre, revision=revision, local_files_only=True)
+    except Exception:  # noqa: BLE001 - cualquier ausencia en la caché se resuelve bajándola
+        return snapshot_download(nombre, revision=revision)
+
+
 def _torch():
     import torch
 

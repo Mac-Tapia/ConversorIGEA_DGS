@@ -41,6 +41,37 @@ nunca limita lo local (RF-16) y debe aprovechar Colab Pro («si no, de nada serv
       escribe modelos e índice dentro del búfer y su partición de prueba viaja con él: necesita una salida de modelos
       aparte y la prueba fuera del paquete); la GRU temporal (`digital_twin_temporal_entrenar.py` lee libros crudos; la
       GRU ya compite dentro de `pronostico_demanda`); MASAC (114, en borrador, sin guion); y los paquetes VNR-GIS (RF-15).
+      Avance del 2026-11-27 (noche, rama `agente/colab-113-t8b`): entra `interprete_ordenes` (069/079, RF-18 a RF-20,
+      `en_origen`). `asistente_entrenar.py --preparar-colab` construye en el equipo el corpus integral de siempre y saca
+      solo entrenamiento y selección, con proyectos, SED, SET, casos, estudios y rutas seudonimizados (misma forma,
+      sal en el almacén) y el texto libre por `sin_nombres`; `--solo-entrenar` entrena y elige en Colab con
+      `--afinar`; `--examinar-colab CANDIDATO --corpus CORPUS` es la puerta local. `entrenar_destilacion` se partió en
+      `_entrenar_y_elegir` y `_examinar` sin cambiar lo que hace (138 pruebas vecinas en verde). Pruebas:
+      `test_el_interprete_entrena_en_colab_y_se_examina_aqui`, `test_colab_no_entrena_con_la_prueba`,
+      `test_el_seudonimo_guarda_la_forma_y_no_el_nombre`, `test_la_fila_sin_nombres_conserva_sus_datos`,
+      `test_los_modos_de_colab_del_interprete_van_solos_y_su_puerta_decide_aqui` y
+      `test_entran_en_colab_las_familias_ensayadas`. Ensayo corto, fase sin GPU, desde un almacén sintético: corpus
+      completo de 67 048 filas, salen 60 434 (entrenamiento y selección), 20 204 proyectos seudonimizados, paquete
+      verificado y releído por `leer_corpus`. Falta la fase con GPU del ensayo (`--solo-entrenar` desde `datos` y
+      `--examinar-colab`), lista en `D:/csg/PM_IMPL/T8b_113/ensayo_interprete.py entrenar`, para cuando haya turno.
+      Validación cruzada (RF-21, excepción a RF-6 autorizada por el usuario el 2026-11-27): entra
+      `interprete_ordenes_cruzada`. `--preparar-colab --validacion-cruzada` añade `confirmadas.json` con las órdenes
+      humanas sin nombres y lo que entrena de cada una ya filtrado aquí frente a lo que mide
+      (`validacion_cruzada.preparar_confirmadas`); Colab hace las vueltas y el modelo final (`--solo-entrenar
+      --validacion-cruzada`) y deja `validacion_colab.json`; `--examinar-colab` lee la medida fuera de grupo con la
+      sal de aquí (`FueraDeGrupoColab`). Pruebas `test_la_validacion_cruzada_va_a_colab_solo_con_las_confirmadas_sin_nombres`
+      y `test_sin_pedirla_ninguna_orden_humana_sale`. El primer ensayo sin GPU encontró dos fugas en el texto libre de
+      las confirmadas: «Zafiro», palabra de un proyecto, fuera de los datos de su frase, y «Inventado SA», razón social
+      sin puntos; ahora se ocultan con un catálogo local (`catalogo_colab`: vocabulario, datos de las humanas y sus
+      palabras, guardado junto al corpus completo, que no sale) y con la razón social sin puntos
+      (`test_la_razon_social_sin_puntos_no_sale`, rojo por aserción y verde). Ensayo sin GPU repetido
+      (`D:/csg/PM_IMPL/T8b_113/ensayo_interprete_vc.log`): 7 confirmadas salen (4 entrenan, 64 variantes), ningún nombre
+      inventado sale y ninguna de las 6 739 filas de calibración y prueba entra en el paquete. Falta su fase con GPU.
+      Siguen fuera: la PINN (hace falta `--preparar-colab` con los episodios de entrenamiento, validación y
+      calibración de `muestras_y_particiones`, `--solo-entrenar` con una carpeta de modelos aparte y `--examinar-colab`
+      con las puertas de `oraculo.entrenar` sacadas a una función; no se hizo porque esas puertas solo se prueban en
+      CUDA, y la GPU no estaba libre); la GRU temporal (su red es pequeña y cabe en el equipo, lee libros crudos, y la GRU
+      de la 089 ya va a Colab dentro de `pronostico_demanda`): se queda fuera con ese motivo; y MASAC (114, borrador).
 - [x] T9. Enlace directo a Colab en el cuaderno. (RF-17) Hecho cuando: el cuaderno lleva el enlace «Abrir en Colab» y
       `test_el_cuaderno_tiene_su_enlace_directo_a_colab` lo comprueba; evidencia: esa prueba en verde el 2026-11-27. El
       enlace abre el cuaderno de `main`: funciona en cuanto la rama esté integrada.

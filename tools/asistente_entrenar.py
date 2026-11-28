@@ -31,6 +31,15 @@ codificador preentrenado y regresión logística, con las mismas puertas y la mi
 
     python tools/asistente_entrenar.py --output-json informes.json --solo informes --arquitectura vectores
 
+Colab (113:RF-18 a RF-20), como opción del entrenamiento aquí: ``--preparar-colab CARPETA`` deja el corpus integral
+en el equipo y en CARPETA su parte de entrenamiento y selección, sin nombres, para empaquetarla; ``--solo-entrenar``
+entrena y elige con ella en Colab, sin pruebas ni registro; y ``--examinar-colab CANDIDATO --corpus CORPUS`` calibra,
+mide y registra aquí lo que volvió, con las puertas de la vía integral.
+
+    python tools/asistente_entrenar.py --output-json preparar.json --preparar-colab D:/datos/interprete_colab
+    python tools/asistente_entrenar.py --output-json S/resumen.json --solo-entrenar DATOS --afinar --semillas 11
+    python tools/asistente_entrenar.py --output-json puerta.json --examinar-colab TRAIDO --corpus preparar_integral/corpus
+
 Códigos de salida: 0 hecho, 2 sin PyTorch o sin GPU, 1 error.
 """
 from __future__ import annotations
@@ -52,6 +61,96 @@ def _log(mensaje: str) -> None:
     avisar(mensaje)
 
 
+def _corpus_integral(args, carpeta: Path) -> dict:
+    """El corpus de la vía integral en ``carpeta``, con el vocabulario del espacio; devuelve el vocabulario.
+
+    Lo usan la vía integral y ``--preparar-colab`` (113:RF-18): el corpus que sale hacia Colab es una parte de este
+    mismo, no otro construido aparte.
+    """
+    from convertersmartgrid.aplicacion.asistente import almacen, ordenes_maestro
+    from convertersmartgrid.aplicacion.asistente.destilacion_integral import guardar_corpus, preparar_corpus
+    from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas, leer_ninguna
+    vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
+             else almacen.leer_json('vocabulario') or {})
+    ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
+    filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
+                                  etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
+                                  ninguna=ninguna, ninguna_reservada=reservados,
+                                  ordenes_maestro=ordenes_maestro.leer(almacen.raiz())[0])   # 085:RF-1
+    guardar_corpus(carpeta, filas, meta, reservados)
+    return vocab
+
+
+#: 113:RF-18: la sal de los seudónimos del corpus para Colab; se queda en el almacén del asistente y nunca sale.
+SAL_COLAB = 'colab/sal_seudonimos.bin'
+
+
+def _sal_colab() -> bytes:
+    import secrets
+
+    from convertersmartgrid.aplicacion.asistente import almacen
+    ruta = almacen.raiz() / SAL_COLAB
+    if not ruta.is_file():
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_bytes(secrets.token_bytes(32))
+    return ruta.read_bytes()
+
+
+def _modo_colab(args, salida: Path) -> int:
+    """113:RF-18 a RF-20: preparar el corpus para Colab, entrenar en Colab o examinar aquí lo que volvió."""
+    from convertersmartgrid.aplicacion.asistente import codificador_ordenes as co
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+    from convertersmartgrid.aplicacion.trabajadores_ml import escribir_informe, fallo, turno_gpu
+    try:
+        if args.preparar_colab:
+            corpus = salida.parent / (salida.stem + '_integral') / 'corpus'
+            vocab = _corpus_integral(args, corpus)
+            extra = {}
+            if args.validacion_cruzada:
+                # 113:RF-21: las confirmadas salen con lo vedado ya filtrado aquí, con las mismas fijas que la vía local.
+                from convertersmartgrid.aplicacion.asistente.ordenes_fijas import generar, repartir
+                extra = {'con_confirmadas': [e.texto for e in repartir(generar(vocab))[1]]}
+            # 113:RF-21: los nombres del espacio también se ocultan donde no son un dato de la frase.
+            nombres = [v for k in sorted(di.TIPOS_SEUDONIMO) for v in (vocab.get(k) or ())]
+            manifiesto = di.exportar_para_colab(corpus, args.preparar_colab, sal=_sal_colab(), nombres=nombres, **extra)
+            familia = 'interprete_ordenes_cruzada' if args.validacion_cruzada else 'interprete_ordenes'
+            informe = {'preparado': True, 'corpus_completo': str(corpus.resolve()),
+                       'para_colab': str(Path(args.preparar_colab).resolve()), 'filas': manifiesto['filas'],
+                       'huella_corpus_completo': manifiesto['corpus_completo'],
+                       'confirmadas': manifiesto.get('confirmadas'),
+                       'siguiente': 'empaquetar con: python tools/entrenamiento_remoto.py preparar --familia '
+                                    f'{familia} --dataset {args.preparar_colab}'}
+        elif args.solo_entrenar:
+            nombre, revision = co.CODIFICADORES[args.codificador]
+            if args.descargar_codificador:
+                co.descargar(nombre, revision)
+            cfg = co.Configuracion(epocas=args.epocas, codificador=args.codificador, **(
+                {'afinar_capas': args.afinar_capas, 'afinar_lote': args.afinar_lote,
+                 'afinar_epocas': args.afinar_epocas, 'pasos_por_epoca': args.afinar_pasos} if args.afinar else {}))
+            with turno_gpu('asistente-colab'):
+                informe = di.entrenar_para_colab(args.solo_entrenar, salida.parent / 'interprete', cfg=cfg,
+                                                 semillas=tuple(int(s) for s in args.semillas.split(',') if s.strip()),
+                                                 log=lambda m, **_k: _log(m), validacion_cruzada=args.validacion_cruzada)
+        else:
+            if not args.corpus:
+                raise ValueError('--examinar-colab pide --corpus: el corpus completo de este equipo del que salió el paquete')
+            from convertersmartgrid.aplicacion.asistente import almacen
+            from convertersmartgrid.aplicacion.asistente.modelos_en_uso import aplicar_decision
+            carpeta = Path(args.examinar_colab)
+            carpeta = carpeta / 'interprete' if (carpeta / 'interprete' / 'protocolo.json').is_file() else carpeta
+            with turno_gpu('asistente-colab-puerta'):
+                resultado = di.examinar_de_colab(carpeta, args.corpus, salida.parent / (salida.stem + '_puerta'),
+                                                 registro=almacen.raiz() / 'model_registry', sal=_sal_colab())
+                # 113:RF-11: la misma decisión que la vía integral; solo lo aprobado pasa a uso (067:RF-20).
+                informe = {'ordenes': {**resultado, **aplicar_decision('transformer', resultado['candidato'])},
+                           'training_completed': True, 'entrenado_en': 'colab'}
+        codigo = 0
+    except Exception as exc:  # noqa: BLE001 - el informe queda siempre escrito
+        informe, codigo = fallo(exc), 2
+    escribir_informe(salida, informe)
+    return codigo
+
+
 def main(argv=None) -> int:
     p = argparse.ArgumentParser(description='Entrena el Transformer de órdenes y el clasificador de informes '
                                             'del asistente (spec 026)')
@@ -69,7 +168,8 @@ def main(argv=None) -> int:
                    help='Maestro de la destilación: las etiquetas de Claude, Codex o Ollama (027:RF-56)')
     p.add_argument('--modelo-codex', help='Modelo de Codex como maestro (por defecto, el de su configuración)')
     p.add_argument('--validacion-cruzada', action='store_true',
-                   help='Con --integral: entrenar con las órdenes confirmadas en 5 vueltas y decidir con la medida fuera de grupo (075:RF-35)')
+                   help='Con --integral: entrenar con las órdenes confirmadas en 5 vueltas y decidir con la medida fuera de grupo (075:RF-35); '
+                        'con --preparar-colab y --solo-entrenar, lo mismo en Colab con las confirmadas sin nombres (113:RF-21)')
     p.add_argument('--afinar', action='store_true', help='Con --integral: afinar las últimas capas del codificador junto con las cabezas (079:RF-1)')
     p.add_argument('--afinar-capas', type=int, default=2, help='Cuántas últimas capas afinar (079:RF-5)')
     p.add_argument('--afinar-lote', type=int, default=32, help='Frases por lote al afinar; bájelo si falta memoria de GPU (079:RF-8)')
@@ -80,14 +180,33 @@ def main(argv=None) -> int:
     p.add_argument('--evaluar', action='store_true', help='No entrenar: medir los modelos en uso con la prueba fija')
     p.add_argument('--arquitectura', choices=('transformer', 'vectores'), default='transformer',
                    help='Con --solo informes: la arquitectura del clasificador de informes (026:RF-36)')
+    p.add_argument('--preparar-colab', type=Path, metavar='CARPETA',
+                   help='No entrenar: dejar en CARPETA el corpus del intérprete para Colab, sin la prueba (113:RF-18)')
+    p.add_argument('--solo-entrenar', type=Path, metavar='CORPUS',
+                   help='En Colab: entrenar y elegir con un corpus de --preparar-colab, sin pruebas ni registro (113:RF-19)')
+    p.add_argument('--descargar-codificador', action='store_true',
+                   help='Con --solo-entrenar: bajar el codificador con su revisión fija si falta en la caché (113:RF-19)')
+    p.add_argument('--examinar-colab', type=Path, metavar='CANDIDATO',
+                   help='La puerta local de un candidato traído de Colab, con --corpus (113:RF-20)')
+    p.add_argument('--corpus', type=Path, help='Con --examinar-colab: el corpus completo del que salió el paquete')
     args = p.parse_args(argv)
     salida = Path(args.output_json)
     salida.parent.mkdir(parents=True, exist_ok=True)
+    colab = [n for n in ('preparar_colab', 'solo_entrenar', 'examinar_colab') if getattr(args, n)]
+    if colab:
+        if len(colab) > 1 or args.integral or args.dataset_v2 or args.evaluar or args.destilar:
+            p.error('--preparar-colab, --solo-entrenar y --examinar-colab van solos')
+        if args.validacion_cruzada and args.examinar_colab:
+            # 113:RF-21: la validación cruzada se pide al preparar el paquete y al entrenar; la puerta la lee del candidato.
+            p.error('--validacion-cruzada se da al preparar y al entrenar; la puerta la lee del candidato')
+        if args.afinar and not args.solo_entrenar:
+            p.error('--afinar se da al entrenar: con --solo-entrenar')
+        return _modo_colab(args, salida)
     # 070:RF-62: una llamada sin opciones de la vía antigua (la de la vigilancia) ya no promueve sin registro.
     if not (args.dataset_v2 or args.evaluar or args.destilar or args.solo or args.maestro or args.modelo_codex):
         args.integral = True
     if args.validacion_cruzada and not args.integral:
-        p.error('--validacion-cruzada solo vale con --integral')
+        p.error('--validacion-cruzada solo vale con --integral, --preparar-colab o --solo-entrenar')
     if args.afinar and not args.integral:                                            # 079:RF-62
         p.error('--afinar solo vale con --integral')
     if args.arquitectura != 'transformer' and (args.solo != 'informes' or args.evaluar or args.dataset_v2):   # 026:RF-39
@@ -118,21 +237,12 @@ def main(argv=None) -> int:
             if args.epocas < 1:
                 raise ValueError('épocas positivas obligatorias')
             from convertersmartgrid.aplicacion.asistente import almacen, clasificador, transformer
-            from convertersmartgrid.aplicacion.asistente.destilacion_integral import preparar_corpus, guardar_corpus, entrenar_destilacion
+            from convertersmartgrid.aplicacion.asistente.destilacion_integral import entrenar_destilacion
             from convertersmartgrid.aplicacion.training_coordinator import BloqueoGPU, ruta_guardia_gpu
             from convertersmartgrid.aplicacion.trabajadores_ml import turno_gpu
             destino = salida.parent / (salida.stem + '_integral')
-            vocab = (json.loads(args.vocabulario.read_text(encoding='utf-8')) if args.vocabulario
-                     else almacen.leer_json('vocabulario') or {})
+            vocab = _corpus_integral(args, destino / 'corpus')
             from convertersmartgrid.aplicacion.asistente import codificador_ordenes
-            from convertersmartgrid.aplicacion.asistente.maestro_real import leer_etiquetas, leer_ninguna
-            ninguna, reservados = leer_ninguna(almacen.raiz())                             # 069:RF-28
-            from convertersmartgrid.aplicacion.asistente import ordenes_maestro
-            filas, meta = preparar_corpus(vocab, almacen.leer('ejemplos'),                 # 068:RF-33
-                                          etiquetas_reales=leer_etiquetas(almacen.raiz())[0],
-                                          ninguna=ninguna, ninguna_reservada=reservados,
-                                          ordenes_maestro=ordenes_maestro.leer(almacen.raiz())[0])   # 085:RF-1
-            guardar_corpus(destino / 'corpus', filas, meta, reservados)
             # 075:RF-28: una confirmada igual a una fija de prueba no entrena, como la plata (027:RF-66).
             from convertersmartgrid.aplicacion.asistente.ordenes_fijas import generar as generar_fijas, repartir as repartir_fijas
             fijas_de_prueba = [e.texto for e in repartir_fijas(generar_fijas(vocab))[1]] if args.validacion_cruzada else []

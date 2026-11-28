@@ -80,10 +80,32 @@ FAMILIAS: dict[str, dict[str, Any]] = {
                                 '--iteraciones 40 --semilla {semilla} --dispositivo cuda --salida {salida}/resultado.json '
                                 '--modelo-salida {salida}/modelo',
                     'puerta': 'tools/madrl_puerta.py aplicar'},
-    # Fuera todavía (113 T8), cada una con su motivo, porque su guion no entrena desde un paquete sin cambiarlo:
-    # el intérprete (asistente_entrenar.py) lee el almacén del asistente o un dataset v2 que exige su «test.jsonl», y
-    # lo sellado no sale (RF-6); la PINN (digital_twin_entrenar.py) escribe sus modelos y su índice dentro del búfer,
-    # que sería el paquete; la GRU temporal lee los libros de medición, que son datos crudos; MASAC (114) no tiene guion.
+    # 069/079: el intérprete de órdenes (113:RF-18 a RF-20). Su guion leía el almacén del asistente y entrenaba con las
+    # puertas dentro, y la prueba sellada no sale (RF-6); ahora ``--preparar-colab`` deja aquí el corpus entero y saca
+    # su entrenamiento y su selección sin nombres (``en_origen``: ya anonimizado, se copia byte a byte), Colab entrena
+    # y elige con ``--solo-entrenar`` y la puerta local calibra, mide y registra con el corpus entero. Con ``--afinar``,
+    # como las corridas reales de la 079 y la 070 (la de la 070 T28 la cortó la memoria del equipo el 2026-11-24); las
+    # épocas son las de la vía integral: ``{epocas}`` es el perfil del QLoRA y no aplica aquí. Esta va sin validación
+    # cruzada y no saca ninguna orden humana; con ella, la familia de abajo. Sin punto de control: cada semilla se
+    # rehace entera.
+    'interprete_ordenes': {'anonimizacion': 'en_origen',
+                           'entrenar': 'tools/asistente_entrenar.py --solo-entrenar {datos} --afinar '
+                                       '--semillas {semilla} --descargar-codificador '
+                                       '--output-json {salida}/resumen.json',
+                           'puerta': 'tools/asistente_entrenar.py --examinar-colab'},
+    # 113:RF-21: la misma, con la validación cruzada de la 070 (075:RF-35), la de la corrida de la 070 T28 que la
+    # memoria del equipo cortó el 2026-11-24 en la vuelta 2 de 5. El usuario autorizó el 2026-11-27 que sus órdenes
+    # humanas salgan anonimizadas; su paquete se prepara con ``--preparar-colab --validacion-cruzada`` y lleva
+    # ``confirmadas.json`` con lo que entrena de cada una ya decidido aquí. La puerta es la misma y lee la sal local.
+    'interprete_ordenes_cruzada': {'anonimizacion': 'en_origen',
+                                   'entrenar': 'tools/asistente_entrenar.py --solo-entrenar {datos} --afinar '
+                                               '--validacion-cruzada --semillas {semilla} --descargar-codificador '
+                                               '--output-json {salida}/resumen.json',
+                                   'puerta': 'tools/asistente_entrenar.py --examinar-colab'},
+    # Fuera todavía (113 T8), cada una con su motivo: la PINN (digital_twin_entrenar.py) escribe sus modelos y su
+    # índice dentro del búfer, que sería el paquete, y su prueba sale del mismo reparto que su entrenamiento; la GRU
+    # temporal (digital_twin_temporal_entrenar.py) lee los libros de medición, que son datos crudos; MASAC (114) está
+    # en borrador y no tiene guion. El motivo de cada una y lo que le falta están en la T8 de la 113.
 }
 
 _DETALLE_ANONIMIZACION = {

@@ -152,3 +152,7 @@
       Segunda vuelta, 2026-11-24 (d8): carga_nueva_sola con sus propios verbos y sin negaciones; descargar_resultados con
       «junta … para descargarlos»; leer_solicitud sin «documento» ni «papeles». Comprobadas sin choque con lo que se mide
       (tests/test_curriculo_070_t28.py, 6 passed). Queda su corrida en la GPU.
+      Colab, 2026-11-27 (113:RF-21): el usuario autorizó que las órdenes humanas de esta validación cruzada salgan
+      anonimizadas a Colab («sí, autorizo que salgan anonimizadas a Colab»). La corrida completa puede ir allí con la
+      familia `interprete_ordenes_cruzada`: `asistente_entrenar.py --preparar-colab CARPETA --validacion-cruzada` en el
+      equipo, la orden de esa familia en Colab y `--examinar-colab` aquí, con lo sellado. Sigue pendiente la corrida.

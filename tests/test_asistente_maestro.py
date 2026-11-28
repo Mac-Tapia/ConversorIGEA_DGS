@@ -1264,6 +1264,42 @@ def test_via_sin_opciones_toma_la_gobernada_y_nunca_la_antigua(entorno, monkeypa
     assert vistos == [almacen_vocab], 'el vocabulario que guardó la web, como en la vía antigua'
 
 
+def test_los_modos_de_colab_del_interprete_van_solos_y_su_puerta_decide_aqui(entorno, monkeypatch):
+    """113:RF-6 / 113:RF-18 / 113:RF-20 / 113:RF-21 — preparar construye el corpus integral y su parte para Colab, con una sal que se queda en
+    el almacén; la validación cruzada no va con ellos (entrena con humanas); la puerta pide el corpus y aplica aquí la
+    decisión del registro, como la vía integral."""
+    from convertersmartgrid.aplicacion.asistente import almacen, destilacion_integral as di, modelos_en_uso
+
+    vistos = {}
+    monkeypatch.setattr(di, 'preparar_corpus', lambda vocab, *_a, **_k: ([], {}))
+    monkeypatch.setattr(di, 'guardar_corpus', lambda carpeta, *_a, **_k: vistos.setdefault('corpus', carpeta))
+    monkeypatch.setattr(di, 'exportar_para_colab', lambda corpus, destino, *, sal, **kw: vistos.update(sal=sal, **kw) or {
+        'filas': {'entrenamiento': 3, 'seleccion': 1}, 'corpus_completo': 'h' * 64})
+    m = herramienta_entrenar()
+    salida = entorno / 'preparar.json'
+    assert m.main(['--output-json', str(salida), '--preparar-colab', str(entorno / 'para_colab')]) == 0
+    informe = json.loads(salida.read_text(encoding='utf-8'))
+    assert informe['preparado'] and informe['huella_corpus_completo'] == 'h' * 64
+    assert (almacen.raiz() / m.SAL_COLAB).read_bytes() == vistos['sal'] and len(vistos['sal']) == 32
+    assert 'con_confirmadas' not in vistos, 'sin --validacion-cruzada no sale ninguna orden humana'
+    assert m.main(['--output-json', str(entorno / 'preparar_vc.json'), '--preparar-colab', str(entorno / 'vc'),
+                   '--validacion-cruzada']) == 0
+    assert isinstance(vistos['con_confirmadas'], list) and vistos['con_confirmadas'], 'con las fijas que veda la vía local'
+    assert 'interprete_ordenes_cruzada' in json.loads((entorno / 'preparar_vc.json').read_text(encoding='utf-8'))['siguiente']
+    with pytest.raises(SystemExit):                   # 113:RF-21: se pide al preparar y al entrenar, no en la puerta
+        m.main(['--output-json', str(entorno / 'x.json'), '--examinar-colab', str(entorno), '--validacion-cruzada'])
+    assert m.main(['--output-json', str(entorno / 'sin.json'), '--examinar-colab', str(entorno)]) == 2
+    assert 'corpus' in json.loads((entorno / 'sin.json').read_text(encoding='utf-8'))['error']
+    monkeypatch.setattr(di, 'examinar_de_colab', lambda *_a, registro=None, **_k: {
+        'status': 'RECHAZADO', 'candidato': {'status': 'RECHAZADO', 'candidate_id': 'c'}, 'registro': str(registro)})
+    monkeypatch.setattr(modelos_en_uso, 'aplicar_decision', lambda familia, c: {'promovido': False, 'en_uso': None,
+                                                                              'familia': familia})
+    salida = entorno / 'puerta.json'
+    assert m.main(['--output-json', str(salida), '--examinar-colab', str(entorno), '--corpus', str(entorno)]) == 0
+    ordenes = json.loads(salida.read_text(encoding='utf-8'))['ordenes']
+    assert ordenes['familia'] == 'transformer' and ordenes['promovido'] is False and 'model_registry' in ordenes['registro']
+
+
 @pytest.mark.parametrize('opciones, tocan_ordenes', [(['--solo', 'ordenes'], True), (['--destilar'], True), (['--solo', 'informes'], False)])
 def test_via_pedida_expresamente_va_con_turno_y_registro(entorno, monkeypatch, opciones, tocan_ordenes):
     """070:RF-63 / 070:RF-64 — con turno de GPU, sin promover por su cuenta y con la decisión en el registro."""
