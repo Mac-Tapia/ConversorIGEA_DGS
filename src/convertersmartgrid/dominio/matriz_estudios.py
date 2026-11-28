@@ -117,27 +117,50 @@ ESTUDIOS: Mapping[str, tuple[str, dict[str, Celda]]] = dict([
 ])
 
 
-def _celda(motor: str, celda: Celda, estado_de: Callable[[str], str | None]) -> dict[str, Any]:
+def _fecha(iso: str) -> str:
+    """«2026-11-28T…» → «28-11-2026», como escribe las fechas el operador."""
+    partes = str(iso or '')[:10].split('-')
+    return '-'.join(reversed(partes)) if len(partes) == 3 else str(iso or '')
+
+
+def validado_por_aceptacion(aceptacion: Mapping[str, Any]) -> str:
+    """100:RF-23: lo que dice la celda que valida el sello de la aceptación de la versión."""
+    version = str(aceptacion.get('version') or '')
+    return f'Validado por la aceptación de la versión {version[:12]} del {_fecha(aceptacion.get("fecha"))}.'
+
+
+def _celda(motor: str, celda: Celda, estado_de: Callable[[str], str | None],
+           aceptacion: Mapping[str, Any] | None = None) -> dict[str, Any]:
     if isinstance(celda, NoDisponible):
         return {'motor': motor, 'estado': 'no_disponible', 'motivo': celda.motivo, 'evidencia': []}
     evidencia = [{'spec': n, 'estado': estado_de(n)} for n in celda.specs]
-    validado = bool(evidencia) and all(x['estado'] == CERRADA for x in evidencia)
-    return {'motor': motor, 'estado': 'validado' if validado else 'sin_validar',
-            'motivo': '' if validado else SIN_VALIDAR, 'evidencia': evidencia}
+    # 100:RF-21: con el sello de la versión que corre, la evidencia de la aceptación (la 100) vale por cumplida; las
+    # demás specs siguen la regla de RF-9.
+    cerrada = [x['estado'] == CERRADA or (x['spec'] == SPEC_ACEPTACION and aceptacion is not None) for x in evidencia]
+    validado = bool(evidencia) and all(cerrada)
+    por_sello = validado and any(x['spec'] == SPEC_ACEPTACION and x['estado'] != CERRADA for x in evidencia)
+    motivo = validado_por_aceptacion(aceptacion) if por_sello else ('' if validado else SIN_VALIDAR)
+    return {'motor': motor, 'estado': 'validado' if validado else 'sin_validar', 'motivo': motivo,
+            'evidencia': evidencia}
 
 
-def matriz(estado_de: Callable[[str], str | None], origen: str = 'specs') -> dict[str, Any]:
+def matriz(estado_de: Callable[[str], str | None], origen: str = 'specs',
+           aceptacion: Mapping[str, Any] | None = None) -> dict[str, Any]:
     """La matriz entera: los motores y, por estudio, una celda por motor con su estado, motivo y evidencia.
 
     ``estado_de``: la palabra de la línea ``Estado:`` de la spec de ese número, o ``None`` si no se puede leer.
     ``origen``: de dónde salen esos estados (``ORIGENES``), para que la respuesta lo diga (100:RF-13).
+    ``aceptacion``: el sello aceptado de la versión que corre (``version`` y ``fecha``), o None (100:RF-21 a RF-23).
+    Quien sirve la matriz decide que es de su versión: aquí no se compara nada.
     """
     if origen not in ORIGENES:
         raise ValueError(f'origen desconocido de los estados: {origen}')
     return {
         'origen': origen,
+        'aceptacion': ({'version': str(aceptacion.get('version') or ''), 'fecha': str(aceptacion.get('fecha') or '')}
+                       if aceptacion is not None else None),
         'motores': [{'clave': m.clave, 'nombre': m.nombre} for m in MOTORES],
         'estudios': [{'clave': clave, 'nombre': nombre,
-                      'celdas': [_celda(m, c, estado_de) for m, c in celdas.items()]}
+                      'celdas': [_celda(m, c, estado_de, aceptacion) for m, c in celdas.items()]}
                      for clave, (nombre, celdas) in ESTUDIOS.items()],
     }

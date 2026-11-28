@@ -32,3 +32,6 @@
 - [x] T10. La calibración con un proyecto que ya no está deja el error claro en cada informe, también con los bancos que faltan. (RF-17)
       Hecho cuando: `pytest -q tests/test_ajuste_proyecto_guion.py -k rf17` en verde, con su rojo sobre cf484bd4 (el `AttributeError` del 25-11).
       Hecho el 2026-11-26 (agente cal-borrado): rojo y verde en D:/csg/PM_IMPL/CAL_BORRADO.
+- [x] T11. Sello de la versión aceptada, la orden `--sellar` para un informe ya corrido, la matriz validada con el sello de su versión y los espacios de la aceptación anotados. (RF-18, RF-19, RF-20, RF-21, RF-22, RF-23, RF-24)
+      Hecho cuando: `pytest -q tests/test_aceptacion_version.py tests/test_matriz_estudios.py` en verde, con el rojo por aserción de las pruebas nuevas sobre 1ec36ff5.
+      Hecho el 2026-11-28 (rama `agente/validar-y-ciclo`, entregado por parche): rojo por aserción sobre 1ec36ff5 y verde en D:/csg/PM_IMPL/validar_y_ciclo.

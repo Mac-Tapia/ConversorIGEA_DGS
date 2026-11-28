@@ -199,12 +199,17 @@ def _calibracion_del_perfil() -> Comprobacion:
 
 
 def _ia(buscar: Callable[[str], Any]) -> Comprobacion:
-    """El complemento de IA es opcional en la 1.0: faltarle no estropea convertir, calibrar ni los informes (086:RF-37)."""
+    """El complemento de IA es opcional en la 1.0: faltarle no estropea convertir, calibrar ni los informes (086:RF-37).
+
+    086 T41b: remitía «al manual de instalación», cuyo apartado del complemento es de quien construye y no se entrega; la
+    persona ajena de la T41 no encontró cómo instalarlo. El del operador es el que se instala.
+    """
     hay = buscar('torch') is not None
     afecta = ('Entrenar los modelos, el gemelo digital (PINN y GRU), el pronóstico por modelos, la revisión por roles y los '
               'modelos locales del asistente de órdenes. Convertir, calibrar e informes no los usan.')
     return Comprobacion('complemento_ia', 'Complemento de IA', hay, False, 'Instalado.' if hay else 'No instalado.', afecta,
-                        '' if hay else 'Es opcional: si quiere esas funciones, instale el complemento de IA según el manual de instalación.')
+                        '' if hay else 'Es opcional: si quiere esas funciones, instale el complemento de IA como dice '
+                        'MANUAL_OPERADOR.md, «Instalar el complemento de IA», en la carpeta documentos del programa.')
 
 
 def _gpu_del_equipo(buscar_programa: Callable[[str], str | None] = shutil.which) -> dict[str, Any] | None:

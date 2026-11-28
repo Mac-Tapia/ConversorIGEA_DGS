@@ -201,7 +201,7 @@
   `test_una_calibracion_que_no_vale_se_avisa_con_su_causa`.
   Rebase sobre 9d483349 (puerta C, 2026-11-16): la calibración del corpus entregado se escribe con `write_json_atomic`,
   la escritura atómica única de 001:RF-5 (`tests/test_json_atomico.py`), y no con `write_text`.
-- [ ] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
+- [x] T41 Una persona ajena al proyecto instala y convierte siguiendo el manual. (RF-44)
   Hecho cuando: lo consigue sin ayuda, o lo que no entendió queda corregido en el manual.
   Avance (2026-11-21, MEJ33 de d8; revisor ajeno con origen maestro, sin leer el código): sobre el producto instalado
   comprobó sin ayuda el diagnóstico, los accesos y dónde queda cada cosa; no pudo convertir. Corregido en el manual: el
@@ -211,6 +211,27 @@
   red de ejemplo inventada que pide para convertir sin datos de una empresa, la sección del operador para instalar el
   complemento de IA y la plantilla del perfil entre los documentos. Hallazgos y evidencia:
   `D:/csg/PM_IMPL/MEJ33_WEB/t41/` y `D:/csg/PM_IMPL/MEJ33_WEB/HANDOFF.md`.
+  Cerrada como opcional por decisión del usuario (2026-11-28: «la de otra persona debe ser opcional, no se puede esperar para
+  terminar todo el proyecto»): la revisión por una persona ajena no bloquea la 1.0 y se hará cuando haya quien la haga.
+  Lo que el revisor dejó por corregir en la documentación pasa a la T41b.
+- [x] T41b Lo que dejó por corregir la revisión de la T41: una red de ejemplo inventada para convertir sin datos de una
+  empresa, la sección del operador para instalar el complemento de IA en el manual y la plantilla del perfil entre los
+  documentos. (RF-44)
+  Hecho cuando: la red de ejemplo se convierte siguiendo el manual (prueba que la convierte), y el manual y la guía del
+  perfil enlazan la sección y la plantilla.
+  Hecho (2026-11-28): la red de ejemplo es `ejemplos/red_inventada/` (`RED_ejemplo.txt`, `CARGA_ejemplo.txt`,
+  `BD_Equipo_ejemplo.txt`), la salida del generador sintético de las pruebas con dos alimentadores pequeños (`AL01`,
+  `AL02`), sin nada de una distribuidora; va a «documentos/» del candidato con la plantilla del perfil, que pasa a
+  llamarse allí `plantilla_perfil_empresa.json` (`construir_candidato.RED_DE_EJEMPLO` y `PLANTILLA_DEL_PERFIL`). La
+  plantilla (`config/perfiles/plantilla.json`) lleva junto a cada clave su `_comentario_<clave>` sacado del esquema (de
+  quién es el dato, para qué sirve, cómo se escribe y qué pasa sin él), sin ningún valor (P13). `MANUAL_OPERADOR.md` gana
+  «Instalar el complemento de IA» y «Probar con la red de ejemplo», con la orden `csg.cmd convert` de rutas completas
+  (csg.cmd trabaja en la carpeta de datos); `PERFIL_EMPRESA.md` y `MANUAL_INSTALACION.md` enlazan la plantilla y las dos
+  secciones, y `doctor` remite a la sección del operador en vez de al apartado de construir, que no se entrega.
+  Prueba: `tests/test_red_de_ejemplo.py` (6, citan 086:RF-44): copia «documentos/» como el candidato, toma del manual la
+  orden tal cual y convierte sin perfil (sale `AL01.dgs` y `AL02.dgs` con su geografía). Rojo y verde en
+  `D:/csg/PM_IMPL/T41b/`. Lo que sigue de la T41 (instalar desde un `setup.exe` en una QA aislada y repetir con otra
+  persona) queda con la T41, opcional.
 
 ## F6 Corridas reales sobre el candidato congelado
 

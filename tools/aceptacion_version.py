@@ -23,9 +23,20 @@ git). Nada de esto crea tareas ni casillas de pendiente (RF-4): el resultado es 
 
 - Una aceptación por carpeta de salida (RF-14): mientras corre, ``<salida>/.aceptacion_en_curso.json`` dice su PID;
   otra que pida la misma carpeta no corre ningún caso.
+- Sello de la versión (RF-18): aceptada, deja además ``sello_<revisión>.json`` en la carpeta de datos del programa
+  (``_aceptacion/`` junto a los espacios de la web, o ``CSG_ACEPTACION_DATA``), y la web da por validadas con él las
+  celdas que esperaban a esta aceptación, solo para esa versión (RF-21, RF-22). El 26-11 pasaron todos los casos y la
+  web siguió en «Sin validar» hasta que alguien cerrara a mano la T4.
+- Sellar desde un informe ya corrido (RF-19, RF-20), por ejemplo uno que dejó una versión anterior de esta orden:
 
-Códigos de salida: 0 versión aceptada; 1 no aceptada (el informe dice qué caso y por qué); 2 matriz inválida; 3 otra
-aceptación viva tiene la carpeta de salida.
+    python tools/aceptacion_version.py --sellar <carpeta>/informe.json [--variables vars.json] [--sellos <carpeta>]
+
+  recalcula el veredicto con la matriz y sella solo si todos sus casos están aceptados sobre la revisión del informe.
+- Espacios de la aceptación (RF-24): los ``--espacio`` de sus casos quedan anotados en ``_aceptacion/espacios.json``,
+  para que el ciclo automático de aprendizaje no tome uno de ellos por el del operador (050:RF-49).
+
+Códigos de salida: 0 versión aceptada (o sellada); 1 no aceptada (el informe dice qué caso y por qué); 2 matriz
+inválida; 3 otra aceptación viva tiene la carpeta de salida.
 """
 from __future__ import annotations
 
@@ -285,29 +296,63 @@ def borrador_de_regresion(caso: Mapping[str, Any], version: str, carpeta: Path) 
     return ruta
 
 
+def espacios_de_la_matriz(matriz: Mapping[str, Any], variables: Mapping[str, str]) -> list[str]:
+    """100:RF-24: los espacios de la web que usan los casos de la matriz, con sus variables resueltas."""
+    espacios: list[str] = []
+    for c in matriz['casos']:
+        args, _faltan = resolver_argumentos(c['argumentos'], variables)
+        for opcion, valor in itertools.pairwise(args or ()):
+            if opcion == '--espacio' and valor not in espacios:
+                espacios.append(valor)
+    return espacios
+
+
+def _carpeta_sellos(sellos: Path | None, repo: Path) -> Path:
+    from convertersmartgrid.aplicacion.sello_aceptacion import carpeta_aceptacion
+
+    return Path(sellos) if sellos is not None else carpeta_aceptacion(repo)
+
+
+def sellar_informe(informe: Mapping[str, Any], matriz: Mapping[str, Any], *, repo: Path = REPO,
+                   sellos: Path | None = None, origen: str | None = None) -> Path:
+    """100:RF-18 a RF-20: el sello de la versión del informe, si todos los casos de la matriz se aceptaron sobre ella;
+    si no, ``SelloInvalido`` con los casos que lo impiden y ningún sello escrito."""
+    from convertersmartgrid.aplicacion.sello_aceptacion import sellar
+
+    return sellar(informe, [c['id'] for c in matriz['casos']], repo=repo, carpeta=_carpeta_sellos(sellos, repo),
+                  origen=origen)
+
+
 def aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path | str, *,
                     variables: Mapping[str, str] | None = None, desde: str | None = None,
                     solo: Sequence[str] | None = None, ejecutar: Ejecutor = _ejecutar_proceso, repo: Path = REPO,
-                    regresiones: Path | None = None, vivo: Callable[[int], bool] = _pid_vivo) -> dict[str, Any]:
+                    regresiones: Path | None = None, vivo: Callable[[int], bool] = _pid_vivo,
+                    sellos: Path | None = None) -> dict[str, Any]:
     """El recorrido en serie de la matriz y el informe de la versión (RF-2, RF-3, RF-5, RF-6, RF-7), con la carpeta
-    de salida tomada por esta aceptación mientras dura (RF-14)."""
+    de salida tomada por esta aceptación mientras dura (RF-14) y, aceptada, su sello en ``sellos`` o en la carpeta de
+    datos del programa (RF-18)."""
     salida = Path(salida)
     salida.mkdir(parents=True, exist_ok=True)
     candado = tomar_candado(salida, vivo)
     try:
         return _aceptar_version(matriz, version, salida, variables=variables, desde=desde, solo=solo,
-                                ejecutar=ejecutar, repo=repo, regresiones=regresiones)
+                                ejecutar=ejecutar, repo=repo, regresiones=regresiones, sellos=sellos)
     finally:
         soltar_candado(candado)
 
 
 def _aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path, *, variables, desde, solo, ejecutar,
-                     repo: Path, regresiones: Path | None) -> dict[str, Any]:
+                     repo: Path, regresiones: Path | None, sellos: Path | None) -> dict[str, Any]:
+    from convertersmartgrid.aplicacion.sello_aceptacion import registrar_espacios
+
     variables = dict(os.environ if variables is None else variables)
     ids = [c['id'] for c in matriz['casos']]
     for pedido in [desde, *(solo or ())]:
         if pedido is not None and pedido not in ids:
             raise MatrizError(f'el caso {pedido!r} no está en la matriz')
+    # 100:RF-24: antes del primer caso, para que la web sepa desde su primer trabajo que esos espacios son de la
+    # aceptación (el 28-11 el ciclo de aprendizaje tomó uno por el del operador, 050:RF-49).
+    registrar_espacios(espacios_de_la_matriz(matriz, variables), _carpeta_sellos(sellos, repo))
     previo_ruta = salida / 'informe.json'
     previo = json.loads(previo_ruta.read_text(encoding='utf-8')) if previo_ruta.is_file() else {}
     casos: dict[str, Any] = dict(previo.get('casos') or {}) if previo.get('version') == version else {}
@@ -331,6 +376,9 @@ def _aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path, *, v
                                encoding='utf-8')
     informe['fin'] = _ahora()
     informe['veredicto'] = veredicto(casos, matriz, version)
+    if informe['veredicto']['aceptada']:
+        # 100:RF-18: el veredicto ya pide todos los casos sobre esta revisión (RF-7); el sello lo recalcula igual.
+        informe['sello'] = str(sellar_informe(informe, matriz, repo=repo, sellos=sellos, origen=str(previo_ruta)))
     previo_ruta.write_text(json.dumps(informe, ensure_ascii=False, indent=1) + '\n', encoding='utf-8')
     return informe
 
@@ -338,19 +386,26 @@ def _aceptar_version(matriz: Mapping[str, Any], version: str, salida: Path, *, v
 def main(argv: Sequence[str] | None = None) -> int:
     p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
     p.add_argument('--matriz', type=Path, default=REPO / 'config' / 'aceptacion' / 'matriz.json')
-    p.add_argument('--version', required=True, help='Revisión (hash) que se acepta')
-    p.add_argument('--salida', type=Path, required=True, help='Carpeta del informe de la versión')
+    p.add_argument('--version', help='Revisión (hash) que se acepta')
+    p.add_argument('--salida', type=Path, help='Carpeta del informe de la versión')
     p.add_argument('--desde', help='Empieza en este caso de la matriz')
     p.add_argument('--solo', help='Solo estos casos, separados por comas')
     p.add_argument('--variables', type=Path, help='JSON con los ${CSG_...} de la matriz (fuera de git)')
+    p.add_argument('--sellar', type=Path, metavar='INFORME',
+                   help='Sella la versión de un informe.json ya corrido, sin correr ningún caso (RF-19)')
+    p.add_argument('--sellos', type=Path, help='Otra carpeta de los sellos; por defecto, la de datos del programa')
     a = p.parse_args(argv)
+    if a.sellar is None and (not a.version or a.salida is None):
+        p.error('hacen falta --version y --salida, o --sellar con un informe')
     try:
         matriz = cargar_matriz(a.matriz)
         variables = dict(os.environ)
         if a.variables:
             variables.update({k: str(v) for k, v in json.loads(a.variables.read_text(encoding='utf-8')).items()})
+        if a.sellar is not None:
+            return _sellar_desde(a.sellar, matriz, variables, a.sellos)
         informe = aceptar_version(matriz, a.version, a.salida, variables=variables, desde=a.desde,
-                                  solo=[s for s in (a.solo or '').split(',') if s] or None)
+                                  solo=[s for s in (a.solo or '').split(',') if s] or None, sellos=a.sellos)
     except MatrizError as exc:
         print(f'matriz inválida: {exc}', file=sys.stderr)
         return 2
@@ -361,7 +416,31 @@ def main(argv: Sequence[str] | None = None) -> int:
     print(f'versión {a.version}: {"ACEPTADA" if v["aceptada"] else "NO ACEPTADA"}')
     for m in v['motivos']:
         print(f'  {m}')
+    if informe.get('sello'):
+        print(f'  sello: {informe["sello"]}')
     return 0 if v['aceptada'] else 1
+
+
+def _sellar_desde(ruta: Path, matriz: Mapping[str, Any], variables: Mapping[str, str], sellos: Path | None) -> int:
+    """100:RF-19, RF-20, RF-24: el sello desde un informe ya corrido, con los espacios de la matriz anotados."""
+    from convertersmartgrid.aplicacion.sello_aceptacion import SelloInvalido, registrar_espacios
+
+    try:
+        informe = json.loads(Path(ruta).read_text(encoding='utf-8'))
+    except (OSError, ValueError) as exc:
+        print(f'no se puede leer el informe {ruta}: {exc}', file=sys.stderr)
+        return 1
+    if not isinstance(informe, dict):
+        print(f'{ruta}: no es un informe de aceptación', file=sys.stderr)
+        return 1
+    registrar_espacios(espacios_de_la_matriz(matriz, variables), _carpeta_sellos(sellos, REPO))
+    try:
+        sello = sellar_informe(informe, matriz, sellos=sellos, origen=str(Path(ruta).resolve()))
+    except SelloInvalido as exc:
+        print(f'versión {informe.get("version")}: NO SELLADA: {exc}', file=sys.stderr)
+        return 1
+    print(f'versión {informe.get("version")}: ACEPTADA y sellada en {sello}')
+    return 0
 
 
 if __name__ == '__main__':

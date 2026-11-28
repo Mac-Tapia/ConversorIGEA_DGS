@@ -205,3 +205,95 @@ def test_100_rf9_lo_cerrado_sin_corrida_propia_espera_a_la_aceptacion_por_versio
         for c in celdas.values():
             if isinstance(c, m.Evidencia) and m.ACEPTACION_EN_LA_100 & set(c.specs):
                 assert '100' in c.specs, c
+
+
+# ----------------------------------------------------------------- 100:RF-21 a RF-23, el sello de la aceptación
+# 28-11, usuario: «cada que valide se debe cerrar, se debe validar en la web, porque la otra vez ya se hizo todo esto y
+# sigue sin validar en la web». El 26-11 pasaron los casos y las celdas que citan la 100 siguieron «sin validar».
+
+def _celda_de(tabla, estudio, motor):
+    e = next(x for x in tabla['estudios'] if x['clave'] == estudio)
+    return next(c for c in e['celdas'] if c['motor'] == motor)
+
+
+def _sello_aceptacion():
+    """El módulo del sello: su ausencia es la falla de la aserción, no un error de importación."""
+    try:
+        from convertersmartgrid.aplicacion import sello_aceptacion
+    except ImportError:
+        sello_aceptacion = None
+    assert sello_aceptacion is not None, 'falta el sello de la aceptación de la versión (100 T11)'
+    return sello_aceptacion
+
+
+def test_100_rf21_rf23_con_el_sello_de_su_version_la_aceptacion_cuenta_como_cumplida():
+    """100:RF-21, 100:RF-23 — con el sello de la versión, la evidencia de la aceptación vale por cumplida y la celda
+    dice de qué aceptación sale; las demás specs siguen la regla de RF-9."""
+    import inspect
+
+    m = _dominio()
+    assert 'aceptacion' in inspect.signature(m.matriz).parameters, 'la matriz no recibe la aceptación de la versión'
+    sin_100 = lambda n: 'implementada' if n == '100' else 'cumplida'          # noqa: E731
+    sin_sello = m.matriz(sin_100)
+    assert _celda_de(sin_sello, 'flujo', 'digsilent')['estado'] == 'sin_validar'
+    assert sin_sello['aceptacion'] is None
+    sello = {'version': 'ab12' * 10, 'fecha': '2041-03-07T10:00:00+00:00'}
+    con = m.matriz(sin_100, aceptacion=sello)
+    c = _celda_de(con, 'flujo', 'digsilent')
+    assert c['estado'] == 'validado'
+    assert c['motivo'] == 'Validado por la aceptación de la versión ab12ab12ab12 del 07-03-2041.'
+    assert con['aceptacion'] == sello
+    # Una celda sin la 100 no cambia ni se adorna: validada como antes, sin motivo.
+    assert _celda_de(con, 'calibracion', 'abierto') == _celda_de(sin_sello, 'calibracion', 'abierto')
+    # El sello no salva otra spec abierta de la misma celda (RF-9 sigue).
+    otra = m.matriz(lambda n: 'implementada' if n in ('100', '011') else 'cumplida', aceptacion=sello)
+    assert _celda_de(otra, 'flujo', 'digsilent')['estado'] == 'sin_validar'
+    # RF-11: el texto del sello, sin números de spec ni RF.
+    assert not re.search(r'\bRF-\d|\b\d{3}\b|spec', c['motivo'], re.I)
+
+
+def test_100_rf21_rf22_la_ruta_valida_con_el_sello_de_su_version_y_no_con_el_de_otra(tmp_path, monkeypatch):
+    """100:RF-21, 100:RF-22 — ``GET /api/estudios/matriz`` da por validadas las celdas que esperaban a la aceptación
+    solo si hay un sello aceptado de la versión que corre esta web; uno de otra versión no vale."""
+    import json
+
+    from fastapi.testclient import TestClient
+
+    from convertersmartgrid.presentacion.web.app import create_app
+
+    sa = _sello_aceptacion()
+    sellos = tmp_path / 'sellos'
+    monkeypatch.setenv('CSG_ACEPTACION_DATA', str(sellos))
+    monkeypatch.setenv('CSG_WEB_FRONTEND', str(tmp_path / 'sin_front'))
+    version = sa.version_en_uso(RAIZ)
+    otra_version = '0' * 40 if version != '0' * 40 else '1' * 40
+    casos = ['txt-alimentador']
+
+    def informe(v):
+        return {'version': v, 'arbol': None, 'fin': '2041-03-07T10:00:00+00:00',
+                'casos': {'txt-alimentador': {'estado': 'aceptado', 'revision': v}}}
+
+    sa.sellar(informe(otra_version), casos, repo=tmp_path, carpeta=sellos)       # el de otra versión
+    with TestClient(create_app(tmp_path / 'web')) as cliente:
+        otra = cliente.get('/api/estudios/matriz').json()
+    assert otra['aceptacion'] is None
+    flujo = _celda_de(otra, 'flujo', 'digsilent')
+    assert {ev['spec'] for ev in flujo['evidencia']} >= {'100'} and flujo['estado'] == 'sin_validar'
+
+    ruta = sa.sellar(informe(version), casos, repo=RAIZ, carpeta=sellos)
+    assert json.loads(ruta.read_text(encoding='utf-8'))['version'] == version
+    with TestClient(create_app(tmp_path / 'web')) as cliente:
+        suya = cliente.get('/api/estudios/matriz')
+    assert suya.status_code == 200, suya.text
+    tabla = suya.json()
+    assert tabla['aceptacion'] == {'version': version, 'fecha': '2041-03-07T10:00:00+00:00'}
+    validadas_por_sello = 0
+    for e in tabla['estudios']:
+        for c in e['celdas']:
+            if c['evidencia']:
+                cerradas = all(ev['estado'] == 'cumplida' or ev['spec'] == '100' for ev in c['evidencia'])
+                assert (c['estado'] == 'validado') == cerradas, (e['clave'], c)
+                if cerradas and any(ev['spec'] == '100' and ev['estado'] != 'cumplida' for ev in c['evidencia']):
+                    assert 'aceptación de la versión' in c['motivo'], (e['clave'], c)
+                    validadas_por_sello += 1
+    assert validadas_por_sello, 'ninguna celda que esperaba a la aceptación sale validada con su sello'

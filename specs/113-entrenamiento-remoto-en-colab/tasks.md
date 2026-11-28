@@ -75,3 +75,11 @@ nunca limita lo local (RF-16) y debe aprovechar Colab Pro («si no, de nada serv
 - [x] T9. Enlace directo a Colab en el cuaderno. (RF-17) Hecho cuando: el cuaderno lleva el enlace «Abrir en Colab» y
       `test_el_cuaderno_tiene_su_enlace_directo_a_colab` lo comprueba; evidencia: esa prueba en verde el 2026-11-27. El
       enlace abre el cuaderno de `main`: funciona en cuanto la rama esté integrada.
+- [x] T10 LUGARES-SIN-NOMBRE (28-11). El nombre de un lugar tras su clase no sale a Colab. (RF-22)
+      Hecho cuando: `tests/test_interprete_codificador.py` (113:RF-22) en verde con su rojo por aserción, y el paquete del
+      intérprete preparado con las órdenes reales sin ningún nombre de lugar. Hecho el 2026-11-28 (evidencia en el commit
+      que lo integra).
+- [x] T11 GRAFOS-SIN-NOMBRES (28-11). El grafo de MADRL sale con seudónimos y la misma red. (RF-23)
+      Hecho cuando: `tests/test_entrenamiento_remoto.py` (113:RF-23) en verde con su rojo por aserción, y el paquete
+      `madrl_obras` de LL203 sin ningún nombre (comprobado: ni el cliente de la barra ni la estructura del proyecto) y con
+      677 nodos, 680 ramas y 22 zonas como el original. Hecho el 2026-11-28.

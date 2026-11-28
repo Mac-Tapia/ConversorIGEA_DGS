@@ -81,6 +81,15 @@ modelos (043, 047, 070, 071, 089).
   a lo que mide (075:RF-28), de modo que ningún texto de las pruebas selladas, de la calibración ni de los mensajes
   reservados salga; Colab hará las vueltas y el modelo final con la misma orden que en el equipo, y la puerta final
   seguirá en el equipo con lo sellado, leyendo la medida fuera de grupo de Colab con los valores reales.
+- RF-22: (revisión del paquete del intérprete con el usuario, 2026-11-28) EL SISTEMA ocultará en todo lo que sale a
+  Colab el nombre de un lugar que sigue a su clase (fundo, hacienda, predio, caserío, centro poblado, urbanización,
+  asentamiento, anexo, calle, jirón, avenida, pasaje, comunidad, parcela, lote…), con sus artículos y enlaces, hasta una
+  palabra de enlace, una cifra o un nombre de la red, y conservará la clase («fundo ‹lugar›»). (Una orden confirmada real
+  decía «…para 800 kW en el fundo Santa Rosa» y salía entera: el catálogo solo conoce los nombres de la red.)
+- RF-23: (revisión del paquete de MADRL con el usuario, 2026-11-28) EL SISTEMA sacará a Colab el grafo de una red
+  con cada ruta de objeto de DIgSILENT cambiada por un seudónimo estable de su misma clase, con la sal de RF-18, y con su
+  topología y sus valores eléctricos tal cual. (El grafo de LL203 llevaba la estructura del proyecto, los códigos de SED y
+  el nombre de un cliente en una barra; el modelo aprende de la red, no de los nombres.)
 
 ## Requisitos no funcionales
 

@@ -88,6 +88,11 @@ def tope_de_entorno(nombre: str, defecto: int) -> int:
 #: Código con que ``run_process`` informa de un guion terminado por pasar su límite de
 #: tiempo (spec 011, RF-40); el mismo que usa ``timeout`` de coreutils.
 TIEMPO_AGOTADO = 124
+#: Código con que ``run_process`` informa de un guion parado porque su trabajo cedió el carril (050:RF-48): el ciclo de
+#: aprendizaje deja pasar al operador o a la aceptación en vez de tenerlos esperando detrás de él.
+CEDIDO = 125
+#: Lo que espera ``run_process`` a que un guion con fichero de cancelación salga solo al ceder, antes de cortarlo.
+GRACIA_CEDER_S = 30.0
 
 #: Tiempo para que un guion de PowerFactory escriba su primera línea, que sale cuando
 #: DIgSILENT ya ha dado el usuario (spec 005, RF-21). El arranque normal medido el
@@ -453,6 +458,7 @@ class JobContext:
         self, cmd: list[str], *, env: dict[str, str] | None = None, cwd: str | None = None,
         cancel_file: Path | str | None = None, limite_s: float | None = None,
         limite_arranque_s: float | None = None, _reintento: bool = False,
+        ceder: Callable[[], str | None] | None = None, gracia_ceder_s: float = GRACIA_CEDER_S,
     ) -> int:
         """Ejecuta un guion volcando su salida al Registro **línea a línea**.
 
@@ -481,6 +487,10 @@ class JobContext:
         mismo cuelgue en el flujo, las cargas o el ajuste dejaba el carril igual de
         ocupado. Si quien lo lanza no lo pidió, el corte es un error con su motivo en vez
         de un código que no esperaba.
+
+        Con ``ceder`` (050:RF-48), cada pocos segundos se pregunta si el trabajo debe soltar el carril; si devuelve
+        un motivo, se dice en el Registro, se pide al guion que pare por su ``cancel_file`` y, si en ``gracia_ceder_s``
+        no ha salido (o no lo tiene), se termina, y se devuelve ``CEDIDO``.
         """
         import os
 
@@ -560,8 +570,23 @@ class JobContext:
         reader.start()
         avisado = False
         inicio = time.monotonic()
+        cedido_en: float | None = None
+        ultima_consulta = inicio - 2.0                     # la primera consulta, en seguida
         while proc.poll() is None:
             transcurrido = time.monotonic() - inicio
+            if ceder is not None and cedido_en is None and time.monotonic() - ultima_consulta >= 2.0:
+                ultima_consulta = time.monotonic()
+                motivo = ceder()
+                if motivo:
+                    cedido_en = time.monotonic()
+                    self.log(f'Se cede el carril: {motivo}.')
+                    if cancel_file is not None:
+                        Path(cancel_file).parent.mkdir(parents=True, exist_ok=True)
+                        Path(cancel_file).write_text('ceder\n', encoding='utf-8')
+            if cedido_en is not None and (cancel_file is None or time.monotonic() - cedido_en >= gracia_ceder_s):
+                cortar()
+                reader.join(timeout=5)
+                return CEDIDO
             if es_pf:
                 callado = time.monotonic() - ultima_linea[0]
                 sin_arrancar = (limite_arranque_s is not None and not conectado.is_set()
@@ -617,6 +642,8 @@ class JobContext:
                 raise JobCancelled()
             time.sleep(0.2)
         reader.join(timeout=5)
+        if cedido_en is not None:
+            return CEDIDO                                  # salió solo al pedirle que parara (050:RF-48)
         from ...adaptadores.pf_arnes import SIN_RESPUESTA
 
         if es_pf and proc.returncode == SIN_RESPUESTA:

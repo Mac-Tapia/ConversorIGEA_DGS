@@ -1,7 +1,8 @@
 # Manual del operador de ConverterSmartGrid
 
 Lo que se hace cada día, de la red exportada a un informe. Para instalar, vea `MANUAL_INSTALACION.md`; para el perfil de la empresa,
-`PERFIL_EMPRESA.md`.
+`PERFIL_EMPRESA.md` y su plantilla, `documentos\plantilla_perfil_empresa.json`. Todos están en la carpeta `documentos` del programa,
+`%LOCALAPPDATA%\Programs\ConverterSmartGrid\documentos`.
 
 ## Qué hace y qué no
 
@@ -21,8 +22,8 @@ El programa no trae pesos entrenados: los modelos aprenden en su equipo, con sus
 
 - Una tarjeta **NVIDIA con CUDA** y su controlador al día. El gemelo digital (PINN y GRU) y los entrenamientos solo corren en la GPU,
   nunca en el procesador: sin ella, el trabajo termina con un mensaje que lo dice, y lo demás del programa sigue igual.
-- El **complemento de IA** de capacidades integrales, que trae PyTorch con CUDA y lo de entrenar (`MANUAL_INSTALACION.md`,
-  «Complemento de IA»).
+- El **complemento de IA** de capacidades integrales, que trae PyTorch con CUDA y lo de entrenar (vea
+  «Instalar el complemento de IA», abajo).
 
 `csg.cmd doctor` dice si hay GPU, qué tarjeta es, su versión de CUDA y su memoria libre. Con eso:
 
@@ -32,6 +33,59 @@ El programa no trae pesos entrenados: los modelos aprenden en su equipo, con sus
 - El aprendizaje continuo (050) reentrena solo cuando hay datos nuevos, en segundo plano y cediendo a lo que usted esté haciendo,
   con el plan del ciclo de los datos del asistente; para pararlo, `CSG_AUTOENTRENAMIENTO=0`.
 - Las mejoras del código que propone el asistente solo funcionan en el entorno de desarrollo; en el programa instalado lo dice.
+
+## Instalar el complemento de IA
+
+El programa funciona sin él: convertir, importar, calibrar, cargas nuevas, obras e informes no lo usan. Hace falta para entrenar,
+el gemelo digital, el pronóstico por modelos, la revisión por roles y los modelos locales del asistente.
+
+Necesita una tarjeta NVIDIA con CUDA 12.6, el controlador NVIDIA 560 o posterior (8 GB de memoria de vídeo recomendados) y unos
+2,7 GB de disco para el complemento, más sus modelos (unos 5 GB el del asistente y 1 GB el de búsqueda).
+
+1. Pida a quien le entregó el programa el complemento de **la misma versión** que el programa instalado: la que sale bajo el título
+   de la web, o en la primera línea de `doctor`. Llega como `ConverterSmartGrid-complemento-ia-<versión>-setup.exe` y unos ficheros
+   `setup-*.bin`, que van en la misma carpeta que el `.exe`.
+2. Compruebe la huella de cada fichero con la de `SHA256SUMS`, que llega por otro canal:
+
+   ```powershell
+   Get-FileHash .\ConverterSmartGrid-complemento-ia-<versión>-setup.exe -Algorithm SHA256
+   ```
+
+3. Cierre el programa: cierre su ventana negra. Con el programa abierto, el instalador se niega y lo dice.
+4. Ejecute el `.exe`. No pregunta la carpeta: usa la del programa. Verá «Comprobando las huellas e instalando el complemento...»;
+   comprueba cada fichero e instala sin salir a internet. Si es de otra versión, dice cuál hace falta. Si algo falla, sale «No se
+   pudo instalar el complemento de IA. El programa sigue como estaba.», con el motivo.
+5. Compruébelo:
+
+   ```bat
+   "%LOCALAPPDATA%\Programs\ConverterSmartGrid\csg.cmd" doctor
+   ```
+
+   «Complemento de IA» tiene que decir `[bien]` e «Instalado.», y «GPU NVIDIA con CUDA», su tarjeta y su memoria libre.
+
+Al actualizar el programa a otra versión, instale también el complemento de esa versión. Para quitarlo, en «Aplicaciones instaladas»
+de Windows elija **ConverterSmartGrid - complemento de IA**: el programa y sus datos se quedan.
+
+## Probar con la red de ejemplo
+
+Para ver una conversión antes de tener la exportación de su red, la carpeta `documentos` trae una red inventada: dos alimentadores
+pequeños, `AL01` y `AL02`, en los tres TXT `RED_ejemplo.txt`, `CARGA_ejemplo.txt` y `BD_Equipo_ejemplo.txt`. No es de ninguna
+empresa, y no sirve para estudiar nada en DIgSILENT.
+
+**Por órdenes.** En una ventana de órdenes (tecla Windows, escriba `cmd` e Intro), copie estas dos líneas. Las rutas van completas
+porque `csg.cmd` trabaja en la carpeta de datos:
+
+```bat
+set "CSG=%LOCALAPPDATA%\Programs\ConverterSmartGrid"
+"%CSG%\csg.cmd" convert --red "%CSG%\documentos\RED_ejemplo.txt" --loads "%CSG%\documentos\CARGA_ejemplo.txt" --equipment "%CSG%\documentos\BD_Equipo_ejemplo.txt" --all --source-crs EPSG:32719 --out-dir "%USERPROFILE%\Documents\red_de_ejemplo"
+```
+
+Termina con «OK: 2» y «Fallidos: 0», y deja en `Documentos\red_de_ejemplo` un `AL01.dgs` y un `AL02.dgs`, cada uno con su
+geografía (`_geography.json`) y su validación. `--source-crs EPSG:32719` es el sistema de coordenadas de la red de ejemplo; con su
+red, use el de su exportación o el del perfil.
+
+**Por la web.** En **1 Entrada de datos**, elija los tres TXT de la carpeta `documentos` y siga «El recorrido» hasta convertir.
+En «Opciones de conversión», escriba `EPSG:32719` en «CRS de origen».
 
 ## El recorrido
 

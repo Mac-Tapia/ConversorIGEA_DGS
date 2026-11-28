@@ -36,6 +36,7 @@ no lo continúa, lo rehace.
 | `AUDIT/` | ignorada | 0,48 GiB | Evidencia de aceptación y de limpieza | Personas y agentes; custodia |
 | `config/` | sí | 37 kB | Perfiles, contratos y parámetros | `src/`, pruebas |
 | `docs/` | sí | 1 MB | Manuales, arquitectura, regresiones e informes | `src/convertersmartgrid/asistente/`, pruebas |
+| `ejemplos/` | sí | 9 kB | La red de ejemplo inventada (`red_inventada/`, tres TXT de dos alimentadores) para convertir sin datos de ninguna empresa siguiendo el manual del operador (086 T41b) | El candidato la copia a «documentos/»; `tests/test_red_de_ejemplo.py` |
 | `external/` | ignorada por dentro | 0,65 GiB | Revisiones fijadas de terceros y solucionadores | `upstream_ia.py`, `asistente/llm_runtime.py`, `tools/preparar_upstream_ia.py` |
 | `frontend/` | sí | 63 MB con `node_modules` y `dist` | Interfaz web | `web/app.py` sirve `dist`; `run_gui.bat` la compila |
 | `instalador/` | sí | 4 kB | Guion de Inno Setup de la versión de producto (086:RF-36) | `tools/construir_candidato.py` |

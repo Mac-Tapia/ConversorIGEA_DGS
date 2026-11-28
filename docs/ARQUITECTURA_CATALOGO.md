@@ -8,16 +8,16 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 
 | Parte | Carpeta | Ficheros |
 | --- | --- | --- |
-| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 479 |
+| Motor, web, gemelo y asistente | `src/convertersmartgrid/` | 480 |
 | Módulo VNR-GIS | `src/convertersmartgrid/adaptadores/entrada/vnr/` | 52 |
 | Herramientas y guiones | `tools/` | 135 |
 | Interfaz | `frontend/src/` | 127 |
 | Pruebas de la interfaz | `frontend/test/` | 69 |
-| Pruebas | `tests/` | 695 |
+| Pruebas | `tests/` | 696 |
 | Pruebas de modelos | `tests_ml/` | 6 |
 | Specs | `specs/` | 342 |
 
-`web/services.py` tiene 15833 líneas y 513 funciones, pendiente de partir (002).
+`web/services.py` tiene 15925 líneas y 515 funciones, pendiente de partir (002).
 
 ### Specs
 
@@ -28,19 +28,19 @@ commit y en cada fusión, y `tests/test_arquitectura_generada.py` falla si no es
 | implementada | 2 |
 | retirada | 1 |
 
-114 specs con 4240 RF. El detalle, en [`specs/README.md`](../specs/README.md).
+114 specs con 4255 RF. El detalle, en [`specs/README.md`](../specs/README.md).
 
 ### Capas
 
 | Capa | Abrev. | Módulos |
 | --- | --- | --- |
 | adaptadores | Ada | 200 |
-| aplicacion | Apl | 136 |
+| aplicacion | Apl | 137 |
 | dominio | Dom | 73 |
 | presentacion | Pre | 53 |
 | puertos | Pue | 5 |
 
-467 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
+468 módulos y 0 excepciones en la deuda de `tools/arquitectura.py`.
 
 ### Carriles de trabajos
 
@@ -344,6 +344,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | `adaptadores/pit/red_pandapower.py` | Ada | 107 | De RedArea a pandapower (dos y tres devanados, compensación, acoplamientos de barras y redes externas PQ o PV con su consigna) y flujo del motor… |
 | `adaptadores/pit/motores.py` | Ada | 107 | Matriz estudio × motor (abierto por defecto, DIgSILENT con licencia). |
 | `dominio/matriz_estudios.py` | Dom | 100 | Matriz estudio × motor (DIgSILENT, motores abiertos, oráculo PINN y cálculo del conversor): por estudio de la web, la evidencia de cada celda (las… |
+| `aplicacion/sello_aceptacion.py` | Apl | 100, 050 | Sello de la versión aceptada en `_aceptacion/` de los datos del programa (escrito de una vez, recalculando el veredicto con los casos de la matriz),… |
 
 ### Motor: salida y módulos enchufables
 
@@ -581,7 +582,7 @@ Las pruebas no se listan: cada una cita los `NNN:RF-n` que cubre.
 | --- | --- | --- | --- |
 | `aplicacion/model_registry.py` | Apl | 043, 060 | Candidatos inmutables, integridad, promoción atómica y reapertura en subproceso. |
 | `aplicacion/training_coordinator.py` | Apl | 043 | Etapas reanudables, bloqueo GPU mediante guardia OS compartida y memoria física/comprometible antes de cargar pesos. |
-| `aplicacion/trabajadores_ml.py` | Apl | 043 | Informes atómicos, dataset v2 verificado y herencia comprobada de la guardia GPU en procesos hijos. |
+| `aplicacion/trabajadores_ml.py` | Apl | 043, 050 | Informes atómicos, dataset v2 verificado, herencia comprobada de la guardia GPU en procesos hijos y la consulta de si la GPU la tiene otro proceso,… |
 | `dominio/compat_gpu.py` | Dom | 106 | Fija en memoria la DLL del controlador NVIDIA antes del primer cuInit, para que su hilo no ejecute en ella descargada (0xC0000005). |
 | `aplicacion/aprendizaje_continuo.py` | Apl | 050 | Ciclo común de aprendizaje: instantánea copiada y verificada, vistas por familia con particiones por observación, ciclo único sobre el coordinador,… |
 | `aplicacion/evaluacion_modelos.py` | Apl | 044 | Política previa y validación de cuatro particiones por grupos. |

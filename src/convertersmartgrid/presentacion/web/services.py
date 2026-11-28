@@ -169,7 +169,7 @@ def _require_pf() -> tuple[Path | None, Path]:
     return pf_dir, Path(status['interpreter'])
 
 
-def comprobar_dgs_vinculados(ws: Workspace, aceptados: dict[str, str], feeders: list[str]) -> None:
+def comprobar_dgs_vinculados(ws: Workspace | EjecucionDelVinculo, aceptados: dict[str, str], feeders: list[str]) -> None:
     """El DGS que se usaría debe ser el que se aceptó en DIgSILENT (spec 018, RF-6).
 
     La huella de la fuente no basta: dos espacios con la misma fuente pueden tener opciones
@@ -233,6 +233,92 @@ def usar_ejecucion_del_vinculo(ws: Workspace, project: str, binding: Any, pedido
     adoptar_fuente_del_vinculo(ws, project)
     return (f'Se usa la ejecución {binding.source_run_id}, con la que se aceptó {project}: la activa '
             f'({activa.run_id}) es de la misma fuente pero no tiene su DGS.')
+
+
+class EjecucionDelVinculo:
+    """Vista de solo lectura de la ejecución fuente del vínculo de un proyecto, de otra fuente (018:RF-20).
+
+    Caso real (2026-11-27): un proyecto convertido en otro espacio se recalibraba desde el del operador, que tenía
+    activa otra conversión de los TXT y otros proyectos convertidos con ella. Hacer activa la del vínculo (RF-10)
+    los habría dejado fallando a todos. Esta vista da a ``dgs_jobs``, ``comprobar_dgs_vinculados`` y
+    ``check_powerfactory_source_run`` los DGS, la geografía y el manifiesto de esa ejecución sin tocar el espacio:
+    no tiene ``save`` ni ``lock``, y nada escribe en ella.
+    """
+
+    # Sin red en memoria ni reconstrucción propia: lo de esa ejecución se compara solo con su disco (018:RF-12).
+    loaded_run_id = None
+    reconstruction_run_id = None
+    reconstruction_report_hash = None
+
+    def __init__(self, snapshot: Any, grupos: dict[str, dict[str, Any]]):
+        self._snapshot = snapshot
+        self.groups = grupos
+        # Las conversiones del espacio son de su fuente activa: sus fechas no dicen nada de los DGS unidos de esta.
+        self.conversions: dict[str, Any] = {}
+
+    @property
+    def out_dir(self) -> Path:
+        return self._snapshot.root / 'salida'
+
+    def active_run(self):
+        return self._snapshot
+
+
+def _grupos_de_la_ejecucion(ws: Workspace, espacio: Path, run_id: str, salida: Path) -> dict[str, dict[str, Any]]:
+    """Las redes unidas convertidas en esa ejecución, del espacio que la tiene y del propio, para ``dgs_jobs``."""
+    try:
+        ajenos = (leer_metadatos_espacio(espacio).get('groups') or {}) if espacio != ws.root else {}
+    except (OSError, ValueError):
+        ajenos = {}
+    return {nombre: grupo for nombre, grupo in {**ajenos, **(ws.groups or {})}.items()
+            if isinstance(grupo, dict) and run_id in str(grupo.get('dgs') or '')
+            and (salida / f'{nombre}.dgs').is_file()}
+
+
+def ejecucion_del_vinculo_de_otra_fuente(ws: Workspace, project: str, pedidos: list[str]):
+    """El vínculo y la vista de su ejecución para verificar el «Caso base» con otra fuente activa (018:RF-20).
+
+    La ejecución se busca como en RF-9 (en este espacio o en otro, por su identificador) y vale solo si su manifiesto
+    es íntegro y tiene el modo y la huella del vínculo. Devuelve el vínculo, ya exigido con la identidad de esa
+    ejecución, la vista y lo que se dice en el registro. Si no está, el error dice qué hacer (RF-21).
+    """
+    from types import SimpleNamespace
+
+    from ...adaptadores.powerfactory_binding import ProjectBindingError, require_project_binding, vinculo_guardado
+    from .source_runs import load_source_run
+
+    try:
+        raw = vinculo_guardado(ws, project) or {}
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
+    run_id = str(raw.get('source_run_id') or '')
+    carpeta = _ejecucion_del_vinculo(ws, raw) if raw else None
+    snapshot = None
+    if carpeta is not None:
+        try:
+            # El identificador solo nombra la carpeta; el manifiesto íntegro (su huella, recalculada con sus
+            # entradas) demuestra que es la fuente con que se convirtió el proyecto.
+            snapshot = load_source_run(SimpleNamespace(root=carpeta.parent.parent), run_id)
+        except (OSError, ValueError, KeyError, TypeError):
+            snapshot = None
+    if snapshot is None or (snapshot.mode, snapshot.fingerprint) != (raw.get('source_mode'),
+                                                                    raw.get('source_fingerprint')):
+        raise UserError(
+            f'PROJECT_BINDING_SOURCE_UNAVAILABLE: {project} se convirtió con la ejecución {run_id or "—"}, de otra '
+            f'fuente que la activa de este espacio ({ws.active_run_id or "—"}), y esa ejecución ya no está en disco '
+            'o su manifiesto no es íntegro, así que no hay DGS con qué comparar su «Caso base». Vuelva a convertir '
+            'sus alimentadores con la fuente activa e impórtelos para verificar el proyecto nuevo, o cargue en otro '
+            'espacio la fuente con que se convirtió.')
+    try:
+        binding = require_project_binding(ws, project, pedidos,
+                                          identidad=(snapshot.run_id, snapshot.mode, snapshot.fingerprint))
+    except ProjectBindingError as exc:
+        raise UserError(str(exc)) from exc
+    espacio = carpeta.parent.parent
+    vista = EjecucionDelVinculo(snapshot, _grupos_de_la_ejecucion(ws, espacio, run_id, snapshot.root / 'salida'))
+    aviso = (f'Se verifica con la ejecución {run_id}, con la que se convirtió {project} (espacio {espacio.name}), '
+             f'solo leyéndola: la activa de este espacio ({ws.active_run_id}) es de otra fuente y no cambia.')
+    return binding, vista, aviso
 
 
 def native_action_context(
@@ -833,7 +919,7 @@ def convert(ws: Workspace, ctx: JobContext, feeders: list[str] | None, all_feede
 # ---------------------------------------------------------------------------
 
 
-def powerfactory_targets(ws: Workspace, feeders: list[str]) -> list[str]:
+def powerfactory_targets(ws: Workspace | EjecucionDelVinculo, feeders: list[str]) -> list[str]:
     """Usa un DGS unido vigente cuando coincide con toda la selección."""
     from ...adaptadores.powerfactory_binding import alimentadores_de_rotulos
 
@@ -889,7 +975,7 @@ def powerfactory_targets(ws: Workspace, feeders: list[str]) -> list[str]:
     return list(feeders)
 
 
-def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, Path | None]], list[str]]:
+def dgs_jobs(ws: Workspace | EjecucionDelVinculo, feeders: list[str]) -> tuple[list[tuple[str, Path, Path | None]], list[str]]:
     jobs, missing = [], []
     for feeder in powerfactory_targets(ws, feeders):
         dgs = ws.out_dir / f'{feeder}.dgs'
@@ -902,7 +988,7 @@ def dgs_jobs(ws: Workspace, feeders: list[str]) -> tuple[list[tuple[str, Path, P
 
 
 def check_powerfactory_source_run(
-    ws: Workspace, feeders: list[str], *, exigir_red_cargada: bool = True,
+    ws: Workspace | EjecucionDelVinculo, feeders: list[str], *, exigir_red_cargada: bool = True,
 ) -> dict[str, Any]:
     """Liga cada DGS y sidecar al run activo antes de cualquier mutación en PF.
 
@@ -5882,21 +5968,27 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
     # Spec 018, RF-5: la exigencia va en el servidor, no solo en la interfaz. Sin vínculo se
     # verificaría un proyecto de procedencia desconocida, y la verificación graba un vínculo
     # nuevo con la fuente activa: justo el hueco que la aceptación existe para cerrar.
+    # De dónde salen los DGS: la ejecución activa del espacio o, si el proyecto se convirtió con otra fuente, la de su
+    # vínculo, solo leída (018:RF-20). El informe de la verificación se escribe siempre en el espacio que verifica.
+    fuente: Workspace | EjecucionDelVinculo = ws
     try:
         binding = require_project_binding(ws, project, pedidos)
     except ProjectBindingError as exc:
-        raise UserError(str(exc)) from exc
-    aviso = usar_ejecucion_del_vinculo(ws, project, binding, pedidos)                  # 018:RF-15
+        if exc.code != 'PROJECT_BINDING_SOURCE_MISMATCH':
+            raise UserError(str(exc)) from exc
+        binding, fuente, aviso = ejecucion_del_vinculo_de_otra_fuente(ws, project, pedidos)   # 018:RF-20, RF-21
+    else:
+        aviso = usar_ejecucion_del_vinculo(ws, project, binding, pedidos)              # 018:RF-15
     if aviso:
         ctx.log(aviso)
-    jobs, missing = dgs_jobs(ws, pedidos)
+    jobs, missing = dgs_jobs(fuente, pedidos)
     if not jobs:
         raise UserError('Para verificar hace falta el DGS convertido de cada alimentador. Faltan: '
                         + ', '.join(f'{f}.dgs' for f in missing[:12]))
-    comprobar_dgs_vinculados(ws, binding.dgs_sha256, pedidos)
+    comprobar_dgs_vinculados(fuente, binding.dgs_sha256, pedidos)
     # 018:RF-12: compara el DGS y su sidecar con el manifiesto en disco; la red en memoria
     # no hace falta, y exigirla obligaba a volver a cargarla tras reiniciar la web.
-    source_evidence = check_powerfactory_source_run(ws, [f for f, _d, _g in jobs],
+    source_evidence = check_powerfactory_source_run(fuente, [f for f, _d, _g in jobs],
                                                     exigir_red_cargada=False)
     pf_dir, interpreter = _require_pf()
     script = _script('powerfactory_acceptance.py')
@@ -5924,7 +6016,7 @@ def pf_verificar_base(ws: Workspace, ctx: JobContext, project: str, feeders: lis
                '--output-txt', str(report.with_suffix('.txt'))]
         target = next((t for t in source_evidence['targets'] if t['target'] == feeder), {})
         if target.get('reconstruction'):
-            cmd += ['--reconstruction-report', str(ws.out_dir / target['reconstruction']['report']),
+            cmd += ['--reconstruction-report', str(fuente.out_dir / target['reconstruction']['report']),
                     '--reconstruction-report-sha256', target['reconstruction']['report_sha256']]
         ctx.log(f'[{index}/{len(jobs)}] Verificar el «Caso base» de {feeder} en {project}…')
         rc = ctx.run_process(cmd, env=pf_subprocess_env(pf_dir), cwd=str(project_root()))

@@ -119,6 +119,24 @@ cargada en memoria, que no hace falta para comparar el DGS y su sidecar.
   cuando tienen sus datos), la transferencia, los informes y la planificación del PIDE y de largo
   plazo, tal cual está en DIgSILENT, sin calibrarlo en la web (usuario, 2026-11-13).
 
+### Verificar el «Caso base» con la ejecución del vínculo, de otra fuente (añadido el 2026-11-28)
+
+El 2026-11-27 un proyecto convertido en un espacio se recalibraba desde el espacio del operador, cuya
+fuente activa es otra conversión de los TXT. La calibración ya lo admitía (RF-19), pero «Verificar el
+Caso base» fallaba con `PROJECT_BINDING_SOURCE_MISMATCH` y un «Trabajo fallido» rojo. Usar la fuente
+del vínculo (RF-10) no sirve aquí: cambia la ejecución activa del espacio, y los demás proyectos del
+mismo espacio, convertidos con la fuente activa, pasarían a fallar. RF-15 solo resuelve la misma fuente.
+
+- RF-20: CUANDO se pida verificar el «Caso base» de un proyecto bloqueado por
+  `PROJECT_BINDING_SOURCE_MISMATCH` y la ejecución fuente de su vínculo esté en disco, en este espacio o
+  en otro, con un manifiesto íntegro de su mismo modo y su misma huella, EL SISTEMA verificará con los
+  DGS y la geografía de esa ejecución, solo leyéndola, sin cambiar la ejecución activa del espacio y
+  diciéndolo en el registro del trabajo.
+- RF-21: SI la verificación del «Caso base» de un proyecto bloqueado por
+  `PROJECT_BINDING_SOURCE_MISMATCH` no encuentra en disco la ejecución de su vínculo, ENTONCES EL SISTEMA
+  la rechazará antes de abrir DIgSILENT con `PROJECT_BINDING_SOURCE_UNAVAILABLE` y un mensaje que diga
+  qué ejecución falta y qué hacer, sin cambiar la ejecución activa.
+
 ## Fuera de alcance
 
 - Bloqueo entre procesos: si varios procesos de la web escribieran el mismo registro, haría

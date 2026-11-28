@@ -57,7 +57,9 @@ sesión, el nuevo se abre en el puerto libre siguiente y la ventana negra lo dic
 
 **Siguiente paso.** Para convertir su primera red, siga `MANUAL_OPERADOR.md`, apartado «El recorrido», en la carpeta
 `documentos` del programa. Para convertir por órdenes, `MANUAL_ORDENES.md`, apartado «Convertir sin la web». Necesita la
-exportación de su red: el programa no trae datos de ninguna empresa.
+exportación de su red: el programa no trae datos de ninguna empresa. Para probar antes, convierta la red inventada que trae
+`documentos`, como dice `MANUAL_OPERADOR.md`, «Probar con la red de ejemplo». Para el complemento de IA, el mismo manual,
+«Instalar el complemento de IA».
 
 ### Comprobar la instalación
 
@@ -119,8 +121,8 @@ sistema de coordenadas y no aparta ninguna subestación por su nombre.
    dar» lista lo que falta, qué función afecta y qué pasa sin ello.
 4. En «Opciones de conversión», el «CRS de origen» enseña el del perfil, sin recargar la página.
 
-**Para escribir el perfil**, parta de la plantilla vacía o del ejemplo de una empresa inventada que trae el programa, como explica
-`PERFIL_EMPRESA.md`. Puede comprobar un fichero antes de cargarlo, y después el perfil activo:
+**Para escribir el perfil**, parta de la plantilla vacía y comentada, `documentos\plantilla_perfil_empresa.json`, o del ejemplo de
+una empresa inventada que trae el programa, como explica `PERFIL_EMPRESA.md`. Puede comprobar un fichero antes de cargarlo, y después el perfil activo:
 
 ```bat
 csg.cmd validar-perfil --ruta C:\ruta\a\mi_perfil.json

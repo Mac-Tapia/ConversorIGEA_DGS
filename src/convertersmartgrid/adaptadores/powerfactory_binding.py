@@ -560,8 +560,15 @@ def require_project_binding(
     ws: Any,
     project: str,
     feeders: Iterable[str],
+    *,
+    identidad: tuple[str, str, str] | None = None,
 ) -> PowerFactoryProjectBinding:
-    """Exige identidad suficiente; la evolución manual legible queda como aviso."""
+    """Exige identidad suficiente; la evolución manual legible queda como aviso.
+
+    ``identidad`` (ejecución, modo, huella) sustituye a la de la fuente activa del espacio: la verificación del
+    «Caso base» con la ejecución del propio vínculo, de otra fuente (018:RF-20), pasa por las mismas demás
+    comprobaciones (alimentadores, carpeta, relectura) sin cambiar la ejecución activa.
+    """
     project = str(project or '').strip()
     # Pisco (092 T2, 2026-11-08): el «Caso base» pide los rótulos del vínculo tal cual, con los
     # de barra de SET («AL194 + AL195 + …»); se comparan sus alimentadores, como los del vínculo,
@@ -574,7 +581,7 @@ def require_project_binding(
             f'el proyecto {project!r} no fue aceptado para la ejecución fuente activa',
         )
     binding = PowerFactoryProjectBinding.from_dict(raw)
-    active = _active_source_identity(ws)
+    active = tuple(identidad) if identidad is not None else _active_source_identity(ws)
     # El vínculo vive en cada espacio de trabajo (workspace.json), no en la carpeta de
     # DIgSILENT, que es compartida. Un espacio sin fuente activa no puede demostrar la
     # procedencia: se dice así, en vez de un «fuente activa None» que parece un desajuste.

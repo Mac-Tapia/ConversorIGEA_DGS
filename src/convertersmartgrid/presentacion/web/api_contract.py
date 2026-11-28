@@ -1366,9 +1366,16 @@ class MotorMatrizRespuesta(Respuesta):
     nombre: str
 
 
+class AceptacionMatrizRespuesta(Respuesta):
+    """100:RF-21, RF-23: la aceptación de la versión que corre la web: su versión y su fecha."""
+    version: str
+    fecha: str
+
+
 class MatrizEstudiosRespuesta(Respuesta):
     """100:RF-8, RF-10, RF-13: la matriz estudio × motor que sirve ``GET /api/estudios/matriz`` y de dónde salen sus estados."""
     origen: Literal['specs', 'recurso', 'ninguno']
+    aceptacion: AceptacionMatrizRespuesta | None = None
     motores: list[MotorMatrizRespuesta]
     estudios: list[EstudioMatrizRespuesta]
 

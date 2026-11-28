@@ -211,3 +211,161 @@ def test_050_rf42_el_preflight_omite_la_familia_bloqueada_y_sigue_con_las_prepar
     assert rc == 0 and corridas == [['transformer']]
     filas = [json.loads(x) for x in (tmp_path / 'ap' / 'bloqueos.jsonl').read_text(encoding='utf-8').splitlines()]
     assert [f['etapa'] for f in filas] == ['omision'] and 'pinn' in filas[0]['motivos'][0]
+
+
+# --- 050:RF-47 a RF-50: el ciclo no ocupa el carril de otro (2026-11-28) ---------------------------------------------
+# 28-11, 11:31: al reiniciar la web, el ciclo se encoló con la GPU en manos de la suite, quedó «bloqueado: GPU ocupada»
+# y siguió con el carril; la aceptación de la 100 esperó detrás («su carril lo tiene «Ciclo conjunto de aprendizaje»»)
+# hasta que se canceló a mano. Además eligió como espacio uno de la aceptación, el del último trabajo de la web.
+
+def _con_parametro(nombre):
+    import inspect
+
+    assert nombre in inspect.signature(app.encolar_ciclo_aprendizaje).parameters, \
+        f'encolar_ciclo_aprendizaje no admite {nombre} (050 T10)'
+
+
+def test_050_rf47_con_la_gpu_de_otro_el_ciclo_no_se_encola_y_se_anota_una_vez(tmp_path, monkeypatch):
+    """050:RF-47 — con la GPU en manos de otro proceso vivo, la vigilancia no encola el ciclo (devuelve False, para
+    pedirlo otra vez), anota quién la tiene una sola vez y lo encola en cuanto la GPU queda libre."""
+    _con_parametro('gpu_de_otro')
+    _web_, almacen = _web(tmp_path, monkeypatch)
+    ocupada = lambda: 'PID 4242 (suite, desde 2041-01-01T11:31:00)'               # noqa: E731
+    for _ in range(3):
+        trabajos = _Trabajos()
+        assert app.encolar_ciclo_aprendizaje(trabajos, ['45 órdenes nuevas'], gpu_de_otro=ocupada) is False
+        assert trabajos.encolados == []
+    filas = [json.loads(x) for x in (almacen / 'aprendizaje' / 'bloqueos.jsonl').read_text(encoding='utf-8')
+             .splitlines()]
+    assert [f['etapa'] for f in filas] == ['gpu'] and 'PID 4242' in filas[0]['motivos'][0]
+    trabajos = _Trabajos()
+    trabajo = app.encolar_ciclo_aprendizaje(trabajos, ['45 órdenes nuevas'], gpu_de_otro=lambda: None)
+    assert trabajo not in (None, False) and trabajos.encolados == [trabajo]
+
+
+def test_050_rf47_la_gpu_es_de_otro_solo_si_la_tiene_un_proceso_ajeno_vivo(tmp_path):
+    """050:RF-47 — la guardia de la GPU es de otro si la tiene un proceso vivo que no es este, ni un antecesor ni un
+    descendiente suyo (el entrenamiento que lanzó el propio ciclo); muerta o sin dueño válido, no."""
+    import psutil
+
+    from convertersmartgrid.aplicacion import trabajadores_ml as tm
+
+    assert hasattr(tm, 'gpu_de_otro'), 'falta la consulta de la GPU sin tomarla (050 T10)'
+    ruta = tmp_path / 'gpu.lock'
+    assert tm.gpu_de_otro(ruta) is None                                         # sin guardia
+    yo = psutil.Process()
+    familia = {yo.pid, *(p.pid for p in yo.parents()), *(p.pid for p in yo.children(recursive=True))}
+    ajeno = next(p for p in psutil.process_iter(['pid', 'create_time'])
+                 if p.pid not in familia and p.pid > 4 and p.info['create_time'])
+
+    def guardia(pid, creado):
+        ruta.write_text(json.dumps({'pid': pid, 'creado': creado, 'model': 'suite', 'token': 't',
+                                    'started_at': '2041-01-01T11:31:00'}), encoding='utf-8')
+    guardia(ajeno.pid, ajeno.info['create_time'])
+    assert f'PID {ajeno.pid}' in (tm.gpu_de_otro(ruta) or '')
+    guardia(yo.pid, yo.create_time())
+    assert tm.gpu_de_otro(ruta) is None                                         # la de este proceso
+    padre = yo.parent()
+    guardia(padre.pid, padre.create_time())
+    assert tm.gpu_de_otro(ruta) is None                                         # la del que lo lanzó
+    guardia(ajeno.pid, ajeno.info['create_time'] + 1000)                        # PID reutilizado: ya no vive
+    assert tm.gpu_de_otro(ruta) is None
+
+
+def test_050_rf48_rf50_el_ciclo_cede_el_carril_a_otro_trabajo_sin_gastar_sus_datos(tmp_path, monkeypatch):
+    """050:RF-48, 050:RF-50 — si al empezar, o entre la preparación y el entrenamiento, hay otro trabajo de la web sin
+    terminar (aquí, el de la aceptación), el ciclo no lanza nada: suelta el carril sin darse por fallido, lo dice en el
+    Registro, avisa a la vigilancia para que lo pida otra vez y no da por usados los datos que lo dispararon."""
+    from convertersmartgrid.aplicacion.asistente import almacen as alm
+    _con_parametro('al_ceder')
+    _web(tmp_path, monkeypatch)
+    avisos = []
+    trabajo = app.encolar_ciclo_aprendizaje(_Trabajos(), ['45 órdenes nuevas'], gpu_de_otro=lambda: None,
+                                            al_ceder=lambda: avisos.append('pedir de nuevo'))
+    assert trabajo not in (None, False)
+    aceptacion = SimpleNamespace(kind='sistema_web', title='Calibrar el sistema', status='queued')
+    ordenes, registro = [], []
+    ctx = _ctx(ordenes)
+    ctx.pendientes = lambda: [aceptacion]
+    ctx.log = registro.append
+    salida = trabajo.fn(ctx)
+    assert salida['estado'] == 'cedido' and 'Calibrar el sistema' in salida['motivo']
+    assert ordenes == [], 'con otro trabajo en cola el ciclo no debe lanzar nada'
+    assert any('cede el carril' in r for r in registro) and avisos == ['pedir de nuevo']
+    assert not (alm.leer_json('vigilancia') or {}).get('ordenes'), 'los datos no se dan por usados'
+
+
+def test_050_rf48_si_otro_llega_mientras_entrena_el_ciclo_suelta_el_carril(tmp_path, monkeypatch):
+    """050:RF-48 — el entrenamiento ya lanzado se para cuando llega otro trabajo: ``run_process`` recibe con qué
+    consultarlo, y su código de cesión termina el ciclo como cedido, no como fallido."""
+    from convertersmartgrid.presentacion.web import jobs as jb
+    _con_parametro('al_ceder')
+    _web(tmp_path, monkeypatch)
+    trabajo = app.encolar_ciclo_aprendizaje(_Trabajos(), ['45 órdenes nuevas'], gpu_de_otro=lambda: None)
+    pendientes, consultas, ordenes = [], [], []
+    base = _ctx(ordenes)
+
+    def run_process(cmd, **k):
+        if 'preparar_ciclo_aprendizaje.py' in str(cmd[1]):
+            return base.run_process(cmd, **k)
+        ordenes.append([str(c) for c in cmd])
+        assert callable(k.get('ceder')), 'el entrenamiento se lanza sin poder ceder el carril'
+        consultas.append(k['ceder']())                     # libre: sigue
+        pendientes.append(SimpleNamespace(kind='convertir', title='Convertir', status='queued'))
+        consultas.append(k['ceder']())                     # llegó el operador: cede
+        return jb.CEDIDO
+    ctx = SimpleNamespace(**{**vars(base), 'run_process': run_process, 'pendientes': lambda: list(pendientes)})
+    salida = trabajo.fn(ctx)
+    assert consultas[0] is None and 'Convertir' in consultas[1]
+    assert salida['estado'] == 'cedido' and sum(o[1].endswith('aprendizaje_continuo.py') for o in ordenes) == 1
+
+
+def test_050_rf48_run_process_para_el_guion_al_ceder(tmp_path):
+    """050:RF-48 — con ``ceder``, ``run_process`` pide parar al guion por su fichero de cancelación y lo termina si no
+    sale en la gracia; sin fichero, lo termina en seguida; en los dos casos devuelve el código de cesión."""
+    import time
+
+    from convertersmartgrid.presentacion.web import jobs as jb
+
+    assert hasattr(jb, 'CEDIDO'), 'run_process no sabe ceder el carril (050 T10)'
+    job = jb.Job(kind='aprendizaje:automatico', title='Ciclo', workspace_id='w', lane='engine', fn=lambda c: None)
+    ctx = jb.JobContext(job, lambda *_a: None)
+    cancelar = tmp_path / 'cancelar'
+    obediente = ('import pathlib, sys, time\nprint("empieza", flush=True)\n'
+                 f'while not pathlib.Path(r"{cancelar}").exists(): time.sleep(0.1)\nsys.exit(0)\n')
+    inicio = time.monotonic()
+    rc = ctx.run_process([sys.executable, '-c', obediente], cancel_file=cancelar, ceder=lambda: 'llegó otro')
+    assert rc == jb.CEDIDO and cancelar.read_text(encoding='utf-8') == 'ceder\n'
+    sordo = 'import time\nprint("empieza", flush=True)\ntime.sleep(120)\n'
+    rc = ctx.run_process([sys.executable, '-c', sordo], cancel_file=tmp_path / 'otro', ceder=lambda: 'llegó otro',
+                         gracia_ceder_s=1.0)
+    assert rc == jb.CEDIDO
+    rc = ctx.run_process([sys.executable, '-c', sordo], ceder=lambda: 'llegó otro')
+    assert rc == jb.CEDIDO and time.monotonic() - inicio < 60
+    assert ctx.run_process([sys.executable, '-c', 'print(1)'], ceder=lambda: None) == 0
+
+
+def test_050_rf49_el_ciclo_no_elige_un_espacio_de_la_aceptacion(tmp_path, monkeypatch):
+    """050:RF-49 — los espacios que anotó la aceptación (100:RF-24) no son del operador: el ciclo toma el último
+    trabajo de otro espacio y, sin trabajos, el guardado más recientemente que no sea de la aceptación."""
+    _web_, _almacen = _web(tmp_path, monkeypatch)
+    sellos = tmp_path / 'aceptacion'
+    sellos.mkdir()
+    (sellos / 'espacios.json').write_text(json.dumps({'espacios': ['espacionuevo']}), encoding='utf-8')
+    monkeypatch.setenv('CSG_ACEPTACION_DATA', str(sellos))
+    previos = [SimpleNamespace(workspace_id='espacioviejo', kind='convertir', status='done', title='Convertir'),
+               SimpleNamespace(workspace_id='espacionuevo', kind='sistema_web', status='done', title='Calibrar')]
+    trabajo = app.encolar_ciclo_aprendizaje(_Trabajos(previos), ['45 órdenes nuevas'], **(
+        {'gpu_de_otro': lambda: None} if _admite('gpu_de_otro') else {}))
+    assert trabajo not in (None, False) and trabajo.workspace_id == 'espacioviejo', \
+        'el ciclo eligió un espacio de la aceptación por el del operador'
+    assert ac.espacio_mas_reciente(_web_) == 'espacionuevo'
+    trabajo = app.encolar_ciclo_aprendizaje(_Trabajos(), ['46 órdenes nuevas'], **(
+        {'gpu_de_otro': lambda: None} if _admite('gpu_de_otro') else {}))
+    assert trabajo.workspace_id == 'espacioviejo', 'sin trabajos, eligió el espacio de la aceptación más reciente'
+
+
+def _admite(nombre):
+    import inspect
+
+    return nombre in inspect.signature(app.encolar_ciclo_aprendizaje).parameters

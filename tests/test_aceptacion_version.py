@@ -242,3 +242,106 @@ def test_100_rf14_la_orden_sale_con_3_si_otra_aceptacion_tiene_la_salida(tmp_pat
     err = capsys.readouterr().err
     assert str(os.getppid()) in err and 'otra aceptación' in err
     assert not (salida / 'informe.json').exists()
+
+# --- T11: el sello de la versión aceptada (RF-18 a RF-20, RF-24) -----------------------------------------------------
+# 28-11, usuario: «cada que valide se debe cerrar, se debe validar en la web». El 26-11 pasaron todos los casos y la web
+# siguió en «Sin validar», porque la matriz esperaba a que se cerrara a mano la T4.
+
+def test_100_rf18_aceptada_deja_el_sello_de_la_version_y_no_aceptada_no(tmp_path):
+    """100:RF-18 — con todos los casos aceptados sobre la misma revisión, la aceptación deja en la carpeta de sellos el
+    sello de esa versión con su árbol, su fecha, los casos y el veredicto; con un caso fallido, ningún sello."""
+    mod = _herramienta()
+    matriz = mod.cargar_matriz(MATRIZ)
+    variables = _variables(random.Random(SEMILLA))
+    sellos = tmp_path / 'sellos'
+    assert 'sellos' in __import__('inspect').signature(mod.aceptar_version).parameters, \
+        'la aceptación no deja el sello de la versión (100 T11)'
+    mala = mod.aceptar_version(matriz, '9' * 40, tmp_path / 'mal', variables=variables,
+                               ejecutar=WebFalsa({'espmdb': [1]}), regresiones=tmp_path / 'reg', sellos=sellos)
+    assert not mala['veredicto']['aceptada'] and not list(sellos.glob('sello_*.json')) and 'sello' not in mala
+    bien = mod.aceptar_version(matriz, 'f' * 40, tmp_path / 's', variables=variables, ejecutar=WebFalsa(),
+                               regresiones=tmp_path / 'reg', sellos=sellos)
+    assert bien['veredicto']['aceptada']
+    [ruta] = sellos.glob('sello_*.json')
+    assert bien['sello'] == str(ruta)
+    sello = json.loads(ruta.read_text(encoding='utf-8'))
+    assert sello['veredicto'] == 'aceptada' and sello['version'] == 'f' * 40
+    assert sello['fecha'] == bien['fin'] and 'arbol' in sello and sello['arbol'] == bien['arbol']
+    assert set(sello['casos']) == {c['id'] for c in matriz['casos']}
+    assert all(c['estado'] == 'aceptado' and c['revision'] == 'f' * 40 for c in sello['casos'].values())
+    escrito = json.loads((tmp_path / 's' / 'informe.json').read_text(encoding='utf-8'))
+    assert escrito['sello'] == str(ruta)
+
+
+def test_100_rf20_un_caso_sobre_otra_revision_no_se_sella(tmp_path):
+    """100:RF-7, 100:RF-20 — el sello recalcula el veredicto: un caso aceptado sobre otra revisión, o sin correr, lo
+    impide aunque el informe diga «aceptada», y entonces no se escribe nada."""
+    mod = _herramienta()
+    assert hasattr(mod, 'sellar_informe'), 'la aceptación no sella la versión de un informe (100 T11)'
+    matriz = mod.cargar_matriz(MATRIZ)
+    bien = mod.aceptar_version(matriz, 'f' * 40, tmp_path / 's', variables=_variables(random.Random(SEMILLA)),
+                               ejecutar=WebFalsa(), regresiones=tmp_path / 'reg', sellos=tmp_path / 'primero')
+    informe = json.loads(json.dumps(bien))
+    informe['casos']['vnr-sistema']['revision'] = '0' * 40
+    sellos = tmp_path / 'sellos'
+    from convertersmartgrid.aplicacion.sello_aceptacion import SelloInvalido
+
+    with pytest.raises(SelloInvalido, match='vnr-sistema: aceptado sobre otra revisión'):
+        mod.sellar_informe(informe, matriz, sellos=sellos)
+    del informe['casos']['vnr-sistema']
+    with pytest.raises(SelloInvalido, match='vnr-sistema: sin correr'):
+        mod.sellar_informe(informe, matriz, sellos=sellos)
+    assert not list(sellos.glob('sello_*.json'))
+
+
+def test_100_rf19_rf20_la_orden_sella_desde_un_informe_ya_corrido(tmp_path, capsys):
+    """100:RF-19, 100:RF-20, 100:RF-24 — ``--sellar <informe.json>`` sella la versión de un informe que dejó una
+    versión anterior de la orden (sin sello) si todos sus casos se aceptaron sobre su revisión, y anota los espacios de
+    la matriz; con un informe no aceptado sale con 1, dice el caso y no sella."""
+    mod = _herramienta()
+    assert hasattr(mod, 'sellar_informe'), 'la aceptación no sella la versión de un informe (100 T11)'
+    matriz = mod.cargar_matriz(MATRIZ)
+    variables = _variables(random.Random(SEMILLA))
+    bien = mod.aceptar_version(matriz, 'e' * 40, tmp_path / 's', variables=variables, ejecutar=WebFalsa(),
+                               regresiones=tmp_path / 'reg', sellos=tmp_path / 'otra')
+    viejo = {k: v for k, v in bien.items() if k != 'sello'}                     # como lo deja la orden anterior
+    ruta = tmp_path / 'viejo' / 'informe.json'
+    ruta.parent.mkdir()
+    ruta.write_text(json.dumps(viejo), encoding='utf-8')
+    vars_json = tmp_path / 'vars.json'
+    vars_json.write_text(json.dumps(variables), encoding='utf-8')
+    sellos = tmp_path / 'sellos'
+    assert mod.main(['--matriz', str(MATRIZ), '--sellar', str(ruta), '--variables', str(vars_json),
+                     '--sellos', str(sellos)]) == 0
+    assert 'ACEPTADA y sellada' in capsys.readouterr().out
+    [sello] = sellos.glob('sello_*.json')
+    assert json.loads(sello.read_text(encoding='utf-8'))['version'] == 'e' * 40
+    espacios = json.loads((sellos / 'espacios.json').read_text(encoding='utf-8'))['espacios']
+    assert set(espacios) == {'esptxt', 'espmdb', 'espvnr'}
+
+    malo = json.loads(json.dumps(viejo))
+    malo['casos']['mdb-varios']['estado'] = 'fallo'
+    ruta.write_text(json.dumps(malo), encoding='utf-8')
+    otra = tmp_path / 'sellos2'
+    assert mod.main(['--matriz', str(MATRIZ), '--sellar', str(ruta), '--sellos', str(otra)]) == 1
+    assert 'mdb-varios' in capsys.readouterr().err and not list(otra.glob('sello_*.json'))
+
+
+def test_100_rf24_la_aceptacion_anota_sus_espacios_antes_del_primer_caso(tmp_path):
+    """100:RF-24 — 28-11: el ciclo de aprendizaje tomó un espacio de la aceptación por el del operador. La aceptación
+    anota los espacios de sus casos antes de correr el primero, sin borrar los que ya estaban."""
+    mod = _herramienta()
+    sellos = tmp_path / 'sellos'
+    sellos.mkdir()
+    (sellos / 'espacios.json').write_text(json.dumps({'espacios': ['anterior']}), encoding='utf-8')
+    vistos = []
+
+    def web(argv, registro, cwd):
+        vistos.append(json.loads((sellos / 'espacios.json').read_text(encoding='utf-8'))['espacios'])
+        return WebFalsa()(argv, registro, cwd)
+
+    assert 'sellos' in __import__('inspect').signature(mod.aceptar_version).parameters, \
+        'la aceptación no anota sus espacios (100 T11)'
+    mod.aceptar_version(mod.cargar_matriz(MATRIZ), 'a' * 40, tmp_path / 's', variables=_variables(random.Random(1)),
+                        ejecutar=web, regresiones=tmp_path / 'reg', sellos=sellos)
+    assert vistos and set(vistos[0]) == {'anterior', 'esptxt', 'espmdb', 'espvnr'}

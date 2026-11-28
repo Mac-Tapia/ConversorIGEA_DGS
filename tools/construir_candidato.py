@@ -56,8 +56,16 @@ LOCK = RAIZ / 'requirements-nucleo.lock'
 COMPLEMENTO_IA = RAIZ / 'requirements-complemento-ia.txt'
 PROGRAMA_EN_PAQUETE = Path('src', 'convertersmartgrid', '_programa')
 #: Lo que se copia a «documentos/» del candidato. Pasa por la misma lista de términos que el código.
+#: 086 T41b (2026-11-28): la persona ajena de la T41 instaló el programa y no pudo convertir, porque no trae datos de
+#: ninguna empresa, ni encontró la plantilla del perfil, que solo estaba dentro del Python del programa. La red de ejemplo
+#: es inventada (la del generador sintético de las pruebas) y la plantilla no trae ningún valor (P13); las dos van a
+#: «documentos/», donde las nombran MANUAL_OPERADOR.md y PERFIL_EMPRESA.md.
+RED_DE_EJEMPLO = ('ejemplos/red_inventada/RED_ejemplo.txt', 'ejemplos/red_inventada/CARGA_ejemplo.txt',
+                  'ejemplos/red_inventada/BD_Equipo_ejemplo.txt')
+PLANTILLA_DEL_PERFIL = 'config/perfiles/plantilla.json'
 DOCUMENTOS = ('docs/MANUAL_INSTALACION.md', 'docs/MANUAL_OPERADOR.md', 'docs/SEGURIDAD_Y_PRIVACIDAD.md', 'docs/PERFIL_EMPRESA.md',
-              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt', 'LICENSE')
+              'src/convertersmartgrid/recursos/NOTAS_VERSION.md', 'requirements-complemento-ia.txt', 'LICENSE',
+              *RED_DE_EJEMPLO, PLANTILLA_DEL_PERFIL)
 #: U8 (2026-11-14): MANUAL_DE_USO no se entrega: es del 2026-10-31, remite a specs/, a MANUAL_COMANDOS y a tools/ del
 #: repositorio, y no cubre la 1.0 instalada (instalador, todo activo, perfil desde la web, copia de datos, asistente).
 #: Lo que falta está en specs/086-puesta-en-operacion-comercial/tasks.md, T23.
@@ -114,8 +122,12 @@ def documentos_del_candidato(version: str) -> tuple[str, ...]:
 
 
 def nombre_en_documentos(rel: str) -> str:
-    """El nombre con que ``rel`` queda en «documentos/»: la MIT (``LICENSE``, sin extensión) va como LICENSE.txt."""
-    return 'LICENSE.txt' if rel == LICENCIA_DE_LA_ENTREGA else Path(rel).name
+    """El nombre con que ``rel`` queda en «documentos/»: la MIT (``LICENSE``, sin extensión) va como LICENSE.txt, y la
+    plantilla del perfil como plantilla_perfil_empresa.json."""
+    if rel == LICENCIA_DE_LA_ENTREGA:
+        return 'LICENSE.txt'
+    # «plantilla.json» suelto en «documentos/» no diría de qué es la plantilla.
+    return 'plantilla_perfil_empresa.json' if rel == PLANTILLA_DEL_PERFIL else Path(rel).name
 
 
 def sin_secciones_de_desarrollo(texto: str, titulos: Iterable[str]) -> str:
@@ -161,7 +173,7 @@ def copiar_documentos(raiz: Path, destino: Path, version: str, manifiesto: dict 
             texto = (raiz / rel).read_text(encoding='utf-8').lstrip(chr(0xFEFF))
             (destino / nombre_en_documentos(rel)).write_text(texto, encoding='utf-8-sig', newline='')
         else:
-            shutil.copyfile(raiz / rel, destino / Path(rel).name)
+            shutil.copyfile(raiz / rel, destino / nombre_en_documentos(rel))
     copiados = [nombre_en_documentos(rel) for rel in pedidos]
     # El acuerdo comercial opcional de soporte y garantía: si está, se copia (con BOM, como la MIT); si no, la entrega vale.
     for rel in (documentos.get('opcionales') or ()):

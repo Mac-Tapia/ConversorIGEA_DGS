@@ -111,6 +111,26 @@
         "title": "AccionesAprendidasRespuesta",
         "type": "object"
       },
+      "AceptacionMatrizRespuesta": {
+        "additionalProperties": false,
+        "description": "100:RF-21, RF-23: la aceptación de la versión que corre la web: su versión y su fecha.",
+        "properties": {
+          "fecha": {
+            "title": "Fecha",
+            "type": "string"
+          },
+          "version": {
+            "title": "Version",
+            "type": "string"
+          }
+        },
+        "required": [
+          "version",
+          "fecha"
+        ],
+        "title": "AceptacionMatrizRespuesta",
+        "type": "object"
+      },
       "AceptarPeticion": {
         "additionalProperties": false,
         "properties": {
@@ -8376,6 +8396,16 @@
         "additionalProperties": false,
         "description": "100:RF-8, RF-10, RF-13: la matriz estudio × motor que sirve ``GET /api/estudios/matriz`` y de dónde salen sus estados.",
         "properties": {
+          "aceptacion": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AceptacionMatrizRespuesta"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
           "estudios": {
             "items": {
               "$ref": "#/components/schemas/EstudioMatrizRespuesta"
@@ -15033,7 +15063,7 @@
     },
     "/api/estudios/matriz": {
       "get": {
-        "description": "100:RF-8 a RF-10, RF-13: cada estudio de la web con cada motor, y de dónde salen sus estados.",
+        "description": "100:RF-8 a RF-10, RF-13, RF-21 a RF-23: cada estudio de la web con cada motor, de dónde salen sus estados\ny la aceptación de esta versión, si la hay.",
         "operationId": "matriz_estudios_api_estudios_matriz_get",
         "responses": {
           "200": {

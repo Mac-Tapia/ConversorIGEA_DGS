@@ -57,6 +57,10 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-44: SI el plan vigente lo preparó el sistema, CUANDO la vigilancia vea datos nuevos suficientes, EL SISTEMA lo preparará de nuevo con esos datos, y nunca sobrescribirá un plan que declaró el operador.
 - RF-45: MIENTRAS corre un ciclo con un plan preparado solo, EL SISTEMA exigirá a cada familia todas sus puertas de promoción (071:RF-3, RF-4), de modo que entrenar no promueva ningún candidato que no pase la suya.
 - RF-46: CUANDO un ciclo automático termine bien, EL SISTEMA dará por usados los datos que lo dispararon, para no lanzarlo otra vez con los mismos.
+- RF-47: SI la GPU la tiene otro proceso vivo cuando la vigilancia pide el ciclo, ENTONCES EL SISTEMA no lo encolará, anotará quién la tiene (RF-43) y lo encolará en una vuelta siguiente con la GPU libre.
+- RF-48: MIENTRAS corre el ciclo, SI otro trabajo de la web queda en cola o en curso o la GPU la toma otro proceso, ENTONCES EL SISTEMA pedirá parar al ciclo y lo terminará si no ha parado en 30 s, de modo que suelte el carril.
+- RF-49: CUANDO elija el espacio del ciclo (RF-37), EL SISTEMA descartará los espacios que anotó la aceptación de la versión (100:RF-24) y los que nombran sus variables.
+- RF-50: CUANDO el ciclo suelte el carril (RF-48), EL SISTEMA lo dirá en el Registro con su motivo, terminará el trabajo sin darlo por fallido ni por usados sus datos (RF-46) y dejará que la vigilancia lo pida otra vez.
 
 ## Requisitos no funcionales
 
@@ -113,6 +117,13 @@ varios libros, la GRU se omite diciendo que hay que declarar cuál, porque el ci
 por su nombre mezclaría sistemas. La zona horaria de las series es la del perfil de la empresa (`zona_horaria`); sin
 ella la GRU se omite con ese motivo (constitución P13: no se supone la de ninguna empresa). El corpus generativo es
 `corpus_llm/` del almacén; sin él, QLoRA se omite.
+
+Aclaración de RF-47 a RF-50 (2026-11-28, 11:31): al reiniciar la web, el ciclo automático se encoló en el carril `engine`
+con la GPU en manos de la suite; su entrenamiento quedó «bloqueado: GPU ocupada», pero el trabajo siguió ocupando el carril
+y la aceptación de la 100 esperó detrás («su carril lo tiene «Ciclo conjunto de aprendizaje»: se espera a que termine»)
+hasta que se canceló a mano. Además eligió como espacio uno de la aceptación, porque fue el del último trabajo de la web.
+«Otro proceso» es cualquiera que no sea la web, uno de sus antecesores o lo que lanzó el propio ciclo. El ciclo cedido se
+retoma desde su última etapa terminada (la reanudación del coordinador), no desde cero.
 
 ## Fuera de alcance
 

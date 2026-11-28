@@ -405,18 +405,20 @@ def olvidar_bloqueo(raiz: Path | str, etapa: str) -> None:
         _escribir(vigentes, anteriores)
 
 
-def espacio_mas_reciente(raiz_web: Path | str) -> str | None:
+def espacio_mas_reciente(raiz_web: Path | str, excluir: Iterable[str] = ()) -> str | None:
     """050:RF-37: el espacio guardado más recientemente (``workspace.json`` es lo que la web escribe al trabajar).
 
-    Solo cuando la sesión no tiene ninguna corrida: la web prefiere el espacio de su último trabajo.
+    Solo cuando la sesión no tiene ninguna corrida: la web prefiere el espacio de su último trabajo. 050:RF-49: nunca
+    uno de ``excluir``, los de la aceptación de la versión, que trabajan en DIgSILENT con sus propios proyectos.
     """
     raiz_web = Path(raiz_web)
     if not raiz_web.is_dir():
         return None
+    excluir = set(excluir)
     candidatos = []
     for carpeta in raiz_web.iterdir():
         ws = carpeta / 'workspace.json'
-        if carpeta.is_dir() and not carpeta.name.startswith('_') and ws.is_file():
+        if carpeta.is_dir() and not carpeta.name.startswith('_') and carpeta.name not in excluir and ws.is_file():
             candidatos.append((ws.stat().st_mtime_ns, carpeta.name))
     return max(candidatos)[1] if candidatos else None
 

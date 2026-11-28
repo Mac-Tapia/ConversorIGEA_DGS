@@ -1,4 +1,4 @@
-workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 467 módulos de Python en 39 subsistemas." {
+workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta entregables. Cifras del catálogo generado (spec 090) en la revisión fc2ac64d, 25-11-2026: 468 módulos de Python en 39 subsistemas." {
 
     // Las relaciones de componentes no se suben solas a los contenedores: cada vista muestra solo lo declarado.
     !impliedRelationships false
@@ -260,7 +260,7 @@ workspace "ConverterSmartGrid" "Arquitectura C4 navegable desde fuentes hasta en
                     "Motor dss" "OpenDSS (dss-python); puede crecer al desequilibrado con las fases (082)."
                     "Motor pandapower" "Newton-Raphson de pandapower: preflight y dimensionamiento del VAD sobre el FeederModel, y la red del área del PIT."
                 }
-                cmpMotoresAbiertos = component "Motores abiertos" "Red factorizada, los cinco motores de distribución, la red del PIT en pandapower y la matriz de qué motor calcula cada estudio (5 ficheros)." "Python" {
+                cmpMotoresAbiertos = component "Motores abiertos" "Red factorizada, los cinco motores de distribución, la red del PIT en pandapower y la matriz de qué motor calcula cada estudio (6 ficheros)." "Python" {
                     url "https://github.com/Mac-Tapia/ConverterSmartGrid/tree/fc2ac64db270bb6680e3d81f69c07436a1d81344/src/convertersmartgrid/adaptadores/digital_twin"
                     tags "Engine"
                     properties {

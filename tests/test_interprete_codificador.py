@@ -809,3 +809,25 @@ def test_sin_pedirla_ninguna_orden_humana_sale(falso):
     assert not (falso / 'para_colab' / di.ARCHIVO_CONFIRMADAS).exists()
     with pytest.raises(ValueError, match='--validacion-cruzada'):
         di.entrenar_para_colab(falso / 'para_colab', falso / 'cand', semillas=(11,), validacion_cruzada=True)
+
+
+def test_113_rf22_el_nombre_de_un_lugar_no_sale_a_colab():
+    """113:RF-22 — una orden confirmada real decía «…para 800 kW en el fundo Santa Rosa» y salía entera a Colab: el
+    nombre del lugar tras su clase se oculta, con sus artículos y enlaces, en cualquier caja; la red queda intacta."""
+    from convertersmartgrid.aplicacion.asistente import destilacion_integral as di
+
+    assert hasattr(di, '_sin_lugares'), 'falta 113:RF-22'
+    casos = {
+        'para 800 kW en el fundo Santa Rosa': 'para 800 kW en el fundo ‹lugar›',
+        'fundo santa rosa para 800 kW': 'fundo ‹lugar› para 800 kW',
+        'el centro poblado San José de los Molinos tiene 2 SED': 'el centro poblado ‹lugar› tiene 2 SED',
+        'lote 5 de la Hacienda El Carmen': 'lote 5 de la Hacienda ‹lugar›',
+        'carga en la calle Lima 123 del alimentador IN111': 'carga en la calle ‹lugar› 123 del alimentador IN111',
+        'convierte IN111 y TA225': 'convierte IN111 y TA225',
+        'calibra el sistema pisco con julio de 2026': 'calibra el sistema pisco con julio de 2026',
+    }
+    for antes, despues in casos.items():
+        assert di._sin_lugares(antes) == despues, (antes, di._sin_lugares(antes))
+    fila = {'texto': 'clasifica la solicitud del fundo Santa Rosa', 'datos': [], 'tarea': 'clasificar_informe'}
+    assert 'Santa' not in di.fila_sin_nombres(fila, b'sal', [])['texto']
+

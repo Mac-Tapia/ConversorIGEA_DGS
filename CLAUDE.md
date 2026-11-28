@@ -112,7 +112,7 @@ que se importan en PowerFactory, un alimentador por fichero o todos en una red u
   | 083 El oráculo antes de calibrar y recalibrar | cumplida | |
   | 084 Seis reglas del operador pasan de notas a requisitos con prueba | cumplida |  |
   | 085 Órdenes del maestro con grupos apartados, y la puerta de órdenes sin humanas suficientes | cumplida |  |
-  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | T9, T36, T40, T41, T79, T32, T34, T105 |
+  | 086 Puesta en operación comercial: versión 1.0 instalable, segura y probada de punta a punta | aprobada | T9, T36, T40, T79, T32, T34, T105 (T41, opcional: no bloquea) |
   | 087 Selección de obras con el oráculo, métodos probabilísticos y medición de la mejora | cumplida |  |
   | 088 Q negativa desde el factor de potencia | cumplida |  |
   | 089 Pronóstico de demanda en un módulo: datos vivos, limpieza, tres clases y backtest por método | aprobada | falta T7 |

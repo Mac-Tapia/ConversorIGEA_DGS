@@ -1347,6 +1347,28 @@ _RAZON_SOCIAL_SIN_PUNTOS = re.compile(r'(?<!\w)(?:[A-ZÁÉÍÓÚÑ][\wÁÉÍÓÚ
                                       r'(?:SA|SAA|SAC|SRL|EIRL|S\.?A\.?C|S\.?R\.?L)(?!\w)')
 
 
+#: 113:RF-22: el nombre de un lugar que sigue a su clase («el fundo Santa Rosa», «calle Lima», «centro poblado …»), que
+#: el catálogo no conoce porque no es de la red. El 2026-11-28 una orden confirmada real, «…para 800 kW en el fundo
+#: Santa Rosa», salía entera hacia Colab. Se ocultan hasta tres palabras tras la clase, escritas con mayúscula o no,
+#: hasta una palabra de enlace o una cifra; la clase se conserva para que la orden siga diciendo lo mismo.
+_CLASES_DE_LUGAR = (r'fundo|hacienda|predio|caser[ií]o|centro\s+poblado|c\.\s*p\.|urbanizaci[oó]n|urb\.|'
+                    r'asentamiento(?:\s+humano)?|aa\.?\s*hh\.?|anexo|calle|jir[oó]n|jr\.|avenida|av\.|pasaje|psje\.|'
+                    r'comunidad(?:\s+campesina)?|parcela|lote|granja|establo|agr[ií]cola|minera')
+_FIN_DE_LUGAR = (r'para|con|en|y|o|que|por|a|al|se|su|sus|kw|kva|mw|kv|sobre|desde|hasta|cerca|junto|tiene|es|son|'
+                  r'esta|está|hay|no|del\s+alimentador|alimentador|sed|set|barra|tramo')
+_PALABRA = rf'(?!(?:{_FIN_DE_LUGAR}|de|del|la|el|los|las)(?!\w))[^\W\d_][\w-]*'
+#: El nombre: un artículo opcional, una palabra y hasta tres más, unidas o no por «de», «del», «de la», «de los»…
+#: («Hacienda El Carmen», «San José de los Molinos»); para en una palabra de enlace, una cifra o la red.
+_LUGAR = re.compile(rf'(?i)(?<!\w)((?:{_CLASES_DE_LUGAR})\s+)'
+                    rf'((?:(?:el|la|los|las)\s+)?{_PALABRA}'
+                    rf'(?:\s+(?:(?:de|del)(?:\s+(?:la|los|las|el))?\s+)?{_PALABRA}){{0,3}})')
+
+
+def _sin_lugares(texto: str) -> str:
+    """113:RF-22: «fundo Santa Rosa» → «fundo ‹lugar›», conservando el espacio que seguía al nombre."""
+    return _LUGAR.sub(lambda m: m.group(1) + '‹lugar›', texto)
+
+
 def fila_sin_nombres(r: dict, sal: bytes, catalogo=None) -> dict:
     """113:RF-18: la fila con los nombres ocultos y sus datos en su sitio; su identidad, la de la fila nueva.
 
@@ -1357,7 +1379,7 @@ def fila_sin_nombres(r: dict, sal: bytes, catalogo=None) -> dict:
     from .corpus_redaccion import sin_nombres as _sin_nombres
 
     def sin_nombres(trozo: str, cat) -> str:
-        return _RAZON_SOCIAL_SIN_PUNTOS.sub('‹empresa›', _sin_nombres(trozo, cat))
+        return _sin_lugares(_RAZON_SOCIAL_SIN_PUNTOS.sub('‹empresa›', _sin_nombres(trozo, cat)))
 
     texto = r['texto']
     grupos: list[list] = []                 # datos que se pisan se tratan juntos: un trozo, varios datos

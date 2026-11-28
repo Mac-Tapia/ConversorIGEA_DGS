@@ -204,7 +204,7 @@ def test_lo_local_no_depende_de_colab(tmp_path):
 _FAMILIAS_T8 = {
     'asistente_redaccion': 'en_origen',
     'pronostico_demanda': 'tal_cual',
-    'madrl_obras': 'tal_cual',
+    'madrl_obras': 'grafo',
     'interprete_ordenes': 'en_origen',
     'interprete_ordenes_cruzada': 'en_origen',
 }
@@ -420,4 +420,33 @@ def test_el_dataset_json_sale_sin_los_libros_de_la_distribuidora(tmp_path):
     assert datos == {'huella': 'abc', 'series': 84}, datos
     assert 'Empresa X' not in (paquete / 'datos' / 'dataset.json').read_text(encoding='utf-8')
     assert {f['ruta'] for f in m['ficheros']} == {'dataset.json', 'curvas.parquet'}
+
+
+def test_113_rf23_el_grafo_sale_sin_nombres_y_con_la_misma_red(tmp_path, monkeypatch):
+    """113:RF-23 — el grafo de LL203 para MADRL llevaba la estructura del proyecto, los códigos de SED y el nombre de un
+    cliente en una barra; sale con cada objeto de DIgSILENT cambiado por un seudónimo estable de su clase y la red igual
+    de conectada."""
+    import json
+
+    from convertersmartgrid.aplicacion import entrenamiento_remoto as er
+
+    assert hasattr(er, 'grafo_sin_nombres'), 'falta 113:RF-23'
+    a = 'ElmTerm:Network Model.IntPrjfolder/Net.ElmNet/NODE_1_CLIENTEX.ElmTerm'
+    b = 'ElmTerm:Network Model.IntPrjfolder/Net.ElmNet/9131.ElmTerm'
+    g = {'nodos': {a: {'kv': 22.9}, b: {'kv': 22.9}},
+         'ramas': [{'id': 'ElmLne:Network Model.IntPrjfolder/Net.ElmNet/SEC_1.ElmLne', 'desde': a, 'hasta': b,
+                    'r_ohm': 0.02}]}
+    s = er.grafo_sin_nombres(g, b'sal')
+    texto = json.dumps(s)
+    assert 'CLIENTEX' not in texto and 'Network Model' not in texto and 'SEC_1' not in texto
+    assert set(s['nodos']) == {s['ramas'][0]['desde'], s['ramas'][0]['hasta']}, 'la misma red'
+    assert all(k.startswith('ElmTerm:') for k in s['nodos']) and s['ramas'][0]['r_ohm'] == 0.02
+    assert er.grafo_sin_nombres(g, b'sal') == s, 'estable'
+    origen = tmp_path / 'ds'
+    origen.mkdir()
+    (origen / 'grafo.json').write_text(json.dumps(g), encoding='utf-8')
+    monkeypatch.setattr(er, '_sal_colab', lambda: b'sal')
+    er.preparar_paquete(origen, familia='madrl_obras', revision='a' * 40, destino=tmp_path / 'out', repositorio='org/repo')
+    paquete = next((tmp_path / 'out').iterdir())
+    assert 'CLIENTEX' not in (paquete / 'datos' / 'grafo.json').read_text(encoding='utf-8')
 

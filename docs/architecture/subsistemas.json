@@ -101,7 +101,8 @@
     "adaptadores/digital_twin/motores_flujo.py",
     "adaptadores/pit/red_pandapower.py",
     "adaptadores/pit/motores.py",
-    "dominio/matriz_estudios.py"
+    "dominio/matriz_estudios.py",
+    "aplicacion/sello_aceptacion.py"
    ]
   },
   {

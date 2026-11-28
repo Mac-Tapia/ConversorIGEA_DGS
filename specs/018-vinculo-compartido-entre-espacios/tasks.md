@@ -46,3 +46,8 @@ Una tarea cada vez, pruebas primero. Al terminarla: suite en verde, `- [x]`, y p
       Evidencia (2026-11-10): `sistema_web.py --red CA191 PE194` dijo «ya no está en DIgSILENT», convirtió e
       importó `20261110-021747_CSG_TXT_8fc733e4_01_PE10` (Caso base VERIFICADO) y calibró CA191 (−0,02 %) y PE194
       (−0,43 %), ambos VALIDO; la aceptación nativa sobre él está en `D:/converter/evidencia_nativa/20261110_PE10_t4b`.
+- [x] T14. Verificación del «Caso base» con la ejecución del vínculo cuando es de otra fuente: la vista de
+      solo lectura de esa ejecución en `web/services.py` para `dgs_jobs`, `comprobar_dgs_vinculados` y
+      `check_powerfactory_source_run`, y la identidad de la fuente en `require_project_binding`. (RF-20, RF-21)
+      Hecho cuando: las pruebas de 018:RF-20 y 018:RF-21 de `tests/test_powerfactory_binding.py` en verde,
+      con las de RF-5, RF-12 y RF-15.

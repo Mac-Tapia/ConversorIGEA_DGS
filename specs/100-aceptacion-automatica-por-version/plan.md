@@ -31,3 +31,23 @@ Decisión: el estado sale de las specs y no de una lista escrita a mano, para qu
 - `carpeta_pf.proyecto_ausente`: el mensaje común; `tools/ajuste_cabecera_pf.py` lo usa en sus tres activaciones y ya no sigue con `None` tras la primera pasada de los bancos que faltan (RF-17).
 
 Decisión: tres defensas en capas y no una. El candado y la guarda del espacio evitan la causa del 25-11; la protección de los proyectos con trabajos cubre dos espacios distintos con el mismo alimentador, que ninguna de las dos ve. Se descarta que la importación deje de retirar versiones (005:RF-22 sigue valiendo) y que el nombre del proyecto se busque en el registro de la web: el título de cada trabajo de DIgSILENT ya lo lleva.
+
+
+## La aceptación valida la web (RF-18 a RF-24, 2026-11-28)
+
+- `aplicacion/sello_aceptacion.py`, nuevo: `carpeta_aceptacion` (`CSG_ACEPTACION_DATA` o `_aceptacion/` junto a los
+  espacios de la web, `raiz_datos_web`, como el agente MASAC); `sellar` recalcula el veredicto con los casos de la matriz
+  y escribe `sello_<revisión>.json` con `write_json_atomic` (RF-18 a RF-20); `version_en_uso` da `git rev-parse HEAD`
+  en un árbol con `.git` y, si no, `__version__` del paquete (RF-21); `sello_vigente` solo devuelve el de esa versión
+  (RF-22); `registrar_espacios` y `espacios_de_aceptacion` (RF-24, y los `CSG_ACEPTACION_*_ESPACIO` del entorno).
+- `tools/aceptacion_version.py`: aceptada, sella (RF-18); `--sellar <informe.json>` sella un informe ya corrido, con
+  `--variables` para anotar sus espacios y `--sellos` para otra carpeta (RF-19, RF-20, RF-24); los espacios se anotan
+  antes del primer caso.
+- `dominio/matriz_estudios.matriz(..., aceptacion=)`: la 100 vale por cumplida con el sello; el motivo de la celda
+  validada por él lo dice (RF-21, RF-23). `presentacion/web/matriz_estudios_api.py` busca el sello de su versión en cada
+  petición; `MatrizEstudiosRespuesta.aceptacion` en el contrato.
+
+Decisión: el sello vive en los datos del programa y no en `specs/`: cerrar la T4 a mano seguiría siendo un paso humano y
+la entrega instalada no trae `specs/`. Se descarta comparar el árbol (`git write-tree`) en la web: con un fichero sin
+seguimiento cambiaría y una versión aceptada dejaría de valer; la revisión basta para «otra versión no vale». La web no
+reconoce la revisión de un programa instalado, que no trae git: allí vale el sello cuya versión pedida es la del paquete.

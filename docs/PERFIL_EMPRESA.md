@@ -7,9 +7,13 @@ qué hace sin ella.
 ## Cómo empezar
 
 En el programa instalado, el perfil es `%LOCALAPPDATA%\ConverterSmartGrid\datos\config\perfil_empresa.json` y las órdenes
-de abajo se escriben `csg.cmd validar-perfil …`, desde la carpeta del programa (vea el manual de instalación).
+de abajo se escriben `csg.cmd validar-perfil …`, desde la carpeta del programa (vea el manual de instalación). La plantilla está en
+`documentos\plantilla_perfil_empresa.json`, en la carpeta del programa; en el repositorio, en `config/perfiles/plantilla.json`.
+No trae ningún valor: junto a cada clave, su `_comentario_<clave>` dice de quién es el dato, para qué sirve, cómo se escribe y qué
+hace el programa sin él. El programa no lee esos comentarios.
 
-1. Copie `config/perfiles/plantilla.json` como `config/perfil_empresa.json`. Ese fichero es local y no se comparte.
+1. Copie la plantilla como `perfil_empresa.json` (en el repositorio, `config/perfil_empresa.json`). Ese fichero es local y no se
+   comparte.
 2. Rellene lo que conozca. `config/perfiles/ficticia.json` muestra uno completo, de una empresa inventada.
 3. Compruébelo:
 
@@ -23,6 +27,10 @@ de abajo se escriben `csg.cmd validar-perfil …`, desde la carpeta del programa
    programa sin ellas (sale con 0), y qué claves no conoce, por si hay una errata.
 
 Un perfil puede heredar de otro con `"perfil": "<nombre>"`: sus claves pisan las heredadas y una clave en `null` anula la heredada.
+
+Para probar un perfil sin datos de una empresa, convierta la red de ejemplo de la carpeta `documentos` como dice
+`MANUAL_OPERADOR.md`, «Probar con la red de ejemplo». Las funciones que usan modelos (`gemelo`, entrenar, el asistente local)
+necesitan el complemento de IA: vea `MANUAL_OPERADOR.md`, «Instalar el complemento de IA».
 
 ## Empresa o norma
 

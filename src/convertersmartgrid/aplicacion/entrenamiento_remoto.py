@@ -74,7 +74,7 @@ FAMILIAS: dict[str, dict[str, Any]] = {
     # vio, y esas se quedan en el equipo (113:RF-6). Límites, banco y 40 iteraciones son los de la corrida de la 074
     # T7 (2026-11-21); la puerta los relee del manifiesto del modelo. MaskablePPO no entra: su espacio de acciones es
     # el de su red y no se guarda para otra (074:RF-13). Sin punto de control: cada semilla se rehace entera.
-    'madrl_obras': {'anonimizacion': 'tal_cual',
+    'madrl_obras': {'anonimizacion': 'grafo',
                     'entrenar': 'tools/madrl_entrenar.py --grafo {datos}/grafo.json --tension-min 0.95 '
                                 '--tension-max 1.05 --carga-max 100 --banco-mvar 0.3 --costo-banco 1 --politica gatv2 '
                                 '--iteraciones 40 --semilla {semilla} --dispositivo cuda --salida {salida}/resultado.json '
@@ -112,6 +112,7 @@ _DETALLE_ANONIMIZACION = {
     'texto': 'nombres de empresa, sede, instalación y lugares ocultos al empaquetar',
     'en_origen': 'anonimizado al construir el dataset; copiado byte a byte',
     'tal_cual': 'red y curvas tal cual: es lo que aprende el modelo',
+    'grafo': 'topología y valores eléctricos tal cual; cada objeto de DIgSILENT con un seudónimo estable',
 }
 
 #: Dónde se puede entrenar. «local» siempre (113:RF-16).
@@ -206,6 +207,44 @@ def _anonimizar_valor(valor: Any, catalogo) -> Any:
 #: --guardar-dataset`` los lleva (113 T8, 2026-11-27); las curvas, que son lo que se aprende, sí salen.
 CAMPOS_QUE_NO_SALEN = {'dataset.json': ('libros', 'avisos')}
 
+#: 113:RF-23: la ruta de un objeto de DIgSILENT en un grafo («ElmTerm:Network Model…\LL203.ElmNet\…_SEPALMAR.ElmTerm»).
+_RUTA_PF = re.compile(r'^((?:Elm|Sta|Typ|Int)[A-Za-z0-9]*):(.+)$')
+#: 113:RF-23: la sal de los seudónimos, la misma del corpus del intérprete (113:RF-18); nunca sale del equipo.
+SAL_COLAB = 'colab/sal_seudonimos.bin'
+
+
+def _sal_colab() -> bytes:
+    import secrets
+
+    from .asistente import almacen
+    ruta = almacen.raiz() / SAL_COLAB
+    if not ruta.is_file():
+        ruta.parent.mkdir(parents=True, exist_ok=True)
+        ruta.write_bytes(secrets.token_bytes(32))
+    return ruta.read_bytes()
+
+
+def grafo_sin_nombres(valor: Any, sal: bytes) -> Any:
+    """113:RF-23: el grafo con cada ruta de objeto de DIgSILENT cambiada por un seudónimo estable de su misma clase.
+
+    El 2026-11-28 el grafo de LL203 para MADRL llevaba la estructura del proyecto, los códigos de SED y el nombre de un
+    cliente en una barra (``…_SEPALMAR``); el modelo aprende de la topología y los valores eléctricos, no de los
+    nombres. La misma ruta da siempre el mismo seudónimo, así que la red queda igual de conectada.
+    """
+    import hmac
+
+    def seudo(texto: str) -> str:
+        m = _RUTA_PF.match(texto)
+        if not m:
+            return texto
+        return f'{m.group(1)}:' + hmac.new(sal, texto.encode('utf-8'), hashlib.sha256).hexdigest()[:16]
+
+    if isinstance(valor, dict):
+        return {seudo(k) if isinstance(k, str) else k: grafo_sin_nombres(v, sal) for k, v in valor.items()}
+    if isinstance(valor, list):
+        return [grafo_sin_nombres(v, sal) for v in valor]
+    return seudo(valor) if isinstance(valor, str) else valor
+
 
 def _copiar(origen: Path, destino: Path, modo: str, catalogo) -> None:
     destino.parent.mkdir(parents=True, exist_ok=True)
@@ -219,6 +258,9 @@ def _copiar(origen: Path, destino: Path, modo: str, catalogo) -> None:
             limpio = {k: v for k, v in datos.items() if k not in quitar}
             write_json_atomic(destino, limpio)
             return
+    if modo == 'grafo' and origen.suffix.lower() == '.json':                       # 113:RF-23
+        write_json_atomic(destino, grafo_sin_nombres(json.loads(origen.read_text(encoding='utf-8')), _sal_colab()))
+        return
     if modo == 'texto' and origen.suffix.lower() == '.jsonl':
         with origen.open(encoding='utf-8') as f, destino.open('w', encoding='utf-8', newline='\n') as g:
             for linea in f:

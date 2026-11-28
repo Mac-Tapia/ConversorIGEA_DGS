@@ -816,3 +816,148 @@ def test_018_rf19_con_vinculo_heredado_la_calibracion_usa_su_caso_base(tmp_path,
     assert contexto['binding']['source_run_id'] == 'run-de-otra-carpeta'
     assert contexto['binding'].get('origen', 'conversion') == 'conversion'
     assert all('a mano' not in a['message'] for a in contexto['binding_warnings'])
+
+
+class _CtxVerificacion:
+    """Contexto de trabajo que anota el registro y las órdenes al guion, sin abrir DIgSILENT."""
+
+    def __init__(self):
+        self.registro: list[str] = []
+        self.ordenes: list[list[str]] = []
+
+    def log(self, texto):
+        self.registro.append(str(texto))
+
+    def progress(self, *_a):
+        pass
+
+    def check_cancel(self):
+        pass
+
+    def run_process(self, cmd, **_kw):
+        self.ordenes.append([str(c) for c in cmd])
+        return 0                     # sin informe: el resultado dice NO_VERIFICADO, que aquí no importa
+
+
+def _con_geografia(ws):
+    """Los DGS sintéticos se convierten sin geografía; la verificación la pide para comparar el GPS."""
+    for dgs in ws.out_dir.glob('*.dgs'):
+        dgs.with_name(f'{dgs.stem}_geography.json').write_text('{}', encoding='utf-8')
+
+
+def _huellas(carpeta):
+    return {p.relative_to(carpeta).as_posix(): sha256_file(p) for p in sorted(carpeta.rglob('*')) if p.is_file()}
+
+
+def _dos_espacios(tmp_path, monkeypatch):
+    """El espacio que convirtió el proyecto y el del operador, con otra conversión activa y su propio proyecto.
+
+    Caso real (2026-11-27): un proyecto convertido en un espacio se recalibraba desde el del operador, que tiene
+    activa otra conversión de los TXT y otros proyectos convertidos con ella. Los alimentadores se sortean: vale para
+    cualquier empresa.
+    """
+    import random
+    import string
+
+    from convertersmartgrid.presentacion.web import services
+    from convertersmartgrid.presentacion.web.workspace import Workspace
+
+    azar = random.Random()
+    ajeno, propio = azar.sample([''.join(azar.choices(string.ascii_uppercase, k=2)) + str(n)
+                                 for n in range(100, 999)], 2)
+    raiz = tmp_path / 'web'
+    origen_ws = espacio_txt_custodiado(raiz / 'origen', seed=7803, feeder_name=ajeno)
+    operador = espacio_txt_custodiado(raiz / 'operador', seed=7804, feeder_name=propio)
+    for ws in (origen_ws, operador):
+        _con_geografia(ws)
+    origen, activa = origen_ws.active_run(), operador.active_run()
+    assert origen.fingerprint != activa.fingerprint
+    p_ajeno, p_propio = f'Oct/{ajeno}', f'Oct/{propio}'
+    v_ajeno = _binding(project=p_ajeno, feeders=(ajeno,), source_run_id=origen.run_id,
+                       source_fingerprint=origen.fingerprint,
+                       dgs_sha256={ajeno: sha256_file(origen.root / 'salida' / f'{ajeno}.dgs')}).as_dict()
+    v_propio = _binding(project=p_propio, feeders=(propio,), source_run_id=activa.run_id,
+                        source_fingerprint=activa.fingerprint,
+                        dgs_sha256={propio: sha256_file(activa.root / 'salida' / f'{propio}.dgs')}).as_dict()
+    origen_ws.pf_project_bindings[p_ajeno] = v_ajeno
+    origen_ws.save()
+    operador = Workspace.load(raiz / 'operador')            # tras reiniciar la web: sin la red en memoria
+    operador.pf_project_bindings.update({p_ajeno: v_ajeno, p_propio: v_propio})
+    operador.pf_inventory = {'folder': 'Empresa', 'projects': [
+        {'name': p.split('/')[-1], 'path': p, 'feeders': [f], 'native_inventory_sha256': 'n' * 64}
+        for p, f in ((p_ajeno, ajeno), (p_propio, propio))]}
+    operador.save()
+    monkeypatch.setattr(services, '_require_pf', lambda: (None, tmp_path / 'python_de_pf.exe'))
+    monkeypatch.setattr(services, '_gemelo', lambda *_a, **_k: None)
+    return SimpleNamespace(operador=operador, origen=origen, activa=activa, ajeno=ajeno, propio=propio,
+                           p_ajeno=p_ajeno, p_propio=p_propio)
+
+
+def _verificar(ws, ctx, project, feeders):
+    from convertersmartgrid.presentacion.web import services
+
+    try:
+        return services.pf_verificar_base(ws, ctx, project, feeders)
+    except services.UserError as exc:
+        return exc
+
+
+def _argumento(orden, nombre):
+    return orden[orden.index(nombre) + 1]
+
+
+def test_018_rf20_caso_base_de_otra_fuente_con_la_ejecucion_del_vinculo_sin_cambiar_la_activa(tmp_path, monkeypatch):
+    """018:RF-20 — el «Caso base» de un proyecto cuya ejecución del vínculo es de otra fuente y de otro espacio se
+    verifica con los DGS y la geografía de esa ejecución, solo leyéndola: la ejecución activa del espacio no cambia,
+    no se copia nada al espacio y el registro del trabajo lo dice. El otro proyecto del espacio, convertido con la
+    fuente activa, se sigue verificando con ella, como antes."""
+    caso = _dos_espacios(tmp_path, monkeypatch)
+    ws, origen = caso.operador, caso.origen
+    antes = _huellas(origen.root)
+    ctx = _CtxVerificacion()
+    resultado = _verificar(ws, ctx, caso.p_ajeno, [caso.ajeno])
+    assert not isinstance(resultado, Exception), f'la verificación falló: {resultado}'
+    assert ws.active_run_id == caso.activa.run_id
+    assert not (ws.root / 'runs' / origen.run_id).exists()
+    orden, = ctx.ordenes
+    assert _argumento(orden, '--source-dgs') == str(origen.root / 'salida' / f'{caso.ajeno}.dgs')
+    assert _argumento(orden, '--manifest') == str(origen.root / 'salida' / f'{caso.ajeno}_geography.json')
+    assert _argumento(orden, '--source-run-id') == origen.run_id
+    assert _argumento(orden, '--source-fingerprint') == origen.fingerprint
+    # El informe va al espacio que verifica; la ejecución del otro espacio no se escribe.
+    assert _argumento(orden, '--output-json') == str(ws.out_dir / f'{caso.ajeno}_caso_base.json')
+    assert _huellas(origen.root) == antes
+    assert any(origen.run_id in linea and 'activa' in linea for linea in ctx.registro), ctx.registro
+
+    ctx = _CtxVerificacion()
+    resultado = _verificar(ws, ctx, caso.p_propio, [caso.propio])
+    assert not isinstance(resultado, Exception), f'la verificación falló: {resultado}'
+    orden, = ctx.ordenes
+    assert _argumento(orden, '--source-dgs') == str(ws.out_dir / f'{caso.propio}.dgs')
+    assert _argumento(orden, '--source-run-id') == caso.activa.run_id
+    assert not any(origen.run_id in linea for linea in ctx.registro)
+
+
+@pytest.mark.parametrize('falta', ['carpeta', 'huella del manifiesto'])
+def test_018_rf21_sin_la_ejecucion_del_vinculo_se_dice_que_hacer_sin_abrir_digsilent(tmp_path, monkeypatch, falta):
+    """018:RF-21 — si la ejecución del vínculo ya no está en disco, o su manifiesto no es íntegro, la verificación se
+    rechaza antes de abrir DIgSILENT con un mensaje que nombra la ejecución y dice qué hacer, y la activa no cambia."""
+    import shutil
+
+    caso = _dos_espacios(tmp_path, monkeypatch)
+    ws, origen = caso.operador, caso.origen
+    if falta == 'carpeta':
+        shutil.rmtree(origen.root)
+    else:
+        manifiesto = origen.root / 'source_manifest.json'
+        datos = json.loads(manifiesto.read_text(encoding='utf-8'))
+        datos['files'][0]['sha256'] = '0' * 64             # la huella del manifiesto ya no cuadra con sus entradas
+        manifiesto.write_text(json.dumps(datos), encoding='utf-8')
+    ctx = _CtxVerificacion()
+    resultado = _verificar(ws, ctx, caso.p_ajeno, [caso.ajeno])
+    assert isinstance(resultado, Exception)
+    mensaje = str(resultado)
+    assert 'PROJECT_BINDING_SOURCE_UNAVAILABLE' in mensaje, mensaje
+    assert origen.run_id in mensaje and 'vuelva a convertir' in mensaje.lower(), mensaje
+    assert ctx.ordenes == []
+    assert ws.active_run_id == caso.activa.run_id

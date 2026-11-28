@@ -45,3 +45,19 @@ del guion («'NoneType' object has no attribute 'GetContents'») en vez de decir
 - RF-15: SI otro `sistema_web.py` vivo trabaja sobre el mismo espacio de la web, ENTONCES EL SISTEMA no convertirá ni importará nada y terminará con un fallo que nombre ese proceso.
 - RF-16: CUANDO una importación retire las versiones anteriores de su proyecto (005:RF-22), EL SISTEMA conservará, con un aviso, las que nombre un trabajo de la web en cola o en curso.
 - RF-17: SI el proyecto de una calibración ya no está en DIgSILENT, ENTONCES EL SISTEMA dejará en cada informe un error que nombre el proyecto, la carpeta y la causa probable, con el código de proyecto ausente, en vez de un error interno del guion.
+
+
+### La aceptación valida la web (2026-11-28)
+
+Usuario, 2026-11-28: «cada que valide se debe cerrar, se debe validar en la web, porque la otra vez ya se hizo todo esto
+y sigue sin validar en la web». El 26-11 pasaron los casos de la matriz y la web siguió en «Sin validar»: las celdas cuya
+evidencia cita esta spec (RF-9) esperaban a que se cerrara a mano su T4, aunque la orden ya diera la versión por aceptada
+(RF-7). Ese mismo día el ciclo de aprendizaje tomó un espacio de la aceptación por el del operador (050:RF-49).
+
+- RF-18: CUANDO la aceptación dé la versión por aceptada (RF-7), EL SISTEMA dejará en la carpeta de datos del programa un sello de esa versión, escrito de una vez, con la revisión completa, el árbol, la fecha, los casos y el veredicto.
+- RF-19: CUANDO se pida sellar el informe de una aceptación ya corrida, EL SISTEMA escribirá el mismo sello sin correr ningún caso.
+- RF-20: SI algún caso de la matriz no está aceptado sobre la misma revisión del informe que se sella, ENTONCES EL SISTEMA no escribirá ningún sello y dirá qué casos lo impiden.
+- RF-21: MIENTRAS haya un sello aceptado de la versión que corre la web (la revisión del árbol en desarrollo; la versión del paquete en el programa instalado), EL SISTEMA dará por cumplida la evidencia de esta spec en la matriz estudio × motor, con las demás specs de cada celda según RF-9.
+- RF-22: SI el sello es de otra versión, ENTONCES EL SISTEMA no lo tendrá en cuenta en la matriz.
+- RF-23: CUANDO una celda salga validada por el sello, EL SISTEMA dirá en ella la versión y la fecha de esa aceptación.
+- RF-24: CUANDO empiece la aceptación o se selle un informe, EL SISTEMA anotará en la carpeta de datos del programa los espacios de la web que usan los casos de la matriz.

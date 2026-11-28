@@ -384,6 +384,10 @@ Se transforma `CoordX/CoordY` con `pyproj` desde el `--source-crs` **de su expor
 
 Instale deps de desarrollo: `pip install -r requirements.txt`.
 
+La red de ejemplo de `ejemplos/red_inventada/` es inventada, la del generador sintético de las pruebas: va a `documentos` del
+programa instalado para convertir sin datos de una empresa (`MANUAL_OPERADOR.md`, «Probar con la red de ejemplo»), y
+`tests/test_red_de_ejemplo.py` la convierte con la orden del manual.
+
 Sin datos, pasan solo las sintéticas, y la suite «pasa» sin haber probado nada real. Con datos reales hacen falta `CSG_RED`, `CSG_LOADS` y `CSG_EQUIPMENT` (`CSG_TXT_DIR` no basta): la lista completa de variables, y la regla de darla por buena solo sin ninguna omitida, está en `CLAUDE.md`.
 
 Aceptación en PowerFactory (API: import DGS + crear/activar escenario + flujo de carga con correcciones): `docs/POWERFACTORY_ACCEPTANCE.md` y `tools/powerfactory_acceptance.py` / `tools/run_powerfactory_gate.bat`. En la GUI: **Cargar DGS en DIgSILENT + flujo**.

@@ -339,3 +339,18 @@ Las reexportaciones puntuales de tipos/lectores públicos en aprendizaje_continu
 mantienen consumidores existentes; su retirada física pertenece a 002 T9, no se
 declara terminada aquí. No se cierran 002 T7/T9/T12 ni 050 T1b–T5b por el AST o las
 pruebas CPU; las aceptaciones nativas/científicas y campañas siguen pendientes.
+
+### El ciclo no ocupa el carril de otro (T10, RF-47 a RF-50, 2026-11-28)
+
+- `aplicacion/trabajadores_ml.gpu_de_otro`: lee la guardia de la GPU sin tomarla; es de otro si su dueño vive y no es
+  este proceso, un antecesor ni un descendiente (RF-47, RF-48).
+- `presentacion/web/app.py` `encolar_ciclo_aprendizaje`: con la GPU de otro no encola y anota `gpu` una vez (RF-47);
+  el trabajo consulta antes de cada fase y pasa `ceder` a `run_process`, que cada 2 s pregunta, escribe el fichero de
+  cancelación del ciclo y, si en `GRACIA_CEDER_S` no ha salido, lo termina, y devuelve `CEDIDO` (RF-48). El ciclo
+  cedido devuelve `{'estado': 'cedido'}` y `al_ceder` quita de la vigilancia sus avisos vistos (RF-50). El espacio
+  descarta los de `sello_aceptacion.espacios_de_aceptacion` en el último trabajo y en `espacio_mas_reciente` (RF-49).
+- Descartado: que el ciclo espere la GPU con plazo (106:RF-21): esperando tiene el carril, que es justo el fallo.
+  Descartado también un carril propio para el aprendizaje: la memoria del equipo no admite el ciclo junto a un trabajo
+  del motor (rc=137 con dos colas a la vez).
+- Pruebas: `tests/test_plan_automatico_aprendizaje.py -k "rf47 or rf48 or rf49 or rf50"`, con la GPU y los trabajos
+  sintéticos y un guion de `-c` para `run_process`.

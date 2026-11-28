@@ -63,6 +63,9 @@
       almacén real (D:/csg/PM_IMPL/050_T3b/ensayo_informe.json): plan escrito y validado con transformer, pinn,
       evolutivos y embeddings, 4 h, 6 GiB y GPU; omitidas clasificador (el dataset no trae informes), gru (la cabecera
       del espacio es una carpeta de 5 libros) y qlora (sin corpus en el almacén); el almacén y el búfer, sin tocar.
+- [x] T10. El ciclo automático no se encola con la GPU de otro, cede el carril a otro trabajo o a otro dueño de la GPU sin darse por fallido y nunca elige un espacio de la aceptación. (RF-47, RF-48, RF-49, RF-50)
+      Hecho cuando: `pytest -q tests/test_plan_automatico_aprendizaje.py tests/test_aprendizaje_cola.py` en verde, con el rojo por aserción de las pruebas nuevas sobre 1ec36ff5.
+      Hecho el 2026-11-28 (rama `agente/validar-y-ciclo`, entregado por parche): rojo por aserción sobre 1ec36ff5 y verde en D:/csg/PM_IMPL/validar_y_ciclo.
 
 ## Evidencia y límites actuales
 

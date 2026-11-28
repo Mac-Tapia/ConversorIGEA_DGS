@@ -138,6 +138,33 @@ def quien_tiene_la_gpu(ruta: Path | str) -> str:
     return f"PID {dueno.get('pid')} ({dueno.get('model')}, desde {dueno.get('started_at')})"
 
 
+def gpu_de_otro(ruta: Path | str | None = None) -> str | None:
+    """050:RF-47, RF-48: quién tiene el turno de la GPU si es otro proceso vivo, o None; no toma el turno.
+
+    «Otro» no es este proceso, ninguno de sus antecesores (un padre que tiene el turno lo pasa a sus hijos) ni de sus
+    descendientes (el entrenamiento que lanzó este mismo trabajo). El 28-11 el ciclo de aprendizaje ocupó el carril de
+    la web con la GPU de la suite, y la aceptación esperó detrás hasta que se canceló a mano.
+    """
+    from .training_coordinator import proceso_vivo, ruta_guardia_gpu
+
+    ruta = Path(ruta) if ruta is not None else ruta_guardia_gpu()
+    try:
+        dueno = json.loads(ruta.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return None
+    pid = dueno.get('pid') if isinstance(dueno, dict) else None
+    if type(pid) is not int or pid <= 0 or not proceso_vivo(pid, creado=dueno.get('creado')):
+        return None
+    import psutil
+
+    try:
+        yo = psutil.Process()
+        propios = {yo.pid, *(p.pid for p in yo.parents()), *(p.pid for p in yo.children(recursive=True))}
+    except psutil.Error:
+        propios = {os.getpid()}
+    return None if pid in propios else quien_tiene_la_gpu(ruta)
+
+
 @contextmanager
 def turno_gpu_con_plazo(nombre: str, *, ruta: Path | str | None = None, limite_s: float, pausa_s: float = 5.0,
                         avisar=None, aviso_cada_s: float = 60.0, reloj=None, dormir=None):

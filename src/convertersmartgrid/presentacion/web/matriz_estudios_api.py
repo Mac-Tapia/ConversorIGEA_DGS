@@ -1,9 +1,13 @@
-"""100:RF-10, RF-13: la matriz estudio × motor en la web, con el estado de las specs del repositorio o, en el programa
-instalado, el del recurso que viaja en la entrega.
+"""100:RF-10, RF-13, RF-21 a RF-23: la matriz estudio × motor en la web, con el estado de las specs del repositorio o,
+en el programa instalado, el del recurso que viaja en la entrega, y el sello de la aceptación de la versión que corre.
 
 Por qué el recurso. ``config/entrega.json`` excluye ``specs/``: el programa que abre el acceso directo del operador no
 tiene las specs, y leer solo de ahí ponía «sin validar» también a lo validado (auditoría de d8, 2026-11-19). El recurso
 lo escribe ``tools/estado_specs.py --escribir`` junto a ``specs/README.md``, con la huella del README del que sale.
+
+Por qué el sello. El 26-11 pasaron todos los casos de la aceptación y la web siguió en «Sin validar»: las celdas que
+citan la 100 esperaban a que alguien cerrara a mano su T4. El sello lo deja ``tools/aceptacion_version.py`` al dar la
+versión por aceptada; aquí solo vale el de la versión que corre esta web (100:RF-22).
 """
 from __future__ import annotations
 
@@ -14,6 +18,7 @@ from pathlib import Path
 from fastapi import FastAPI
 
 from ...aplicacion.asistente.lectura_proyecto import estado_de_spec
+from ...aplicacion.sello_aceptacion import carpeta_aceptacion, sello_vigente, version_en_uso
 from ...dominio.matriz_estudios import matriz
 from .api_contract import MatrizEstudiosRespuesta
 
@@ -55,11 +60,21 @@ def estados_de_specs(raiz: Path, recurso: Path = RECURSO) -> tuple[Lector, str]:
     return (lambda _n: None), 'ninguno'
 
 
-def registrar_rutas_matriz(app: FastAPI, *, raiz: Path, recurso: Path = RECURSO) -> None:
-    """Monta ``GET /api/estudios/matriz``; ``raiz`` es la del programa, donde está ``specs/`` en el repositorio."""
+def aceptacion_de_la_version(raiz: Path, carpeta: Path | None = None) -> dict | None:
+    """100:RF-21, RF-22: el sello aceptado de la versión que corre el programa de ``raiz``, o None.
+
+    Se busca en cada petición, como el estado de las specs: una aceptación que termina se ve sin reiniciar la web.
+    """
+    return sello_vigente(version_en_uso(raiz), carpeta if carpeta is not None else carpeta_aceptacion(raiz))
+
+
+def registrar_rutas_matriz(app: FastAPI, *, raiz: Path, recurso: Path = RECURSO, sellos: Path | None = None) -> None:
+    """Monta ``GET /api/estudios/matriz``; ``raiz`` es la del programa, donde está ``specs/`` en el repositorio, y
+    ``sellos``, otra carpeta de los sellos de la aceptación (las pruebas)."""
 
     @app.get('/api/estudios/matriz', response_model=MatrizEstudiosRespuesta)
     def matriz_estudios() -> dict:
-        """100:RF-8 a RF-10, RF-13: cada estudio de la web con cada motor, y de dónde salen sus estados."""
+        """100:RF-8 a RF-10, RF-13, RF-21 a RF-23: cada estudio de la web con cada motor, de dónde salen sus estados
+        y la aceptación de esta versión, si la hay."""
         lector, origen = estados_de_specs(raiz, recurso)
-        return matriz(lector, origen)
+        return matriz(lector, origen, aceptacion_de_la_version(raiz, sellos))

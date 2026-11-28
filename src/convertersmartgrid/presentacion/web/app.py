@@ -20,6 +20,7 @@ import shutil
 import sys
 import tempfile
 import threading
+from collections.abc import Callable
 from contextlib import asynccontextmanager
 from datetime import date, datetime
 from pathlib import Path
@@ -44,7 +45,7 @@ from ...adaptadores.preview import politica_pagina_generada
 from ...dominio.runtime_paths import rutas_runtime, staging_publicacion, temporal_administrado
 from . import services
 from .copia_datos import carpeta_recordada, estado_copia
-from .jobs import FINISHED, JobManager, TrabajoRechazado
+from .jobs import CEDIDO, FINISHED, JobManager, TrabajoRechazado
 from .seguridad import AlcanceEdicion, PresupuestoIngreso, TrazaPeticion, instalar_seguridad
 from .api_contract import (JobRespuesta, HealthRespuesta, EspacioRespuesta, VersionRespuesta, DiagnosticoRespuesta,
     ResumenEspacioRespuesta, EntradaAsignadaRespuesta, AutoEntradasRespuesta,
@@ -123,33 +124,61 @@ def ruta_plan_aprendizaje() -> Path:
     return Path(ruta) if ruta else almacen.raiz() / 'aprendizaje' / 'plan.json'
 
 
-def _espacio_de_la_ultima_corrida(jobs) -> str | None:
-    """050:RF-37: el espacio del último trabajo del operador en esta sesión de la web (no los del aprendizaje)."""
+def _espacio_de_la_ultima_corrida(jobs, excluidos: frozenset[str] | set[str] = frozenset()) -> str | None:
+    """050:RF-37, RF-49: el espacio del último trabajo del operador en esta sesión de la web (no los del aprendizaje
+    ni los de una aceptación)."""
     for trabajo in reversed(list(jobs.list())):
-        if getattr(trabajo, 'workspace_id', None) and not str(trabajo.kind).startswith('aprendizaje:'):
-            return trabajo.workspace_id
+        espacio = getattr(trabajo, 'workspace_id', None)
+        if espacio and espacio not in excluidos and not str(trabajo.kind).startswith('aprendizaje:'):
+            return espacio
     return None
 
 
-def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
+def _espacios_de_aceptacion() -> set[str]:
+    """050:RF-49: los espacios que anotó la aceptación de la versión (100:RF-24); sin poder leerlos, ninguno."""
+    from ...aplicacion.sello_aceptacion import carpeta_aceptacion, espacios_de_aceptacion
+
+    try:
+        return espacios_de_aceptacion(carpeta_aceptacion(project_root()))
+    except (OSError, ValueError):
+        return set()
+
+
+class _CicloCedido(Exception):
+    """050:RF-48: el ciclo suelta el carril; el motivo es para el Registro."""
+
+
+def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str], *,
+                              gpu_de_otro: Callable[[], str | None] | None = None,
+                              al_ceder: Callable[[], Any] | None = None):
     """050:RF-4/8: un trabajo común por plan vivo, en el carril de fondo, que cede al operador.
 
     050:RF-36, RF-44 (usuario, 2026-11-27: «nada debe estar bloqueado»): sin plan, o con uno que preparó el propio
     sistema, el trabajo prepara antes el plan con los datos de hoy. Hasta entonces anotaba «Falta el plan del ciclo»
     cada minuto y no entrenaba nunca, aunque ``tools/preparar_ciclo_aprendizaje.py`` ya sabía escribirlo.
+
+    050:RF-47 a RF-50 (28-11, 11:31): al reiniciar la web, el ciclo se encoló con la GPU en manos de la suite, quedó
+    «bloqueado: GPU ocupada» y siguió ocupando el carril; la aceptación de la versión esperó detrás hasta que se
+    canceló a mano. Además había elegido como espacio uno de la aceptación, el del último trabajo de la web. Ahora no
+    se encola con la GPU de otro (``gpu_de_otro``), cede el carril en cuanto llega otro trabajo o la GPU la toma otro
+    (y ``al_ceder`` deja que la vigilancia lo pida de nuevo), y nunca elige un espacio de la aceptación.
     """
     from ...aplicacion import aprendizaje_continuo as ac
     from ...aplicacion.asistente import almacen
+    from ...aplicacion.trabajadores_ml import gpu_de_otro as _gpu_real
     from ...adaptadores.powerfactory_env import tools_dir
     # 086:RF-15: también en la edición de producto. Solo lo para la orden explícita (071:RF-6).
     if not autoentrenamiento_activo():
         return None
+    gpu = gpu_de_otro or _gpu_real
     ruta = ruta_plan_aprendizaje()
     raiz_ap = almacen.raiz() / 'aprendizaje'
     preparar = not ruta.is_file() or ac.plan_automatico(ruta)
     plan = None
     if preparar:
-        espacio = _espacio_de_la_ultima_corrida(jobs) or ac.espacio_mas_reciente(almacen.raiz().parent)
+        excluidos = _espacios_de_aceptacion()                                           # 050:RF-49
+        espacio = (_espacio_de_la_ultima_corrida(jobs, excluidos)
+                   or ac.espacio_mas_reciente(almacen.raiz().parent, excluir=excluidos))
         if not espacio:
             # 050:RF-8, RF-43: sin ningún espacio no hay de dónde sacar fuentes; se dice una vez y se reintenta.
             ac.registrar_bloqueo(raiz_ap, 'cola', ['Sin ningún espacio de trabajo no se puede preparar el plan del '
@@ -168,13 +197,35 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
         espacio = plan['workspace_id']
         kind = f'aprendizaje:{plan["plan_hash"]}'
 
+    def motivo_para_ceder(ctx) -> Callable[[], str | None]:
+        """050:RF-48: por qué el ciclo debe soltar el carril ahora, o None: otro trabajo de la web sin terminar (del
+        operador o de una aceptación) o la GPU en manos de otro proceso."""
+        pendientes = getattr(ctx, 'pendientes', list)
+
+        def consultar() -> str | None:
+            otros = [j for j in pendientes() if not str(getattr(j, 'kind', '')).startswith('aprendizaje:')]
+            if otros:
+                return f'«{otros[0].title}» espera en la cola; el ciclo de aprendizaje se pedirá de nuevo después'
+            quien = gpu()
+            if quien:
+                return f'la GPU la tiene {quien}; el ciclo de aprendizaje se pedirá de nuevo cuando la suelte'
+            return None
+        return consultar
+
     def ejecutar(ctx):
         # 067:RF-41: sin plan ni clic, pero con su recibo; sigue encendido por defecto (071:RF-6).
         with recibo_directo('reentreno_automatico', responsable='vigilancia', decision='automatico_por_defecto',
                             espacio=espacio,
                             entradas={'motivos': list(motivos), 'plan_hash': plan['plan_hash'] if plan else None,
                                       'plan_automatico': preparar}) as evidencia:
-            evidencia['salida'] = ciclo(ctx)
+            try:
+                evidencia['salida'] = ciclo(ctx)
+            except _CicloCedido as exc:
+                # 050:RF-50: ni fallido ni hecho: los datos siguen sin usar y la vigilancia lo pide otra vez.
+                ctx.log(f'El ciclo de aprendizaje cede el carril: {exc}.')
+                if al_ceder is not None:
+                    al_ceder()
+                evidencia['salida'] = {'estado': 'cedido', 'motivo': str(exc)}
         return evidencia['salida']
 
     def preparar_plan(ctx) -> dict:
@@ -186,8 +237,10 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
         codigo = ctx.run_process([sys.executable, str(tools_dir() / 'preparar_ciclo_aprendizaje.py'),
             '--automatico', '--almacen', str(almacen.raiz()), '--salida', str(carpeta),
             '--plan-salida', str(ruta), '--informe', str(informe), '--workspace-id', str(espacio)],
-            cwd=str(project_root()))
+            cwd=str(project_root()), ceder=motivo_para_ceder(ctx))
         ctx.check_cancel()
+        if codigo == CEDIDO:
+            raise _CicloCedido('se paró la preparación del plan para dejar pasar a otro')
         try:
             datos = json.loads(informe.read_text(encoding='utf-8'))
         except (OSError, ValueError):
@@ -210,14 +263,21 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
 
     def ciclo(ctx):
         ctx.check_cancel()
+        ceder = motivo_para_ceder(ctx)
+        if (motivo := ceder()) is not None:         # 050:RF-48: lo que llegó mientras esperaba en la cola
+            raise _CicloCedido(motivo)
         actual = preparar_plan(ctx) if preparar else plan
+        if (motivo := ceder()) is not None:
+            raise _CicloCedido(motivo)
         cancelacion = Path(actual['raiz']) / 'solicitudes' / ctx.job.id / 'cancelar'
         ctx.log('Ciclo conjunto de aprendizaje: ' + '; '.join(motivos))
         codigo = ctx.run_process([sys.executable, str(tools_dir() / 'aprendizaje_continuo.py'),
             'plan', '--archivo', str(Path(ruta).resolve()), '--plan-hash', actual['plan_hash'],
             '--cancelar-archivo', str(cancelacion)], cwd=str(project_root()),
-            cancel_file=cancelacion)
+            cancel_file=cancelacion, ceder=ceder)
         ctx.check_cancel()
+        if codigo == CEDIDO:
+            raise _CicloCedido('se paró el entrenamiento para dejar pasar a otro; se retoma desde su última etapa')
         if codigo != 0:
             raise ValueError(f'Ciclo conjunto bloqueado o fallido (código {codigo}); revise sus fases y motivos.')
         # 050:RF-46: los datos que lo dispararon ya se usaron; si no, la vigilancia lo pediría otra vez con ellos.
@@ -234,6 +294,13 @@ def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
             # El carril engine no protege al operador que ya trabaja en PowerFactory.
             # False permite que vigilancia vuelva a solicitarlo cuando se libere.
             return False
+        quien = gpu()
+        if quien:
+            # 050:RF-47: encolado, esperaría a la GPU con el carril tomado; se anota una vez y se pide más tarde.
+            ac.registrar_bloqueo(raiz_ap, 'gpu', [f'La GPU la tiene {quien}: el ciclo de aprendizaje se encolará '
+                                                  'cuando la suelte.'], solo_si_cambia=True, disparadores=motivos)
+            return False
+        ac.olvidar_bloqueo(raiz_ap, 'gpu')
         return jobs.submit(espacio, kind, 'Ciclo conjunto de aprendizaje', ejecutar, lane='engine')
 
 
@@ -258,7 +325,11 @@ def arrancar_vigilancia(jobs: JobManager):
                   # la orden valga sin reiniciar la web.
                   contar_nuevos=lambda: services.asistente_nuevos() if autoentrenamiento_activo() else (0, 0),
                   repo=project_root(), proceso_vivo=_suite_viva,
-                  ciclo=lambda motivos: encolar_ciclo_aprendizaje(jobs, motivos))
+                  ciclo=lambda motivos: encolar_ciclo_aprendizaje(jobs, motivos, al_ceder=olvidar_avisos_del_ciclo))
+
+    def olvidar_avisos_del_ciclo() -> None:
+        # 050:RF-50: un ciclo que cedió el carril no gastó sus avisos; la vuelta siguiente lo pide otra vez.
+        v.vistos.difference_update({k for k in list(v.vistos) if k.startswith(('gemelo:', 'asistente:'))})
     v.arrancar()
     return v
 
