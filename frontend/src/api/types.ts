@@ -2321,6 +2321,9 @@ export interface EscaneoAlimentador {
   tramos_nuevos?: { tramo: string; desde: string | null; hasta: string | null; km: number | null; origen: string }[];
   /** 028:RF-26: tramos del DGS aceptado que el operador cambió en una variación suya. */
   tramos_cambiados?: { tramo: string; variacion: string; tipo: string | null; km: number | null; en_servicio: boolean }[];
+  /** 028:RF-46: reguladores de tensión del alimentador, con lo que no cuadra. */
+  reguladores?: { regulador: string; barra_s: string | null; barra_l: string | null; ur_unidad_kv: number | null;
+    ir_a: number | null; control: boolean | null; en_servicio: boolean; origen: 'conversor' | 'operador'; avisos: string[] }[];
   /** 028:RF-45: lo cambiado en «Sin proyecto» frente al «Caso base», con su antes y su después. */
   frente_al_caso_base?: {
     tramos_quitados: { tramo: string }[];

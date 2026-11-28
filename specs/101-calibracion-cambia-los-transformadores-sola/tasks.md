@@ -32,3 +32,9 @@
 - [x] T8 RETIRADA-SELECTIVA (27-11). Lo del operador dentro de SED_NTP_ se conserva. (RF-18)
       Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (101:RF-18) en verde con su rojo por aserción, y LL203
       recalibrado conservando su regulador. Hecho el 2026-11-27 (evidencia en el commit que lo integra).
+- [x] T9 AGRANDADOS-AUTOMATICO [DIgSILENT] (27-11). Se detectan solos y se restituyen comprobando los kVA. (RF-19, RF-18)
+      Hecho cuando: `tests/test_ajuste_cabecera_guion.py` (101:RF-18, RF-19) en verde con su rojo por aserción, y LL203
+      recalibrado en DIgSILENT con sus transformadores en los kVA del archivo y su regulador conservado.
+      Hecho el 2026-11-27 en DIgSILENT (20261126-082314_CSG_TXT_LL203, informe ajuste_cabecera_aplicacion_f9c157515b8e):
+      VALIDO con desvío −0,33 %; pérdidas de 1 072 a 659 kW y factor de escala de 0,034 a 0,089; solo el grupo de
+      SE80083 queda sobre el kVA del archivo (2 × 630 kVA por SED, su ficha); el regulador sigue en SED_NTP_.

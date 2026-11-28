@@ -800,8 +800,10 @@ def diagnostico_fija_imposible(codigo: str, cliente: Iterable[tuple[Any, float, 
             'fraccion_energia': fraccion, 'hipotesis': hipotesis, 'pocos_registros': len(pasan) <= limite,   # 039:RF-28
             'texto': (f"{codigo}: mide más que su cabecera en {regs}"
                       + (f"; su energía es el {fraccion:.0%} de la de su cabecera" if fraccion is not None else '')
-                      + f"; hipótesis más probable: {hipotesis}. Su SED se reparte con las escaladas y el resto del "
-                        'alimentador se calibra.')}
+                      + f"; hipótesis más probable: {hipotesis}. "
+                      # 039:RF-28: con pocos registros se queda fija; LL203 (27-11) decía «se reparte» con SE80083 fija.
+                      + ('Su SED se queda fija con su medida: es carga del alimentador.' if len(pasan) <= limite else
+                         'Su SED se reparte con las escaladas y el resto del alimentador se calibra.'))}
 
 
 # =========================================================================== cuadre

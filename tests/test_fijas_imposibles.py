@@ -269,6 +269,7 @@ def test_039_rf28_la_fija_que_hace_la_mayor_parte_no_se_libera_por_pocos_registr
     cliente = [(t, (3500.0 if i < 5 else 1500.0), q) for i, (t, _kw, q) in enumerate(cabecera)]
     d = ac.diagnostico_fija_imposible('481000151', cliente, cabecera)
     assert d['pocos_registros'] is True, d
+    assert 'se queda fija' in d['texto'] and 'se reparte' not in d['texto'], 'el aviso dice lo que se hace'
 
 
 def test_039_rf29_el_cliente_marcado_a_su_maxima_no_se_libera():
@@ -285,3 +286,4 @@ def test_039_rf29_el_cliente_marcado_a_su_maxima_no_se_libera():
                                      del_operador=['700064806'])
     assert marcada['liberadas'] == [] and marcada['fijas'][0]['marcada_por_el_operador'], marcada
     assert 'el operador la marcó a su máxima' in marcada['texto']
+

@@ -679,3 +679,26 @@ def test_028_rf46_revisa_el_regulador_existente():
     assert esc.revisar_regulador(bien, kv_red=22.9, carga_kw=3300.0) == []
     assert any('no regula' in a for a in esc.revisar_regulador({**bien, 'control': False}, kv_red=22.9))
 
+
+
+def test_028_rf46_el_escaneo_lee_el_regulador_del_alimentador(guion):
+    """028:RF-46 — LL203 (27-11): el regulador que el operador puso a mano sale en el escaneo con sus barras, su tensión
+    y corriente por unidad, si regula y de quién es; mal puesto, con sus avisos."""
+    from types import SimpleNamespace as NS
+
+    assert hasattr(guion, '_reguladores'), 'falta 028:RF-46'
+
+    def barra(nombre, kv):
+        return NS(cterm=NS(loc_name=nombre, uknom=kv))
+
+    tipo = NS(loc_name='Step-Voltage Regulator', config=0, Unom=22.9, Inom=2000.0, Sn=0.1716)
+    reg = NS(loc_name='Regulator01', typ_id=tipo, bus1=barra('NODE_S', 22.9), busl=barra('Terminal', 22.9),
+             usetp=1.0, ntrcn=0, outserv=0)
+    reg.GetAttribute = lambda a: {'m:Psum:bus1': 3.3}[a]
+    alims = NS(objetos=lambda f, clase: [reg] if clase == 'ElmVoltreg' else [])
+    [r] = guion._reguladores(alims, 'LL203', {('ElmVoltreg', 'Regulator01'): 'Regulador LL203'})
+    assert (r['barra_s'], r['barra_l'], r['configuracion'], r['ur_unidad_kv'], r['ir_a']) == (
+        'NODE_S', 'Terminal', 'estrella', 22.9, 2000.0)
+    assert r['control'] is False and r['origen'] == 'operador' and round(r['p_kw']) == 3300
+    assert any('13.22 kV' in a for a in r['avisos']) and any('no regula' in a for a in r['avisos'])
+    assert any('sobredimensionado' in a for a in r['avisos'])

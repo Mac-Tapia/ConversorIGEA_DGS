@@ -2652,24 +2652,84 @@ def test_015_rf77_la_cabecera_que_lleva_de_media_mas_de_lo_que_su_red_puede(guio
 
 def test_101_rf18_lo_del_operador_dentro_de_sed_ntp_se_conserva(guion, monkeypatch):
     """101:RF-18 — LL203 (27-11): el regulador existente del operador y su barra quedaron grabados en «SED_NTP_»; partir
-    de los transformadores del archivo no borra la variación: deshace solo sus transformadores y lo dice."""
+    de los transformadores del archivo no borra la variación: restituye los del «Caso base», conserva lo demás y lo dice;
+    si los kVA no vuelven, es un error y no se calibra encima."""
     from types import SimpleNamespace as NS
-
-    from convertersmartgrid.adaptadores import pf_arnes
-
-    borrados = []
 
     def obj(nombre, clase):
         return NS(loc_name=nombre, GetClassName=lambda: clase)
 
-    etapa = NS(GetContents=lambda patron='*', r=0: [obj('TR_SE1', 'ElmTr2'), obj('TR_SE2', 'ElmTr2'),
-                                                     obj('Regulator01', 'ElmVoltreg'), obj('Terminal', 'ElmTerm')])
-    variacion = NS(loc_name='SED_NTP_P', GetContents=lambda patron='*', r=0: [etapa], Deactivate=lambda: 0)
+    etapa = NS(GetContents=lambda patron='*', r=0: [obj('TR_SE1', 'ElmTr2'), obj('Regulator01', 'ElmVoltreg'),
+                                                     obj('Terminal', 'ElmTerm')])
+    variacion = NS(loc_name='SED_NTP_P', GetContents=lambda patron='*', r=0: [etapa])
     app = NS(GetActiveProject=lambda: 'P')
     monkeypatch.setattr(guion, 'nombre_de_la_propia', lambda app, prefijo, proyecto, avisos=None: 'SED_NTP_P')
     monkeypatch.setattr(guion, 'variacion_propia', lambda app, nombre: variacion)
-    monkeypatch.setattr(pf_arnes, 'borrar_en_su_proyecto', lambda o, p: borrados.append(o.loc_name))
+    hecho = {'restituidos': ['TR_SE1'], 'kva_antes': 67895.0, 'kva_despues': 5069.0, 'kva_caso_base': 5069.0,
+             'avisos': [], 'error': None}
+    monkeypatch.setattr(guion, 'restituir_transformadores_del_caso_base', lambda app, v, plan: hecho)
     r = guion.retirar_transformadores_de_la_calibracion(app, {'project': 'P'})
-    assert r['retirada'] is None and borrados == ['TR_SE1', 'TR_SE2'], (r, borrados)
+    assert r['retirada'] is None and r['transformadores_deshechos'] == ['TR_SE1'] and r['error'] is None, r
     assert r['conservados'] == ['Regulator01 (ElmVoltreg)', 'Terminal (ElmTerm)']
-    assert any('se conservan' in a for a in r['avisos'])
+    assert any('se conservan' in a and '67,895 → 5,069 kVA' in a for a in r['avisos']), r['avisos']
+    hecho['error'] = 'no volvieron'
+    assert guion.retirar_transformadores_de_la_calibracion(app, {'project': 'P'})['error'] == 'no volvieron'
+
+
+def test_101_rf18_restituye_el_tipo_y_las_unidades_del_caso_base(guion, monkeypatch):
+    """101:RF-18 — LL203 (27-11): ``Delete`` sobre la etapa no deshacía los transformadores (67 895 kVA frente a 5 069);
+    se escribe el tipo y las unidades del «Caso base» y se vuelve a leer."""
+    from types import SimpleNamespace as NS
+
+    import casos_pf
+
+    chico, grande = NS(loc_name='T100', strn=0.1), NS(loc_name='T630', strn=0.63)
+    tr = NS(loc_name='TR_SE1', typ_id=chico, ntnum=1, GetFullName=lambda: 'P/TR_SE1')
+    base, sin = NS(loc_name='Caso base', Activate=lambda: estado.update(caso='base')), NS(
+        loc_name='Sin proyecto', Activate=lambda: estado.update(caso='sin'))
+    estado = {'caso': 'sin'}
+
+    def relevantes(patron):
+        if estado['caso'] == 'base':
+            return [NS(typ_id=chico, ntnum=1, GetFullName=lambda: 'P/TR_SE1')]
+        return [tr]
+
+    tr.typ_id, tr.ntnum = grande, 2
+    app = NS(GetActiveStudyCase=lambda: sin, GetCalcRelevantObjects=relevantes)
+    monkeypatch.setattr(casos_pf, 'caso', lambda app, rol, anio=None: {'base': base, 'sin': sin}[rol])
+    monkeypatch.setattr(guion, '_etapa_ajena', lambda app: None)
+    monkeypatch.setattr(guion, '_devolver_grabacion', lambda app, e: None)
+    monkeypatch.setattr(guion, 'variacion_grabando', lambda app, n, e: (None, False))
+    r = guion.restituir_transformadores_del_caso_base(app, NS(loc_name='SED_NTP_P'), {})
+    assert (tr.typ_id, tr.ntnum) == (chico, 1) and r['restituidos'] == ['TR_SE1'], r
+    assert (round(r['kva_antes']), round(r['kva_despues']), r['error']) == (1260, 100, None), r
+
+
+def test_101_rf19_detecta_los_agrandados_por_una_calibracion_anterior(guion, monkeypatch):
+    """101:RF-19 — LL203 (27-11): 167 de 167 transformadores con 67 895 kVA en «Sin proyecto» frente a 5 069 del «Caso
+    base»: se detecta solo y se parte de los del archivo. Unas pocas SED agrandadas por su máxima no cuentan."""
+    from types import SimpleNamespace as NS
+
+    import casos_pf
+
+    estado = {'caso': 'sin'}
+    base = NS(loc_name='Caso base', Activate=lambda: estado.update(caso='base'))
+    sin = NS(loc_name='Sin proyecto', Activate=lambda: estado.update(caso='sin'))
+    t100 = NS(strn=0.1)
+    agrandar = {'n': 10}
+
+    def relevantes(patron):
+        out = []
+        for i in range(10):
+            grande = estado['caso'] == 'sin' and i < agrandar['n']
+            out.append(NS(typ_id=NS(strn=1.0) if grande else t100, ntnum=1, GetFullName=lambda i=i: f'P/TR{i}'))
+        return out
+
+    app = NS(GetActiveStudyCase=lambda: sin, GetCalcRelevantObjects=relevantes)
+    monkeypatch.setattr(casos_pf, 'caso', lambda app, rol, anio=None: {'base': base, 'sin': sin}[rol])
+    r = guion.agrandados_por_una_calibracion_anterior(app, {})
+    assert r and (r['agrandados'], r['transformadores'], round(r['kva_sin']), round(r['kva_base'])) == (
+        10, 10, 10000, 1000), r
+    agrandar['n'] = 2
+    assert guion.agrandados_por_una_calibracion_anterior(app, {}) is None, 'pocas SED agrandadas son legítimas'
+

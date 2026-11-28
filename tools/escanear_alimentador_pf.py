@@ -71,6 +71,73 @@ def _generadores(alims, feeder: str, de_objeto: dict) -> list[dict]:
     return sorted(filas, key=lambda x: (str(x['barra']), x['generador']))
 
 
+#: 028:RF-46: atributos candidatos del tipo del regulador (``TypVoltreg``), por orden; el primero que responda vale.
+ATRIBUTOS_TENSION_UNIDAD = ('Unom', 'unom', 'urat', 'Ur')
+ATRIBUTOS_CORRIENTE_UNIDAD = ('Inom', 'inom', 'irat', 'Ir')
+
+
+def _primero(obj, atributos: tuple[str, ...]) -> float | None:
+    from cargas_pf import _num
+
+    for a in atributos:
+        v = None if obj is None else _num(obj, a)
+        if v is not None:
+            return v
+    return None
+
+
+def _reguladores(alims, feeder: str, de_objeto: dict) -> list[dict]:
+    """028:RF-46: los reguladores de tensión del alimentador, con lo que no cuadra.
+
+    LL203 (27-11): el operador puso a mano su regulador existente de 5 MW, en estrella, entre
+    NODE_2010_330303_SEPALMAR y una barra nueva; el escaneo no lo veía. La tensión de la red es la de su barra S.
+    """
+    from cargas_pf import _num
+
+    from convertersmartgrid.aplicacion.escaneo import revisar_regulador
+
+    filas = []
+    for r in alims.objetos(feeder, 'ElmVoltreg'):
+        try:
+            filas.append(_regulador(r, de_objeto, _num, revisar_regulador))
+        except Exception as exc:  # noqa: BLE001 - un regulador ilegible no tumba el escaneo del alimentador (RF-8)
+            filas.append({'regulador': getattr(r, 'loc_name', '?'), 'barra_s': None, 'barra_l': None,
+                          'ur_unidad_kv': None, 'ir_a': None, 'control': None, 'en_servicio': True,
+                          'origen': 'operador', 'avisos': [f'no se pudo leer: {type(exc).__name__}: {exc}']})
+    return sorted(filas, key=lambda x: x['regulador'])
+
+
+def _regulador(r, de_objeto: dict, _num, revisar_regulador) -> dict:
+    """028:RF-46: un regulador con sus barras, su tipo y su revisión."""
+    if True:
+        tipo = getattr(r, 'typ_id', None)
+        barras = {}
+        # 028 T20 (LL203, 27-11): en DIgSILENT el regulador no tiene ``bus2``: su lado de carga es ``busl``.
+        for lado, attrs in (('s', ('bus1', 'bush', 'busv')), ('l', ('busl', 'bus2', 'buslv'))):
+            cub = next((c for c in (getattr(r, a, None) for a in attrs) if c is not None), None)
+            t = getattr(cub, 'cterm', None)
+            barras[lado] = (getattr(t, 'loc_name', None), None if t is None else _num(t, 'uknom'))
+        config = None if tipo is None else _num(tipo, 'config')
+        p, sn, ntrcn = _num(r, 'm:Psum:bus1'), None if tipo is None else _num(tipo, 'Sn'), _num(r, 'ntrcn')
+        variacion = de_objeto.get(('ElmVoltreg', r.loc_name))
+        fila = {'regulador': r.loc_name, 'tipo': getattr(tipo, 'loc_name', None),
+                'barra_s': barras['s'][0], 'kv_s': barras['s'][1],
+                'barra_l': barras['l'][0], 'kv_l': barras['l'][1],
+                # 028 T20: qué valor de ``config`` es la estrella se comprueba en DIgSILENT con el de LL203.
+                'configuracion_codigo': config,
+                'configuracion': 'estrella' if config == 0 else None,
+                'ur_unidad_kv': _primero(tipo, ATRIBUTOS_TENSION_UNIDAD),
+                'ir_a': _primero(tipo, ATRIBUTOS_CORRIENTE_UNIDAD),
+                'sn_kva': None if sn is None else sn * 1000.0,
+                'consigna_pu': _num(r, 'usetp'),
+                'control': None if ntrcn is None else bool(ntrcn),
+                'p_kw': None if p is None else p * 1000.0,
+                'en_servicio': not int(getattr(r, 'outserv', 0) or 0),
+                'variacion': variacion, **origen_de(r.loc_name, variacion)}
+        fila['avisos'] = revisar_regulador(fila, kv_red=fila['kv_s'], carga_kw=fila['p_kw'])
+        return fila
+
+
 def _en_barra_de_cabecera(alims, feeder: str, de_objeto: dict) -> tuple[list[dict], list[dict]]:
     """RF-29: generadores y bancos en la barra de cabecera; el ``ElmFeeder`` empieza aguas abajo de ella.
 
@@ -307,7 +374,8 @@ def ejecutar(app, plan: dict) -> tuple[dict, int]:
                                            'tramos_nuevos': _tramos_nuevos(alims, f, de_dgs, de_objeto)
                                            if de_dgs else [],
                                            'tramos_cambiados': _tramos_cambiados(alims, f, de_dgs,
-                                                                                 de_objeto)}
+                                                                                 de_objeto),
+                                           'reguladores': _reguladores(alims, f, de_objeto)}     # RF-46
             if a_medias:
                 informe['alimentadores'][f]['cargas_de_una_orden_cortada'] = a_medias
             if f in fotos_base:                                                   # 028:RF-45

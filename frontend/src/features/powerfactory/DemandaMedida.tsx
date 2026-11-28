@@ -1404,6 +1404,11 @@ function EscaneoTabla({ escaneo }: { escaneo: Escaneo }) {
           </tr>
         ))}</tbody>
       </table>
+      {Object.entries(escaneo.alimentadores).flatMap(([f, d]) => (d.reguladores ?? []).map((r) => (
+        <p key={`${f}-${r.regulador}`}>Regulador {r.regulador} en {f} · {r.barra_s ?? '—'} → {r.barra_l ?? '—'}
+          {r.ur_unidad_kv != null ? ` · ${fmtNum(r.ur_unidad_kv)} kV` : ''}{r.ir_a != null ? ` · ${fmtNum(r.ir_a)} A` : ''}
+          {r.en_servicio ? '' : ' (fuera de servicio)'} · <small className="muted">{deQuien(r.origen)}</small>
+          {r.avisos.map((a) => <span key={a} className="badge warn">⚠ {a}</span>)}</p>)))}
       {ajenas.length > 0 && <p className="muted">Variaciones hechas a mano: {ajenas.map((v) =>
         `${v.variacion}${v.activa ? ' (activa)' : ''}, ${cuenta(v.objetos, 'objeto', 'objetos')}`).join('; ')}</p>}
       {escaneo.avisos.map((a) => <p key={a} className="muted">{a}</p>)}

@@ -3709,6 +3709,102 @@ def _ejecutar(app, plan: dict, *, simular: bool, cancelado, estado: dict) -> tup
 CLASES_DE_SED_NTP = frozenset({'ElmTr2', 'TypTr2'})
 
 
+def _transformadores_del_caso(app) -> dict:
+    """Nombre completo de cada ``ElmTr2`` del caso activo → (tipo, unidades, kVA)."""
+    out = {}
+    for tr in app.GetCalcRelevantObjects('*.ElmTr2') or []:
+        tipo = tr.typ_id
+        unidades = max(1, int(_num(tr, 'ntnum') or 1))
+        out[tr.GetFullName()] = (tr, tipo, unidades, (_num(tipo, 'strn') or 0.0) * 1000.0 * unidades if tipo else 0.0)
+    return out
+
+
+def restituir_transformadores_del_caso_base(app, variacion, plan: dict) -> dict:
+    """101:RF-18: los transformadores de «Sin proyecto» vuelven a los del «Caso base», grabados en ``SED_NTP_``.
+
+    LL203 (27-11): borrar con ``Delete`` los cambios de transformadores de la etapa no los deshacía (el informe decía «se
+    deshicieron 167» y DIgSILENT seguía con 67 895 kVA frente a 5 069 del archivo); sus pérdidas en vacío y su
+    magnetización (1 072 kW y 2 069 kvar) dejaban las escaladas en casi cero. Se escribe en la etapa de la variación el
+    tipo y las unidades del «Caso base», se vuelve a leer y, si los kVA no coinciden, es un error: no se calibra encima.
+    """
+    from casos_pf import caso as caso_del_sistema
+
+    avisos: list[str] = []
+    inicial = app.GetActiveStudyCase()
+    base = caso_del_sistema(app, 'base')
+    sin = caso_del_sistema(app, 'sin', anio_del_plan(plan)) or caso_del_sistema(app, 'sin', None)
+    if base is None or sin is None:
+        return {'restituidos': [], 'kva_antes': 0.0, 'kva_despues': 0.0, 'kva_caso_base': 0.0, 'avisos': avisos,
+                'error': 'no hay «Caso base» o «Sin proyecto» para restituir los transformadores'}
+    try:
+        base.Activate()
+        de_base = {n: (tipo, u, kva) for n, (_tr, tipo, u, kva) in _transformadores_del_caso(app).items()}
+        sin.Activate()
+        ajena = _etapa_ajena(app)
+        actuales = _transformadores_del_caso(app)
+        kva_antes = sum(x[3] for x in actuales.values())
+        variacion_grabando(app, variacion.loc_name, 'sed_ntp')
+        restituidos = []
+        for n, (tr, tipo, u, _kva) in actuales.items():
+            b = de_base.get(n)
+            if b is None or (tipo is b[0] and u == b[1]):
+                continue
+            tr.typ_id, tr.ntnum = b[0], b[1]
+            restituidos.append(tr.loc_name)
+        aviso = _devolver_grabacion(app, ajena)
+        if aviso:
+            avisos.append(aviso)
+        despues = _transformadores_del_caso(app)
+        kva_despues = sum(x[3] for x in despues.values())
+        kva_base = sum(x[2] for n, x in de_base.items() if n in despues)
+        error = None
+        if not math.isclose(kva_despues, kva_base, rel_tol=1e-3):
+            error = (f'los transformadores de «{sin.loc_name}» no volvieron a los del «Caso base»: '
+                     f'{kva_despues:,.0f} kVA frente a {kva_base:,.0f}; no se calibra encima')
+        return {'restituidos': restituidos, 'kva_antes': kva_antes, 'kva_despues': kva_despues,
+                'kva_caso_base': kva_base, 'avisos': avisos, 'error': error}
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+
+
+#: 101:RF-19: veces el kVA del «Caso base» desde las que un transformador de «Sin proyecto» está agrandado.
+VECES_AGRANDADO = 1.5
+#: 101:RF-19: parte de los transformadores agrandados desde la que es la huella de una calibración con la máxima inflada.
+PARTE_AGRANDADA = 0.5
+
+
+def agrandados_por_una_calibracion_anterior(app, plan: dict) -> dict | None:
+    """101:RF-19: si en «Sin proyecto» más de la mitad de los transformadores tiene más de 1,5 veces el kVA del «Caso
+    base», los agrandó una calibración con la máxima inflada; devuelve las cifras, o ``None``.
+
+    LL203 (27-11): calibrada con la hoja de cabecera en décimas de kW, quedó con 67 895 kVA frente a 5 069 del archivo
+    (167 de 167 SED); recalibrar con la máxima corregida los conservaba y sus pérdidas dejaban las escaladas en cero. Una
+    calibración legítima solo agranda las pocas SED sobrecargadas, que la calibración vuelve a dimensionar.
+    """
+    from casos_pf import caso as caso_del_sistema
+
+    inicial = app.GetActiveStudyCase()
+    base = caso_del_sistema(app, 'base')
+    sin = caso_del_sistema(app, 'sin', anio_del_plan(plan)) or caso_del_sistema(app, 'sin', None)
+    if base is None or sin is None or base is sin:
+        return None
+    try:
+        base.Activate()
+        de_base = {n: x[3] for n, x in _transformadores_del_caso(app).items()}
+        sin.Activate()
+        de_sin = {n: x[3] for n, x in _transformadores_del_caso(app).items()}
+    finally:
+        if inicial is not None:
+            inicial.Activate()
+    comunes = [n for n in de_sin if de_base.get(n)]
+    agrandados = [n for n in comunes if de_sin[n] > VECES_AGRANDADO * de_base[n]]
+    if not comunes or len(agrandados) <= PARTE_AGRANDADA * len(comunes):
+        return None
+    return {'agrandados': len(agrandados), 'transformadores': len(comunes),
+            'kva_sin': sum(de_sin[n] for n in comunes), 'kva_base': sum(de_base[n] for n in comunes)}
+
+
 def retirar_transformadores_de_la_calibracion(app, plan: dict) -> dict:
     """101:RF-16: quita la variación ``SED_NTP_`` del conversor de este proyecto: los transformadores vuelven a los del
     archivo y la calibración cambia después solo los que su máxima pida (RF-1 a RF-6).
@@ -3731,15 +3827,16 @@ def retirar_transformadores_de_la_calibracion(app, plan: dict) -> dict:
     grabado = [o for e in variacion.GetContents('*.IntSstage', 1) or [] for o in e.GetContents('*', 1) or []]
     ajenos = [o for o in grabado if o.GetClassName() not in CLASES_DE_SED_NTP]
     if ajenos:
-        deshechos = [o.loc_name for o in grabado if o.GetClassName() == 'ElmTr2']
-        for o in [o for o in grabado if o.GetClassName() == 'ElmTr2']:
-            borrar_en_su_proyecto(o, proyecto)
         conservados = sorted({f'{o.loc_name} ({o.GetClassName()})' for o in ajenos})
+        hecho = restituir_transformadores_del_caso_base(app, variacion, plan)
+        avisos += hecho.get('avisos') or []
         avisos.append(f"{nombre} tiene cambios que no son de transformadores ({', '.join(conservados[:10])}): se "
-                      f"conservan; solo se deshacen {len(deshechos)} transformadores. Conviene pasar esos cambios a una "
-                      'variación propia.')
-        return {'retirada': None, 'transformadores_deshechos': deshechos, 'conservados': conservados,
-                'variacion': nombre, 'avisos': avisos}
+                      f"conservan; los transformadores vuelven a los del «Caso base» ({len(hecho['restituidos'])} "
+                      f"cambiados; {hecho['kva_antes']:,.0f} → {hecho['kva_despues']:,.0f} kVA). Conviene pasar esos "
+                      'cambios a una variación propia.')
+        return {'retirada': None, 'transformadores_deshechos': hecho['restituidos'], 'conservados': conservados,
+                'variacion': nombre, 'kva_antes': hecho['kva_antes'], 'kva_despues': hecho['kva_despues'],
+                'kva_caso_base': hecho['kva_caso_base'], 'avisos': avisos, 'error': hecho.get('error')}
     inicial = app.GetActiveStudyCase()
     casos = []
     try:
@@ -3776,9 +3873,24 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
     red = _red_de_la_fuente(app, planes)
     _RED_DE_LA_FUENTE = red
     retirados = None
-    if any(p.get('transformadores_del_archivo') for p in planes):                    # 101:RF-16
+    agrandados = None
+    if not any(p.get('transformadores_del_archivo') for p in planes):                # 101:RF-19
+        activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
+        agrandados = agrandados_por_una_calibracion_anterior(app, planes[0])
+    if agrandados or any(p.get('transformadores_del_archivo') for p in planes):      # 101:RF-16
         activar_proyecto(app, planes[0]['project'], planes[0].get('folder'))
         retirados = retirar_transformadores_de_la_calibracion(app, planes[0])
+        if agrandados:
+            retirados['automatico'] = agrandados
+            retirados.setdefault('avisos', []).insert(0, (
+                f"{agrandados['agrandados']} de {agrandados['transformadores']} transformadores tenían en «Sin "
+                f"proyecto» más de {VECES_AGRANDADO:g} veces su kVA del «Caso base» ({agrandados['kva_sin']:,.0f} "
+                f"frente a {agrandados['kva_base']:,.0f} kVA): los agrandó una calibración anterior y se parte de los "
+                'del archivo.'))
+        if retirados.get('error'):                                                  # 101:RF-18
+            return [({'project': p.get('project'), 'feeder': p.get('feeder'), 'error': retirados['error'],
+                      'transformadores_retirados': retirados, 'avisos': list(retirados.get('avisos') or [])}, 2)
+                    for p in planes]
     try:
         if len(planes) == 1 and not bancos and not barra:
             resultados = [ejecutar(app, p, simular=simular, cancelado=cancelado) for p in planes]
@@ -3810,8 +3922,7 @@ def ejecutar_proyecto(app, planes: list[dict], *, simular: bool = False,
                     f"Transformadores del archivo: se quitó {retirados['retirada']} (activa en "
                     f"{', '.join(retirados.get('casos') or []) or 'ningún caso'}); la calibración cambia solo los que pide "
                     'su máxima.' if retirados.get('retirada') else
-                    f"Transformadores del archivo: se deshicieron {len(retirados['transformadores_deshechos'])} "
-                    f"transformadores de {retirados['variacion']}; " + ' '.join(retirados.get('avisos') or [])
+                    'Transformadores del archivo: ' + ' '.join(retirados.get('avisos') or [])
                     if retirados.get('transformadores_deshechos') is not None else
                     'Transformadores del archivo: el proyecto no tenía transformadores cambiados por la calibración.')
     return resultados

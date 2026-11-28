@@ -63,6 +63,11 @@ por la misma ruta.
   objetos que no son transformadores (lo que el operador grabó con su etapa activa), ENTONCES EL SISTEMA no la
   borrará con RF-16: deshará solo los transformadores de su etapa, conservará lo demás y lo dirá. (LL203: su
   regulador existente de 5 MW y su barra quedaron dentro de `SED_NTP_`.)
+- RF-19: (usuario, 2026-11-27: «debe corregirse para que corra de forma automática»; LL203) SI en «Sin proyecto»
+  más de la mitad de los transformadores tiene más de 1,5 veces su kVA del «Caso base», ENTONCES EL SISTEMA partirá
+  solo de los transformadores del archivo (RF-16, RF-18) antes de calibrar y lo dirá con las dos cifras; con RF-18,
+  los restituye escribiendo el tipo y las unidades del «Caso base» y comprueba los kVA, y si no vuelven no calibra.
+  (LL203: 67 895 kVA frente a 5 069; `Delete` sobre la etapa no los deshacía y las escaladas quedaban en casi cero.)
 
 ## Requisitos no funcionales
 
