@@ -104,6 +104,11 @@ cuando el usuario ponga a mano la central de NA295.
       tabla, con `tsc` y `npm run build`.
       Hecho el 2026-11-26: rojo `D:/csg/PM_IMPL/ESCANEO_BASE/rojo.log`, verde (`verde.log`). La comprobación real es
       volver a escanear PA217 desde la web.
-- [ ] T20 [DIgSILENT] REGULADORES-EN-EL-ESCANEO (27-11): leer en DIgSILENT los nombres de la tensión y la corriente nominales y de las barras de ElmVoltreg y TypVoltreg, y llevarlos al escaneo. Los reguladores existentes en el escaneo, con su revisión. (RF-46)
+- [x] T20 [DIgSILENT] REGULADORES-EN-EL-ESCANEO (27-11): leer en DIgSILENT los nombres de la tensión y la corriente nominales y de las barras de ElmVoltreg y TypVoltreg, y llevarlos al escaneo. Los reguladores existentes en el escaneo, con su revisión. (RF-46)
       Hecho cuando: `tests/test_escaneo.py` (028:RF-46) en verde con su rojo por aserción, y el escaneo real de LL203
       lista su regulador con los atributos leídos en DIgSILENT (nombres de ElmVoltreg y TypVoltreg comprobados).
+      Hecho el 2026-11-27 en DIgSILENT: el escaneo por la web de LL203 (20261126-082314_CSG_TXT_LL203) lista
+      Regulator01 del operador, SEPALMAR → Terminal (22,9 kV), en estrella (`config` 2), 13,2 kV y 130 A por unidad
+      (`Un`, `In` del tipo), 5 148 kVA de paso (`Snom`), 2 735 kW al 65 % (`m:Psum:busl`), control activo y sin avisos.
+      Los nombres se leyeron con una sonda de solo lectura: el regulador no tiene `bus1`/`bus2` (barra S con `GetNode(0)`,
+      lado de carga `busl`) y `Sn` del tipo ya está en kVA.

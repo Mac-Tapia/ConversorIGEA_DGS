@@ -199,6 +199,60 @@ def test_lo_local_no_depende_de_colab(tmp_path):
     assert local == ('tools/asistente_qlora.py entrenar --dataset D:/corpus --salida D:/sal --epocas 1 --semilla 11')
 
 
+#: 113 T8: las familias que entran en Colab, cada una con su orden ensayada (D:/csg/PM_IMPL/T8_113, fuera del repo).
+_FAMILIAS_T8 = {
+    'asistente_redaccion': 'en_origen',
+    'pronostico_demanda': 'tal_cual',
+    'madrl_obras': 'tal_cual',
+}
+_RAIZ = Path(__file__).resolve().parents[1]
+
+
+@pytest.mark.parametrize('familia', sorted(_FAMILIAS_T8))
+def test_cada_familia_entrena_con_una_orden_de_tools_y_su_puerta_local(familia):
+    """113:RF-5, RF-11, RF-16: cada familia de Colab con su guion de ``tools/``, su puerta local y su anonimización."""
+    f = er.FAMILIAS[familia]
+    assert f['anonimizacion'] == _FAMILIAS_T8[familia]
+    assert f['anonimizacion'] in er._DETALLE_ANONIMIZACION
+    for clave in ('entrenar', 'puerta'):
+        guion = f[clave].split()[0]
+        assert guion.startswith('tools/') and (_RAIZ / guion).is_file(), f'{familia}: {clave} sin guion ({guion})'
+
+
+@pytest.mark.parametrize('familia', sorted(_FAMILIAS_T8))
+def test_la_orden_de_cada_familia_lleva_sus_datos_su_salida_y_su_semilla(familia):
+    """113:RF-9, RF-14, RF-16: la orden se arma entera con ``{datos}``, ``{salida}``, ``{epocas}`` y ``{semilla}``; la
+    semilla es la del candidato y lo que escribe queda en su carpeta de salida (lo que el cuaderno sella como candidato)."""
+    orden = er.orden_de_entrenamiento(familia, datos='/d/paq/datos', salida='/d/cand/s13', semilla=13, epocas=2)
+    assert '{' not in orden and '}' not in orden
+    assert '/d/paq/datos' in orden and '/d/cand/s13' in orden and '--semilla 13' in orden
+
+
+def test_las_ordenes_son_las_ensayadas():
+    """113:RF-16: la orden que ejecuta Colab es la misma que se ensayó en el equipo, opción por opción (113 T8)."""
+    assert er.orden_de_entrenamiento('pronostico_demanda', datos='D', salida='S', semilla=11, epocas=1) == (
+        'tools/pronostico_demanda.py --dataset D --modelos nhits,patchtst,tft,gru,lightgbm --clase cabecera '
+        '--semilla 11 --output-json S/competicion.json')
+    assert er.orden_de_entrenamiento('madrl_obras', datos='D', salida='S', semilla=12, epocas=1) == (
+        'tools/madrl_entrenar.py --grafo D/grafo.json --tension-min 0.95 --tension-max 1.05 --carga-max 100 '
+        '--banco-mvar 0.3 --costo-banco 1 --politica gatv2 --iteraciones 40 --semilla 12 --dispositivo cuda '
+        '--salida S/resultado.json --modelo-salida S/modelo')
+    assert er.FAMILIAS['pronostico_demanda']['puerta'] == 'tools/pronostico_demanda.py --dataset'
+    assert er.FAMILIAS['madrl_obras']['puerta'] == 'tools/madrl_puerta.py aplicar'
+
+
+def test_solo_el_qlora_pide_su_experimento_autorizado():
+    """113:RF-16: ``--experimento-autorizado`` es del QLoRA; el cuaderno lo añade solo a la familia que lo declara, y
+    las demás reciben su orden sin opciones que su guion rechazaría."""
+    con = {f for f, d in er.FAMILIAS.items() if 'autorizar' in d}
+    assert con == {'asistente_redaccion'}
+    assert er.FAMILIAS['asistente_redaccion']['autorizar'].format(experimento='072-T9b') == (
+        '--experimento-autorizado 072-T9b')
+    fuente = '\n'.join(''.join(c['source']) for c in json.loads(CUADERNO.read_text(encoding='utf-8'))['cells'])
+    assert "['--experimento-autorizado', EXPERIMENTO]" not in fuente
+    assert ".get('autorizar', '').format(experimento=EXPERIMENTO)" in fuente
+
+
 def test_la_url_de_colab_fija_la_revision():
     """113:RF-2: el cuaderno se abre en el commit exacto de GitHub."""
     assert er.url_colab(REV, repositorio=REPO) == (f'https://colab.research.google.com/github/{REPO}/blob/{REV}/'
@@ -325,3 +379,25 @@ def test_la_web_prepara_solo_con_la_confirmacion_del_operador(tmp_path, monkeypa
         (d / 'base.mdb').write_bytes(b'x')
         cruda = c.post('/api/entrenamiento/colab/preparar', json=cuerpo).json()
         assert cruda['confirmacion'] is None and cruda['prohibidos']
+
+
+def test_el_dataset_json_sale_sin_los_libros_de_la_distribuidora(tmp_path):
+    """113:RF-6 — 113 T8 (27-11): el ``dataset.json`` del pronóstico lleva ``libros`` y ``avisos`` con los nombres de los
+    libros de la distribuidora; el paquete los quita y conserva lo demás, también en el modo «tal cual»."""
+    import json
+
+    from convertersmartgrid.aplicacion import entrenamiento_remoto as er
+
+    origen = tmp_path / 'ds'
+    origen.mkdir()
+    (origen / 'dataset.json').write_text(json.dumps({'huella': 'abc', 'libros': ['Empresa X 2026.xlsx'],
+                                                     'avisos': ['falta Empresa X'], 'series': 84}), encoding='utf-8')
+    (origen / 'curvas.parquet').write_bytes(b'PAR1')
+    m = er.preparar_paquete(origen, familia='pronostico_demanda', revision='a' * 40, destino=tmp_path / 'out',
+                            repositorio=er.REPOSITORIO if hasattr(er, 'REPOSITORIO') else 'org/repo')
+    paquete = next((tmp_path / 'out').iterdir())
+    datos = json.loads((paquete / 'datos' / 'dataset.json').read_text(encoding='utf-8'))
+    assert datos == {'huella': 'abc', 'series': 84}, datos
+    assert 'Empresa X' not in (paquete / 'datos' / 'dataset.json').read_text(encoding='utf-8')
+    assert {f['ruta'] for f in m['ficheros']} == {'dataset.json', 'curvas.parquet'}
+

@@ -3102,6 +3102,18 @@ def sistema_del_proyecto(ws: Workspace, project: str, *, todos: bool = False) ->
     proyecto = project.strip()
     grupo = next((n for n, p in (ws.pf_projects or {}).items()
                   if p == proyecto and (todos or (ws.groups.get(n) or {}).get('tipo') == 'sistema')), None)
+    if grupo is None and todos and proyecto not in (ws.pf_projects or {}).values():
+        # 018:RF-18, 101:RF-17: el proyecto convertido en otro espacio de trabajo se calibra tal cual; sus alimentadores
+        # salen de su vínculo, que es compartido. LL202 (27-11), convertido en otro espacio, daba «no se encontraron los
+        # alimentadores del proyecto» y no se recalibraba.
+        from ...adaptadores.powerfactory_binding import alimentadores_de_rotulos, alimentadores_vinculados
+
+        vinculados = sorted(alimentadores_de_rotulos(alimentadores_vinculados(ws, proyecto)))
+        if vinculados:
+            grupo = vinculados[0] if len(vinculados) == 1 else ' + '.join(vinculados)
+            return {'grupo': grupo, 'alimentadores': vinculados,
+                    'medidores': medidores_por_alimentador(ws, vinculados),
+                    'tipo': 'alimentador' if len(vinculados) == 1 else 'unida', 'de_otro_espacio': True}
     if grupo is None:
         return None
     # Un alimentador solo se guarda con su código y sin grupo (CA191 → su proyecto).

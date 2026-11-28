@@ -888,3 +888,21 @@ def test_101_rf17_rf16_039_rf30_proyecto_existente_del_archivo_y_correccion(herr
     assert rc2 == 2, 'el proyecto que ya no está no se reimporta'
     assert '/convert/sistema' not in [r for _m, r in web2.llamadas]
 
+
+
+def test_018_rf18_sistema_de_un_proyecto_convertido_en_otro_espacio(monkeypatch):
+    """018:RF-18, 101:RF-17 — LL202 (27-11), convertido en otro espacio, daba «no se encontraron los alimentadores del
+    proyecto»: sus alimentadores salen de su vínculo compartido; uno del espacio sigue como siempre."""
+    from types import SimpleNamespace as NS
+
+    from convertersmartgrid.adaptadores import powerfactory_binding as pb
+    from convertersmartgrid.presentacion.web import services
+
+    ws = NS(pf_projects={'LL203': 'P_LL203'}, groups={})
+    monkeypatch.setattr(pb, 'alimentadores_vinculados', lambda ws, p: ['LL202'] if p == 'P_LL202' else [])
+    monkeypatch.setattr(services, 'medidores_por_alimentador', lambda ws, a: {x: ['L-' + x] for x in a})
+    s = services.sistema_del_proyecto(ws, 'P_LL202', todos=True)
+    assert s and s['alimentadores'] == ['LL202'] and s['medidores'] == {'LL202': ['L-LL202']}, s
+    assert services.sistema_del_proyecto(ws, 'P_LL202') is None, 'sin «todos», solo los de tipo sistema'
+    assert services.sistema_del_proyecto(ws, 'P_OTRO', todos=True) is None, 'sin vínculo no se inventa'
+    assert services.sistema_del_proyecto(ws, 'P_LL203', todos=True)['alimentadores'] == ['LL203']

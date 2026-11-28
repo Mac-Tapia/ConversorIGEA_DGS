@@ -691,10 +691,11 @@ def test_028_rf46_el_escaneo_lee_el_regulador_del_alimentador(guion):
     def barra(nombre, kv):
         return NS(cterm=NS(loc_name=nombre, uknom=kv))
 
-    tipo = NS(loc_name='Step-Voltage Regulator', config=0, Unom=22.9, Inom=2000.0, Sn=0.1716)
+    # Los nombres que da DIgSILENT (028 T20, LL203): estrella es ``config`` 2, la unidad en ``Un`` e ``In``, ``Sn`` en kVA.
+    tipo = NS(loc_name='Step-Voltage Regulator', config=2, Un=22.9, In=2000.0, Sn=171.6)
     reg = NS(loc_name='Regulator01', typ_id=tipo, bus1=barra('NODE_S', 22.9), busl=barra('Terminal', 22.9),
              usetp=1.0, ntrcn=0, outserv=0)
-    reg.GetAttribute = lambda a: {'m:Psum:bus1': 3.3}[a]
+    reg.GetAttribute = lambda a: {'m:Psum:busl': 3.3, 'Snom': 5148.0}[a]
     alims = NS(objetos=lambda f, clase: [reg] if clase == 'ElmVoltreg' else [])
     [r] = guion._reguladores(alims, 'LL203', {('ElmVoltreg', 'Regulator01'): 'Regulador LL203'})
     assert (r['barra_s'], r['barra_l'], r['configuracion'], r['ur_unidad_kv'], r['ir_a']) == (
@@ -702,3 +703,4 @@ def test_028_rf46_el_escaneo_lee_el_regulador_del_alimentador(guion):
     assert r['control'] is False and r['origen'] == 'operador' and round(r['p_kw']) == 3300
     assert any('13.22 kV' in a for a in r['avisos']) and any('no regula' in a for a in r['avisos'])
     assert any('sobredimensionado' in a for a in r['avisos'])
+    assert r['sn_kva'] == 171.6 and r['snom_kva'] == 5148.0, 'el tipo ya da kVA; el elemento, su potencia de paso'

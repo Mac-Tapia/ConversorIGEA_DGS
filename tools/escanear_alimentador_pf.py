@@ -71,9 +71,14 @@ def _generadores(alims, feeder: str, de_objeto: dict) -> list[dict]:
     return sorted(filas, key=lambda x: (str(x['barra']), x['generador']))
 
 
-#: 028:RF-46: atributos candidatos del tipo del regulador (``TypVoltreg``), por orden; el primero que responda vale.
-ATRIBUTOS_TENSION_UNIDAD = ('Unom', 'unom', 'urat', 'Ur')
-ATRIBUTOS_CORRIENTE_UNIDAD = ('Inom', 'inom', 'irat', 'Ir')
+#: 028:RF-46, T20: atributos del regulador leídos en DIgSILENT con el de LL203 (27-11): el tipo (``TypVoltreg``) da la
+#: tensión y la corriente nominales de cada unidad en ``Un`` (kV) e ``In`` (A) y su potencia propia en ``Sn``, ya en kVA;
+#: el elemento, la potencia de paso en ``Snom`` (kVA) y la corriente en ``Inom``. Los demás nombres, por si otra versión.
+ATRIBUTOS_TENSION_UNIDAD = ('Un', 'Unom', 'unom', 'Ur')
+ATRIBUTOS_CORRIENTE_UNIDAD = ('In', 'Inom', 'inom', 'Ir')
+#: 028 T20: ``config`` del tipo; LL203 (27-11), puesto en estrella por el operador, da 2. Los demás códigos se dicen
+#: tal cual, sin suponer su conexión.
+CONFIGURACION_REGULADOR = {2: 'estrella'}
 
 
 def _primero(obj, atributos: tuple[str, ...]) -> float | None:
@@ -84,6 +89,19 @@ def _primero(obj, atributos: tuple[str, ...]) -> float | None:
         if v is not None:
             return v
     return None
+
+
+def _barra(r, i: int, atributos: tuple[str, ...]):
+    """La barra del lado ``i`` del regulador: ``GetNode`` y, si no, su cubículo. LL203 (27-11): no tiene ``bus1`` ni
+    ``bus2``; ``GetNode(0)`` da la barra S y ``busl`` el cubículo del lado de carga."""
+    try:
+        nodo = r.GetNode(i)
+    except Exception:  # noqa: BLE001 - otra versión sin ``GetNode``
+        nodo = None
+    if nodo is not None:
+        return nodo
+    cub = next((c for c in (getattr(r, a, None) for a in atributos) if c is not None), None)
+    return getattr(cub, 'cterm', None)
 
 
 def _reguladores(alims, feeder: str, de_objeto: dict) -> list[dict]:
@@ -112,23 +130,24 @@ def _regulador(r, de_objeto: dict, _num, revisar_regulador) -> dict:
     if True:
         tipo = getattr(r, 'typ_id', None)
         barras = {}
-        # 028 T20 (LL203, 27-11): en DIgSILENT el regulador no tiene ``bus2``: su lado de carga es ``busl``.
-        for lado, attrs in (('s', ('bus1', 'bush', 'busv')), ('l', ('busl', 'bus2', 'buslv'))):
-            cub = next((c for c in (getattr(r, a, None) for a in attrs) if c is not None), None)
-            t = getattr(cub, 'cterm', None)
-            barras[lado] = (getattr(t, 'loc_name', None), None if t is None else _num(t, 'uknom'))
+        for lado, i, attrs in (('s', 0, ('bus1', 'bush', 'busv')), ('l', 1, ('busl', 'bus2', 'buslv'))):
+            b = _barra(r, i, attrs)
+            barras[lado] = (getattr(b, 'loc_name', None), None if b is None else _num(b, 'uknom'))
         config = None if tipo is None else _num(tipo, 'config')
-        p, sn, ntrcn = _num(r, 'm:Psum:bus1'), None if tipo is None else _num(tipo, 'Sn'), _num(r, 'ntrcn')
+        # 028 T20: el flujo se lee en el lado de carga (``busl``); en LL203, 2,74 MW al 65 %.
+        p = next((v for v in (_num(r, a) for a in ('m:Psum:busl', 'm:Psum:bus1')) if v is not None), None)
+        sn, ntrcn = None if tipo is None else _num(tipo, 'Sn'), _num(r, 'ntrcn')
         variacion = de_objeto.get(('ElmVoltreg', r.loc_name))
         fila = {'regulador': r.loc_name, 'tipo': getattr(tipo, 'loc_name', None),
                 'barra_s': barras['s'][0], 'kv_s': barras['s'][1],
                 'barra_l': barras['l'][0], 'kv_l': barras['l'][1],
-                # 028 T20: qué valor de ``config`` es la estrella se comprueba en DIgSILENT con el de LL203.
                 'configuracion_codigo': config,
-                'configuracion': 'estrella' if config == 0 else None,
+                'configuracion': CONFIGURACION_REGULADOR.get(int(config)) if config is not None else None,
                 'ur_unidad_kv': _primero(tipo, ATRIBUTOS_TENSION_UNIDAD),
                 'ir_a': _primero(tipo, ATRIBUTOS_CORRIENTE_UNIDAD),
-                'sn_kva': None if sn is None else sn * 1000.0,
+                'sn_kva': sn,
+                'snom_kva': _num(r, 'Snom'),
+                'carga_pct': _num(r, 'c:loading'),
                 'consigna_pu': _num(r, 'usetp'),
                 'control': None if ntrcn is None else bool(ntrcn),
                 'p_kw': None if p is None else p * 1000.0,

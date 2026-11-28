@@ -27,6 +27,20 @@ nunca limita lo local (RF-16) y debe aprovechar Colab Pro («si no, de nada serv
 - [ ] T8. Las demás familias (intérprete, PINN y gemelo, pronóstico, MADRL/MASAC), cada una con su orden comprobada
       con un ensayo corto antes de entrar en `FAMILIAS`, y los paquetes VNR-GIS públicos (RF-15). Hecho cuando: cada
       familia tiene su prueba y su ensayo corto.
+      Avance del 2026-11-27: entran `pronostico_demanda` (089, `tools/pronostico_demanda.py --dataset`, tal cual) y
+      `madrl_obras` (074, GATv2 de `tools/madrl_entrenar.py`, tal cual, puerta `tools/madrl_puerta.py aplicar`), cada
+      una ensayada como en Colab: datos sintéticos empaquetados con `preparar_paquete`, la orden de `FAMILIAS` desde la
+      carpeta `datos` del paquete, el paquete intacto tras entrenar y el candidato traído sin activarse (MADRL en CUDA
+      con su turno, 252 s; pronóstico con `--pasos 10 --lote 16` añadidos solo al ensayo, los cinco modelos
+      EVALUADO); el cuaderno añade `--experimento-autorizado` solo a la familia que lo declara (`autorizar`), porque los
+      demás guiones lo rechazarían. Pruebas `test_cada_familia_entrena_con_una_orden_de_tools_y_su_puerta_local`,
+      `test_la_orden_de_cada_familia_lleva_sus_datos_su_salida_y_su_semilla`, `test_las_ordenes_son_las_ensayadas` y
+      `test_solo_el_qlora_pide_su_experimento_autorizado`. Falta, porque su guion no entrena desde un paquete: el
+      intérprete (`asistente_entrenar.py` lee el almacén o un dataset v2 que exige `test.jsonl`, sellado por RF-6:
+      necesita un modo «solo entrenar» y una puerta local sobre la prueba sellada); la PINN (`digital_twin_entrenar.py`
+      escribe modelos e índice dentro del búfer y su partición de prueba viaja con él: necesita una salida de modelos
+      aparte y la prueba fuera del paquete); la GRU temporal (`digital_twin_temporal_entrenar.py` lee libros crudos; la
+      GRU ya compite dentro de `pronostico_demanda`); MASAC (114, en borrador, sin guion); y los paquetes VNR-GIS (RF-15).
 - [x] T9. Enlace directo a Colab en el cuaderno. (RF-17) Hecho cuando: el cuaderno lleva el enlace «Abrir en Colab» y
       `test_el_cuaderno_tiene_su_enlace_directo_a_colab` lo comprueba; evidencia: esa prueba en verde el 2026-11-27. El
       enlace abre el cuaderno de `main`: funciona en cuanto la rama esté integrada.

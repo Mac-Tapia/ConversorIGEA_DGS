@@ -53,9 +53,37 @@ FAMILIAS: dict[str, dict[str, Any]] = {
                             'entrenar': 'tools/asistente_qlora.py entrenar --dataset {datos} --salida {salida} '
                                         '--epocas {epocas} --semilla {semilla}',
                             'reanudar': '--reanudar {punto}',
+                            # Solo el QLoRA exige el experimento del plan; antes el cuaderno lo añadía a toda orden, y
+                            # cualquier otro guion habría salido con «unrecognized arguments» (113 T8, 2026-11-27).
+                            'autorizar': '--experimento-autorizado {experimento}',
                             'puerta': 'tools/asistente_qlora.py evaluar'},
-    # Las demás familias (intérprete, PINN y gemelo, pronóstico, MADRL/MASAC) entran con 113 T8, cada una cuando su
-    # orden se compruebe con un ensayo corto: escribir una orden sin probarla dejaría a Colab entrenando otra cosa.
+    # 113 T8 (2026-11-27): cada orden de abajo se ensayó en el equipo con datos sintéticos, empaquetados con
+    # ``preparar_paquete`` y entrenados desde la carpeta ``datos`` del paquete, como lo hará Colab.
+    # 089: la competición de pronóstico de cabecera sobre el dataset limpio que deja ``--guardar-dataset`` (Parquet con
+    # su huella; nunca los libros). Las curvas son lo que aprende: van tal cual. Las redes que pesan en el equipo
+    # (nhits, patchtst, tft, gru) son las que ganan en Colab; los pasos y la puerta son los fijados en la 089, así que
+    # ``{epocas}`` no cambia nada aquí y cada semilla es un candidato. No guarda pesos: el candidato es su informe con
+    # el ganador, y la puerta local vuelve a medir en el equipo con la misma orden y el mismo dataset.
+    'pronostico_demanda': {'anonimizacion': 'tal_cual',
+                           'entrenar': 'tools/pronostico_demanda.py --dataset {datos} '
+                                       '--modelos nhits,patchtst,tft,gru,lightgbm --clase cabecera '
+                                       '--semilla {semilla} --output-json {salida}/competicion.json',
+                           'puerta': 'tools/pronostico_demanda.py --dataset'},
+    # 074: la política GATv2 con crítico central sobre el grafo del oráculo (``grafo.json`` en el paquete); deja sus
+    # pesos y su manifiesto en ``{salida}/modelo`` para ``madrl_puerta.py aplicar``, que la mide en las redes que no
+    # vio, y esas se quedan en el equipo (113:RF-6). Límites, banco y 40 iteraciones son los de la corrida de la 074
+    # T7 (2026-11-21); la puerta los relee del manifiesto del modelo. MaskablePPO no entra: su espacio de acciones es
+    # el de su red y no se guarda para otra (074:RF-13). Sin punto de control: cada semilla se rehace entera.
+    'madrl_obras': {'anonimizacion': 'tal_cual',
+                    'entrenar': 'tools/madrl_entrenar.py --grafo {datos}/grafo.json --tension-min 0.95 '
+                                '--tension-max 1.05 --carga-max 100 --banco-mvar 0.3 --costo-banco 1 --politica gatv2 '
+                                '--iteraciones 40 --semilla {semilla} --dispositivo cuda --salida {salida}/resultado.json '
+                                '--modelo-salida {salida}/modelo',
+                    'puerta': 'tools/madrl_puerta.py aplicar'},
+    # Fuera todavía (113 T8), cada una con su motivo, porque su guion no entrena desde un paquete sin cambiarlo:
+    # el intérprete (asistente_entrenar.py) lee el almacén del asistente o un dataset v2 que exige su «test.jsonl», y
+    # lo sellado no sale (RF-6); la PINN (digital_twin_entrenar.py) escribe sus modelos y su índice dentro del búfer,
+    # que sería el paquete; la GRU temporal lee los libros de medición, que son datos crudos; MASAC (114) no tiene guion.
 }
 
 _DETALLE_ANONIMIZACION = {
@@ -151,8 +179,24 @@ def _anonimizar_valor(valor: Any, catalogo) -> Any:
     return valor
 
 
+#: 113:RF-6: campos de los metadatos de un dataset que nunca salen del equipo, en cualquier modo: dicen los libros de la
+#: distribuidora de los que salió (su nombre y su ruta). El ``dataset.json`` de ``pronostico_demanda.py
+#: --guardar-dataset`` los lleva (113 T8, 2026-11-27); las curvas, que son lo que se aprende, sí salen.
+CAMPOS_QUE_NO_SALEN = {'dataset.json': ('libros', 'avisos')}
+
+
 def _copiar(origen: Path, destino: Path, modo: str, catalogo) -> None:
     destino.parent.mkdir(parents=True, exist_ok=True)
+    quitar = CAMPOS_QUE_NO_SALEN.get(origen.name.lower())
+    if quitar:
+        try:
+            datos = json.loads(origen.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            datos = None
+        if isinstance(datos, dict):
+            limpio = {k: v for k, v in datos.items() if k not in quitar}
+            write_json_atomic(destino, limpio)
+            return
     if modo == 'texto' and origen.suffix.lower() == '.jsonl':
         with origen.open(encoding='utf-8') as f, destino.open('w', encoding='utf-8', newline='\n') as g:
             for linea in f:
