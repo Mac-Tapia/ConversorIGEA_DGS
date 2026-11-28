@@ -4258,7 +4258,7 @@ def demanda_clientes(ws: Workspace, alimentadores: list[str] | None = None,
     for c in cruzados:
         marcado = c.codigo in suyos_marcados
         if marcado:
-            _a_su_maxima_del_anio(ws, c, (mes or periodo or '')[:4], c.radial or (feeders[0] if feeders else None),
+            _a_su_maxima_del_anio(ws, c, (mes or periodo or '')[:4], c.radial or (alimentadores[0] if alimentadores else None),
                                   reg_max, avisos_max)                                   # 039:RF-31
         elif registro.get(c.codigo):
             c.fecha_registro, c.q_registro_kvar, c.p_registro_kw = registro[c.codigo]
