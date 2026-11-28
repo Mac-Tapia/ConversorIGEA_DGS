@@ -123,55 +123,118 @@ def ruta_plan_aprendizaje() -> Path:
     return Path(ruta) if ruta else almacen.raiz() / 'aprendizaje' / 'plan.json'
 
 
+def _espacio_de_la_ultima_corrida(jobs) -> str | None:
+    """050:RF-37: el espacio del último trabajo del operador en esta sesión de la web (no los del aprendizaje)."""
+    for trabajo in reversed(list(jobs.list())):
+        if getattr(trabajo, 'workspace_id', None) and not str(trabajo.kind).startswith('aprendizaje:'):
+            return trabajo.workspace_id
+    return None
+
+
 def encolar_ciclo_aprendizaje(jobs: JobManager, motivos: list[str]):
-    """050:RF-4/8: un trabajo común por plan vivo, en el carril de fondo, que cede al operador."""
+    """050:RF-4/8: un trabajo común por plan vivo, en el carril de fondo, que cede al operador.
+
+    050:RF-36, RF-44 (usuario, 2026-11-27: «nada debe estar bloqueado»): sin plan, o con uno que preparó el propio
+    sistema, el trabajo prepara antes el plan con los datos de hoy. Hasta entonces anotaba «Falta el plan del ciclo»
+    cada minuto y no entrenaba nunca, aunque ``tools/preparar_ciclo_aprendizaje.py`` ya sabía escribirlo.
+    """
     from ...aplicacion import aprendizaje_continuo as ac
     from ...aplicacion.asistente import almacen
     from ...adaptadores.powerfactory_env import tools_dir
     # 086:RF-15: también en la edición de producto. Solo lo para la orden explícita (071:RF-6).
     if not autoentrenamiento_activo():
         return None
-    ruta = str(ruta_plan_aprendizaje())
-    try:
-        if not Path(ruta).is_file():
-            # 050:RF-8: faltar el plan es un dato que falta: se anota el bloqueo y se sigue con el conjunto aceptado.
-            raise ac.CicloBloqueado(f'Falta el plan del ciclo de aprendizaje ({ruta}): sin él no se sabe qué '
-                                    'espacio, fuentes y presupuesto usar.')
-        plan = ac.cargar_plan_ciclo(ruta)
-    except (OSError, ValueError) as exc:
-        ac.registrar_bloqueo(almacen.raiz() / 'aprendizaje', 'cola', [str(exc)], disparadores=motivos)
-        return False
-    kind = f'aprendizaje:{plan["plan_hash"]}'
+    ruta = ruta_plan_aprendizaje()
+    raiz_ap = almacen.raiz() / 'aprendizaje'
+    preparar = not ruta.is_file() or ac.plan_automatico(ruta)
+    plan = None
+    if preparar:
+        espacio = _espacio_de_la_ultima_corrida(jobs) or ac.espacio_mas_reciente(almacen.raiz().parent)
+        if not espacio:
+            # 050:RF-8, RF-43: sin ningún espacio no hay de dónde sacar fuentes; se dice una vez y se reintenta.
+            ac.registrar_bloqueo(raiz_ap, 'cola', ['Sin ningún espacio de trabajo no se puede preparar el plan del '
+                                                   'ciclo: se preparará solo en cuanto haya uno.'],
+                                 solo_si_cambia=True, disparadores=motivos)
+            return False
+        kind = 'aprendizaje:automatico'
+    else:
+        try:
+            plan = ac.cargar_plan_ciclo(ruta)
+        except (OSError, ValueError) as exc:
+            # 050:RF-8, RF-43: el plan del operador no se toca; su bloqueo se anota cuando cambia, no cada minuto.
+            ac.registrar_bloqueo(raiz_ap, 'cola', [str(exc)], solo_si_cambia=True, disparadores=motivos)
+            return False
+        ac.olvidar_bloqueo(raiz_ap, 'cola')
+        espacio = plan['workspace_id']
+        kind = f'aprendizaje:{plan["plan_hash"]}'
+
     def ejecutar(ctx):
         # 067:RF-41: sin plan ni clic, pero con su recibo; sigue encendido por defecto (071:RF-6).
         with recibo_directo('reentreno_automatico', responsable='vigilancia', decision='automatico_por_defecto',
-                            espacio=plan['workspace_id'],
-                            entradas={'motivos': list(motivos), 'plan_hash': plan['plan_hash']}) as evidencia:
+                            espacio=espacio,
+                            entradas={'motivos': list(motivos), 'plan_hash': plan['plan_hash'] if plan else None,
+                                      'plan_automatico': preparar}) as evidencia:
             evidencia['salida'] = ciclo(ctx)
         return evidencia['salida']
 
+    def preparar_plan(ctx) -> dict:
+        """050:RF-36 a RF-41: el plan en una carpeta nueva; lo omitido y lo que falta, anotados una vez (RF-43)."""
+        nombre = f'{datetime.now():%Y%m%dT%H%M%S%f}-{ctx.job.id}'
+        carpeta = raiz_ap / 'preparaciones' / nombre
+        informe = carpeta.parent / f'{nombre}.informe.json'
+        ctx.log('Preparando el plan del ciclo de aprendizaje con los datos de hoy.')
+        codigo = ctx.run_process([sys.executable, str(tools_dir() / 'preparar_ciclo_aprendizaje.py'),
+            '--automatico', '--almacen', str(almacen.raiz()), '--salida', str(carpeta),
+            '--plan-salida', str(ruta), '--informe', str(informe), '--workspace-id', str(espacio)],
+            cwd=str(project_root()))
+        ctx.check_cancel()
+        try:
+            datos = json.loads(informe.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            datos = {}
+        omitidas = datos.get('omitidas') or {}
+        if omitidas:
+            # 050:RF-41: una familia sin datos no para a las demás; se dice qué le falta.
+            ac.registrar_bloqueo(raiz_ap, 'omision', [f'{f}: {"; ".join(map(str, m))}' for f, m in sorted(omitidas.items())],
+                                 solo_si_cambia=True, familias_omitidas=sorted(omitidas))
+        else:
+            ac.olvidar_bloqueo(raiz_ap, 'omision')
+        if codigo != 0:
+            faltan = list(datos.get('faltan') or [f'la preparación del plan terminó con código {codigo}'])
+            ac.registrar_bloqueo(raiz_ap, 'cola', faltan, solo_si_cambia=True, disparadores=motivos)
+            raise ValueError('No se pudo preparar el plan del ciclo: ' + '; '.join(faltan))
+        ac.olvidar_bloqueo(raiz_ap, 'cola')
+        for familia, motivos_familia in sorted(omitidas.items()):
+            ctx.log(f'{familia} queda fuera de este ciclo: {"; ".join(map(str, motivos_familia))}')
+        return ac.cargar_plan_ciclo(ruta)
+
     def ciclo(ctx):
         ctx.check_cancel()
-        cancelacion = Path(plan['raiz']) / 'solicitudes' / ctx.job.id / 'cancelar'
+        actual = preparar_plan(ctx) if preparar else plan
+        cancelacion = Path(actual['raiz']) / 'solicitudes' / ctx.job.id / 'cancelar'
         ctx.log('Ciclo conjunto de aprendizaje: ' + '; '.join(motivos))
         codigo = ctx.run_process([sys.executable, str(tools_dir() / 'aprendizaje_continuo.py'),
-            'plan', '--archivo', str(Path(ruta).resolve()), '--plan-hash', plan['plan_hash'],
+            'plan', '--archivo', str(Path(ruta).resolve()), '--plan-hash', actual['plan_hash'],
             '--cancelar-archivo', str(cancelacion)], cwd=str(project_root()),
             cancel_file=cancelacion)
         ctx.check_cancel()
         if codigo != 0:
             raise ValueError(f'Ciclo conjunto bloqueado o fallido (código {codigo}); revise sus fases y motivos.')
-        return ac.estado_aprendizaje(plan['raiz'])
+        # 050:RF-46: los datos que lo dispararon ya se usaron; si no, la vigilancia lo pediría otra vez con ellos.
+        services.asistente_marcar_entrenado(True)
+        services.asistente_marcar_entrenado(False)
+        return ac.estado_aprendizaje(actual['raiz'])
     with _cola_aprendizaje_lock:
         trabajos = jobs.list()
         for trabajo in trabajos:
-            if trabajo.kind == kind and trabajo.status not in FINISHED:
+            if trabajo.status not in FINISHED and (trabajo.kind == kind or (
+                    preparar and str(trabajo.kind).startswith('aprendizaje:'))):
                 return trabajo
         if any(j.status not in FINISHED and not j.kind.startswith('aprendizaje:') for j in trabajos):
             # El carril engine no protege al operador que ya trabaja en PowerFactory.
             # False permite que vigilancia vuelva a solicitarlo cuando se libere.
             return False
-        return jobs.submit(plan['workspace_id'], kind, 'Ciclo conjunto de aprendizaje', ejecutar, lane='engine')
+        return jobs.submit(espacio, kind, 'Ciclo conjunto de aprendizaje', ejecutar, lane='engine')
 
 
 def arrancar_vigilancia(jobs: JobManager):

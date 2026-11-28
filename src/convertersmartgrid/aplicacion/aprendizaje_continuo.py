@@ -80,6 +80,14 @@ CAMPOS_PLAN = frozenset({'schema', 'workspace_id', 'raiz', 'contexto', 'fuentes'
 #: 050:RF-4: los parámetros que el ciclo admite del plan.
 PARAMETROS_PLAN = frozenset({'semillas', 'zona_horaria', 'cadencia_min', 'horizontes', 'embedding_model'})
 
+#: 050:RF-40: el presupuesto del plan que prepara la vigilancia cuando el operador no declaró ninguno. Cuatro horas
+#: caben en una noche de trabajo sin el operador y el coordinador cede igual en cuanto él encola algo (RF-4); 6 GiB
+#: dejan unos 10 GiB del equipo de 16 GiB a la web, DIgSILENT y el sistema (el 19-11 la suite y dos colas a la vez
+#: acabaron en rc=137 por memoria). La GPU se usa porque la PINN y la GRU solo entrenan en CUDA (045, 046).
+PRESUPUESTO_AUTOMATICO = {'tiempo_s': 14400, 'memoria_gib': 6.0, 'usa_gpu': True}
+#: 050:RF-44: la marca, junto al plan, de que ese plan lo preparó el sistema y puede rehacerlo; sin ella es del operador.
+MARCA_PLAN_AUTOMATICO = 'plan.automatico.json'
+
 
 def cargar_plan_ciclo(ruta: Path | str) -> dict[str, Any]:
     """050:RF-4/8: un plan declarativo explícito; ningún presupuesto ni comando implícitos.
@@ -355,14 +363,90 @@ def _contexto_hash(contexto: ContextoExperimento | Mapping[str, Any] | str) -> s
     return contexto
 
 
-def registrar_bloqueo(raiz: Path | str, etapa: str, motivos: Sequence[str], **extra: Any) -> dict:
-    """050:RF-8: el bloqueo queda escrito; nada anuncia un entrenamiento que no ocurrió."""
+def registrar_bloqueo(raiz: Path | str, etapa: str, motivos: Sequence[str], *, solo_si_cambia: bool = False,
+                      **extra: Any) -> dict | None:
+    """050:RF-8: el bloqueo queda escrito; nada anuncia un entrenamiento que no ocurrió.
+
+    050:RF-43: con ``solo_si_cambia`` (la vigilancia, que pregunta cada minuto) se escribe solo si los motivos de esa
+    etapa no son los últimos anotados, y devuelve ``None`` si no escribió. El 27-11 ``bloqueos.jsonl`` pesaba 2,6 MB
+    de la misma línea, una por minuto; lo que dispara la vuelta (``disparadores``) no cuenta como motivo nuevo.
+    """
+    raiz = Path(raiz)
+    raiz.mkdir(parents=True, exist_ok=True)
+    vigentes = raiz / 'bloqueos_vigentes.json'
+    firma = _huella({'etapa': etapa, 'motivos': list(map(str, motivos))})
+    anteriores: dict[str, Any] = {}
+    if solo_si_cambia:
+        try:
+            anteriores = json.loads(vigentes.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            anteriores = {}
+        if not isinstance(anteriores, dict):
+            anteriores = {}
+        if anteriores.get(etapa) == firma:
+            return None
     fila = {'fecha': _ahora(), 'etapa': etapa, 'estado': 'bloqueado', 'motivos': list(motivos), **extra}
-    ruta = Path(raiz) / 'bloqueos.jsonl'
-    ruta.parent.mkdir(parents=True, exist_ok=True)
-    with ruta.open('a', encoding='utf-8') as f:
+    with (raiz / 'bloqueos.jsonl').open('a', encoding='utf-8') as f:
         f.write(json.dumps(fila, ensure_ascii=False, sort_keys=True, default=str) + '\n')
+    if solo_si_cambia:
+        _escribir(vigentes, {**anteriores, etapa: firma})
     return fila
+
+
+def olvidar_bloqueo(raiz: Path | str, etapa: str) -> None:
+    """050:RF-43: lo resuelto deja de ser el último motivo; si vuelve a pasar, se anota otra vez."""
+    vigentes = Path(raiz) / 'bloqueos_vigentes.json'
+    try:
+        anteriores = json.loads(vigentes.read_text(encoding='utf-8'))
+    except (OSError, ValueError):
+        return
+    if isinstance(anteriores, dict) and etapa in anteriores:
+        anteriores.pop(etapa)
+        _escribir(vigentes, anteriores)
+
+
+def espacio_mas_reciente(raiz_web: Path | str) -> str | None:
+    """050:RF-37: el espacio guardado más recientemente (``workspace.json`` es lo que la web escribe al trabajar).
+
+    Solo cuando la sesión no tiene ninguna corrida: la web prefiere el espacio de su último trabajo.
+    """
+    raiz_web = Path(raiz_web)
+    if not raiz_web.is_dir():
+        return None
+    candidatos = []
+    for carpeta in raiz_web.iterdir():
+        ws = carpeta / 'workspace.json'
+        if carpeta.is_dir() and not carpeta.name.startswith('_') and ws.is_file():
+            candidatos.append((ws.stat().st_mtime_ns, carpeta.name))
+    return max(candidatos)[1] if candidatos else None
+
+
+def plan_automatico(ruta_plan: Path | str) -> bool:
+    """050:RF-44: si el plan de esa ruta lo preparó el sistema: su marca lleva la huella de esos mismos bytes."""
+    ruta_plan = Path(ruta_plan)
+    try:
+        marca = json.loads((ruta_plan.parent / MARCA_PLAN_AUTOMATICO).read_text(encoding='utf-8'))
+        return isinstance(marca, dict) and marca.get('plan_sha256') == _sha(ruta_plan)
+    except (OSError, ValueError):
+        return False
+
+
+def marcar_plan_automatico(ruta_plan: Path | str, **datos: Any) -> dict:
+    """050:RF-44: la marca del plan preparado solo, con lo que se eligió y lo que se omitió."""
+    ruta_plan = Path(ruta_plan)
+    marca = {'schema': 'convertersmartgrid-learning-plan-auto-v1', 'plan_sha256': _sha(ruta_plan),
+             'preparado_en': _ahora(), **datos}
+    _escribir(ruta_plan.parent / MARCA_PLAN_AUTOMATICO, marca)
+    return marca
+
+
+def separar_preflight(preparado: Mapping[str, Any]) -> tuple[list[str], dict[str, list[str]]]:
+    """050:RF-42: las familias que el preflight dejó preparadas y, aparte, las bloqueadas con sus motivos."""
+    por_familia = preparado.get('por_familia') or {}
+    listas = [f for f, r in por_familia.items() if (r or {}).get('estado') == 'preparado']
+    omitidas = {f: list((r or {}).get('motivos') or ['bloqueada en el preflight'])
+                for f, r in por_familia.items() if (r or {}).get('estado') != 'preparado'}
+    return listas, omitidas
 
 
 def congelar_instantanea(fuentes: Mapping[str, Path | str | None], raiz: Path | str, *,

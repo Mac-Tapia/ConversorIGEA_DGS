@@ -46,6 +46,17 @@ su sincronización. Esta spec amplía 024/027 y consume 043–048, sin reabrir s
 - RF-33: CUANDO valide el plan del ciclo, EL SISTEMA enumerará todo lo que falta o ya no coincide, por campo, familia, fuente y huella, en palabras del operador con la opción que lo resuelve; un plan con faltas no se escribe y la cola lo revalida antes de congelar.
 - RF-34: EL SISTEMA incluirá en el plan una matriz de las siete familias con fuentes y huellas, contexto, referencias, cuarentena, recursos, revisión, puertas obligatorias y estado `listo_para_preflight` o `bloqueado_por_datos` con su motivo; ninguna puerta obligatoria se quita desde el plan.
 - RF-35: MIENTRAS solo prepara el plan, EL SISTEMA escribirá únicamente los manifiestos en la carpeta nueva declarada y el plan en la ruta declarada, sin congelar instantánea, crear ciclos ni entrenar.
+- RF-36: SI falta el plan del ciclo, CUANDO la vigilancia vea datos nuevos suficientes, EL SISTEMA preparará el plan solo, en una carpeta nueva del almacén de aprendizaje, y encolará el ciclo con él.
+- RF-37: CUANDO prepare el plan solo, EL SISTEMA usará como espacio el de la última corrida por la web y, si en la sesión no hubo ninguna, el espacio guardado más recientemente.
+- RF-38: CUANDO prepare el plan solo, EL SISTEMA reconstruirá un dataset v2 desde el almacén en una carpeta nueva, sin escribir en el almacén ni en el dataset que ya había.
+- RF-39: CUANDO prepare el plan solo, EL SISTEMA declarará como fuentes las que el espacio y el almacén ya tienen: el libro de cabecera del espacio, los casos de las escaleras guardadas de sus proyectos y el corpus sellado del almacén, cuando existan.
+- RF-40: CUANDO prepare el plan solo, EL SISTEMA usará el presupuesto por defecto declarado como constante, con su motivo escrito junto a ella.
+- RF-41: SI una familia no tiene su fuente o ninguno de sus registros tiene procedencia, ENTONCES EL SISTEMA la omitirá del plan preparado solo, con lo que le falta, y preparará el ciclo con las demás.
+- RF-42: SI el preflight del ciclo bloquea algunas familias y otras quedan preparadas, ENTONCES EL SISTEMA omitirá las bloqueadas con su motivo y seguirá el ciclo con las preparadas.
+- RF-43: EL SISTEMA anotará un bloqueo o una omisión de la vigilancia solo cuando cambie su motivo, no en cada vuelta.
+- RF-44: SI el plan vigente lo preparó el sistema, CUANDO la vigilancia vea datos nuevos suficientes, EL SISTEMA lo preparará de nuevo con esos datos, y nunca sobrescribirá un plan que declaró el operador.
+- RF-45: MIENTRAS corre un ciclo con un plan preparado solo, EL SISTEMA exigirá a cada familia todas sus puertas de promoción (071:RF-3, RF-4), de modo que entrenar no promueva ningún candidato que no pase la suya.
+- RF-46: CUANDO un ciclo automático termine bien, EL SISTEMA dará por usados los datos que lo dispararon, para no lanzarlo otra vez con los mismos.
 
 ## Requisitos no funcionales
 
@@ -86,6 +97,22 @@ Decisiones del integrador para los datos anteriores a RF-23 (2026-11-08): el com
 periodo es el del episodio si lo trae y, si no, el mes de la última calibración de su proyecto; el criterio de fijas es el
 del informe de calibración; `profile_hash` es la huella del perfil vigente, declarada al preparar y no capturada. Las
 consultas reservadas de recuperación del maestro no son humanas y no sustituyen a 047/077.
+
+Aclaración de RF-32 y RF-36 a RF-46 (usuario, 2026-11-27: «nada debe estar bloqueado y el reentrenamiento automático debe
+hacerse cuando ya tenga un dataset suficiente para hacer un entrenamiento»). La vigilancia veía «45 órdenes nuevas…» y
+cada minuto anotaba «Falta el plan del ciclo de aprendizaje»: 2,6 MB de líneas iguales y ningún entrenamiento, porque
+la herramienta que prepara el plan existía pero nadie la llamaba. RF-32 sigue rigiendo para el plan que declara el
+operador con la herramienta; cuando no lo hay, el sistema lo prepara solo y deja escrito en el informe de la
+preparación qué espacio, fuentes y presupuesto eligió y por qué. «Datos suficientes» es el umbral de la vigilancia
+(026:RF-23: 10 episodios o 20 órdenes nuevas); por familia, que tenga su fuente y al menos un registro con
+procedencia. Cada trabajador conserva además sus propios mínimos y puertas: un ciclo con pocos datos rechaza su
+candidato, no promueve. Una familia omitida no es un fallo del ciclo, y tampoco se presenta como entrenada.
+
+Aclaración de RF-39: la medición de cabecera entra cuando el espacio la tiene como un libro; si es una carpeta de
+varios libros, la GRU se omite diciendo que hay que declarar cuál, porque el ciclo aprende de un libro y elegir uno
+por su nombre mezclaría sistemas. La zona horaria de las series es la del perfil de la empresa (`zona_horaria`); sin
+ella la GRU se omite con ese motivo (constitución P13: no se supone la de ninguna empresa). El corpus generativo es
+`corpus_llm/` del almacén; sin él, QLoRA se omite.
 
 ## Fuera de alcance
 

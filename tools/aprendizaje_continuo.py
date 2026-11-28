@@ -168,14 +168,25 @@ def main(argv=None) -> int:
                 from convertersmartgrid.aplicacion.training_coordinator import memoria_del_presupuesto
                 familias = [f.strip() for f in args.familias.split(',') if f.strip()]
                 from convertersmartgrid.adaptadores.productores_aprendizaje import ProductoresReales
+                parametros_preflight = {'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,
+                                        'horizontes': args.horizontes}
                 clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
-                preparado = ac.preflight_ciclo(inst, familias, parametros={
-                    'zona_horaria': args.zona_horaria, 'cadencia_min': args.cadencia_min,
-                    'horizontes': args.horizontes}, destino=raiz / 'preflight' / f'{clave}.json',
-                    productores=ProductoresReales())
+                preparado = ac.preflight_ciclo(inst, familias, parametros=parametros_preflight,
+                    destino=raiz / 'preflight' / f'{clave}.json', productores=ProductoresReales())
                 if args.solo_preparar:
                     print(json.dumps(preparado, ensure_ascii=False, indent=2))
                     return 0 if preparado['estado'] == 'preparado' else 2
+                listas, omitidas = ac.separar_preflight(preparado)
+                if preparado['estado'] != 'preparado' and listas and omitidas:
+                    # 050:RF-42: una familia bloqueada no para a las demás. Se anota la omisión (una vez por motivo,
+                    # RF-43) y se repite el preflight con las preparadas, porque el contraste conjunto de particiones
+                    # solo vale sobre las familias que de verdad entran.
+                    ac.registrar_bloqueo(raiz, 'omision', [m for ms in omitidas.values() for m in ms],
+                                         solo_si_cambia=True, familias_omitidas=sorted(omitidas))
+                    familias = listas
+                    clave = ac.clave_ciclo(inst['snapshot_id'], familias, args.politica_hash)
+                    preparado = ac.preflight_ciclo(inst, familias, parametros=parametros_preflight,
+                        destino=raiz / 'preflight' / f'{clave}.json', productores=ProductoresReales())
                 if preparado['estado'] != 'preparado':
                     raise ac.CicloBloqueado('; '.join(preparado['motivos']))
                 etapas = _etapas(inst, familias, args, raiz / 'ciclos' / clave / 'etapas')

@@ -30,6 +30,9 @@
       (o cuyo episodio no tiene partición), sin reasignarlo en silencio (RF-2). Prueba:
       `tests/test_preparar_ciclo_aprendizaje.py::test_050_rf2_caso_evolutivo_con_otra_particion_que_su_episodio_es_fuga`.
       Lo que falta para la T3b: preparar de nuevo con esta corrección y correr el ciclo en seco y el real.
+      Avance 2026-11-27 (T9): la vigilancia ya prepara sola el plan cuando falta y encola el ciclo con las familias
+      que tienen datos. Falta reiniciar la web con este código (orden del usuario) y ver un ciclo real lanzado por un
+      dato nuevo, cancelable y sin promover fuera de sus puertas.
 - [x] T4. Contrato de retención y publicación del conjunto: retención por contexto, evaluación conjunta sin empate, puntero único con anterior y relectura. (RF-5, RF-6, RF-7)
       Hecho cuando: las pruebas rechazan un contexto que retrocede o falta, un empate o un deterioro, un miembro sin puertas, sin reapertura o sin retención, un ciclo no terminado y un conjunto manipulado; y publicar, volver al anterior y `version_del_conjunto` se comprueban al releer sin tocar el registro individual.
       Hecho el 2026-11-03: `evaluar_retencion`, `evaluar_conjunto`, `publicar_conjunto`, `revertir_conjunto`, `conjunto_activo` y `version_del_conjunto`.
@@ -53,6 +56,13 @@
       Avance 2026-11-19 (MEJ-050-PLAN): esquema, validador, `--solo-preparar` y matriz implementados con ocho pruebas sobre un almacén sintético en `tmp_path`, rojas por aserción sobre el árbol faf67626. Ensayo de solo lectura sobre el almacén real, con salida fuera de él: las siete familias en `bloqueado_por_datos` (dataset por defecto v1, sin `--cabeceras`, `--llm-dataset` ni casos, búfer sin identidad 043 completa) y ningún plan escrito; falta la declaración del operador (espacio, presupuesto, fuentes) y la puerta pytest.
       Hecho el 2026-11-19 (d8, fila MEJ2): rojo sobre la base por aserción (D:/csg/PM_IMPL/MEJ2/rojo.log) y verde en el
       hueco de MEJ2 (D:/csg/PM_IMPL/MEJ2/estado.txt: fase 1, pruebas nuevas con sus vecinas y e2e).
+- [x] T9. Plan del ciclo preparado solo por la vigilancia cuando falta, con las familias sin datos omitidas y sus motivos, bloqueos anotados solo al cambiar y las puertas intactas. (RF-36, RF-37, RF-38, RF-39, RF-40, RF-41, RF-42, RF-43, RF-44, RF-45, RF-46)
+      Hecho cuando: `pytest -q tests/test_plan_automatico_aprendizaje.py tests/test_aprendizaje_cola.py tests/test_plan_ciclo_aprendizaje.py` pasa, con sus pruebas rojas por aserción antes del código, y el ensayo en seco de `tools/preparar_ciclo_aprendizaje.py --automatico` con el almacén real (salidas fuera de `output/web`) escribe un plan sin bloqueo total, con las familias omitidas y su motivo. No acredita T3b: falta el ciclo real lanzado desde la web.
+      Hecho el 2026-11-27 (rama `agente/050-t3b`, sin commit): rojo por aserción de las cinco pruebas sobre 7d9f260e
+      (D:/csg/PM_IMPL/050_T3b/rojo.log) y verde (verde_1.log a verde_3.log: 5, 88 y 106 pruebas). Ensayo en seco con el
+      almacén real (D:/csg/PM_IMPL/050_T3b/ensayo_informe.json): plan escrito y validado con transformer, pinn,
+      evolutivos y embeddings, 4 h, 6 GiB y GPU; omitidas clasificador (el dataset no trae informes), gru (la cabecera
+      del espacio es una carpeta de 5 libros) y qlora (sin corpus en el almacén); el almacén y el búfer, sin tocar.
 
 ## Evidencia y límites actuales
 

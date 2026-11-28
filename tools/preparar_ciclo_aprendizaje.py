@@ -696,6 +696,10 @@ def preparar(args) -> dict:
         raise ValueError(f'{salida}: la salida debe ser una carpeta nueva o vacía')
     for ruta in (args.dataset, args.twin, args.llm_dataset, *args.espacios):
         if ruta is not None and salida.resolve().is_relative_to(Path(ruta).resolve()):
+            if ruta in args.espacios and _en_carpeta_interna(salida, Path(ruta)):
+                # 050:RF-36: la preparación automática vive en ``_asistente/aprendizaje``, dentro de la raíz de
+                # espacios; los lectores de espacios saltan las carpetas «_», así que no se lee a sí misma.
+                continue
             raise ValueError(f'{salida}: la salida no puede estar dentro de la fuente {ruta}')
     salida.mkdir(parents=True, exist_ok=True)
     complemento = leer_complemento(args.complemento)
@@ -706,8 +710,9 @@ def preparar(args) -> dict:
     p = Preparacion(salida, complemento)
     if sin_calibracion:
         p.informe['proyectos_sin_calibracion'] = sin_calibracion
+    motivos = getattr(args, 'motivos_pendientes', None) or {}
     if args.dataset is None:
-        p.pendiente('dataset', 'falta --dataset')
+        p.pendiente('dataset', motivos.get('dataset', 'falta --dataset'))
     else:
         try:
             preparar_dataset(p, args.dataset, list(args.observaciones))
@@ -720,26 +725,27 @@ def preparar(args) -> dict:
         p.fuentes['vocabulario'] = str(args.vocabulario)
     rutas, contextos = {}, []
     if args.twin is None:
-        p.pendiente('twin', 'falta --twin')
+        p.pendiente('twin', motivos.get('twin', 'falta --twin'))
     else:
         leido = preparar_twin(p, args.twin)
         rutas, contextos = leido['rutas'], leido['contextos']
     creados = leido['creados'] if args.twin is not None else {}
     if args.cabeceras is None:
-        p.pendiente('cabeceras', 'falta --cabeceras')
+        p.pendiente('cabeceras', motivos.get('cabeceras', 'falta --cabeceras'))
     else:
         preparar_cabeceras(p, args.cabeceras, contextos, zona_horaria=args.zona_horaria,
                            cadencia_min=args.cadencia_min, horizontes=args.horizontes,
                            proyecto_series=args.proyecto_series, creados=creados)
     if args.llm_dataset is None:
-        p.pendiente('llm_dataset', 'falta --llm-dataset')
+        p.pendiente('llm_dataset', motivos.get('llm_dataset', 'falta --llm-dataset'))
     else:
         preparar_corpus(p, args.llm_dataset)
     casos = args.casos_evolutivos
     if casos is None and args.proyecto_casos and args.twin is not None:
         casos = generar_casos(p, salida, list(args.proyecto_casos), list(args.espacios), leido['ensenan'], args.perfil)
     elif casos is None:
-        p.pendiente('evolutivos_casos', 'falta --casos-evolutivos o --proyecto-casos: no hay casos declarados')
+        p.pendiente('evolutivos_casos', motivos.get(
+            'evolutivos_casos', 'falta --casos-evolutivos o --proyecto-casos: no hay casos declarados'))
     if casos is not None:
         preparar_casos(p, casos, args.twin, rutas, leido['ensenan'] if args.twin is not None else None)
     if args.referencia_pinn is not None:
@@ -913,13 +919,186 @@ def solo_preparar(args) -> tuple[int, dict]:
             raise ValueError(f'{plan_salida}: el plan no puede escribirse dentro de la fuente {ruta}')
     resumen = preparar(args)
     plan = plan_desde_preparacion(resumen, args, Path(args.salida))
+    omitidas = omitir_bloqueadas(plan) if getattr(args, 'omitir_bloqueadas', False) else {}
     faltan = validar_plan_ciclo(plan)
+    if omitidas and not plan['familias']:
+        faltan.append('Ninguna familia tiene todavía datos con procedencia para entrenar; ver «omitidas».')
     if not faltan:
         _escribir_plan(plan_salida, plan)
     informe = {'schema': ESQUEMA_PREPARACION_PLAN, 'plan_escrito': None if faltan else str(plan_salida),
-               'faltan': faltan, 'matriz': plan['matriz'], 'plan': plan,
+               'faltan': faltan, 'omitidas': omitidas, 'matriz': plan['matriz'], 'plan': plan,
                'pendientes': resumen['pendientes'], 'entrenamiento_ejecutado': False}
     return (2 if faltan else 0), informe
+
+
+def omitir_bloqueadas(plan: dict) -> dict[str, list[str]]:
+    """050:RF-41: las familias bloqueadas por datos salen del plan con su motivo y el plan sigue con las demás.
+
+    Hasta el 27-11 una sola familia sin fuente dejaba sin plan a las siete, y la vigilancia no entrenaba ninguna.
+    Las puertas de las que quedan no cambian (RF-45): solo se quitan las de las familias que no entran.
+    """
+    omitidas = {f: list(plan['matriz'][f]['motivos']) or ['bloqueada por datos']
+                for f in plan['familias'] if plan['matriz'][f]['estado'] != 'listo_para_preflight'}
+    plan['familias'] = [f for f in plan['familias'] if f not in omitidas]
+    plan['puertas'] = {f: v for f, v in plan['puertas'].items() if f not in omitidas}
+    for familia, fila in plan['matriz'].items():
+        fila['en_plan'] = familia in plan['familias']
+    return omitidas
+
+
+# ------------------------------------------------------------------ preparación automática (050:RF-36 a RF-41)
+
+#: 050:RF-39: el criterio común de cabeceras es de 15 minutos (``objetivos_del_ciclo``), y con 15 minutos
+#: (1, 4, 96) son 15 min, 1 h y 1 día (046:RF-4); otra cadencia exigiría que alguien declare sus horizontes.
+CADENCIA_AUTOMATICA = 15
+HORIZONTES_AUTOMATICOS = '1,4,96'
+#: 050:RF-39: dónde busca la preparación automática el corpus generativo sellado, dentro del almacén.
+CORPUS_DEL_ALMACEN = 'corpus_llm'
+#: 050:RF-25: lo que completa la preparación automática también tiene responsable, y es este.
+DECLARADO_POR_AUTOMATICO = 'vigilancia de la web (preparación automática del plan, 050:RF-36)'
+
+
+def _en_carpeta_interna(salida: Path, raiz: Path) -> bool:
+    """Si ``salida`` cuelga de una carpeta «_» de ``raiz`` (``_asistente``…), que los lectores de espacios saltan."""
+    partes = salida.resolve().relative_to(raiz.resolve()).parts
+    return bool(partes) and partes[0].startswith('_')
+
+
+def construir_dataset_v2(almacen: Path, twin: Path, web: Path, destino: Path) -> dict:
+    """050:RF-38: un dataset v2 nuevo con lo que hay hoy en el almacén, sin escribir en él.
+
+    ``tools/construir_dataset_entrenamiento.py`` además importa el historial al buzón y guarda el candidato de
+    acciones en el almacén: es la orden del operador. Aquí solo se lee: el 27-11 ``_asistente/dataset`` era v1 y
+    bloqueaba el Transformer, el clasificador y los embeddings aunque había 45 órdenes nuevas.
+    """
+    from convertersmartgrid.aplicacion.asistente.dataset_entrenamiento import (
+        construir_dataset, escribir_particiones, particionar_dataset)
+    normativa = almacen / 'normativa'
+    hecho = construir_dataset(almacen, twin, raiz_web=web if web.is_dir() else None,
+                              raiz_normativa=normativa if normativa.is_dir() else None)
+    manifiesto = escribir_particiones(particionar_dataset(hecho.registros), destino)
+    return {'destino': str(destino), 'particiones': {k: v['count'] for k, v in manifiesto['partitions'].items()},
+            'calidades': dict(sorted(hecho.inventario.items()))}
+
+
+def _proyectos_con_escalera(carpeta_espacio: Path) -> list[str]:
+    """050:RF-39: los proyectos del espacio con una escalera guardada y su plan, que dan casos evolutivos."""
+    proyectos = set()
+    for ruta in carpeta_espacio.glob('runs/*/salida/escalera_datos_*.json'):
+        try:
+            d = json.loads(ruta.read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            continue
+        if d.get('project') and d.get('alimentadores') and (carpeta_espacio / 'planes' / ruta.name).is_file():
+            proyectos.add(str(d['project']))
+    return sorted(proyectos)
+
+
+def fuentes_automaticas(args) -> dict:
+    """050:RF-36 a RF-40: lo que la preparación automática elige, y por qué, sin pedir nada al operador.
+
+    Deja ``args`` como si el operador lo hubiera declarado: el resto de la preparación y la validación del plan son
+    las mismas (RF-32, RF-33). Lo que no hay se anota en ``args.motivos_pendientes`` con lo que falta.
+    """
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import PRESUPUESTO_AUTOMATICO, espacio_mas_reciente
+    from convertersmartgrid.dominio.perfil_empresa import datos_perfil, ruta_perfil_activo
+    if args.almacen is None:
+        raise ValueError('declare --almacen: la preparación automática lee el almacén del asistente')
+    almacen = Path(args.almacen)
+    web = almacen.parent
+    raiz_prep = Path(args.salida)
+    if raiz_prep.exists() and any(raiz_prep.iterdir()):
+        raise ValueError(f'{raiz_prep}: la preparación automática va en una carpeta nueva')
+    motivos = args.motivos_pendientes = {}
+    eleccion: dict[str, Any] = {}
+    if args.workspace_id:
+        eleccion['espacio'] = {'id': args.workspace_id, 'origen': 'última corrida por la web'}
+    else:
+        args.workspace_id = espacio_mas_reciente(web)
+        eleccion['espacio'] = {'id': args.workspace_id, 'origen': 'espacio guardado más recientemente'}
+    args.salida = raiz_prep / 'manifiestos'
+    twin = web / '_digital_twin'
+    if args.dataset is None:
+        args.dataset = raiz_prep / 'dataset_v2'
+        eleccion['dataset'] = construir_dataset_v2(almacen, twin, web, args.dataset)
+    perfil = Path(args.perfil) if args.perfil else ruta_perfil_activo()
+    datos = datos_perfil(perfil) if perfil.is_file() else {}
+    args.perfil = perfil if perfil.is_file() else None
+    carpeta = web / str(args.workspace_id or '')
+    estado = {}
+    if args.workspace_id and (carpeta / 'workspace.json').is_file():
+        try:
+            estado = json.loads((carpeta / 'workspace.json').read_text(encoding='utf-8'))
+        except (OSError, ValueError):
+            estado = {}
+    # La medición de cabecera del espacio, si es un libro y se sabe su zona horaria.
+    cabecera = ((estado.get('demanda') or {}).get('cabecera') or {}) if isinstance(estado, dict) else {}
+    zona = args.zona_horaria or datos.get('zona_horaria')
+    if args.cabeceras is None:
+        ruta = Path(str(cabecera.get('path') or ''))
+        if not cabecera.get('path'):
+            motivos['cabeceras'] = f'el espacio {args.workspace_id} no tiene medición de cabecera cargada'
+        elif not ruta.is_file():
+            libros = cabecera.get('libros') or []
+            motivos['cabeceras'] = (f'la medición de cabecera del espacio es una carpeta de {len(libros)} libros y el '
+                                    'ciclo aprende de un libro: declare cuál con --cabeceras'
+                                    if ruta.is_dir() else f'no se encuentra la medición de cabecera del espacio: {ruta}')
+        elif not zona:
+            motivos['cabeceras'] = ('el perfil de la empresa no declara su zona horaria (zona_horaria), y la de las '
+                                    'medidas no se supone')
+        else:
+            args.cabeceras = ruta
+    if args.cabeceras is not None:
+        args.zona_horaria = zona
+        args.cadencia_min = args.cadencia_min or CADENCIA_AUTOMATICA
+        args.horizontes = args.horizontes or HORIZONTES_AUTOMATICOS
+    # Casos evolutivos de las escaleras guardadas de los proyectos del espacio, con el perfil vigente.
+    if args.casos_evolutivos is None and not args.proyecto_casos:
+        proyectos = _proyectos_con_escalera(carpeta) if args.workspace_id else []
+        if not proyectos:
+            motivos['evolutivos_casos'] = f'el espacio {args.workspace_id} no tiene escaleras de obras guardadas'
+        elif args.perfil is None:
+            motivos['evolutivos_casos'] = 'sin perfil de la empresa no se sacan los parámetros de los casos'
+        else:
+            args.proyecto_casos = proyectos
+    if args.perfil is not None and not args.espacios:
+        # Calibraciones y escaleras se leen de todos los espacios, por el nombre del proyecto (RF-25, RF-28).
+        args.espacios = [web]
+        args.declarado_por = args.declarado_por or DECLARADO_POR_AUTOMATICO
+    if args.llm_dataset is None:
+        corpus = almacen / CORPUS_DEL_ALMACEN
+        if (corpus / 'dataset_manifest.json').is_file():
+            args.llm_dataset = corpus
+        else:
+            motivos['llm_dataset'] = f'no hay corpus generativo sellado en el almacén ({CORPUS_DEL_ALMACEN}/)'
+    if not (twin / 'objetos').is_dir():
+        motivos['twin'] = 'el gemelo digital todavía no tiene episodios capturados'
+    # 050:RF-40: el presupuesto por defecto declarado, salvo que se dé otro.
+    args.tiempo_s = args.tiempo_s or PRESUPUESTO_AUTOMATICO['tiempo_s']
+    args.memoria_gib = args.memoria_gib or PRESUPUESTO_AUTOMATICO['memoria_gib']
+    args.sin_gpu = args.sin_gpu or not PRESUPUESTO_AUTOMATICO['usa_gpu']
+    args.omitir_bloqueadas = True
+    eleccion.update(presupuesto={'tiempo_s': args.tiempo_s, 'memoria_gib': args.memoria_gib,
+                                 'usa_gpu': not args.sin_gpu},
+                    cabeceras=str(args.cabeceras) if args.cabeceras else None,
+                    proyectos_casos=list(args.proyecto_casos), corpus=str(args.llm_dataset) if args.llm_dataset else None,
+                    perfil=str(args.perfil) if args.perfil else None, sin_fuente=dict(motivos))
+    return eleccion
+
+
+def automatico(args) -> tuple[int, dict]:
+    """050:RF-36: prepara el plan sin que nadie lo declare y, si sale, lo marca como preparado por el sistema."""
+    from convertersmartgrid.aplicacion.aprendizaje_continuo import marcar_plan_automatico
+    if args.plan_salida is None:
+        raise ValueError('declare --plan-salida: la ruta donde se escribe el plan del ciclo')
+    raiz_prep = Path(args.salida)
+    eleccion = fuentes_automaticas(args)
+    rc, informe = solo_preparar(args)
+    informe.update(automatico=True, preparacion=str(raiz_prep), **eleccion)
+    if rc == 0:
+        marcar_plan_automatico(args.plan_salida, preparacion=str(raiz_prep), espacio=eleccion['espacio'],
+                               familias=informe['plan']['familias'], omitidas=informe['omitidas'])
+    return rc, informe
 
 
 def main(argv=None) -> int:
@@ -957,11 +1136,19 @@ def main(argv=None) -> int:
     plan.add_argument('--tiempo-s', type=float, help='Tiempo máximo del ciclo, en segundos')
     plan.add_argument('--memoria-gib', type=float, help='Memoria máxima del ciclo, en GiB')
     plan.add_argument('--sin-gpu', action='store_true', help='El ciclo no usa la GPU')
+    plan.add_argument('--automatico', action='store_true',
+                      help='Lo que hace la vigilancia de la web: elige espacio, fuentes y presupuesto, reconstruye el '
+                           'dataset v2 en --salida y omite las familias sin datos, con su motivo')
+    plan.add_argument('--informe', type=Path, help='Dónde dejar además el informe JSON de la preparación')
     args = a.parse_args(argv)
     try:
-        if args.solo_preparar:
-            rc, informe = solo_preparar(args)
-            print(json.dumps(informe, ensure_ascii=False, indent=1))
+        if args.solo_preparar or args.automatico:
+            rc, informe = automatico(args) if args.automatico else solo_preparar(args)
+            texto = json.dumps(informe, ensure_ascii=False, indent=1, default=str)
+            if args.informe is not None:
+                args.informe.parent.mkdir(parents=True, exist_ok=True)
+                args.informe.write_text(texto + '\n', encoding='utf-8')
+            print(texto)
             return rc
         resumen = preparar(args)
     except (OSError, ValueError) as exc:

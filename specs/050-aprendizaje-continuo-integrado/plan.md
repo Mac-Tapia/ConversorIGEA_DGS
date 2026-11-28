@@ -139,6 +139,27 @@ si no hay faltas. La entrada `plan` de la cola revalida un plan con matriz antes
 dataset alternativo los declara el operador: un dataset v1 por defecto bloquea sus familias y se nombran las versiones
 v2 vecinas sin escoger ninguna. El estado `listo_para_preflight` no sustituye al preflight del ciclo.
 
+### Plan preparado solo por la vigilancia (T9, RF-36 a RF-46, 2026-11-27)
+
+- `presentacion/web/app.py` `encolar_ciclo_aprendizaje`: sin plan, o con uno marcado como automático
+  (`plan.automatico.json` con la huella de sus bytes), el trabajo `aprendizaje:automatico` corre primero
+  `tools/preparar_ciclo_aprendizaje.py --automatico` en `_asistente/aprendizaje/preparaciones/<fecha>-<trabajo>` y luego
+  `aprendizaje_continuo.py plan` con el plan nuevo; el espacio es el del último trabajo de la sesión o, si no, el
+  guardado más recientemente (RF-36, RF-37, RF-44). Al terminar bien da por usados los datos (RF-46). Un plan sin
+  marca es del operador: se usa tal cual (RF-44).
+- `tools/preparar_ciclo_aprendizaje.py --automatico`: `construir_dataset_v2` (solo lectura del almacén; la orden
+  `construir_dataset_entrenamiento.py` escribe en el buzón y el candidato de acciones, por eso no se reutiliza entera)
+  (RF-38); `fuentes_automaticas` con cabecera, casos y corpus, y el motivo de lo que falta (RF-39); presupuesto de
+  `PRESUPUESTO_AUTOMATICO` (RF-40); `omitir_bloqueadas` quita del plan las familias `bloqueado_por_datos` y sus
+  puertas, deja las demás con las suyas (RF-41, RF-45).
+- `tools/aprendizaje_continuo.py ciclo`: con `separar_preflight`, las familias bloqueadas en el preflight se omiten y el
+  preflight se repite con las preparadas (RF-42).
+- `aplicacion/aprendizaje_continuo.py`: `registrar_bloqueo(..., solo_si_cambia=True)` guarda la firma del último motivo
+  por etapa en `bloqueos_vigentes.json`; `olvidar_bloqueo` la quita al resolverse (RF-43).
+- Descartado: escribir el plan desde el proceso de la web. La preparación lee el búfer, los espacios y el libro de
+  cabecera (minutos); en otro proceso se cancela y no frena la web.
+- Pruebas: `tests/test_plan_automatico_aprendizaje.py`, con almacenes sintéticos y la orden del ciclo anotada, sin entrenar.
+
 ### Contratos de integración concretados el 2026-11-07
 
 RF-1/T1b: un ciclo de varios proyectos usa un mapa ordenado de identidad de proyecto

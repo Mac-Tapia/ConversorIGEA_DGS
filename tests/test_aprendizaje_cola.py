@@ -40,8 +40,8 @@ def test_plan_no_infiere_recursos_ni_acepta_comandos(tmp_path):
 
 def test_vigilancia_comun_activa_por_defecto_y_sin_plan_bloquea(tmp_path, monkeypatch):
     """050:RF-4/8, 071:RF-6 — sin ninguna variable la vigilancia ve los datos nuevos y pide el ciclo (usuario,
-    2026-11-13: el reentreno automático va siempre). Sin plan del ciclo en el equipo, el bloqueo queda a la vista
-    y no se encola nada: faltar el plan es un dato que falta (RF-8), no un permiso."""
+    2026-11-13: el reentreno automático va siempre). Sin plan del ciclo y sin ningún espacio de trabajo del que
+    prepararlo (050:RF-36), el bloqueo queda a la vista y no se encola nada (RF-8)."""
     from convertersmartgrid.aplicacion.asistente import almacen
     from convertersmartgrid.aplicacion.asistente.vigilancia import Vigilante
     monkeypatch.setenv('CSG_ASISTENTE_DATA', str(tmp_path / 'asistente'))
